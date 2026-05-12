@@ -1,17 +1,98 @@
-# world_notes
+# World Notes
 
-A new Flutter project.
+A location-based diary app built with Flutter. Drop notes on a map, revisit them when you return, and share messages with other users who visit the same place.
+
+## Features
+
+- Interactive map powered by MapLibre GL + Stadia Maps
+- Drop notes at any location with a title, content, and color
+- Message board at each note — visible to anyone who visits the spot
+- Google Sign-In via Firebase Auth
+- Premium subscription (ad-free + unlimited notes) via RevenueCat
+- Banner ads for free-tier users via Google Mobile Ads
+
+## Tech Stack
+
+- **Flutter** (Dart)
+- **Firebase** — Auth, Firestore, Storage
+- **MapLibre GL** — map rendering
+- **Stadia Maps** — map tiles
+- **Riverpod** — state management
+- **GoRouter** — navigation
+- **RevenueCat** — in-app subscriptions
+- **Google Mobile Ads** — banner ads
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+### Prerequisites
 
-A few resources to get you started if this is your first Flutter project:
+- Flutter SDK `^3.11.0`
+- Firebase project with Auth and Firestore enabled
+- Stadia Maps API key
+- RevenueCat account (optional for development)
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+### Setup
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+1. **Clone and install dependencies**
+
+   ```bash
+   git clone <repo-url>
+   cd world_notes
+   flutter pub get
+   ```
+
+2. **Configure Firebase**
+
+   ```bash
+   firebase init
+   flutterfire configure
+   ```
+
+   This generates `google-services.json`, `GoogleService-Info.plist`, and `lib/firebase_options.dart`.
+
+3. **Run code generation**
+
+   ```bash
+   dart run build_runner build --delete-conflicting-outputs
+   ```
+
+4. **Run the app**
+
+   ```bash
+   # iOS
+   flutter run --dart-define=STADIA_API_KEY=your_key \
+               --dart-define=REVENUECAT_API_KEY_IOS=your_key
+
+   # Android
+   flutter run --dart-define=STADIA_API_KEY=your_key \
+               --dart-define=REVENUECAT_API_KEY_ANDROID=your_key
+   ```
+
+### Environment Variables
+
+All secrets are injected at build time via `--dart-define`. No `.env` file is used.
+
+| Key | Description |
+|-----|-------------|
+| `STADIA_API_KEY` | Stadia Maps API key |
+| `REVENUECAT_API_KEY_IOS` | RevenueCat iOS public key |
+| `REVENUECAT_API_KEY_ANDROID` | RevenueCat Android public key |
+| `BANNER_AD_UNIT_ID` | AdMob banner unit ID (defaults to Google test ID) |
+
+## Project Structure
+
+```
+lib/
+├── config/        # App constants, GoRouter
+├── core/          # Theme, Geohash utilities
+├── domain/        # Entities and repository interfaces
+├── data/          # Firestore models and repository implementations
+├── presentation/  # Screens, widgets, Riverpod providers
+└── services/      # Location, subscription services
+```
+
+See [CLAUDE.md](CLAUDE.md) for full architecture details.
+
+## License
+
+MIT
