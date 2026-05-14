@@ -4,20 +4,24 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../domain/entities/user_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
+import '../../services/subscription_service.dart';
 import '../models/user_model.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   final FirebaseAuth _auth;
   final GoogleSignIn _googleSignIn;
   final FirebaseFirestore _firestore;
+  final SubscriptionService _subscriptionService;
 
   AuthRepositoryImpl({
     required FirebaseAuth auth,
     required GoogleSignIn googleSignIn,
     required FirebaseFirestore firestore,
+    required SubscriptionService subscriptionService,
   })  : _auth = auth,
         _googleSignIn = googleSignIn,
-        _firestore = firestore;
+        _firestore = firestore,
+        _subscriptionService = subscriptionService;
 
   @override
   Stream<UserEntity?> get authStateChanges {
@@ -86,17 +90,21 @@ class AuthRepositoryImpl implements AuthRepository {
     final docRef = _firestore.collection('users').doc(firebaseUser.uid);
     final doc = await docRef.get();
 
+    late UserEntity entity;
     if (doc.exists) {
-      return UserModel.fromFirestore(doc).toEntity();
+      entity = UserModel.fromFirestore(doc).toEntity();
+    } else {
+      final newUser = UserModel(
+        id: firebaseUser.uid,
+        name: firebaseUser.displayName ?? 'User',
+        email: firebaseUser.email,
+        photoUrl: firebaseUser.photoURL,
+      );
+      await docRef.set(newUser.toFirestore());
+      entity = newUser.toEntity();
     }
 
-    final newUser = UserModel(
-      id: firebaseUser.uid,
-      name: firebaseUser.displayName ?? 'User',
-      email: firebaseUser.email,
-      photoUrl: firebaseUser.photoURL,
-    );
-    await docRef.set(newUser.toFirestore());
-    return newUser.toEntity();
+    await _subscriptionService.identifyUser(entity.id);
+    return entity;
   }
 }

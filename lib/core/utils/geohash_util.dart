@@ -1,5 +1,5 @@
-// Geohash encoding for Firestore proximity queries
-// Base32 character set used by geohash
+import 'dart:math' as math;
+
 const _base32 = '0123456789bcdefghjkmnpqrstuvwxyz';
 
 String encodeGeohash(double lat, double lng, {int precision = 5}) {
@@ -46,7 +46,6 @@ String encodeGeohash(double lat, double lng, {int precision = 5}) {
   return buffer.toString();
 }
 
-// Returns geohash prefixes covering a bounding box for proximity search
 List<String> getGeohashPrefixes(
   double lat,
   double lng,
@@ -54,24 +53,15 @@ List<String> getGeohashPrefixes(
   int precision = 5,
 }) {
   final center = encodeGeohash(lat, lng, precision: precision);
-  // Neighbors covering the search area (simplified: use center + 8 neighbors)
   return _getNeighbors(center)..add(center);
 }
 
 List<String> _getNeighbors(String geohash) {
   final neighbors = <String>[];
-  final directions = [
-    [1, 0],
-    [-1, 0],
-    [0, 1],
-    [0, -1],
-    [1, 1],
-    [1, -1],
-    [-1, 1],
-    [-1, -1],
-  ];
-
-  for (final dir in directions) {
+  for (final dir in const [
+    [1, 0], [-1, 0], [0, 1], [0, -1],
+    [1, 1], [1, -1], [-1, 1], [-1, -1],
+  ]) {
     final neighbor = _adjacent(geohash, dir[0], dir[1]);
     if (neighbor != null) neighbors.add(neighbor);
   }
@@ -79,20 +69,16 @@ List<String> _getNeighbors(String geohash) {
 }
 
 String? _adjacent(String geohash, int latDir, int lngDir) {
-  // Decode to lat/lng, offset slightly, re-encode
   final bounds = _decodeBounds(geohash);
   if (bounds == null) return null;
 
   final centerLat = (bounds[0] + bounds[1]) / 2;
   final centerLng = (bounds[2] + bounds[3]) / 2;
-
-  // Step size for one geohash cell at this precision
-  final latStep = (bounds[1] - bounds[0]);
-  final lngStep = (bounds[3] - bounds[2]);
+  final latStep = bounds[1] - bounds[0];
+  final lngStep = bounds[3] - bounds[2];
 
   final newLat = (centerLat + latDir * latStep).clamp(-90.0, 90.0);
-  final newLng = (centerLng + lngDir * lngStep);
-  final wrappedLng = ((newLng + 180) % 360) - 180;
+  final wrappedLng = ((centerLng + lngDir * lngStep + 180) % 360) - 180;
 
   return encodeGeohash(newLat, wrappedLng, precision: geohash.length);
 }
@@ -112,18 +98,10 @@ List<double>? _decodeBounds(String geohash) {
       final bitN = (index >> bits) & 1;
       if (isEven) {
         final mid = (minLng + maxLng) / 2;
-        if (bitN == 1) {
-          minLng = mid;
-        } else {
-          maxLng = mid;
-        }
+        if (bitN == 1) { minLng = mid; } else { maxLng = mid; }
       } else {
         final mid = (minLat + maxLat) / 2;
-        if (bitN == 1) {
-          minLat = mid;
-        } else {
-          maxLat = mid;
-        }
+        if (bitN == 1) { minLat = mid; } else { maxLat = mid; }
       }
       isEven = !isEven;
     }
@@ -133,42 +111,13 @@ List<double>? _decodeBounds(String geohash) {
 }
 
 double haversineDistance(double lat1, double lng1, double lat2, double lng2) {
-  const r = 6371.0; // Earth radius km
+  const r = 6371.0;
   final dLat = _toRad(lat2 - lat1);
   final dLng = _toRad(lng2 - lng1);
-  final a = _sin2(dLat / 2) +
-      _cos(_toRad(lat1)) * _cos(_toRad(lat2)) * _sin2(dLng / 2);
-  final c = 2 * _atan2(_sqrt(a), _sqrt(1 - a));
-  return r * c;
+  final a = math.pow(math.sin(dLat / 2), 2) +
+      math.cos(_toRad(lat1)) * math.cos(_toRad(lat2)) *
+          math.pow(math.sin(dLng / 2), 2);
+  return r * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
 }
 
-double _toRad(double deg) => deg * 3.141592653589793 / 180;
-double _sin2(double x) => _sin(x) * _sin(x);
-
-double _sin(double x) {
-  // Taylor series approximation
-  return x -
-      (x * x * x) / 6 +
-      (x * x * x * x * x) / 120 -
-      (x * x * x * x * x * x * x) / 5040;
-}
-
-double _cos(double x) {
-  return 1 -
-      (x * x) / 2 +
-      (x * x * x * x) / 24 -
-      (x * x * x * x * x * x) / 720;
-}
-
-double _sqrt(double x) => x <= 0 ? 0 : x < 1 ? x : _sqrtNewton(x, x / 2);
-double _sqrtNewton(double x, double g) {
-  final ng = (g + x / g) / 2;
-  return (ng - g).abs() < 1e-10 ? ng : _sqrtNewton(x, ng);
-}
-
-double _atan2(double y, double x) {
-  if (x == 0) return y > 0 ? 1.5707963 : -1.5707963;
-  final r = y / x;
-  final base = r / (1 + 0.28125 * r * r);
-  return x > 0 ? base : (y >= 0 ? base + 3.14159265 : base - 3.14159265);
-}
+double _toRad(double deg) => deg * math.pi / 180;

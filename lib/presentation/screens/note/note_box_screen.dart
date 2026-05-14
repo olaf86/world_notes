@@ -2,9 +2,11 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../config/app_config.dart';
+import '../../../domain/entities/message_entity.dart';
 import '../../providers/providers.dart';
 import '../../widgets/note/message_bubble.dart';
 
@@ -26,10 +28,16 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
   Uint8List? _pendingImageBytes;
   String? _pendingImageName;
 
+  // Older messages loaded via pagination (appended below the stream window).
+  final List<MessageEntity> _olderMessages = [];
+  bool _loadingMore = false;
+  bool _hasMore = true;
+
   @override
   void initState() {
     super.initState();
     _loadAd();
+    _scrollController.addListener(_onScroll);
   }
 
   void _loadAd() {
@@ -45,6 +53,42 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
         },
       ),
     )..load();
+  }
+
+  void _onScroll() {
+    // ListView is reverse:true — maxScrollExtent is the "top" (oldest messages).
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_loadingMore || !_hasMore) return;
+
+    // Determine the oldest message currently shown.
+    final streamMessages =
+        ref.read(messagesProvider(widget.noteId)).valueOrNull ?? [];
+    final allVisible = [...streamMessages, ..._olderMessages];
+    if (allVisible.isEmpty) return;
+
+    setState(() => _loadingMore = true);
+
+    try {
+      final fetched = await ref
+          .read(messageRepositoryProvider)
+          .getOlderMessages(
+            noteId: widget.noteId,
+            beforeMessageId: allVisible.last.id,
+            limit: AppConfig.messagesPageSize,
+          );
+      setState(() {
+        _olderMessages.addAll(fetched);
+        _hasMore = fetched.length == AppConfig.messagesPageSize;
+      });
+    } finally {
+      if (mounted) setState(() => _loadingMore = false);
+    }
   }
 
   @override
@@ -129,7 +173,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
             IconButton(
               icon: const Icon(Icons.star_outline),
               tooltip: 'Go Premium',
-              onPressed: () => Navigator.of(context).pushNamed('/subscription'),
+              onPressed: () => context.push('/subscription'),
             ),
         ],
       ),
@@ -146,8 +190,10 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
             child: messagesAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('Error: $e')),
-              data: (messages) {
-                if (messages.isEmpty) {
+              data: (streamMessages) {
+                final allMessages = [...streamMessages, ..._olderMessages];
+
+                if (allMessages.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -179,14 +225,18 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
                     horizontal: 12,
                     vertical: 8,
                   ),
-                  itemCount: messages.length,
+                  // Extra item at the end for the loading indicator.
+                  itemCount: allMessages.length + (_loadingMore ? 1 : 0),
                   itemBuilder: (context, index) {
-                    final message = messages[index];
+                    if (index == allMessages.length) {
+                      return const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Center(child: CircularProgressIndicator()),
+                      );
+                    }
+                    final message = allMessages[index];
                     final isOwn = message.author.id == currentUser?.id;
-                    return MessageBubble(
-                      message: message,
-                      isOwn: isOwn,
-                    );
+                    return MessageBubble(message: message, isOwn: isOwn);
                   },
                 );
               },
