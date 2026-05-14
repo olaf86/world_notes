@@ -9,6 +9,7 @@ class MessageModel {
   final String userName;
   final String? userPhotoUrl;
   final String content;
+  final String? imageUrl;
   final DateTime createdAt;
 
   MessageModel({
@@ -18,6 +19,7 @@ class MessageModel {
     required this.userName,
     this.userPhotoUrl,
     required this.content,
+    this.imageUrl,
     required this.createdAt,
   });
 
@@ -30,6 +32,7 @@ class MessageModel {
       userName: data['userName'] as String? ?? 'Unknown',
       userPhotoUrl: data['userPhotoUrl'] as String?,
       content: data['content'] as String,
+      imageUrl: data['imageUrl'] as String?,
       createdAt: (data['createdAt'] as Timestamp).toDate(),
     );
   }
@@ -41,6 +44,7 @@ class MessageModel {
       'userName': userName,
       'userPhotoUrl': userPhotoUrl,
       'content': content,
+      if (imageUrl != null) 'imageUrl': imageUrl,
       'createdAt': Timestamp.fromDate(createdAt),
     };
   }
@@ -54,6 +58,7 @@ class MessageModel {
           photoUrl: userPhotoUrl,
         ),
         content: content,
+        imageUrl: imageUrl,
         createdAt: createdAt,
       );
 }

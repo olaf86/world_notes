@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -27,6 +28,10 @@ final firestoreProvider = Provider<FirebaseFirestore>(
 
 final firebaseAuthProvider = Provider<FirebaseAuth>(
   (_) => FirebaseAuth.instance,
+);
+
+final firebaseStorageProvider = Provider<FirebaseStorage>(
+  (_) => FirebaseStorage.instance,
 );
 
 // --- Services ---
@@ -61,7 +66,10 @@ final noteRepositoryProvider = Provider<NoteRepository>((ref) {
 });
 
 final messageRepositoryProvider = Provider<MessageRepository>((ref) {
-  return MessageRepositoryImpl(firestore: ref.watch(firestoreProvider));
+  return MessageRepositoryImpl(
+    firestore: ref.watch(firestoreProvider),
+    storage: ref.watch(firebaseStorageProvider),
+  );
 });
 
 // --- Auth state ---

@@ -1,4 +1,7 @@
+import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../config/app_config.dart';
@@ -8,10 +11,14 @@ import '../models/message_model.dart';
 
 class MessageRepositoryImpl implements MessageRepository {
   final FirebaseFirestore _firestore;
+  final FirebaseStorage _storage;
   final _uuid = const Uuid();
 
-  MessageRepositoryImpl({required FirebaseFirestore firestore})
-      : _firestore = firestore;
+  MessageRepositoryImpl({
+    required FirebaseFirestore firestore,
+    required FirebaseStorage storage,
+  })  : _firestore = firestore,
+        _storage = storage;
 
   CollectionReference get _messages => _firestore.collection('messages');
 
@@ -47,11 +54,29 @@ class MessageRepositoryImpl implements MessageRepository {
         .toList();
   }
 
+  Future<String?> _uploadImage({
+    required List<int> bytes,
+    required String name,
+    required String userId,
+  }) async {
+    final ext = name.contains('.') ? name.split('.').last : 'jpg';
+    final ref = _storage
+        .ref()
+        .child('messages/$userId/${_uuid.v4()}.$ext');
+    await ref.putData(
+      Uint8List.fromList(bytes),
+      SettableMetadata(contentType: 'image/$ext'),
+    );
+    return ref.getDownloadURL();
+  }
+
   @override
   Future<MessageEntity> sendMessage({
     required String noteId,
     required String content,
     required String userId,
+    List<int>? imageBytes,
+    String? imageName,
   }) async {
     final userDoc = await _firestore.collection('users').doc(userId).get();
     final userName = userDoc.exists
@@ -61,6 +86,15 @@ class MessageRepositoryImpl implements MessageRepository {
         ? (userDoc.data()!['photoUrl'] as String?)
         : null;
 
+    String? imageUrl;
+    if (imageBytes != null && imageName != null) {
+      imageUrl = await _uploadImage(
+        bytes: imageBytes,
+        name: imageName,
+        userId: userId,
+      );
+    }
+
     final id = _uuid.v4();
     final model = MessageModel(
       id: id,
@@ -69,6 +103,7 @@ class MessageRepositoryImpl implements MessageRepository {
       userName: userName,
       userPhotoUrl: userPhoto,
       content: content,
+      imageUrl: imageUrl,
       createdAt: DateTime.now(),
     );
 
