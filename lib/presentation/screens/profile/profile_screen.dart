@@ -60,7 +60,7 @@ class ProfileScreen extends ConsumerWidget {
                     const SizedBox(height: 8),
                     isPremiumAsync.when(
                       loading: () => const SizedBox(),
-                      error: (_, __) => const SizedBox(),
+                      error: (e, st) => const SizedBox(),
                       data: (isPremium) => isPremium
                           ? Chip(
                               label: const Text('Premium'),

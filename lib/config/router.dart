@@ -7,6 +7,7 @@ import '../presentation/screens/auth/sign_in_screen.dart';
 import '../presentation/screens/map/map_screen.dart';
 import '../presentation/screens/note/note_box_screen.dart';
 import '../presentation/screens/note/note_creation_screen.dart';
+import '../presentation/screens/place/place_list_screen.dart';
 import '../presentation/screens/profile/profile_screen.dart';
 import '../presentation/screens/subscription/subscription_screen.dart';
 
@@ -34,6 +35,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/map',
             builder: (context, state) => const MapScreen(),
+          ),
+          GoRoute(
+            path: '/list',
+            builder: (context, state) => const PlaceListScreen(),
           ),
           GoRoute(
             path: '/profile',
@@ -88,16 +93,25 @@ class _BottomNav extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final location = GoRouterState.of(context).matchedLocation;
-    final selectedIndex = location.startsWith('/profile') ? 1 : 0;
+    final selectedIndex = switch (true) {
+      _ when location.startsWith('/list') => 1,
+      _ when location.startsWith('/profile') => 2,
+      _ => 0,
+    };
 
     return NavigationBar(
       selectedIndex: selectedIndex,
       onDestinationSelected: (index) {
         if (index == 0) context.go('/map');
-        if (index == 1) context.go('/profile');
+        if (index == 1) context.go('/list');
+        if (index == 2) context.go('/profile');
       },
       destinations: const [
         NavigationDestination(icon: Icon(Icons.map_outlined), label: 'Map'),
+        NavigationDestination(
+          icon: Icon(Icons.list_alt_outlined),
+          label: 'List',
+        ),
         NavigationDestination(
           icon: Icon(Icons.person_outline),
           label: 'Profile',

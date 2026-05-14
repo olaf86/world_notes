@@ -29,7 +29,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         children: [
           positionAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (_, __) => _buildMap(
+            error: (e, st) => _buildMap(
               AppConfig.defaultLatitude,
               AppConfig.defaultLongitude,
             ),
