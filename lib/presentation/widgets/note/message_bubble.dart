@@ -42,10 +42,6 @@ class MessageBubble extends StatelessWidget {
                     ),
                   ),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
                   decoration: BoxDecoration(
                     color: isOwn
                         ? theme.colorScheme.primary
@@ -59,13 +55,42 @@ class MessageBubble extends StatelessWidget {
                           isOwn ? const Radius.circular(4) : const Radius.circular(16),
                     ),
                   ),
-                  child: Text(
-                    message.content,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: isOwn
-                          ? theme.colorScheme.onPrimary
-                          : theme.colorScheme.onSurface,
-                    ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (message.imageUrl != null)
+                        CachedNetworkImage(
+                          imageUrl: message.imageUrl!,
+                          width: 220,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => const SizedBox(
+                            height: 120,
+                            width: 220,
+                            child: Center(child: CircularProgressIndicator()),
+                          ),
+                          errorWidget: (context, url, error) => const SizedBox(
+                            height: 80,
+                            width: 220,
+                            child: Icon(Icons.broken_image_outlined),
+                          ),
+                        ),
+                      if (message.content.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                          child: Text(
+                            message.content,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: isOwn
+                                  ? theme.colorScheme.onPrimary
+                                  : theme.colorScheme.onSurface,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
                 Padding(

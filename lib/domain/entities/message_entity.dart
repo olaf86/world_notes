@@ -5,6 +5,7 @@ class MessageEntity {
   final String noteId;
   final UserEntity author;
   final String content;
+  final String? imageUrl;
   final DateTime createdAt;
 
   const MessageEntity({
@@ -12,6 +13,7 @@ class MessageEntity {
     required this.noteId,
     required this.author,
     required this.content,
+    this.imageUrl,
     required this.createdAt,
   });
 }

@@ -11,5 +11,7 @@ abstract class MessageRepository {
     required String noteId,
     required String content,
     required String userId,
+    List<int>? imageBytes,
+    String? imageName,
   });
 }

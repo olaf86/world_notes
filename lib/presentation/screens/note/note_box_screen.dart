@@ -1,6 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../config/app_config.dart';
 import '../../providers/providers.dart';
 import '../../widgets/note/message_bubble.dart';
@@ -20,6 +23,8 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
   final _scrollController = ScrollController();
   BannerAd? _bannerAd;
   bool _adLoaded = false;
+  Uint8List? _pendingImageBytes;
+  String? _pendingImageName;
 
   @override
   void initState() {
@@ -50,20 +55,55 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
     super.dispose();
   }
 
+  Future<void> _pickImage() async {
+    final isPremium = ref.read(isPremiumProvider).valueOrNull ?? false;
+    if (!isPremium) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Photo attachments require Premium.')),
+      );
+      return;
+    }
+    final picker = ImagePicker();
+    final file = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1920,
+      maxHeight: 1920,
+      imageQuality: 85,
+    );
+    if (file == null) return;
+    final bytes = await file.readAsBytes();
+    setState(() {
+      _pendingImageBytes = bytes;
+      _pendingImageName = file.name;
+    });
+  }
+
+  void _clearPendingImage() {
+    setState(() {
+      _pendingImageBytes = null;
+      _pendingImageName = null;
+    });
+  }
+
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty && _pendingImageBytes == null) return;
 
     final user = ref.read(authStateProvider).valueOrNull;
     if (user == null) return;
 
+    final imageBytes = _pendingImageBytes;
+    final imageName = _pendingImageName;
     _messageController.clear();
+    _clearPendingImage();
 
     try {
       await ref.read(messageRepositoryProvider).sendMessage(
             noteId: widget.noteId,
             content: text,
             userId: user.id,
+            imageBytes: imageBytes,
+            imageName: imageName,
           );
     } catch (e) {
       if (mounted) {
@@ -171,28 +211,70 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
               8,
               8 + MediaQuery.of(context).viewInsets.bottom,
             ),
-            child: Row(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    decoration: const InputDecoration(
-                      hintText: 'Write a message...',
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
+                if (_pendingImageBytes != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Stack(
+                      alignment: Alignment.topRight,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.memory(
+                            _pendingImageBytes!,
+                            height: 120,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: _clearPendingImage,
+                          child: Container(
+                            margin: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.close,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: _pickImage,
+                      icon: const Icon(Icons.photo_outlined),
+                      tooltip: 'Attach photo (Premium)',
+                    ),
+                    Expanded(
+                      child: TextField(
+                        controller: _messageController,
+                        decoration: const InputDecoration(
+                          hintText: 'Write a message...',
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                        ),
+                        maxLines: null,
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: (_) => _sendMessage(),
                       ),
                     ),
-                    maxLines: null,
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) => _sendMessage(),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                IconButton.filled(
-                  onPressed: _sendMessage,
-                  icon: const Icon(Icons.send),
+                    const SizedBox(width: 8),
+                    IconButton.filled(
+                      onPressed: _sendMessage,
+                      icon: const Icon(Icons.send),
+                    ),
+                  ],
                 ),
               ],
             ),

@@ -48,7 +48,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     _loadNoteBoxes(lat, lng);
 
     return MapLibreMap(
-      styleString: AppConfig.mapStyleUrl,
+      styleString: AppConfig.mapStyleUrlWithKey(AppConfig.stadiaApiKey),
       initialCameraPosition: CameraPosition(
         target: LatLng(lat, lng),
         zoom: AppConfig.defaultZoom,

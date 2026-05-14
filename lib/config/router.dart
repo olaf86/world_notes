@@ -47,14 +47,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
       GoRoute(
-        path: '/note/:noteId',
-        builder: (context, state) {
-          final noteId = state.pathParameters['noteId']!;
-          final placeTitle = state.uri.queryParameters['title'] ?? '';
-          return NoteBoxScreen(noteId: noteId, placeTitle: placeTitle);
-        },
-      ),
-      GoRoute(
         path: '/note/create',
         builder: (context, state) {
           final lat = double.tryParse(
@@ -66,6 +58,14 @@ final routerProvider = Provider<GoRouter>((ref) {
               ) ??
               0;
           return NoteCreationScreen(latitude: lat, longitude: lng);
+        },
+      ),
+      GoRoute(
+        path: '/note/:noteId',
+        builder: (context, state) {
+          final noteId = state.pathParameters['noteId']!;
+          final placeTitle = state.uri.queryParameters['title'] ?? '';
+          return NoteBoxScreen(noteId: noteId, placeTitle: placeTitle);
         },
       ),
       GoRoute(
