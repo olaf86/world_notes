@@ -19,8 +19,13 @@ class LocationService {
     );
   }
 
-  Stream<Position> watchPosition() {
-    return Geolocator.getPositionStream(
+  Stream<Position> watchPosition() async* {
+    // Ensure permission is granted before opening the stream.
+    final pos = await getCurrentPosition();
+    if (pos == null) return; // Permission denied — emit nothing.
+
+    yield pos; // Emit the initial position immediately.
+    yield* Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
         accuracy: LocationAccuracy.high,
         distanceFilter: 20,

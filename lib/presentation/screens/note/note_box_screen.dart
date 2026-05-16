@@ -202,26 +202,38 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
                 final allMessages = [...streamMessages, ..._olderMessages];
 
                 if (allMessages.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.chat_bubble_outline,
-                          size: 64,
-                          color: Theme.of(context).colorScheme.outlineVariant,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No messages yet.\nBe the first to write!',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
+                  // RefreshIndicator requires a scrollable child, so wrap
+                  // the empty state in a SingleChildScrollView with
+                  // AlwaysScrollableScrollPhysics.
+                  return RefreshIndicator(
+                    onRefresh: _onRefresh,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: SizedBox(
+                        height: MediaQuery.of(context).size.height * 0.6,
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.chat_bubble_outline,
+                                size: 64,
+                                color: Theme.of(context).colorScheme.outlineVariant,
                               ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No messages yet.\nBe the first to write!',
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ],
+                      ),
                     ),
                   );
                 }

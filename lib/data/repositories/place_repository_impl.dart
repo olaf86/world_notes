@@ -1,3 +1,4 @@
+import 'package:async/async.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
 
@@ -63,29 +64,43 @@ class PlaceRepositoryImpl implements PlaceRepository {
     required double longitude,
     required double radiusKm,
   }) {
-    final geohash = encodeGeohash(
+    // Use the same 9-cell (center + 8 neighbours) query as getPlacesNearby.
+    final prefixes = getGeohashPrefixes(
       latitude,
       longitude,
+      radiusKm,
       precision: AppConfig.geohashPrecision,
     );
 
-    return _places
-        .where('geohash', isGreaterThanOrEqualTo: geohash.substring(0, 4))
-        .where('geohash', isLessThan: '${geohash.substring(0, 4)}z')
-        .snapshots()
-        .map((snap) {
-      return snap.docs
-          .map((doc) => PlaceModel.fromFirestore(doc).toEntity())
-          .where((place) {
-            final dist = haversineDistance(
-              latitude,
-              longitude,
-              place.latitude,
-              place.longitude,
-            );
-            return dist <= radiusKm;
-          })
-          .toList();
+    // Merge 9 snapshot streams into one deduplicated list.
+    final streams = prefixes.map((prefix) => _places
+        .where('geohash', isGreaterThanOrEqualTo: prefix)
+        .where('geohash', isLessThan: '${prefix}z')
+        .snapshots());
+
+    return StreamGroup.merge(streams).map((_) => null).asyncMap((_) async {
+      // On any cell update, re-fetch all cells and merge.
+      final results = await Future.wait(
+        prefixes.map((prefix) => _places
+            .where('geohash', isGreaterThanOrEqualTo: prefix)
+            .where('geohash', isLessThan: '${prefix}z')
+            .get()),
+      );
+
+      final seen = <String>{};
+      final places = <PlaceEntity>[];
+      for (final snap in results) {
+        for (final doc in snap.docs) {
+          if (seen.contains(doc.id)) continue;
+          seen.add(doc.id);
+          final place = PlaceModel.fromFirestore(doc).toEntity();
+          final dist = haversineDistance(
+            latitude, longitude, place.latitude, place.longitude,
+          );
+          if (dist <= radiusKm) places.add(place);
+        }
+      }
+      return places;
     });
   }
 

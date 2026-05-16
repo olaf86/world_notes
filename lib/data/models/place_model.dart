@@ -38,7 +38,7 @@ class PlaceModel {
       colorHex: data['colorHex'] as String? ?? '#4CAF50',
       icon: data['icon'] as String? ?? 'place',
       createdByUserId: data['createdByUserId'] as String,
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
 
@@ -52,7 +52,7 @@ class PlaceModel {
       'colorHex': colorHex,
       'icon': icon,
       'createdByUserId': createdByUserId,
-      'createdAt': Timestamp.fromDate(createdAt),
+      'createdAt': FieldValue.serverTimestamp(),
     };
   }
 
