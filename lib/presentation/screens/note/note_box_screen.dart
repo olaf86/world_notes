@@ -56,11 +56,19 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
   }
 
   void _onScroll() {
-    // ListView is reverse:true — maxScrollExtent is the "top" (oldest messages).
+    // Trigger pagination when approaching the bottom (oldest messages).
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
       _loadMore();
     }
+  }
+
+  Future<void> _onRefresh() async {
+    // Clear the paginated window; the stream already holds the latest messages.
+    setState(() {
+      _olderMessages.clear();
+      _hasMore = true;
+    });
   }
 
   Future<void> _loadMore() async {
@@ -218,26 +226,28 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
                   );
                 }
 
-                return ListView.builder(
-                  controller: _scrollController,
-                  reverse: true,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
+                return RefreshIndicator(
+                  onRefresh: _onRefresh,
+                  child: ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    // Extra item at the bottom for the pagination indicator.
+                    itemCount: allMessages.length + (_loadingMore ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      if (index == allMessages.length) {
+                        return const Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Center(child: CircularProgressIndicator()),
+                        );
+                      }
+                      final message = allMessages[index];
+                      final isOwn = message.author.id == currentUser?.id;
+                      return MessageBubble(message: message, isOwn: isOwn);
+                    },
                   ),
-                  // Extra item at the end for the loading indicator.
-                  itemCount: allMessages.length + (_loadingMore ? 1 : 0),
-                  itemBuilder: (context, index) {
-                    if (index == allMessages.length) {
-                      return const Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Center(child: CircularProgressIndicator()),
-                      );
-                    }
-                    final message = allMessages[index];
-                    final isOwn = message.author.id == currentUser?.id;
-                    return MessageBubble(message: message, isOwn: isOwn);
-                  },
                 );
               },
             ),
