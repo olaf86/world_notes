@@ -63,9 +63,10 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
       final user = ref.read(authStateProvider).valueOrNull;
       if (user == null) throw Exception('Not signed in');
 
-      final r = _selectedColor.r.toInt().toRadixString(16).padLeft(2, '0');
-      final g = _selectedColor.g.toInt().toRadixString(16).padLeft(2, '0');
-      final b = _selectedColor.b.toInt().toRadixString(16).padLeft(2, '0');
+      // Flutter 3.27+: Color.r/g/b return double (0.0–1.0), multiply by 255.
+      final r = (_selectedColor.r * 255).round().toRadixString(16).padLeft(2, '0');
+      final g = (_selectedColor.g * 255).round().toRadixString(16).padLeft(2, '0');
+      final b = (_selectedColor.b * 255).round().toRadixString(16).padLeft(2, '0');
       final colorHex = '#$r$g$b'.toUpperCase();
 
       final place = await ref.read(placeRepositoryProvider).createPlace(

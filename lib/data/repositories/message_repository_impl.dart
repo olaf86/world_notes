@@ -109,19 +109,11 @@ class MessageRepositoryImpl implements MessageRepository {
 
     await _messages.doc(id).set(model.toFirestore());
 
-    // Increment message count on the note
+    // Increment message count directly on the note document.
     await _firestore
         .collection('notes')
-        .where('placeId', isEqualTo: noteId)
-        .limit(1)
-        .get()
-        .then((snap) {
-      if (snap.docs.isNotEmpty) {
-        snap.docs.first.reference.update({
-          'messageCount': FieldValue.increment(1),
-        });
-      }
-    });
+        .doc(noteId)
+        .update({'messageCount': FieldValue.increment(1)});
 
     return model.toEntity();
   }

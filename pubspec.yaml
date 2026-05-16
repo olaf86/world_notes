@@ -27,11 +27,9 @@ dependencies:
 
   # Location
   geolocator: ^14.0.0
-  permission_handler: ^11.4.0
 
   # State management
   flutter_riverpod: ^2.6.1
-  riverpod_annotation: ^2.6.1
 
   # Navigation
   go_router: ^15.1.2
@@ -41,9 +39,6 @@ dependencies:
 
   # In-app purchases (RevenueCat)
   purchases_flutter: ^10.0.2
-
-  # Geohash for proximity queries
-  latlong2: ^0.9.1
 
   # Image handling
   image_picker: ^1.1.2
@@ -58,10 +53,6 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  build_runner: ^2.4.15
-  riverpod_generator: ^2.6.5
-  custom_lint: ^0.7.5
-  riverpod_lint: ^2.6.5
 
 flutter:
   uses-material-design: true

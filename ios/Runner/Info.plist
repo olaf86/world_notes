@@ -47,6 +47,8 @@
 			</array>
 		</dict>
 	</dict>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Used to attach photos to your messages.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Used to show notes near your current location.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
