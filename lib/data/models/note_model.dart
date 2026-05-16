@@ -19,7 +19,7 @@ class NoteModel {
     return NoteModel(
       id: doc.id,
       placeId: data['placeId'] as String,
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       messageCount: (data['messageCount'] as int?) ?? 0,
     );
   }
@@ -27,7 +27,7 @@ class NoteModel {
   Map<String, dynamic> toFirestore() {
     return {
       'placeId': placeId,
-      'createdAt': Timestamp.fromDate(createdAt),
+      'createdAt': FieldValue.serverTimestamp(),
       'messageCount': messageCount,
     };
   }

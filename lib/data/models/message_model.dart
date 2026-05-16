@@ -33,7 +33,7 @@ class MessageModel {
       userPhotoUrl: data['userPhotoUrl'] as String?,
       content: data['content'] as String,
       imageUrl: data['imageUrl'] as String?,
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
 
@@ -45,7 +45,7 @@ class MessageModel {
       'userPhotoUrl': userPhotoUrl,
       'content': content,
       if (imageUrl != null) 'imageUrl': imageUrl,
-      'createdAt': Timestamp.fromDate(createdAt),
+      'createdAt': FieldValue.serverTimestamp(),
     };
   }
 
