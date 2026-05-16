@@ -111,8 +111,10 @@ final messagesProvider = StreamProvider.family<List<MessageEntity>, String>(
 
 // --- Premium ---
 
-final isPremiumProvider = FutureProvider<bool>((ref) async {
-  return ref.watch(subscriptionServiceProvider).isPremium();
+// StreamProvider so the UI reacts instantly after a purchase or restore,
+// without requiring an app restart.
+final isPremiumProvider = StreamProvider<bool>((ref) {
+  return ref.watch(subscriptionServiceProvider).isPremiumStream;
 });
 
 class MapLatLng {
