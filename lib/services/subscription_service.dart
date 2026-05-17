@@ -4,6 +4,11 @@ import 'package:purchases_flutter/purchases_flutter.dart';
 import '../config/app_config.dart';
 
 class SubscriptionService {
+  /// Whether the RevenueCat SDK has been successfully configured.
+  /// All SDK calls must be gated on this flag — calling any Purchases method
+  /// before configure() triggers a Swift fatalError that Dart cannot catch.
+  static bool _configured = false;
+
   static Future<void> initialize() async {
     final apiKey = Platform.isIOS
         ? AppConfig.revenueCatApiKeyIos
@@ -12,9 +17,11 @@ class SubscriptionService {
     if (apiKey.isEmpty) return;
 
     await Purchases.configure(PurchasesConfiguration(apiKey));
+    _configured = true;
   }
 
   Future<bool> isPremium() async {
+    if (!_configured) return false;
     try {
       final info = await Purchases.getCustomerInfo();
       return info.entitlements.active.containsKey(AppConfig.premiumEntitlementId);
@@ -44,16 +51,14 @@ class SubscriptionService {
         // Emit the current status right away.
         controller.add(await isPremium());
         // Register for future updates from the RevenueCat SDK.
-        try {
+        if (_configured) {
           Purchases.addCustomerInfoUpdateListener(listener);
-        } catch (_) {
-          // RevenueCat not configured (e.g. API key empty in debug) — ignore.
         }
       },
       onCancel: () async {
-        try {
+        if (_configured) {
           Purchases.removeCustomerInfoUpdateListener(listener);
-        } catch (_) {}
+        }
         await controller.close();
       },
     );
@@ -62,6 +67,7 @@ class SubscriptionService {
   }
 
   Future<List<Package>> getOfferings() async {
+    if (!_configured) return [];
     try {
       final offerings = await Purchases.getOfferings();
       return offerings.current?.availablePackages ?? [];
@@ -71,6 +77,7 @@ class SubscriptionService {
   }
 
   Future<bool> purchase(Package package) async {
+    if (!_configured) return false;
     try {
       final result = await Purchases.purchase(
         PurchaseParams.package(package),
@@ -83,6 +90,7 @@ class SubscriptionService {
   }
 
   Future<bool> restorePurchases() async {
+    if (!_configured) return false;
     try {
       final info = await Purchases.restorePurchases();
       return info.entitlements.active.containsKey(AppConfig.premiumEntitlementId);
@@ -92,12 +100,14 @@ class SubscriptionService {
   }
 
   Future<void> identifyUser(String userId) async {
+    if (!_configured) return;
     try {
       await Purchases.logIn(userId);
     } catch (_) {}
   }
 
   Future<void> logOut() async {
+    if (!_configured) return;
     try {
       await Purchases.logOut();
     } catch (_) {}
