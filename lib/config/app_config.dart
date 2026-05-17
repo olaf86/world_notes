@@ -37,9 +37,10 @@ class AppConfig {
     defaultValue: '',
   );
 
-  static const String premiumEntitlementId = 'premium';
-  static const String premiumMonthlyProductId = 'world_notes_premium_monthly';
-  static const String premiumYearlyProductId = 'world_notes_premium_yearly';
+  static const String premiumEntitlementId = 'WorldNotes Premium';
+  static const String premiumMonthlyProductId = 'monthly';
+  static const String premiumYearlyProductId = 'yearly';
+  static const String premiumLifetimeProductId = 'lifetime';
 
   // Message pagination
   static const int messagesPageSize = 20;

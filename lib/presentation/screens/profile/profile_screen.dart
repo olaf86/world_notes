@@ -2,7 +2,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 
+import '../../../services/subscription_service.dart';
 import '../../providers/providers.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -62,12 +64,22 @@ class ProfileScreen extends ConsumerWidget {
                       loading: () => const SizedBox(),
                       error: (e, st) => const SizedBox(),
                       data: (isPremium) => isPremium
-                          ? Chip(
-                              label: const Text('Premium'),
-                              avatar: const Icon(Icons.star, size: 16),
-                              backgroundColor: Theme.of(context)
-                                  .colorScheme
-                                  .primaryContainer,
+                          ? Column(
+                              children: [
+                                Chip(
+                                  label: const Text('Premium'),
+                                  avatar: const Icon(Icons.star, size: 16),
+                                  backgroundColor: Theme.of(context)
+                                      .colorScheme
+                                      .primaryContainer,
+                                ),
+                                if (SubscriptionService.isConfigured)
+                                  TextButton(
+                                    onPressed: () =>
+                                        RevenueCatUI.presentCustomerCenter(),
+                                    child: const Text('Manage Subscription'),
+                                  ),
+                              ],
                             )
                           : OutlinedButton.icon(
                               onPressed: () => context.push('/subscription'),
@@ -87,6 +99,16 @@ class ProfileScreen extends ConsumerWidget {
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => context.push('/subscription'),
               ),
+              if (SubscriptionService.isConfigured) ...[
+                const Divider(),
+                ListTile(
+                  leading: const Icon(Icons.manage_accounts_outlined),
+                  title: const Text('Manage Subscription'),
+                  subtitle: const Text('Billing, cancellation & support'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => RevenueCatUI.presentCustomerCenter(),
+                ),
+              ],
               const Divider(),
               ListTile(
                 leading: Icon(

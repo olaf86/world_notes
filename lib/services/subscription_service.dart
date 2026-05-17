@@ -9,6 +9,8 @@ class SubscriptionService {
   /// before configure() triggers a Swift fatalError that Dart cannot catch.
   static bool _configured = false;
 
+  static bool get isConfigured => _configured;
+
   static Future<void> initialize() async {
     final apiKey = Platform.isIOS
         ? AppConfig.revenueCatApiKeyIos
