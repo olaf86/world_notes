@@ -51,7 +51,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyDOo2ktEXe0Orcq0IidFPA2wG9jE8XqK_k',
-    appId: '1:260600606826:android:91bd8fb077a2217cfe1a13',
+    appId: '1:260600606826:android:9db9fd461f88cd57fe1a13',
     messagingSenderId: '260600606826',
     projectId: 'world-notes-prod',
     storageBucket: 'world-notes-prod.firebasestorage.app',
@@ -59,10 +59,12 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyBH-3xELIW8K1gwjSA70WaT4VsgViYUTR0',
-    appId: '1:260600606826:ios:e84745cf9241fa7cfe1a13',
+    appId: '1:260600606826:ios:bac4b29736a3ef63fe1a13',
     messagingSenderId: '260600606826',
     projectId: 'world-notes-prod',
     storageBucket: 'world-notes-prod.firebasestorage.app',
-    iosBundleId: 'com.worldnotes.worldNotes',
+    iosClientId: '260600606826-91qk88f19r9btuk5hgq1lq6aeni04kmh.apps.googleusercontent.com',
+    iosBundleId: 'dev.asobo.worldnotes',
   );
+
 }
