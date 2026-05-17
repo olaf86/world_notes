@@ -2,21 +2,26 @@ import 'package:geolocator/geolocator.dart';
 
 class LocationService {
   Future<Position?> getCurrentPosition() async {
-    final permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      final requested = await Geolocator.requestPermission();
-      if (requested == LocationPermission.denied ||
-          requested == LocationPermission.deniedForever) {
-        return null;
+    try {
+      final permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        final requested = await Geolocator.requestPermission();
+        if (requested == LocationPermission.denied ||
+            requested == LocationPermission.deniedForever) {
+          return null;
+        }
       }
-    }
-    if (permission == LocationPermission.deniedForever) return null;
+      if (permission == LocationPermission.deniedForever) return null;
 
-    return Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-      ),
-    );
+      return await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      ).timeout(const Duration(seconds: 10));
+    } catch (_) {
+      // Covers TimeoutException, PermissionDefinitionsNotFoundException, etc.
+      return null;
+    }
   }
 
   Stream<Position> watchPosition() async* {

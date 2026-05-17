@@ -49,6 +49,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       _lat = lat;
       _lng = lng;
     });
+
+    // Animate camera to the new position when the map is already ready.
+    if (_mapReady && _mapController != null) {
+      _mapController!.animateCamera(
+        CameraUpdate.newLatLng(LatLng(lat, lng)),
+      );
+    }
   }
 
   @override
@@ -58,6 +65,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       next.whenData((pos) => _setPosition(pos.latitude, pos.longitude));
     });
 
+    // Animate to the user's real position as soon as it resolves.
+    ref.listen<AsyncValue<Position?>>(currentPositionProvider, (_, next) {
+      next.whenData((pos) {
+        if (pos != null) _setPosition(pos.latitude, pos.longitude);
+      });
+    });
+
     // Watch note boxes for the current position.
     if (_lat != null && _lng != null) {
       ref.watch(noteBoxesProvider(latLng(_lat!, _lng!))).whenData((noteBoxes) {
@@ -65,21 +79,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       });
     }
 
-    final initialPos = ref.watch(currentPositionProvider);
-
+    // Show the map immediately using the default location.
+    // Camera animates to the real position once currentPositionProvider resolves.
     return Scaffold(
       body: Stack(
         children: [
-          initialPos.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, st) => _buildMap(
-              AppConfig.defaultLatitude,
-              AppConfig.defaultLongitude,
-            ),
-            data: (pos) => _buildMap(
-              pos?.latitude ?? AppConfig.defaultLatitude,
-              pos?.longitude ?? AppConfig.defaultLongitude,
-            ),
+          _buildMap(
+            _lat ?? AppConfig.defaultLatitude,
+            _lng ?? AppConfig.defaultLongitude,
           ),
           _buildFab(),
         ],
@@ -100,6 +107,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         _mapController = controller;
         _mapReady = true;
         controller.onSymbolTapped.add(_onSymbolTapped);
+        // Position may have resolved before the map was ready — jump to it now.
+        if (_lat != null && _lng != null) {
+          controller.animateCamera(
+            CameraUpdate.newLatLng(LatLng(_lat!, _lng!)),
+          );
+        }
       },
       onStyleLoadedCallback: _reloadMarkers,
     );
