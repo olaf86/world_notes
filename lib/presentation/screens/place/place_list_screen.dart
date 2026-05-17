@@ -233,7 +233,18 @@ class _LocationDeniedView extends StatelessWidget {
             color: Theme.of(context).colorScheme.outlineVariant,
           ),
           const SizedBox(height: 12),
-          const Text('Location permission is required.'),
+          Text(
+            'Location unavailable.',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Allow location access in Settings,\nor move to an area with better GPS signal.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+          ),
         ],
       ),
     );
