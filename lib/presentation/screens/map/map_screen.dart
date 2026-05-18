@@ -81,9 +81,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       });
     }
 
-    // Watch the style — when it changes, rebuild with a new ValueKey so the
-    // MapLibreMap is recreated and loads the new tiles from scratch.
-    final mapStyle = ref.watch(mapStyleProvider);
+    // Switch the map style at runtime via the official setStyle() API
+    // (available since maplibre_gl 0.26.0).
+    // onStyleLoadedCallback fires after the new tiles load and reloads markers.
+    ref.listen<MapStyle>(mapStyleProvider, (_, next) {
+      _mapController?.setStyle(next.styleUrl(AppConfig.stadiaApiKey));
+    });
 
     // Show the map immediately using the default location.
     // Camera animates to the real position once currentPositionProvider resolves.
@@ -93,7 +96,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           _buildMap(
             _lat ?? AppConfig.defaultLatitude,
             _lng ?? AppConfig.defaultLongitude,
-            mapStyle,
           ),
           _buildFab(),
         ],
@@ -101,11 +103,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     );
   }
 
-  Widget _buildMap(double initialLat, double initialLng, MapStyle style) {
+  Widget _buildMap(double initialLat, double initialLng) {
+    final style = ref.read(mapStyleProvider);
     return MapLibreMap(
-      // ValueKey ensures Flutter recreates the map (and reloads markers via
-      // onStyleLoadedCallback) whenever the user switches the map style.
-      key: ValueKey(style),
       styleString: style.styleUrl(AppConfig.stadiaApiKey),
       initialCameraPosition: CameraPosition(
         target: LatLng(initialLat, initialLng),
