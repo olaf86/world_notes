@@ -75,17 +75,11 @@ class MessageRepositoryImpl implements MessageRepository {
     required String noteId,
     required String content,
     required String userId,
+    required String userName,
+    String? userPhotoUrl,
     List<int>? imageBytes,
     String? imageName,
   }) async {
-    final userDoc = await _firestore.collection('users').doc(userId).get();
-    final userName = userDoc.exists
-        ? (userDoc.data()!['name'] as String? ?? 'User')
-        : 'User';
-    final userPhoto = userDoc.exists
-        ? (userDoc.data()!['photoUrl'] as String?)
-        : null;
-
     String? imageUrl;
     if (imageBytes != null && imageName != null) {
       imageUrl = await _uploadImage(
@@ -101,7 +95,7 @@ class MessageRepositoryImpl implements MessageRepository {
       noteId: noteId,
       userId: userId,
       userName: userName,
-      userPhotoUrl: userPhoto,
+      userPhotoUrl: userPhotoUrl,
       content: content,
       imageUrl: imageUrl,
       createdAt: DateTime.now(),

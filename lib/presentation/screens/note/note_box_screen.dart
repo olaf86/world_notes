@@ -36,11 +36,15 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
   @override
   void initState() {
     super.initState();
-    _loadAd();
     _scrollController.addListener(_onScroll);
+    // Defer the ad load until after the first frame so isPremiumProvider
+    // has had a chance to emit its initial value.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadAdIfNeeded());
   }
 
-  void _loadAd() {
+  void _loadAdIfNeeded() {
+    // Skip loading an ad for known premium users.
+    if (ref.read(isPremiumProvider).valueOrNull == true) return;
     _bannerAd = BannerAd(
       adUnitId: AppConfig.bannerAdUnitId,
       size: AdSize.banner,
@@ -56,7 +60,9 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
   }
 
   void _onScroll() {
-    // Trigger pagination when approaching the bottom (oldest messages).
+    // With reverse:true the list is displayed newest-at-bottom.
+    // maxScrollExtent is at the visual top (oldest messages).
+    // Trigger pagination when the user scrolls near there.
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
       _loadMore();
@@ -154,6 +160,8 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
             noteId: widget.noteId,
             content: text,
             userId: user.id,
+            userName: user.name,
+            userPhotoUrl: user.photoUrl,
             imageBytes: imageBytes,
             imageName: imageName,
           );
@@ -172,6 +180,27 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
     final isPremiumAsync = ref.watch(isPremiumProvider);
     final isPremium = isPremiumAsync.valueOrNull ?? false;
     final currentUser = ref.watch(authStateProvider).valueOrNull;
+
+    // Auto-scroll to the bottom (newest message) when new messages arrive,
+    // but only if the user is already near the bottom.
+    ref.listen<AsyncValue<List<MessageEntity>>>(
+      messagesProvider(widget.noteId),
+      (prev, next) {
+        final prevCount = prev?.valueOrNull?.length ?? 0;
+        final nextCount = next.valueOrNull?.length ?? 0;
+        if (nextCount > prevCount && _scrollController.hasClients) {
+          final pos = _scrollController.position;
+          // With reverse:true, position 0 = bottom. Scroll there if within 400px.
+          if (pos.pixels < 400) {
+            _scrollController.animateTo(
+              0,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+            );
+          }
+        }
+      },
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -238,28 +267,29 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
                   );
                 }
 
-                return RefreshIndicator(
-                  onRefresh: _onRefresh,
-                  child: ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    // Extra item at the bottom for the pagination indicator.
-                    itemCount: allMessages.length + (_loadingMore ? 1 : 0),
-                    itemBuilder: (context, index) {
-                      if (index == allMessages.length) {
-                        return const Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Center(child: CircularProgressIndicator()),
-                        );
-                      }
-                      final message = allMessages[index];
-                      final isOwn = message.author.id == currentUser?.id;
-                      return MessageBubble(message: message, isOwn: isOwn);
-                    },
+                return ListView.builder(
+                  controller: _scrollController,
+                  // reverse:true renders index 0 at the bottom, giving a
+                  // natural chat feel (newest message at the bottom).
+                  reverse: true,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
                   ),
+                  // Extra item at the top (visually) for the pagination indicator.
+                  itemCount: allMessages.length + (_loadingMore ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    // With reverse:true the last index is at the visual top.
+                    if (index == allMessages.length) {
+                      return const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Center(child: CircularProgressIndicator()),
+                      );
+                    }
+                    final message = allMessages[index];
+                    final isOwn = message.author.id == currentUser?.id;
+                    return MessageBubble(message: message, isOwn: isOwn);
+                  },
                 );
               },
             ),
