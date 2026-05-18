@@ -60,9 +60,8 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
   }
 
   void _onScroll() {
-    // With reverse:true the list is displayed newest-at-bottom.
-    // maxScrollExtent is at the visual top (oldest messages).
-    // Trigger pagination when the user scrolls near there.
+    // Newest messages are at the top (index 0); oldest are at the bottom.
+    // Trigger pagination when the user scrolls near the bottom.
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
       _loadMore();
@@ -181,8 +180,8 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
     final isPremium = isPremiumAsync.valueOrNull ?? false;
     final currentUser = ref.watch(authStateProvider).valueOrNull;
 
-    // Auto-scroll to the bottom (newest message) when new messages arrive,
-    // but only if the user is already near the bottom.
+    // Scroll to the top (newest message) when new messages arrive,
+    // but only if the user is already near the top.
     ref.listen<AsyncValue<List<MessageEntity>>>(
       messagesProvider(widget.noteId),
       (prev, next) {
@@ -190,7 +189,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
         final nextCount = next.valueOrNull?.length ?? 0;
         if (nextCount > prevCount && _scrollController.hasClients) {
           final pos = _scrollController.position;
-          // With reverse:true, position 0 = bottom. Scroll there if within 400px.
+          // position 0 = top (newest). Scroll there if already within 400px.
           if (pos.pixels < 400) {
             _scrollController.animateTo(
               0,
@@ -269,17 +268,14 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
 
                 return ListView.builder(
                   controller: _scrollController,
-                  // reverse:true renders index 0 at the bottom, giving a
-                  // natural chat feel (newest message at the bottom).
-                  reverse: true,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 8,
                   ),
-                  // Extra item at the top (visually) for the pagination indicator.
+                  // Extra item at the bottom for the pagination indicator
+                  // (oldest messages are at the bottom, newer ones at the top).
                   itemCount: allMessages.length + (_loadingMore ? 1 : 0),
                   itemBuilder: (context, index) {
-                    // With reverse:true the last index is at the visual top.
                     if (index == allMessages.length) {
                       return const Padding(
                         padding: EdgeInsets.all(16),
