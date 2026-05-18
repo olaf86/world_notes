@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 
 import '../../../config/app_config.dart';
+import '../../../core/map_style.dart';
 import '../../../domain/entities/note_entity.dart';
 import '../../providers/providers.dart';
 import '../../widgets/map/note_marker_bottom_sheet.dart';
@@ -72,12 +73,17 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       });
     });
 
+
     // Watch note boxes for the current position.
     if (_lat != null && _lng != null) {
       ref.watch(noteBoxesProvider(latLng(_lat!, _lng!))).whenData((noteBoxes) {
         if (_mapReady && _mapController != null) _updateMarkers(noteBoxes);
       });
     }
+
+    // Watch the style — when it changes, rebuild with a new ValueKey so the
+    // MapLibreMap is recreated and loads the new tiles from scratch.
+    final mapStyle = ref.watch(mapStyleProvider);
 
     // Show the map immediately using the default location.
     // Camera animates to the real position once currentPositionProvider resolves.
@@ -87,6 +93,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           _buildMap(
             _lat ?? AppConfig.defaultLatitude,
             _lng ?? AppConfig.defaultLongitude,
+            mapStyle,
           ),
           _buildFab(),
         ],
@@ -94,9 +101,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     );
   }
 
-  Widget _buildMap(double initialLat, double initialLng) {
+  Widget _buildMap(double initialLat, double initialLng, MapStyle style) {
     return MapLibreMap(
-      styleString: AppConfig.mapStyleUrlWithKey(AppConfig.stadiaApiKey),
+      // ValueKey ensures Flutter recreates the map (and reloads markers via
+      // onStyleLoadedCallback) whenever the user switches the map style.
+      key: ValueKey(style),
+      styleString: style.styleUrl(AppConfig.stadiaApiKey),
       initialCameraPosition: CameraPosition(
         target: LatLng(initialLat, initialLng),
         zoom: AppConfig.defaultZoom,
@@ -104,6 +114,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       myLocationEnabled: true,
       myLocationTrackingMode: MyLocationTrackingMode.tracking,
       onMapCreated: (controller) {
+        // Reset in case we are reinitialising after a style change.
+        _mapReady = false;
         _mapController = controller;
         _mapReady = true;
         controller.onSymbolTapped.add(_onSymbolTapped);

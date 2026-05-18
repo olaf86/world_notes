@@ -4,8 +4,10 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../config/app_config.dart';
+import '../../core/map_style.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../data/repositories/message_repository_impl.dart';
 import '../../data/repositories/note_repository_impl.dart';
@@ -116,6 +118,39 @@ final messagesProvider = StreamProvider.family<List<MessageEntity>, String>(
 final isPremiumProvider = StreamProvider<bool>((ref) {
   return ref.watch(subscriptionServiceProvider).isPremiumStream;
 });
+
+// --- Map Style ---
+
+/// Persists and exposes the user's chosen map style.
+final mapStyleProvider =
+    StateNotifierProvider<MapStyleNotifier, MapStyle>((ref) {
+  return MapStyleNotifier();
+});
+
+class MapStyleNotifier extends StateNotifier<MapStyle> {
+  static const _prefKey = 'map_style';
+
+  MapStyleNotifier() : super(MapStyle.standard) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString(_prefKey);
+    if (saved != null) {
+      state = MapStyle.values.firstWhere(
+        (s) => s.name == saved,
+        orElse: () => MapStyle.standard,
+      );
+    }
+  }
+
+  Future<void> setStyle(MapStyle style) async {
+    state = style;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefKey, style.name);
+  }
+}
 
 class MapLatLng {
   final double lat;

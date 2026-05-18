@@ -9,6 +9,7 @@ import '../presentation/screens/note/note_box_screen.dart';
 import '../presentation/screens/note/note_creation_screen.dart';
 import '../presentation/screens/place/place_list_screen.dart';
 import '../presentation/screens/profile/profile_screen.dart';
+import '../presentation/screens/settings/settings_screen.dart';
 import '../presentation/screens/subscription/subscription_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -74,6 +75,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/subscription',
         builder: (context, state) => const SubscriptionScreen(),
+      ),
+      GoRoute(
+        path: '/settings',
+        builder: (context, state) => const SettingsScreen(),
       ),
     ],
   );
