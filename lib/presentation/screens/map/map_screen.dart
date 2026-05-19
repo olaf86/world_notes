@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -21,6 +23,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   MapLibreMapController? _mapController;
   bool _mapReady = false;
   bool _locationEnabled = false;
+  double _bearing = 0.0;
   final Map<String, NoteBoxEntity> _symbolNoteBoxMap = {};
 
   // Current position used for marker queries — updated by position stream.
@@ -122,6 +125,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             _lat ?? AppConfig.defaultLatitude,
             _lng ?? AppConfig.defaultLongitude,
           ),
+          if (_locationEnabled) _buildCompassButton(),
           _buildFab(),
         ],
       ),
@@ -151,6 +155,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           controller.animateCamera(
             CameraUpdate.newLatLng(LatLng(_lat!, _lng!)),
           );
+        }
+      },
+      onCameraMove: (position) {
+        if (mounted && position.bearing != _bearing) {
+          setState(() => _bearing = position.bearing);
         }
       },
       onStyleLoadedCallback: _reloadMarkers,
@@ -195,6 +204,40 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     showModalBottomSheet(
       context: context,
       builder: (_) => NoteMarkerBottomSheet(noteBox: noteBox),
+    );
+  }
+
+  Widget _buildCompassButton() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isNorth = _bearing.abs() < 0.5;
+    return Positioned(
+      top: MediaQuery.of(context).padding.top + 16,
+      right: 16,
+      child: FloatingActionButton.small(
+        heroTag: 'compass',
+        onPressed: _onRecenter,
+        backgroundColor: colorScheme.surface,
+        elevation: 2,
+        child: Transform.rotate(
+          angle: -_bearing * math.pi / 180,
+          child: Icon(
+            Icons.navigation,
+            color: isNorth ? colorScheme.onSurface : colorScheme.primary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _onRecenter() async {
+    final lat = _lat;
+    final lng = _lng;
+    if (lat == null || lng == null || _mapController == null) return;
+    final zoom = _mapController!.cameraPosition?.zoom ?? AppConfig.defaultZoom;
+    await _mapController!.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(target: LatLng(lat, lng), bearing: 0, zoom: zoom),
+      ),
     );
   }
 
