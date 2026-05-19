@@ -24,6 +24,18 @@ cd "$CI_PRIMARY_REPOSITORY_PATH"
 flutter pub get
 dart run build_runner build
 
+# Verify Generated.xcconfig was created by flutter pub get
+if [ ! -f "$CI_PRIMARY_REPOSITORY_PATH/ios/Flutter/Generated.xcconfig" ]; then
+  echo "ERROR: Generated.xcconfig was not created by flutter pub get"
+  exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# CocoaPods — Xcode Cloud does not run pod install automatically
+# ---------------------------------------------------------------------------
+cd "$CI_PRIMARY_REPOSITORY_PATH/ios"
+pod install
+
 # ---------------------------------------------------------------------------
 # Inject --dart-define values into Generated.xcconfig
 # Flutter encodes each define as base64, joined with commas.
