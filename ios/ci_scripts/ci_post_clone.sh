@@ -30,10 +30,14 @@ if [ ! -f "$CI_PRIMARY_REPOSITORY_PATH/ios/Flutter/Generated.xcconfig" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# CocoaPods — Xcode Cloud does not run pod install automatically
+# CocoaPods — Xcode Cloud does not run pod install automatically.
+# Delete Podfile.lock so CocoaPods resolves from the Podfile instead of
+# verifying CDN checksums for Flutter plugin pods (which are path-only and
+# not published to trunk, causing "Unable to find a specification" errors).
 # ---------------------------------------------------------------------------
 cd "$CI_PRIMARY_REPOSITORY_PATH/ios"
-pod install --repo-update
+rm -f Podfile.lock
+pod install
 
 # ---------------------------------------------------------------------------
 # Inject --dart-define values into Generated.xcconfig
