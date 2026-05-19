@@ -26,6 +26,8 @@ echo "$GOOGLE_SERVICE_INFO_PLIST" | base64 --decode \
 # ---------------------------------------------------------------------------
 # Flutter dependencies & code generation
 # ---------------------------------------------------------------------------
+flutter precache --ios
+
 cd "$CI_PRIMARY_REPOSITORY_PATH"
 flutter pub get
 
