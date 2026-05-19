@@ -33,7 +33,7 @@ fi
 # CocoaPods — Xcode Cloud does not run pod install automatically
 # ---------------------------------------------------------------------------
 cd "$CI_PRIMARY_REPOSITORY_PATH/ios"
-pod install
+pod install --repo-update
 
 # ---------------------------------------------------------------------------
 # Inject --dart-define values into Generated.xcconfig
