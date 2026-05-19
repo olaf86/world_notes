@@ -20,6 +20,7 @@ class MapScreen extends ConsumerStatefulWidget {
 class _MapScreenState extends ConsumerState<MapScreen> {
   MapLibreMapController? _mapController;
   bool _mapReady = false;
+  bool _locationEnabled = false;
   final Map<String, NoteBoxEntity> _symbolNoteBoxMap = {};
 
   // Current position used for marker queries — updated by position stream.
@@ -32,11 +33,35 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   @override
   void initState() {
     super.initState();
-    // Seed from the already-resolved FutureProvider if available.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final pos = ref.read(currentPositionProvider).valueOrNull;
-      if (pos != null) _setPosition(pos.latitude, pos.longitude);
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initLocation());
+  }
+
+  Future<void> _initLocation() async {
+    final locationService = ref.read(locationServiceProvider);
+    final permission = await locationService.ensurePermission();
+
+    if (!mounted) return;
+
+    if (permission == LocationPermission.deniedForever) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Location access is disabled. Enable it in Settings.'),
+          action: SnackBarAction(
+            label: 'Settings',
+            onPressed: Geolocator.openAppSettings,
+          ),
+          duration: const Duration(seconds: 6),
+        ),
+      );
+      return;
+    }
+
+    if (permission == LocationPermission.denied) return;
+
+    setState(() => _locationEnabled = true);
+
+    final pos = ref.read(currentPositionProvider).valueOrNull;
+    if (pos != null) _setPosition(pos.latitude, pos.longitude);
   }
 
   void _setPosition(double lat, double lng) {
@@ -111,8 +136,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         target: LatLng(initialLat, initialLng),
         zoom: AppConfig.defaultZoom,
       ),
-      myLocationEnabled: true,
-      myLocationTrackingMode: MyLocationTrackingMode.tracking,
+      myLocationEnabled: _locationEnabled,
+      myLocationTrackingMode: _locationEnabled
+          ? MyLocationTrackingMode.tracking
+          : MyLocationTrackingMode.none,
       onMapCreated: (controller) {
         // Reset in case we are reinitialising after a style change.
         _mapReady = false;
