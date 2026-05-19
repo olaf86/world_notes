@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -20,6 +22,8 @@ class MapScreen extends ConsumerStatefulWidget {
 class _MapScreenState extends ConsumerState<MapScreen> {
   MapLibreMapController? _mapController;
   bool _mapReady = false;
+  bool _locationEnabled = false;
+  double _bearing = 0.0;
   final Map<String, NoteBoxEntity> _symbolNoteBoxMap = {};
 
   // Current position used for marker queries — updated by position stream.
@@ -32,11 +36,35 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   @override
   void initState() {
     super.initState();
-    // Seed from the already-resolved FutureProvider if available.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final pos = ref.read(currentPositionProvider).valueOrNull;
-      if (pos != null) _setPosition(pos.latitude, pos.longitude);
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initLocation());
+  }
+
+  Future<void> _initLocation() async {
+    final locationService = ref.read(locationServiceProvider);
+    final permission = await locationService.ensurePermission();
+
+    if (!mounted) return;
+
+    if (permission == LocationPermission.deniedForever) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Location access is disabled. Enable it in Settings.'),
+          action: SnackBarAction(
+            label: 'Settings',
+            onPressed: Geolocator.openAppSettings,
+          ),
+          duration: const Duration(seconds: 6),
+        ),
+      );
+      return;
+    }
+
+    if (permission == LocationPermission.denied) return;
+
+    setState(() => _locationEnabled = true);
+
+    final pos = ref.read(currentPositionProvider).valueOrNull;
+    if (pos != null) _setPosition(pos.latitude, pos.longitude);
   }
 
   void _setPosition(double lat, double lng) {
@@ -97,6 +125,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             _lat ?? AppConfig.defaultLatitude,
             _lng ?? AppConfig.defaultLongitude,
           ),
+          if (_locationEnabled) _buildCompassButton(),
           _buildFab(),
         ],
       ),
@@ -111,8 +140,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         target: LatLng(initialLat, initialLng),
         zoom: AppConfig.defaultZoom,
       ),
-      myLocationEnabled: true,
-      myLocationTrackingMode: MyLocationTrackingMode.tracking,
+      myLocationEnabled: _locationEnabled,
+      myLocationTrackingMode: _locationEnabled
+          ? MyLocationTrackingMode.tracking
+          : MyLocationTrackingMode.none,
       onMapCreated: (controller) {
         // Reset in case we are reinitialising after a style change.
         _mapReady = false;
@@ -124,6 +155,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           controller.animateCamera(
             CameraUpdate.newLatLng(LatLng(_lat!, _lng!)),
           );
+        }
+      },
+      onCameraMove: (position) {
+        if (mounted && position.bearing != _bearing) {
+          setState(() => _bearing = position.bearing);
         }
       },
       onStyleLoadedCallback: _reloadMarkers,
@@ -168,6 +204,40 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     showModalBottomSheet(
       context: context,
       builder: (_) => NoteMarkerBottomSheet(noteBox: noteBox),
+    );
+  }
+
+  Widget _buildCompassButton() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isNorth = _bearing.abs() < 0.5;
+    return Positioned(
+      top: MediaQuery.of(context).padding.top + 16,
+      right: 16,
+      child: FloatingActionButton.small(
+        heroTag: 'compass',
+        onPressed: _onRecenter,
+        backgroundColor: colorScheme.surface,
+        elevation: 2,
+        child: Transform.rotate(
+          angle: -_bearing * math.pi / 180,
+          child: Icon(
+            Icons.navigation,
+            color: isNorth ? colorScheme.onSurface : colorScheme.primary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _onRecenter() async {
+    final lat = _lat;
+    final lng = _lng;
+    if (lat == null || lng == null || _mapController == null) return;
+    final zoom = _mapController!.cameraPosition?.zoom ?? AppConfig.defaultZoom;
+    await _mapController!.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(target: LatLng(lat, lng), bearing: 0, zoom: zoom),
+      ),
     );
   }
 
