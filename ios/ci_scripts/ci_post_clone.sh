@@ -22,7 +22,6 @@ echo "$GOOGLE_SERVICE_INFO_PLIST" | base64 --decode \
 # ---------------------------------------------------------------------------
 cd "$CI_PRIMARY_REPOSITORY_PATH"
 flutter pub get
-dart run build_runner build
 
 # Verify Generated.xcconfig was created by flutter pub get
 if [ ! -f "$CI_PRIMARY_REPOSITORY_PATH/ios/Flutter/Generated.xcconfig" ]; then
