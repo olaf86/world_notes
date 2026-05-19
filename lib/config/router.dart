@@ -38,15 +38,18 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: '/map',
-            builder: (context, state) => const MapScreen(),
+            pageBuilder: (context, state) =>
+                const NoTransitionPage(child: MapScreen()),
           ),
           GoRoute(
             path: '/list',
-            builder: (context, state) => const PlaceListScreen(),
+            pageBuilder: (context, state) =>
+                const NoTransitionPage(child: PlaceListScreen()),
           ),
           GoRoute(
             path: '/profile',
-            builder: (context, state) => const ProfileScreen(),
+            pageBuilder: (context, state) =>
+                const NoTransitionPage(child: ProfileScreen()),
           ),
         ],
       ),
