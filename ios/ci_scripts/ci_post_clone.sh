@@ -9,6 +9,12 @@ git clone https://github.com/flutter/flutter.git \
     --depth 1 -b stable "$FLUTTER_ROOT"
 export PATH="$PATH:$FLUTTER_ROOT/bin"
 
+# Flutter 3.27+ enables Swift Package Manager by default. google_mobile_ads
+# does not support SPM and its podspec depends on webview_flutter_wkwebview
+# via CocoaPods; when SPM is active Flutter registers that pod via SPM instead,
+# making it invisible to CocoaPods. Disable SPM so all plugins use CocoaPods.
+flutter config --no-enable-swift-package-manager
+
 # ---------------------------------------------------------------------------
 # Restore secret files
 # GoogleService-Info.plist is stored as a base64-encoded secret env var.
