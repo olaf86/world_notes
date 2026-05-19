@@ -33,6 +33,11 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# CocoaPods lock — reproducibility is guaranteed by pubspec.lock + Podfile.
+# Flutter plugin pods are path-only (not on CDN trunk), so committing
+# Podfile.lock causes checksum mismatches in clean CI environments.
+ios/Podfile.lock
+
 # Symbolication related
 app.*.symbols
 
