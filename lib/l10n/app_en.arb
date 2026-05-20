@@ -1,0 +1,23 @@
+{
+  "@@locale": "en",
+
+  "locationPermissionTitle": "Location Required",
+  "@locationPermissionTitle": {
+    "description": "Title shown when location permission is not granted"
+  },
+
+  "locationPermissionMessage": "Enable location tracking to enjoy World Notes.",
+  "@locationPermissionMessage": {
+    "description": "Body text shown when location permission is not granted"
+  },
+
+  "locationPermissionOpenSettings": "Open Settings",
+  "@locationPermissionOpenSettings": {
+    "description": "Button label to open system settings for location permission"
+  },
+
+  "locationSearching": "Finding your location…",
+  "@locationSearching": {
+    "description": "Label shown while waiting for the first GPS fix"
+  }
+}
