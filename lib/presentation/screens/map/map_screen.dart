@@ -141,9 +141,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         zoom: AppConfig.defaultZoom,
       ),
       myLocationEnabled: _locationEnabled,
-      myLocationTrackingMode: _locationEnabled
-          ? MyLocationTrackingMode.tracking
-          : MyLocationTrackingMode.none,
+      myLocationTrackingMode: MyLocationTrackingMode.none,
       onMapCreated: (controller) {
         // Reset in case we are reinitialising after a style change.
         _mapReady = false;
