@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -27,7 +25,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   bool _mapReady = false;
   _LocationStatus _locationStatus = _LocationStatus.checking;
   bool _permanentlyDenied = false;
-  double _bearing = 0.0;
   final Map<String, NoteBoxEntity> _symbolNoteBoxMap = {};
 
   double? _lat;
@@ -216,7 +213,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       body: Stack(
         children: [
           _buildMap(_lat!, _lng!),
-          _buildCompassButton(),
+          _buildRecenterButton(),
           _buildFab(),
         ],
       ),
@@ -231,7 +228,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         target: LatLng(initialLat, initialLng),
         zoom: AppConfig.defaultZoom,
       ),
-      compassEnabled: false,
       myLocationEnabled: true,
       myLocationTrackingMode: MyLocationTrackingMode.none,
       onMapCreated: (controller) {
@@ -240,33 +236,21 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         _mapReady = true;
         controller.onSymbolTapped.add(_onSymbolTapped);
       },
-      onCameraMove: (position) {
-        if (mounted && position.bearing != _bearing) {
-          setState(() => _bearing = position.bearing);
-        }
-      },
       onStyleLoadedCallback: _reloadMarkers,
     );
   }
 
-  Widget _buildCompassButton() {
+  Widget _buildRecenterButton() {
     final colorScheme = Theme.of(context).colorScheme;
-    final isNorth = _bearing.abs() < 0.5;
     return Positioned(
-      top: MediaQuery.of(context).padding.top + 16,
+      bottom: 96,
       right: 16,
       child: FloatingActionButton.small(
-        heroTag: 'compass',
+        heroTag: 'recenter',
         onPressed: _onRecenter,
         backgroundColor: colorScheme.surface,
         elevation: 2,
-        child: Transform.rotate(
-          angle: -_bearing * math.pi / 180,
-          child: Icon(
-            Icons.navigation,
-            color: isNorth ? colorScheme.onSurface : colorScheme.primary,
-          ),
-        ),
+        child: Icon(Icons.my_location, color: colorScheme.primary),
       ),
     );
   }
@@ -278,7 +262,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final zoom = _mapController!.cameraPosition?.zoom ?? AppConfig.defaultZoom;
     await _mapController!.animateCamera(
       CameraUpdate.newCameraPosition(
-        CameraPosition(target: LatLng(lat, lng), bearing: 0, zoom: zoom),
+        CameraPosition(target: LatLng(lat, lng), zoom: zoom),
       ),
     );
   }
