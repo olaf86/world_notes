@@ -25,6 +25,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   bool _mapReady = false;
   _LocationStatus _locationStatus = _LocationStatus.checking;
   bool _permanentlyDenied = false;
+  bool _isTracking = false;
   final Map<String, NoteBoxEntity> _symbolNoteBoxMap = {};
 
   double? _lat;
@@ -57,7 +58,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       return;
     }
 
-    // Permission granted — fetch the first position before showing the map.
     final pos = await locationService.getCurrentPosition();
     if (!mounted) return;
 
@@ -68,7 +68,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         _locationStatus = _LocationStatus.ready;
       });
     } else {
-      // GPS unavailable after timeout; keep checking via stream.
       setState(() => _locationStatus = _LocationStatus.checking);
     }
   }
@@ -89,11 +88,29 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       }
     });
 
-    if (wasReady && _mapReady && _mapController != null) {
-      _mapController!.animateCamera(
-        CameraUpdate.newLatLng(LatLng(lat, lng)),
-      );
+    // When tracking, MapLibre moves the camera automatically.
+    if (!_isTracking && wasReady && _mapReady && _mapController != null) {
+      _mapController!.animateCamera(CameraUpdate.newLatLng(LatLng(lat, lng)));
     }
+  }
+
+  Future<void> _toggleTracking() async {
+    final controller = _mapController;
+    if (controller == null || !_mapReady) return;
+
+    if (_isTracking) {
+      setState(() => _isTracking = false);
+      await controller.updateMyLocationTrackingMode(MyLocationTrackingMode.none);
+    } else {
+      setState(() => _isTracking = true);
+      await controller.updateMyLocationTrackingMode(MyLocationTrackingMode.tracking);
+    }
+  }
+
+  void _onUserPanned() {
+    if (!_isTracking) return;
+    setState(() => _isTracking = false);
+    _mapController?.updateMyLocationTrackingMode(MyLocationTrackingMode.none);
   }
 
   @override
@@ -212,8 +229,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          _buildMap(_lat!, _lng!),
-          _buildRecenterButton(),
+          // Listener detects user touch on the map to exit tracking mode.
+          Listener(
+            onPointerDown: (_) => _onUserPanned(),
+            child: _buildMap(_lat!, _lng!),
+          ),
+          _buildTrackingButton(),
           _buildFab(),
         ],
       ),
@@ -240,29 +261,20 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     );
   }
 
-  Widget _buildRecenterButton() {
+  Widget _buildTrackingButton() {
     final colorScheme = Theme.of(context).colorScheme;
     return Positioned(
       bottom: 96,
       right: 16,
       child: FloatingActionButton.small(
-        heroTag: 'recenter',
-        onPressed: _onRecenter,
-        backgroundColor: colorScheme.surface,
+        heroTag: 'tracking',
+        onPressed: _toggleTracking,
+        backgroundColor: _isTracking ? colorScheme.primary : colorScheme.surface,
         elevation: 2,
-        child: Icon(Icons.my_location, color: colorScheme.primary),
-      ),
-    );
-  }
-
-  Future<void> _onRecenter() async {
-    final lat = _lat;
-    final lng = _lng;
-    if (lat == null || lng == null || _mapController == null) return;
-    final zoom = _mapController!.cameraPosition?.zoom ?? AppConfig.defaultZoom;
-    await _mapController!.animateCamera(
-      CameraUpdate.newCameraPosition(
-        CameraPosition(target: LatLng(lat, lng), zoom: zoom),
+        child: Icon(
+          _isTracking ? Icons.my_location : Icons.location_searching,
+          color: _isTracking ? colorScheme.onPrimary : colorScheme.primary,
+        ),
       ),
     );
   }
