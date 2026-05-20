@@ -231,6 +231,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         target: LatLng(initialLat, initialLng),
         zoom: AppConfig.defaultZoom,
       ),
+      compassEnabled: false,
       myLocationEnabled: true,
       myLocationTrackingMode: MyLocationTrackingMode.none,
       onMapCreated: (controller) {
