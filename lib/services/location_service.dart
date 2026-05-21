@@ -1,5 +1,14 @@
 import 'package:geolocator/geolocator.dart';
 
+class LocationPermissionDeniedException implements Exception {
+  final bool permanentlyDenied;
+  const LocationPermissionDeniedException({this.permanentlyDenied = false});
+
+  @override
+  String toString() => 'LocationPermissionDeniedException('
+      'permanentlyDenied: $permanentlyDenied)';
+}
+
 class LocationService {
   /// Checks the current permission and requests it if not yet determined.
   /// Returns the final [LocationPermission] after any request dialog.
@@ -11,35 +20,22 @@ class LocationService {
     return permission;
   }
 
-  Future<Position?> getCurrentPosition() async {
-    try {
-      final permission = await ensurePermission();
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        return null;
-      }
-
-      // Last known position is instant and works offline/indoors.
-    final lastKnown = await Geolocator.getLastKnownPosition();
-    if (lastKnown != null) return lastKnown;
-
-    return await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-        ),
-      ).timeout(const Duration(seconds: 10));
-    } catch (_) {
-      // Covers TimeoutException, PermissionDefinitionsNotFoundException, etc.
-      return null;
-    }
-  }
-
+  /// Live position stream. Yields the cached last-known position first (if
+  /// available) so callers can render instantly, then continues with live
+  /// GPS updates. Throws [LocationPermissionDeniedException] when permission
+  /// is denied so [StreamProvider]s can surface the denial as an error state.
   Stream<Position> watchPosition() async* {
-    // Ensure permission is granted before opening the stream.
-    final pos = await getCurrentPosition();
-    if (pos == null) return; // Permission denied — emit nothing.
+    final permission = await ensurePermission();
+    if (permission == LocationPermission.denied) {
+      throw const LocationPermissionDeniedException();
+    }
+    if (permission == LocationPermission.deniedForever) {
+      throw const LocationPermissionDeniedException(permanentlyDenied: true);
+    }
 
-    yield pos; // Emit the initial position immediately.
+    final lastKnown = await Geolocator.getLastKnownPosition();
+    if (lastKnown != null) yield lastKnown;
+
     yield* Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
         accuracy: LocationAccuracy.high,

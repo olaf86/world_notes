@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 
 import '../../../config/app_config.dart';
 import '../../../domain/entities/note_entity.dart';
+import '../../../services/location_service.dart';
 import '../../providers/providers.dart';
 
 class PlaceListScreen extends ConsumerWidget {
@@ -12,17 +13,17 @@ class PlaceListScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final positionAsync = ref.watch(currentPositionProvider);
+    final positionAsync = ref.watch(positionStreamProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Nearby Notes')),
       body: positionAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, st) => const _ErrorView(),
-        data: (pos) {
-          if (pos == null) return const _LocationDeniedView();
-          return _NoteBoxList(latitude: pos.latitude, longitude: pos.longitude);
-        },
+        error: (e, _) => e is LocationPermissionDeniedException
+            ? const _LocationDeniedView()
+            : const _ErrorView(),
+        data: (pos) =>
+            _NoteBoxList(latitude: pos.latitude, longitude: pos.longitude),
       ),
     );
   }

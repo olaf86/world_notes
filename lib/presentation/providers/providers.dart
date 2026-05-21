@@ -83,11 +83,12 @@ final authStateProvider = StreamProvider<UserEntity?>((ref) {
 
 // --- Location ---
 
-final currentPositionProvider = FutureProvider<Position?>((ref) async {
-  return ref.watch(locationServiceProvider).getCurrentPosition();
-});
-
+/// Live position stream. [ref.keepAlive] prevents the stream from being torn
+/// down when the user switches tabs in the [ShellRoute] — without it, every
+/// tab switch would restart GPS acquisition and briefly show
+/// "location unavailable".
 final positionStreamProvider = StreamProvider<Position>((ref) {
+  ref.keepAlive();
   return ref.watch(locationServiceProvider).watchPosition();
 });
 

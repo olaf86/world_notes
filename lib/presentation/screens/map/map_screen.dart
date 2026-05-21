@@ -8,10 +8,9 @@ import '../../../config/app_config.dart';
 import '../../../core/map_style.dart';
 import '../../../domain/entities/note_entity.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../services/location_service.dart';
 import '../../providers/providers.dart';
 import '../../widgets/map/note_marker_bottom_sheet.dart';
-
-enum _LocationStatus { checking, denied, ready }
 
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
@@ -23,74 +22,33 @@ class MapScreen extends ConsumerStatefulWidget {
 class _MapScreenState extends ConsumerState<MapScreen> {
   MapLibreMapController? _mapController;
   bool _mapReady = false;
-  _LocationStatus _locationStatus = _LocationStatus.checking;
-  bool _permanentlyDenied = false;
   bool _isTracking = false;
   final Map<String, NoteBoxEntity> _symbolNoteBoxMap = {};
 
-  double? _lat;
-  double? _lng;
+  /// Position used for the current marker query window. Only refreshed when
+  /// the user moves further than [_reloadThresholdMetres] to avoid thrashing.
+  Position? _anchorPos;
 
   static const _reloadThresholdMetres = 200.0;
 
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _initLocation());
-  }
-
-  Future<void> _initLocation() async {
-    final locationService = ref.read(locationServiceProvider);
-    final permission = await locationService.ensurePermission();
-
-    if (!mounted) return;
-
-    if (permission == LocationPermission.deniedForever) {
-      setState(() {
-        _locationStatus = _LocationStatus.denied;
-        _permanentlyDenied = true;
-      });
-      return;
+  void _onPositionUpdate(Position pos) {
+    final prev = _anchorPos;
+    if (prev != null) {
+      final dist = Geolocator.distanceBetween(
+        prev.latitude,
+        prev.longitude,
+        pos.latitude,
+        pos.longitude,
+      );
+      if (dist < _reloadThresholdMetres) return;
     }
 
-    if (permission == LocationPermission.denied) {
-      setState(() => _locationStatus = _LocationStatus.denied);
-      return;
-    }
+    setState(() => _anchorPos = pos);
 
-    final pos = await locationService.getCurrentPosition();
-    if (!mounted) return;
-
-    if (pos != null) {
-      setState(() {
-        _lat = pos.latitude;
-        _lng = pos.longitude;
-        _locationStatus = _LocationStatus.ready;
-      });
-    } else {
-      setState(() => _locationStatus = _LocationStatus.checking);
-    }
-  }
-
-  void _setPosition(double lat, double lng) {
-    final prev = (_lat != null && _lng != null)
-        ? Geolocator.distanceBetween(_lat!, _lng!, lat, lng)
-        : double.infinity;
-
-    if (prev < _reloadThresholdMetres) return;
-
-    final wasReady = _locationStatus == _LocationStatus.ready;
-    setState(() {
-      _lat = lat;
-      _lng = lng;
-      if (_locationStatus == _LocationStatus.checking) {
-        _locationStatus = _LocationStatus.ready;
-      }
-    });
-
-    // When tracking, MapLibre moves the camera automatically.
-    if (!_isTracking && wasReady && _mapReady && _mapController != null) {
-      _mapController!.animateCamera(CameraUpdate.newLatLng(LatLng(lat, lng)));
+    if (prev != null && !_isTracking && _mapReady && _mapController != null) {
+      _mapController!.animateCamera(
+        CameraUpdate.newLatLng(LatLng(pos.latitude, pos.longitude)),
+      );
     }
   }
 
@@ -115,20 +73,24 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final positionAsync = ref.watch(positionStreamProvider);
+
     ref.listen<AsyncValue<Position>>(positionStreamProvider, (_, next) {
-      next.whenData((pos) => _setPosition(pos.latitude, pos.longitude));
+      next.whenData(_onPositionUpdate);
     });
 
-    ref.listen<AsyncValue<Position?>>(currentPositionProvider, (_, next) {
-      next.whenData((pos) {
-        if (pos != null) _setPosition(pos.latitude, pos.longitude);
-      });
-    });
+    // The stream may already hold a value when this widget mounts (kept alive
+    // across tab switches). ref.listen doesn't fire for that existing value,
+    // so seed [_anchorPos] from the current snapshot when needed.
+    final anchor = _anchorPos ?? positionAsync.valueOrNull;
+    if (anchor != null && _anchorPos == null) {
+      _anchorPos = anchor;
+    }
 
-    if (_locationStatus == _LocationStatus.ready &&
-        _lat != null &&
-        _lng != null) {
-      ref.watch(noteBoxesProvider(latLng(_lat!, _lng!))).whenData((noteBoxes) {
+    if (anchor != null) {
+      ref
+          .watch(noteBoxesProvider(latLng(anchor.latitude, anchor.longitude)))
+          .whenData((noteBoxes) {
         if (_mapReady && _mapController != null) _updateMarkers(noteBoxes);
       });
     }
@@ -137,16 +99,19 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       _mapController?.setStyle(next.styleUrl(AppConfig.stadiaApiKey));
     });
 
-    return switch (_locationStatus) {
-      _LocationStatus.denied => _buildPermissionDeniedView(),
-      _LocationStatus.checking => _buildCheckingView(),
-      _LocationStatus.ready => _buildMapView(),
-    };
+    return positionAsync.when(
+      loading: () => _buildCheckingView(),
+      error: (e, _) => _buildPermissionDeniedView(
+        permanentlyDenied:
+            e is LocationPermissionDeniedException && e.permanentlyDenied,
+      ),
+      data: (_) => _buildMapView(anchor!),
+    );
   }
 
   // ── Permission denied ─────────────────────────────────────────────────────
 
-  Widget _buildPermissionDeniedView() {
+  Widget _buildPermissionDeniedView({required bool permanentlyDenied}) {
     final l10n = AppLocalizations.of(context)!;
     final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
@@ -178,7 +143,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 32),
-                if (_permanentlyDenied)
+                if (permanentlyDenied)
                   FilledButton.icon(
                     onPressed: Geolocator.openAppSettings,
                     icon: const Icon(Icons.settings_outlined),
@@ -186,7 +151,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   )
                 else
                   FilledButton.icon(
-                    onPressed: _initLocation,
+                    onPressed: () =>
+                        ref.invalidate(positionStreamProvider),
                     icon: const Icon(Icons.location_on_outlined),
                     label: Text(l10n.locationPermissionOpenSettings),
                   ),
@@ -225,17 +191,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   // ── Map ───────────────────────────────────────────────────────────────────
 
-  Widget _buildMapView() {
+  Widget _buildMapView(Position pos) {
     return Scaffold(
       body: Stack(
         children: [
-          // Listener detects user touch on the map to exit tracking mode.
           Listener(
             onPointerDown: (_) => _onUserPanned(),
-            child: _buildMap(_lat!, _lng!),
+            child: _buildMap(pos.latitude, pos.longitude),
           ),
           _buildTrackingButton(),
-          _buildFab(),
+          _buildFab(pos),
         ],
       ),
     );
@@ -279,33 +244,31 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     );
   }
 
-  Widget _buildFab() {
+  Widget _buildFab(Position pos) {
     return Positioned(
       bottom: 24,
       right: 16,
       child: FloatingActionButton.extended(
-        onPressed: _onAddNote,
+        onPressed: () => _onAddNote(pos),
         icon: const Icon(Icons.add_location_alt_outlined),
         label: const Text('Add Note'),
       ),
     );
   }
 
-  Future<void> _onAddNote() async {
-    final lat = _lat;
-    final lng = _lng;
-    if (lat == null || lng == null) return;
+  Future<void> _onAddNote(Position pos) async {
     if (!mounted) return;
-    context.push('/note/create?lat=$lat&lng=$lng');
+    context.push('/note/create?lat=${pos.latitude}&lng=${pos.longitude}');
   }
 
   // ── Markers ───────────────────────────────────────────────────────────────
 
   Future<void> _reloadMarkers() async {
-    if (_lat == null || _lng == null) return;
+    final pos = _anchorPos;
+    if (pos == null) return;
     final noteBoxes = await ref.read(noteRepositoryProvider).getNoteBoxesNearby(
-          latitude: _lat!,
-          longitude: _lng!,
+          latitude: pos.latitude,
+          longitude: pos.longitude,
           radiusKm: AppConfig.searchRadiusKm,
         );
     _updateMarkers(noteBoxes);
