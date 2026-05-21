@@ -72,6 +72,7 @@ class MessageRepositoryImpl implements MessageRepository {
 
   @override
   Future<MessageEntity> sendMessage({
+    String? id,
     required String noteId,
     required String content,
     required String userId,
@@ -89,9 +90,9 @@ class MessageRepositoryImpl implements MessageRepository {
       );
     }
 
-    final id = _uuid.v4();
+    final messageId = id ?? _uuid.v4();
     final model = MessageModel(
-      id: id,
+      id: messageId,
       noteId: noteId,
       userId: userId,
       userName: userName,
@@ -101,7 +102,7 @@ class MessageRepositoryImpl implements MessageRepository {
       createdAt: DateTime.now(),
     );
 
-    await _messages.doc(id).set(model.toFirestore());
+    await _messages.doc(messageId).set(model.toFirestore());
 
     // Increment message count directly on the note document.
     await _firestore

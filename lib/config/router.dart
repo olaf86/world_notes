@@ -87,12 +87,16 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-class _MainShell extends StatelessWidget {
+class _MainShell extends ConsumerWidget {
   final Widget child;
   const _MainShell({required this.child});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Pin the position stream for the entire shell lifetime so tab switches
+    // don't tear it down between MapScreen and PlaceListScreen.
+    ref.listen(positionStreamProvider, (_, _) {});
+
     return Scaffold(
       body: child,
       bottomNavigationBar: _BottomNav(),

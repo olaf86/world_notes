@@ -45,7 +45,7 @@ class MessageModel {
       'userPhotoUrl': userPhotoUrl,
       'content': content,
       if (imageUrl != null) 'imageUrl': imageUrl,
-      'createdAt': Timestamp.fromDate(DateTime.now()),
+      'createdAt': FieldValue.serverTimestamp(),
     };
   }
 

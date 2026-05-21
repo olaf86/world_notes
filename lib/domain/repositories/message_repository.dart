@@ -8,6 +8,7 @@ abstract class MessageRepository {
     required int limit,
   });
   Future<MessageEntity> sendMessage({
+    String? id,
     required String noteId,
     required String content,
     required String userId,

@@ -5,8 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:uuid/uuid.dart';
 import '../../../config/app_config.dart';
 import '../../../domain/entities/message_entity.dart';
+import '../../../domain/entities/user_entity.dart';
 import '../../providers/providers.dart';
 import '../../widgets/note/message_bubble.dart';
 
@@ -21,6 +23,8 @@ class NoteBoxScreen extends ConsumerStatefulWidget {
 }
 
 class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
+  static const _uuid = Uuid();
+
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
   BannerAd? _bannerAd;
@@ -32,6 +36,11 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
   final List<MessageEntity> _olderMessages = [];
   bool _loadingMore = false;
   bool _hasMore = true;
+
+  /// Optimistic messages shown immediately on send. Each entry is removed once
+  /// the matching id appears in the Firestore snapshot stream (server has
+  /// confirmed the write), or right away if the write fails.
+  final List<MessageEntity> _pendingMessages = [];
 
   @override
   void initState() {
@@ -154,8 +163,27 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
     _messageController.clear();
     _clearPendingImage();
 
+    // Optimistic placeholder shown until Firestore confirms the write.
+    // Image attachments still upload before the confirmed message arrives,
+    // so we don't preview them in the optimistic bubble.
+    final messageId = _uuid.v4();
+    final optimistic = MessageEntity(
+      id: messageId,
+      noteId: widget.noteId,
+      author: UserEntity(
+        id: user.id,
+        name: user.name,
+        photoUrl: user.photoUrl,
+      ),
+      content: text,
+      createdAt: DateTime.now(),
+      isPending: true,
+    );
+    setState(() => _pendingMessages.insert(0, optimistic));
+
     try {
       await ref.read(messageRepositoryProvider).sendMessage(
+            id: messageId,
             noteId: widget.noteId,
             content: text,
             userId: user.id,
@@ -165,7 +193,10 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
             imageName: imageName,
           );
     } catch (e) {
+      // Roll back the optimistic bubble on write failure.
       if (mounted) {
+        setState(() =>
+            _pendingMessages.removeWhere((m) => m.id == messageId));
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to send: $e')),
         );
@@ -180,16 +211,25 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
     final isPremium = isPremiumAsync.valueOrNull ?? false;
     final currentUser = ref.watch(authStateProvider).valueOrNull;
 
-    // Scroll to the top (newest message) when new messages arrive,
-    // but only if the user is already near the top.
+    // Reconcile optimistic messages with confirmed ones. Once an id appears
+    // in the snapshot stream, the corresponding pending bubble is dropped.
+    // Also scroll to the top when new messages arrive (if user is near top).
     ref.listen<AsyncValue<List<MessageEntity>>>(
       messagesProvider(widget.noteId),
       (prev, next) {
+        next.whenData((messages) {
+          if (_pendingMessages.isEmpty) return;
+          final confirmedIds = messages.map((m) => m.id).toSet();
+          if (_pendingMessages.any((p) => confirmedIds.contains(p.id))) {
+            setState(() => _pendingMessages
+                .removeWhere((p) => confirmedIds.contains(p.id)));
+          }
+        });
+
         final prevCount = prev?.valueOrNull?.length ?? 0;
         final nextCount = next.valueOrNull?.length ?? 0;
         if (nextCount > prevCount && _scrollController.hasClients) {
           final pos = _scrollController.position;
-          // position 0 = top (newest). Scroll there if already within 400px.
           if (pos.pixels < 400) {
             _scrollController.animateTo(
               0,
@@ -227,7 +267,12 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('Error: $e')),
               data: (streamMessages) {
-                final allMessages = [...streamMessages, ..._olderMessages];
+                // Pending optimistic bubbles always live at the top (newest).
+                final allMessages = [
+                  ..._pendingMessages,
+                  ...streamMessages,
+                  ..._olderMessages,
+                ];
 
                 if (allMessages.isEmpty) {
                   // RefreshIndicator requires a scrollable child, so wrap
