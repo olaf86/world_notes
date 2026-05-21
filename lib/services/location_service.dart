@@ -19,7 +19,11 @@ class LocationService {
         return null;
       }
 
-      return await Geolocator.getCurrentPosition(
+      // Last known position is instant and works offline/indoors.
+    final lastKnown = await Geolocator.getLastKnownPosition();
+    if (lastKnown != null) return lastKnown;
+
+    return await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
         ),
