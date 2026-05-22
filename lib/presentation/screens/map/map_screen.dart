@@ -32,6 +32,15 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   /// a style swap.
   final Set<String> _registeredMarkerIds = {};
 
+  /// Symbol currently highlighted because its bottom sheet is open. Tracked so
+  /// the size can be reverted on dismissal and reset when markers are rebuilt.
+  Symbol? _selectedSymbol;
+
+  // Symbol bitmap is rendered at 2x; these are the [SymbolOptions.iconSize]
+  // multipliers applied for display.
+  static const double _iconSizeNormal = 0.5;
+  static const double _iconSizeSelected = 0.75;
+
   /// Position used for the current marker query window. Only refreshed when
   /// the user moves further than [_reloadThresholdMetres] to avoid thrashing.
   Position? _anchorPos;
@@ -306,6 +315,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
     await _mapController!.clearSymbols();
     _symbolNoteBoxMap.clear();
+    // Old [Symbol] reference is invalid after clearSymbols.
+    _selectedSymbol = null;
 
     for (final noteBox in noteBoxes) {
       final imageId =
@@ -316,8 +327,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         SymbolOptions(
           geometry: LatLng(noteBox.place.latitude, noteBox.place.longitude),
           iconImage: imageId,
-          // Bitmap is rendered at 2x for crisp display; scale back down here.
-          iconSize: 0.5,
+          iconSize: _iconSizeNormal,
           iconAnchor: 'bottom',
           textField: noteBox.place.title,
           textOffset: const Offset(0, 0.4),
@@ -329,12 +339,41 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     }
   }
 
-  void _onSymbolTapped(Symbol symbol) {
+  /// Scales a symbol up/down. Swallows errors from stale symbol references
+  /// that can occur if markers are rebuilt while the bottom sheet is open.
+  Future<void> _setSymbolHighlighted(Symbol symbol, bool highlighted) async {
+    final controller = _mapController;
+    if (controller == null) return;
+    try {
+      await controller.updateSymbol(
+        symbol,
+        SymbolOptions(
+          iconSize: highlighted ? _iconSizeSelected : _iconSizeNormal,
+        ),
+      );
+    } catch (_) {
+      // Symbol may have been removed by a marker refresh; ignore.
+    }
+  }
+
+  Future<void> _onSymbolTapped(Symbol symbol) async {
     final noteBox = _symbolNoteBoxMap[symbol.id];
     if (noteBox == null) return;
-    showModalBottomSheet(
+
+    _selectedSymbol = symbol;
+    await _setSymbolHighlighted(symbol, true);
+
+    if (!mounted) return;
+    await showModalBottomSheet(
       context: context,
       builder: (_) => NoteMarkerBottomSheet(noteBox: noteBox),
     );
+
+    // Restore size after dismissal — but only if this symbol is still the
+    // active one. A marker refresh may have nulled it out via _updateMarkers.
+    if (_selectedSymbol?.id == symbol.id) {
+      await _setSymbolHighlighted(symbol, false);
+      _selectedSymbol = null;
+    }
   }
 }
