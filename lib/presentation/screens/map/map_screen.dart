@@ -78,13 +78,20 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final symbol = _animatingSymbol;
     final controller = _mapController;
     if (symbol == null || controller == null) return;
+
+    // Filter out the expected "stale symbol" case (markers were rebuilt
+    // mid-animation) up front, so the catchError below only fires on
+    // genuinely unexpected failures and they don't get silently lost.
+    if (!_symbolNoteBoxMap.containsKey(symbol.id)) return;
+
     final t = _pinScaleAnimation.value;
     final size = _iconSizeNormal + (_iconSizeSelected - _iconSizeNormal) * t;
     // Fire-and-forget: awaiting per-tick would back-pressure the animation.
-    // Stale-symbol errors after a marker refresh are silently ignored.
     controller
         .updateSymbol(symbol, SymbolOptions(iconSize: size))
-        .catchError((_) {});
+        .catchError((Object error, StackTrace stack) {
+      debugPrint('Pin scale updateSymbol failed: $error\n$stack');
+    });
   }
 
   void _animatePinHighlight(Symbol symbol, {required bool toSelected}) {
@@ -362,13 +369,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
   Future<void> _updateMarkers(List<NoteBoxEntity> noteBoxes) async {
     if (_mapController == null || !_mapReady) return;
 
-    await _mapController!.clearSymbols();
-    _symbolNoteBoxMap.clear();
-    // Old [Symbol] references are invalid after clearSymbols — stop any
-    // in-flight highlight animation pointing at the now-gone symbol.
+    // Stop any in-flight highlight animation before clearing symbols so the
+    // tick callback can't fire updateSymbol on the about-to-be-deleted
+    // reference during the clearSymbols await.
     _selectedSymbol = null;
     _animatingSymbol = null;
     _pinScaleController.reset();
+
+    await _mapController!.clearSymbols();
+    _symbolNoteBoxMap.clear();
 
     for (final noteBox in noteBoxes) {
       final imageId =
