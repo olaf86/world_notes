@@ -6,6 +6,8 @@ import 'package:maplibre_gl/maplibre_gl.dart';
 
 import '../../../config/app_config.dart';
 import '../../../core/map_style.dart';
+import '../../../core/utils/marker_image.dart';
+import '../../../core/utils/place_icon.dart';
 import '../../../domain/entities/note_entity.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../services/location_service.dart';
@@ -24,6 +26,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   bool _mapReady = false;
   bool _isTracking = false;
   final Map<String, NoteBoxEntity> _symbolNoteBoxMap = {};
+
+  /// Marker-image ids already registered with the current map style. Cleared
+  /// whenever the style reloads, since [addImage] registrations don't survive
+  /// a style swap.
+  final Set<String> _registeredMarkerIds = {};
 
   /// Position used for the current marker query window. Only refreshed when
   /// the user moves further than [_reloadThresholdMetres] to avoid thrashing.
@@ -264,6 +271,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   // ── Markers ───────────────────────────────────────────────────────────────
 
   Future<void> _reloadMarkers() async {
+    // A style swap drops every image registered via addImage, so the cache
+    // needs to be reset before we add symbols against the new style.
+    _registeredMarkerIds.clear();
     final pos = _anchorPos;
     if (pos == null) return;
     final noteBoxes = await ref.read(noteRepositoryProvider).getNoteBoxesNearby(
@@ -274,6 +284,23 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     _updateMarkers(noteBoxes);
   }
 
+  String _markerImageId(String iconName, String colorHex) =>
+      'marker_${iconName}_${colorHex.replaceAll('#', '')}';
+
+  Future<void> _ensureMarkerImage(String iconName, String colorHex) async {
+    final id = _markerImageId(iconName, colorHex);
+    if (_registeredMarkerIds.contains(id)) return;
+    final controller = _mapController;
+    if (controller == null) return;
+
+    final bytes = await MarkerImage.render(
+      iconData: placeIconData(iconName),
+      color: parsePlaceColor(colorHex),
+    );
+    await controller.addImage(id, bytes);
+    _registeredMarkerIds.add(id);
+  }
+
   Future<void> _updateMarkers(List<NoteBoxEntity> noteBoxes) async {
     if (_mapController == null || !_mapReady) return;
 
@@ -281,15 +308,21 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     _symbolNoteBoxMap.clear();
 
     for (final noteBox in noteBoxes) {
+      final imageId =
+          _markerImageId(noteBox.place.icon, noteBox.place.colorHex);
+      await _ensureMarkerImage(noteBox.place.icon, noteBox.place.colorHex);
+
       final symbol = await _mapController!.addSymbol(
         SymbolOptions(
           geometry: LatLng(noteBox.place.latitude, noteBox.place.longitude),
-          iconImage: 'marker-15',
-          iconColor: noteBox.place.colorHex,
-          iconSize: 1.5,
+          iconImage: imageId,
+          // Bitmap is rendered at 2x for crisp display; scale back down here.
+          iconSize: 0.5,
+          iconAnchor: 'bottom',
           textField: noteBox.place.title,
-          textOffset: const Offset(0, 1.5),
+          textOffset: const Offset(0, 0.4),
           textSize: 12,
+          textAnchor: 'top',
         ),
       );
       _symbolNoteBoxMap[symbol.id] = noteBox;

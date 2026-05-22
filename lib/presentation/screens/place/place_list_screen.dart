@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../../../config/app_config.dart';
+import '../../../core/utils/place_icon.dart';
 import '../../../domain/entities/note_entity.dart';
 import '../../../services/location_service.dart';
 import '../../providers/providers.dart';
@@ -115,7 +116,7 @@ class _PlaceListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final place = noteBox.place;
     final note = noteBox.note;
-    final color = _parseColor(place.colorHex);
+    final color = parsePlaceColor(place.colorHex);
     final distanceM = Geolocator.distanceBetween(
       userLatitude,
       userLongitude,
@@ -129,7 +130,7 @@ class _PlaceListTile extends StatelessWidget {
     return ListTile(
       leading: CircleAvatar(
         backgroundColor: color,
-        child: Icon(_iconData(place.icon), color: Colors.white, size: 20),
+        child: Icon(placeIconData(place.icon), color: Colors.white, size: 20),
       ),
       title: Text(place.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: place.subtitle != null
@@ -176,25 +177,6 @@ class _PlaceListTile extends StatelessWidget {
     );
   }
 
-  Color _parseColor(String hex) {
-    try {
-      return Color(int.parse(hex.replaceFirst('#', '0xFF')));
-    } catch (_) {
-      return Colors.green;
-    }
-  }
-
-  IconData _iconData(String icon) {
-    return switch (icon) {
-      'restaurant' => Icons.restaurant,
-      'park' => Icons.park,
-      'home' => Icons.home,
-      'star' => Icons.star,
-      'photo' => Icons.photo_camera,
-      'music' => Icons.music_note,
-      _ => Icons.place,
-    };
-  }
 }
 
 class _ErrorView extends StatelessWidget {

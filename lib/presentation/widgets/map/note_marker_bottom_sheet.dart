@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/utils/place_icon.dart';
 import '../../../domain/entities/note_entity.dart';
 
 class NoteMarkerBottomSheet extends StatelessWidget {
@@ -12,7 +13,7 @@ class NoteMarkerBottomSheet extends StatelessWidget {
     final theme = Theme.of(context);
     final place = noteBox.place;
     final note = noteBox.note;
-    final color = _parseColor(place.colorHex);
+    final color = parsePlaceColor(place.colorHex);
 
     return Padding(
       padding: const EdgeInsets.all(24),
@@ -25,7 +26,7 @@ class NoteMarkerBottomSheet extends StatelessWidget {
               CircleAvatar(
                 backgroundColor: color,
                 child: Icon(
-                  _iconData(place.icon),
+                  placeIconData(place.icon),
                   color: Colors.white,
                 ),
               ),
@@ -83,25 +84,4 @@ class NoteMarkerBottomSheet extends StatelessWidget {
     );
   }
 
-  Color _parseColor(String hex) {
-    try {
-      return Color(
-        int.parse(hex.replaceFirst('#', '0xFF')),
-      );
-    } catch (_) {
-      return Colors.green;
-    }
-  }
-
-  IconData _iconData(String icon) {
-    return switch (icon) {
-      'restaurant' => Icons.restaurant,
-      'park' => Icons.park,
-      'home' => Icons.home,
-      'star' => Icons.star,
-      'photo' => Icons.photo_camera,
-      'music' => Icons.music_note,
-      _ => Icons.place,
-    };
-  }
 }
