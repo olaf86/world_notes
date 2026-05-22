@@ -1,3 +1,5 @@
+import 'dart:math' show Point;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -23,37 +25,61 @@ class MapScreen extends ConsumerStatefulWidget {
 
 class _MapScreenState extends ConsumerState<MapScreen>
     with SingleTickerProviderStateMixin {
+  // ── Layer / source ids ────────────────────────────────────────────────────
+  static const _sourceId = 'note_places';
+  static const _clusterLayerId = 'clusters';
+  static const _clusterCountLayerId = 'cluster-count';
+  static const _unclusteredLayerId = 'unclustered-point';
+
+  // ── Cluster tuning ────────────────────────────────────────────────────────
+  /// Pixel radius within which features are grouped into a cluster.
+  static const double _clusterRadius = 50;
+
+  /// Above this zoom level, clustering is disabled and every pin is shown
+  /// individually — even pins at literally identical coordinates will still
+  /// overlap, but the user will have zoomed in enough that overlap is rare.
+  static const int _clusterMaxZoom = 14;
+
+  /// How much to zoom in by when a cluster is tapped. Not pixel-perfect
+  /// vs. native getClusterExpansionZoom (which this plugin doesn't expose),
+  /// but feels right in practice and clamps to a sensible max.
+  static const double _clusterTapZoomStep = 2.0;
+
+  // ── Pin sizing ────────────────────────────────────────────────────────────
+  /// Marker bitmap is rendered at 2x; these are the iconSize multipliers
+  /// applied at render time.
+  static const double _iconSizeNormal = 0.5;
+  static const double _iconSizeSelected = 0.75;
+
+  // ── Map controller state ──────────────────────────────────────────────────
   MapLibreMapController? _mapController;
   bool _mapReady = false;
+  bool _sourceReady = false;
   bool _isTracking = false;
-  final Map<String, NoteBoxEntity> _symbolNoteBoxMap = {};
+
+  /// Lookup by note id — populated from the same data fed to the GeoJSON
+  /// source, so tap → feature.id → entity is O(1).
+  final Map<String, NoteBoxEntity> _noteBoxById = {};
 
   /// Marker-image ids already registered with the current map style. Cleared
   /// whenever the style reloads, since [addImage] registrations don't survive
   /// a style swap.
   final Set<String> _registeredMarkerIds = {};
 
-  /// Symbol currently highlighted because its bottom sheet is open. Tracked so
-  /// the size can be reverted on dismissal and reset when markers are rebuilt.
+  // ── Selection overlay & animation ─────────────────────────────────────────
+  /// Symbol overlaid on top of the layer-rendered pin while a bottom sheet
+  /// is open. Used to drive the highlight animation, since per-feature
+  /// iconSize on a layer can't be animated by the current plugin API.
   Symbol? _selectedSymbol;
-
-  /// Drives the scale animation. value=0 → normal size, value=1 → selected.
-  /// The currently-animating symbol may differ from [_selectedSymbol] briefly
-  /// while the reverse animation is finishing.
+  Symbol? _animatingSymbol;
   late final AnimationController _pinScaleController;
   late final Animation<double> _pinScaleAnimation;
-  Symbol? _animatingSymbol;
 
-  // Symbol bitmap is rendered at 2x; these are the [SymbolOptions.iconSize]
-  // multipliers applied for display.
-  static const double _iconSizeNormal = 0.5;
-  static const double _iconSizeSelected = 0.75;
-
-  /// Position used for the current marker query window. Only refreshed when
-  /// the user moves further than [_reloadThresholdMetres] to avoid thrashing.
+  // ── Auto-reload window ────────────────────────────────────────────────────
   Position? _anchorPos;
-
   static const _reloadThresholdMetres = 200.0;
+
+  // ──────────────────────────────────────────────────────────────────────────
 
   @override
   void initState() {
@@ -79,10 +105,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final controller = _mapController;
     if (symbol == null || controller == null) return;
 
-    // Filter out the expected "stale symbol" case (markers were rebuilt
-    // mid-animation) up front, so the catchError below only fires on
-    // genuinely unexpected failures and they don't get silently lost.
-    if (!_symbolNoteBoxMap.containsKey(symbol.id)) return;
+    // Skip if the selection has been cleared while we were mid-animation.
+    if (_selectedSymbol?.id != symbol.id) return;
 
     final t = _pinScaleAnimation.value;
     final size = _iconSizeNormal + (_iconSizeSelected - _iconSizeNormal) * t;
@@ -102,6 +126,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
       _pinScaleController.reverse();
     }
   }
+
+  // ── Position handling ─────────────────────────────────────────────────────
 
   void _onPositionUpdate(Position pos) {
     final prev = _anchorPos;
@@ -143,6 +169,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
     _mapController?.updateMyLocationTrackingMode(MyLocationTrackingMode.none);
   }
 
+  // ── Build ────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     final positionAsync = ref.watch(positionStreamProvider);
@@ -151,9 +179,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
       next.whenData(_onPositionUpdate);
     });
 
-    // The stream may already hold a value when this widget mounts (kept alive
-    // across tab switches). ref.listen doesn't fire for that existing value,
-    // so seed [_anchorPos] from the current snapshot when needed.
     final anchor = _anchorPos ?? positionAsync.valueOrNull;
     if (anchor != null && _anchorPos == null) {
       _anchorPos = anchor;
@@ -163,7 +188,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
       ref
           .watch(noteBoxesProvider(latLng(anchor.latitude, anchor.longitude)))
           .whenData((noteBoxes) {
-        if (_mapReady && _mapController != null) _updateMarkers(noteBoxes);
+        if (_mapReady && _sourceReady) _updateMarkers(noteBoxes);
       });
     }
 
@@ -292,9 +317,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
         _mapReady = false;
         _mapController = controller;
         _mapReady = true;
-        controller.onSymbolTapped.add(_onSymbolTapped);
       },
-      onStyleLoadedCallback: _reloadMarkers,
+      onStyleLoadedCallback: _onStyleLoaded,
+      onMapClick: _onMapClick,
     );
   }
 
@@ -333,12 +358,102 @@ class _MapScreenState extends ConsumerState<MapScreen>
     context.push('/note/create?lat=${pos.latitude}&lng=${pos.longitude}');
   }
 
+  // ── Style / source / layers ───────────────────────────────────────────────
+
+  Future<void> _onStyleLoaded() async {
+    // Style swap drops every addImage registration and every user-added
+    // source/layer, so all of the per-style state has to be rebuilt.
+    _registeredMarkerIds.clear();
+    _sourceReady = false;
+    await _clearSelection();
+
+    await _setupSourcesAndLayers();
+    _sourceReady = true;
+
+    await _reloadMarkers();
+  }
+
+  Future<void> _setupSourcesAndLayers() async {
+    final controller = _mapController;
+    if (controller == null || !mounted) return;
+
+    final colorScheme = Theme.of(context).colorScheme;
+    final clusterColor = _toHex(colorScheme.primary);
+    final clusterTextColor = _toHex(colorScheme.onPrimary);
+
+    await controller.addSource(
+      _sourceId,
+      GeojsonSourceProperties(
+        data: const {'type': 'FeatureCollection', 'features': []},
+        cluster: true,
+        clusterRadius: _clusterRadius,
+        clusterMaxZoom: _clusterMaxZoom.toDouble(),
+      ),
+    );
+
+    // Cluster bubble — circle radius grows with the count.
+    await controller.addCircleLayer(
+      _sourceId,
+      _clusterLayerId,
+      CircleLayerProperties(
+        circleColor: clusterColor,
+        circleRadius: [
+          'step',
+          ['get', 'point_count'],
+          18,
+          10, 22,
+          30, 28,
+        ],
+        circleStrokeWidth: 2,
+        circleStrokeColor: '#ffffff',
+        circleOpacity: 0.92,
+      ),
+      filter: ['has', 'point_count'],
+    );
+
+    // Cluster count label sitting on top of the bubble.
+    await controller.addSymbolLayer(
+      _sourceId,
+      _clusterCountLayerId,
+      SymbolLayerProperties(
+        textField: ['get', 'point_count_abbreviated'],
+        textSize: 14,
+        textColor: clusterTextColor,
+        textAllowOverlap: true,
+        textIgnorePlacement: true,
+      ),
+      filter: ['has', 'point_count'],
+    );
+
+    // Individual pins — uses each feature's iconImageId property.
+    await controller.addSymbolLayer(
+      _sourceId,
+      _unclusteredLayerId,
+      SymbolLayerProperties(
+        iconImage: ['get', 'iconImageId'],
+        iconSize: _iconSizeNormal,
+        iconAnchor: 'bottom',
+        iconAllowOverlap: true,
+        iconIgnorePlacement: true,
+        textField: ['get', 'title'],
+        textSize: 12,
+        textOffset: [0, 0.4],
+        textAnchor: 'top',
+        textOptional: true,
+      ),
+      filter: ['!', ['has', 'point_count']],
+    );
+  }
+
+  String _toHex(Color color) {
+    // Color.toARGB32 returns 0xAARRGGBB; mask the alpha and format as #RRGGBB.
+    final rgb = color.toARGB32() & 0x00FFFFFF;
+    return '#${rgb.toRadixString(16).padLeft(6, '0').toUpperCase()}';
+  }
+
   // ── Markers ───────────────────────────────────────────────────────────────
 
   Future<void> _reloadMarkers() async {
-    // A style swap drops every image registered via addImage, so the cache
-    // needs to be reset before we add symbols against the new style.
-    _registeredMarkerIds.clear();
     final pos = _anchorPos;
     if (pos == null) return;
     final noteBoxes = await ref.read(noteRepositoryProvider).getNoteBoxesNearby(
@@ -346,7 +461,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
           longitude: pos.longitude,
           radiusKm: AppConfig.searchRadiusKm,
         );
-    _updateMarkers(noteBoxes);
+    await _updateMarkers(noteBoxes);
   }
 
   String _markerImageId(String iconName, String colorHex) =>
@@ -367,57 +482,160 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   Future<void> _updateMarkers(List<NoteBoxEntity> noteBoxes) async {
-    if (_mapController == null || !_mapReady) return;
+    final controller = _mapController;
+    if (controller == null || !_mapReady || !_sourceReady) return;
 
-    // Stop any in-flight highlight animation before clearing symbols so the
-    // tick callback can't fire updateSymbol on the about-to-be-deleted
-    // reference during the clearSymbols await.
-    _selectedSymbol = null;
-    _animatingSymbol = null;
-    _pinScaleController.reset();
+    // Refresh the lookup map and register any new marker images first so
+    // the layer's data-driven iconImage never references an unloaded id.
+    _noteBoxById
+      ..clear()
+      ..addEntries(noteBoxes.map((nb) => MapEntry(nb.note.id, nb)));
 
-    await _mapController!.clearSymbols();
-    _symbolNoteBoxMap.clear();
+    for (final nb in noteBoxes) {
+      await _ensureMarkerImage(nb.place.icon, nb.place.colorHex);
+    }
 
-    for (final noteBox in noteBoxes) {
-      final imageId =
-          _markerImageId(noteBox.place.icon, noteBox.place.colorHex);
-      await _ensureMarkerImage(noteBox.place.icon, noteBox.place.colorHex);
+    // Underlying features changed; any selection overlay is stale.
+    await _clearSelection();
 
-      final symbol = await _mapController!.addSymbol(
-        SymbolOptions(
-          geometry: LatLng(noteBox.place.latitude, noteBox.place.longitude),
-          iconImage: imageId,
-          iconSize: _iconSizeNormal,
-          iconAnchor: 'bottom',
-          textField: noteBox.place.title,
-          textOffset: const Offset(0, 0.4),
-          textSize: 12,
-          textAnchor: 'top',
-        ),
-      );
-      _symbolNoteBoxMap[symbol.id] = noteBox;
+    final features = noteBoxes
+        .map((nb) => {
+              'type': 'Feature',
+              'id': nb.note.id,
+              'geometry': {
+                'type': 'Point',
+                'coordinates': [nb.place.longitude, nb.place.latitude],
+              },
+              'properties': {
+                'iconImageId':
+                    _markerImageId(nb.place.icon, nb.place.colorHex),
+                'title': nb.place.title,
+              },
+            })
+        .toList();
+
+    await controller.setGeoJsonSource(_sourceId, {
+      'type': 'FeatureCollection',
+      'features': features,
+    });
+  }
+
+  // ── Tap handling ──────────────────────────────────────────────────────────
+
+  Future<void> _onMapClick(Point<double> point, LatLng _) async {
+    final controller = _mapController;
+    if (controller == null || !_sourceReady) return;
+
+    final features = await controller.queryRenderedFeatures(
+      point,
+      [_clusterLayerId, _unclusteredLayerId],
+      null,
+    );
+    if (features.isEmpty) return;
+
+    final feature = features.first;
+    if (feature is! Map) return;
+    final props = feature['properties'];
+    if (props is! Map) return;
+
+    if (props['cluster'] == true) {
+      await _handleClusterTap(feature);
+    } else {
+      await _handlePinTap(feature);
     }
   }
 
-  Future<void> _onSymbolTapped(Symbol symbol) async {
-    final noteBox = _symbolNoteBoxMap[symbol.id];
+  Future<void> _handleClusterTap(Map feature) async {
+    final controller = _mapController;
+    if (controller == null) return;
+
+    final coords = _coordsOf(feature);
+    if (coords == null) return;
+
+    final currentZoom =
+        controller.cameraPosition?.zoom ?? AppConfig.defaultZoom;
+    final targetZoom = (currentZoom + _clusterTapZoomStep).clamp(0.0, 22.0);
+
+    await controller.animateCamera(
+      CameraUpdate.newLatLngZoom(coords, targetZoom),
+    );
+  }
+
+  Future<void> _handlePinTap(Map feature) async {
+    final controller = _mapController;
+    if (controller == null || !mounted) return;
+
+    final noteId = feature['id']?.toString();
+    if (noteId == null) return;
+    final noteBox = _noteBoxById[noteId];
     if (noteBox == null) return;
 
-    _selectedSymbol = symbol;
-    _animatePinHighlight(symbol, toSelected: true);
+    final coords = _coordsOf(feature);
+    if (coords == null) return;
+
+    await _ensureMarkerImage(noteBox.place.icon, noteBox.place.colorHex);
+    final imageId =
+        _markerImageId(noteBox.place.icon, noteBox.place.colorHex);
+
+    // Overlay a managed Symbol on top of the layer-rendered pin so the size
+    // can be tweened. The two pins are pixel-identical at iconSize 0.5, so
+    // adding/removing the overlay is visually invisible.
+    final overlay = await controller.addSymbol(
+      SymbolOptions(
+        geometry: coords,
+        iconImage: imageId,
+        iconSize: _iconSizeNormal,
+        iconAnchor: 'bottom',
+      ),
+    );
+
+    _selectedSymbol = overlay;
+    _animatePinHighlight(overlay, toSelected: true);
+
+    if (!mounted) {
+      await _removeOverlay(overlay);
+      return;
+    }
 
     await showModalBottomSheet(
       context: context,
       builder: (_) => NoteMarkerBottomSheet(noteBox: noteBox),
     );
 
-    // Restore size after dismissal — but only if this symbol is still the
-    // active one. A marker refresh may have nulled it out via _updateMarkers.
     if (!mounted) return;
-    if (_selectedSymbol?.id == symbol.id) {
-      _animatePinHighlight(symbol, toSelected: false);
-      _selectedSymbol = null;
+    if (_selectedSymbol?.id != overlay.id) return;
+
+    _animatePinHighlight(overlay, toSelected: false);
+    // Let the reverse animation finish so the user sees the shrink.
+    await Future.delayed(_pinScaleController.duration!);
+    await _removeOverlay(overlay);
+  }
+
+  Future<void> _clearSelection() async {
+    final overlay = _selectedSymbol;
+    _selectedSymbol = null;
+    _animatingSymbol = null;
+    _pinScaleController.reset();
+    if (overlay != null) await _removeOverlay(overlay);
+  }
+
+  Future<void> _removeOverlay(Symbol overlay) async {
+    final controller = _mapController;
+    if (controller == null) return;
+    try {
+      await controller.removeSymbol(overlay);
+    } catch (error, stack) {
+      debugPrint('Failed to remove selection overlay: $error\n$stack');
     }
+  }
+
+  LatLng? _coordsOf(Map feature) {
+    final geom = feature['geometry'];
+    if (geom is! Map) return null;
+    final coords = geom['coordinates'];
+    if (coords is! List || coords.length < 2) return null;
+    final lng = (coords[0] as num).toDouble();
+    final lat = (coords[1] as num).toDouble();
+    return LatLng(lat, lng);
   }
 }
