@@ -21,7 +21,8 @@ class MapScreen extends ConsumerStatefulWidget {
   ConsumerState<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends ConsumerState<MapScreen> {
+class _MapScreenState extends ConsumerState<MapScreen>
+    with SingleTickerProviderStateMixin {
   MapLibreMapController? _mapController;
   bool _mapReady = false;
   bool _isTracking = false;
@@ -36,6 +37,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   /// the size can be reverted on dismissal and reset when markers are rebuilt.
   Symbol? _selectedSymbol;
 
+  /// Drives the scale animation. value=0 → normal size, value=1 → selected.
+  /// The currently-animating symbol may differ from [_selectedSymbol] briefly
+  /// while the reverse animation is finishing.
+  late final AnimationController _pinScaleController;
+  late final Animation<double> _pinScaleAnimation;
+  Symbol? _animatingSymbol;
+
   // Symbol bitmap is rendered at 2x; these are the [SymbolOptions.iconSize]
   // multipliers applied for display.
   static const double _iconSizeNormal = 0.5;
@@ -46,6 +54,47 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   Position? _anchorPos;
 
   static const _reloadThresholdMetres = 200.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pinScaleController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 220),
+    );
+    _pinScaleAnimation = CurvedAnimation(
+      parent: _pinScaleController,
+      curve: Curves.easeInOut,
+    )..addListener(_onPinScaleTick);
+  }
+
+  @override
+  void dispose() {
+    _pinScaleController.dispose();
+    super.dispose();
+  }
+
+  void _onPinScaleTick() {
+    final symbol = _animatingSymbol;
+    final controller = _mapController;
+    if (symbol == null || controller == null) return;
+    final t = _pinScaleAnimation.value;
+    final size = _iconSizeNormal + (_iconSizeSelected - _iconSizeNormal) * t;
+    // Fire-and-forget: awaiting per-tick would back-pressure the animation.
+    // Stale-symbol errors after a marker refresh are silently ignored.
+    controller
+        .updateSymbol(symbol, SymbolOptions(iconSize: size))
+        .catchError((_) {});
+  }
+
+  void _animatePinHighlight(Symbol symbol, {required bool toSelected}) {
+    _animatingSymbol = symbol;
+    if (toSelected) {
+      _pinScaleController.forward();
+    } else {
+      _pinScaleController.reverse();
+    }
+  }
 
   void _onPositionUpdate(Position pos) {
     final prev = _anchorPos;
@@ -315,8 +364,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
     await _mapController!.clearSymbols();
     _symbolNoteBoxMap.clear();
-    // Old [Symbol] reference is invalid after clearSymbols.
+    // Old [Symbol] references are invalid after clearSymbols — stop any
+    // in-flight highlight animation pointing at the now-gone symbol.
     _selectedSymbol = null;
+    _animatingSymbol = null;
+    _pinScaleController.reset();
 
     for (final noteBox in noteBoxes) {
       final imageId =
@@ -339,31 +391,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     }
   }
 
-  /// Scales a symbol up/down. Swallows errors from stale symbol references
-  /// that can occur if markers are rebuilt while the bottom sheet is open.
-  Future<void> _setSymbolHighlighted(Symbol symbol, bool highlighted) async {
-    final controller = _mapController;
-    if (controller == null) return;
-    try {
-      await controller.updateSymbol(
-        symbol,
-        SymbolOptions(
-          iconSize: highlighted ? _iconSizeSelected : _iconSizeNormal,
-        ),
-      );
-    } catch (_) {
-      // Symbol may have been removed by a marker refresh; ignore.
-    }
-  }
-
   Future<void> _onSymbolTapped(Symbol symbol) async {
     final noteBox = _symbolNoteBoxMap[symbol.id];
     if (noteBox == null) return;
 
     _selectedSymbol = symbol;
-    await _setSymbolHighlighted(symbol, true);
+    _animatePinHighlight(symbol, toSelected: true);
 
-    if (!mounted) return;
     await showModalBottomSheet(
       context: context,
       builder: (_) => NoteMarkerBottomSheet(noteBox: noteBox),
@@ -371,8 +405,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
     // Restore size after dismissal — but only if this symbol is still the
     // active one. A marker refresh may have nulled it out via _updateMarkers.
+    if (!mounted) return;
     if (_selectedSymbol?.id == symbol.id) {
-      await _setSymbolHighlighted(symbol, false);
+      _animatePinHighlight(symbol, toSelected: false);
       _selectedSymbol = null;
     }
   }
