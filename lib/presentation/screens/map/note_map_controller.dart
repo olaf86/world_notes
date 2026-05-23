@@ -79,6 +79,11 @@ class NoteMapController {
   late final AnimationController _pinScaleController;
   late final Animation<double> _pinScaleAnimation;
 
+  /// Last note-box snapshot we were asked to render. Note data often arrives
+  /// from the provider before the GeoJSON source/layers have finished being
+  /// created, so we cache it here and replay it once [_sourceReady] flips.
+  List<NoteBoxEntity> _latestNoteBoxes = const [];
+
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
   void attach(MapLibreMapController map) {
@@ -90,10 +95,6 @@ class NoteMapController {
   }
 
   // ── Map operations exposed to the widget ──────────────────────────────────
-
-  Future<void> recenter(LatLng target) async {
-    await _map?.animateCamera(CameraUpdate.newLatLng(target));
-  }
 
   Future<void> setTrackingMode(MyLocationTrackingMode mode) async {
     await _map?.updateMyLocationTrackingMode(mode);
@@ -108,12 +109,16 @@ class NoteMapController {
   /// Called whenever the MapLibre style finishes loading. Re-registers the
   /// per-style state (images, source, layers) that a style swap drops, and
   /// clears any in-flight selection that referenced the previous style.
+  /// Replays the most recent note-box snapshot so that data which arrived
+  /// before the source was ready (very common on cold start) doesn't get
+  /// silently dropped.
   Future<void> onStyleLoaded(ColorScheme colorScheme) async {
     _registeredMarkerIds.clear();
     _sourceReady = false;
     await _clearSelection();
     await _setupSourcesAndLayers(colorScheme);
     _sourceReady = true;
+    await _pushMarkersToSource(_latestNoteBoxes);
   }
 
   Future<void> _setupSourcesAndLayers(ColorScheme colorScheme) async {
@@ -196,8 +201,16 @@ class NoteMapController {
   // ── Marker rendering ──────────────────────────────────────────────────────
 
   Future<void> updateMarkers(List<NoteBoxEntity> noteBoxes) async {
+    // Always cache so we can replay on the next style load even if the
+    // source isn't ready yet right now.
+    _latestNoteBoxes = noteBoxes;
+    if (_map == null || !_sourceReady) return;
+    await _pushMarkersToSource(noteBoxes);
+  }
+
+  Future<void> _pushMarkersToSource(List<NoteBoxEntity> noteBoxes) async {
     final map = _map;
-    if (map == null || !_sourceReady) return;
+    if (map == null) return;
 
     _noteBoxById
       ..clear()

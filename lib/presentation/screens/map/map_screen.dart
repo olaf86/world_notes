@@ -17,11 +17,15 @@ import 'note_map_controller.dart';
 /// Composition root of the map tab.
 ///
 /// Responsibilities are intentionally limited to:
-///   * subscribing to position / notes / map style providers
-///   * applying a movement threshold before re-running the notes query
-///   * pushing position changes, data changes, and style changes into the
-///     [NoteMapController]
+///   * watching the anchor position, tracking flag, note data, and style
+///     providers
+///   * pushing data and style changes into the [NoteMapController]
 ///   * opening the bottom-sheet preview when the controller reports a pin tap
+///
+/// All persistent state — anchor position with its movement-threshold rule,
+/// tracking toggle — lives in Riverpod, not in this widget's State. That
+/// makes the state independent of widget lifecycle and accessible from
+/// other screens (e.g. a "follow me" indicator in the bottom nav).
 ///
 /// Everything about MapLibre itself — source/layer setup, clustering,
 /// marker images, the selection-overlay animation — lives behind the
@@ -38,14 +42,6 @@ class MapScreen extends ConsumerStatefulWidget {
 class _MapScreenState extends ConsumerState<MapScreen>
     with SingleTickerProviderStateMixin {
   late final NoteMapController _mapController;
-
-  /// Anchor position for the current notes query window. Only updated when
-  /// the user moves further than [_reloadThresholdMetres] to avoid thrashing
-  /// the Firestore subscription.
-  Position? _anchorPos;
-  bool _isTracking = false;
-
-  static const _reloadThresholdMetres = 200.0;
 
   @override
   void initState() {
@@ -72,38 +68,20 @@ class _MapScreenState extends ConsumerState<MapScreen>
     );
   }
 
-  // ── Position handling ─────────────────────────────────────────────────────
-
-  void _onPositionUpdate(Position pos) {
-    final prev = _anchorPos;
-    if (prev != null) {
-      final dist = Geolocator.distanceBetween(
-        prev.latitude,
-        prev.longitude,
-        pos.latitude,
-        pos.longitude,
-      );
-      if (dist < _reloadThresholdMetres) return;
-    }
-
-    setState(() => _anchorPos = pos);
-
-    if (prev != null && !_isTracking) {
-      _mapController.recenter(LatLng(pos.latitude, pos.longitude));
-    }
-  }
+  // ── Tracking toggle ──────────────────────────────────────────────────────
 
   Future<void> _toggleTracking() async {
-    final next = !_isTracking;
-    setState(() => _isTracking = next);
+    final notifier = ref.read(isTrackingProvider.notifier);
+    final next = !notifier.state;
+    notifier.state = next;
     await _mapController.setTrackingMode(
       next ? MyLocationTrackingMode.tracking : MyLocationTrackingMode.none,
     );
   }
 
   void _onUserPanned() {
-    if (!_isTracking) return;
-    setState(() => _isTracking = false);
+    if (!ref.read(isTrackingProvider)) return;
+    ref.read(isTrackingProvider.notifier).state = false;
     _mapController.setTrackingMode(MyLocationTrackingMode.none);
   }
 
@@ -117,18 +95,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
   @override
   Widget build(BuildContext context) {
     final positionAsync = ref.watch(positionStreamProvider);
-
-    ref.listen<AsyncValue<Position>>(positionStreamProvider, (_, next) {
-      next.whenData(_onPositionUpdate);
-    });
-
-    // The stream may already hold a value when this widget mounts (kept
-    // alive across tab switches). ref.listen doesn't fire for that existing
-    // value, so seed [_anchorPos] from the current snapshot when needed.
-    final anchor = _anchorPos ?? positionAsync.valueOrNull;
-    if (anchor != null && _anchorPos == null) {
-      _anchorPos = anchor;
-    }
+    final anchor = ref.watch(anchorPositionProvider);
+    final isTracking = ref.watch(isTrackingProvider);
 
     if (anchor != null) {
       ref
@@ -140,6 +108,20 @@ class _MapScreenState extends ConsumerState<MapScreen>
       _mapController.changeStyle(next.styleUrl(AppConfig.stadiaApiKey));
     });
 
+    if (anchor != null) {
+      return _MapView(
+        anchor: anchor,
+        mapController: _mapController,
+        isTracking: isTracking,
+        onPointerDown: _onUserPanned,
+        onTrackingToggle: _toggleTracking,
+        onAddNote: () => _onAddNote(anchor),
+      );
+    }
+
+    // anchor is null until the first GPS fix lands in the notifier; fall
+    // back to whatever positionStreamProvider is currently reporting so we
+    // can surface "denied" vs. "still searching" in the meantime.
     return positionAsync.when(
       loading: () => const LocationCheckingView(),
       error: (e, _) => LocationPermissionView(
@@ -147,14 +129,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
             e is LocationPermissionDeniedException && e.permanentlyDenied,
         onRetry: () => ref.invalidate(positionStreamProvider),
       ),
-      data: (_) => _MapView(
-        anchor: anchor!,
-        mapController: _mapController,
-        isTracking: _isTracking,
-        onPointerDown: _onUserPanned,
-        onTrackingToggle: _toggleTracking,
-        onAddNote: () => _onAddNote(anchor),
-      ),
+      data: (_) => const LocationCheckingView(),
     );
   }
 }
@@ -198,6 +173,7 @@ class _MapView extends ConsumerWidget {
               onMapCreated: mapController.attach,
               onStyleLoadedCallback: () =>
                   mapController.onStyleLoaded(colorScheme),
+              featureTapsTriggersMapClick: true,
               onMapClick: (point, _) => mapController.onMapClick(point),
             ),
           ),
