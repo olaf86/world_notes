@@ -51,3 +51,6 @@ app.*.map.json
 
 # Local dart-define overrides (contains API keys)
 .dart_define.json
+
+# Claude Code per-user runtime + permission allowlist
+.claude/
