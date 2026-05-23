@@ -92,6 +92,52 @@ final positionStreamProvider = StreamProvider<Position>((ref) {
   return ref.watch(locationServiceProvider).watchPosition();
 });
 
+/// Anchor position used as the centre of the map's notes-query window.
+/// Updated from [positionStreamProvider] but only when the user has moved
+/// further than the reload threshold, so the Firestore subscription isn't
+/// thrashed by every minor GPS jitter. Lives in Riverpod (not MapScreen
+/// state) so it survives any future widget-lifecycle reshuffling and so
+/// other screens can read the same anchor.
+class AnchorPositionNotifier extends Notifier<Position?> {
+  static const double _reloadThresholdMetres = 200;
+
+  @override
+  Position? build() {
+    ref.listen<AsyncValue<Position>>(positionStreamProvider, (_, next) {
+      next.whenData(_consider);
+    });
+    // ref.listen doesn't fire for the value already cached by the stream
+    // (common when this notifier is first activated after the stream has
+    // been kept alive elsewhere). Seed from the current snapshot.
+    return ref.read(positionStreamProvider).valueOrNull;
+  }
+
+  void _consider(Position pos) {
+    final prev = state;
+    if (prev == null) {
+      state = pos;
+      return;
+    }
+    final dist = Geolocator.distanceBetween(
+      prev.latitude,
+      prev.longitude,
+      pos.latitude,
+      pos.longitude,
+    );
+    if (dist >= _reloadThresholdMetres) {
+      state = pos;
+    }
+  }
+}
+
+final anchorPositionProvider =
+    NotifierProvider<AnchorPositionNotifier, Position?>(
+  AnchorPositionNotifier.new,
+);
+
+/// Whether the map is following the user's live GPS position.
+final isTrackingProvider = StateProvider<bool>((ref) => false);
+
 // --- NoteBoxes ---
 
 final noteBoxesProvider = StreamProvider.family<List<NoteBoxEntity>, MapLatLng>(
