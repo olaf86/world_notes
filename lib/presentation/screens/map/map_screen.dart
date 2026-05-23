@@ -173,6 +173,7 @@ class _MapView extends ConsumerWidget {
               onMapCreated: mapController.attach,
               onStyleLoadedCallback: () =>
                   mapController.onStyleLoaded(colorScheme),
+              featureTapsTriggersMapClick: true,
               onMapClick: (point, _) => mapController.onMapClick(point),
             ),
           ),

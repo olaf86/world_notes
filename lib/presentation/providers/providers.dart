@@ -132,8 +132,8 @@ class AnchorPositionNotifier extends Notifier<Position?> {
 
 final anchorPositionProvider =
     NotifierProvider<AnchorPositionNotifier, Position?>(
-  AnchorPositionNotifier.new,
-);
+      AnchorPositionNotifier.new,
+    );
 
 /// Whether the map is following the user's live GPS position.
 final isTrackingProvider = StateProvider<bool>((ref) => false);
@@ -142,7 +142,9 @@ final isTrackingProvider = StateProvider<bool>((ref) => false);
 
 final noteBoxesProvider = StreamProvider.family<List<NoteBoxEntity>, MapLatLng>(
   (ref, latLng) {
-    return ref.watch(noteRepositoryProvider).watchNoteBoxesNearby(
+    return ref
+        .watch(noteRepositoryProvider)
+        .watchNoteBoxesNearby(
           latitude: latLng.lat,
           longitude: latLng.lng,
           radiusKm: AppConfig.searchRadiusKm,
@@ -150,13 +152,25 @@ final noteBoxesProvider = StreamProvider.family<List<NoteBoxEntity>, MapLatLng>(
   },
 );
 
+final noteBoxesSnapshotProvider =
+    FutureProvider.family<List<NoteBoxEntity>, MapLatLng>((ref, latLng) {
+      return ref
+          .watch(noteRepositoryProvider)
+          .getNoteBoxesNearby(
+            latitude: latLng.lat,
+            longitude: latLng.lng,
+            radiusKm: AppConfig.searchRadiusKm,
+          );
+    });
+
 // --- Messages ---
 
-final messagesProvider = StreamProvider.family<List<MessageEntity>, String>(
-  (ref, noteId) {
-    return ref.watch(messageRepositoryProvider).watchMessages(noteId);
-  },
-);
+final messagesProvider = StreamProvider.family<List<MessageEntity>, String>((
+  ref,
+  noteId,
+) {
+  return ref.watch(messageRepositoryProvider).watchMessages(noteId);
+});
 
 // --- Premium ---
 
@@ -169,8 +183,9 @@ final isPremiumProvider = StreamProvider<bool>((ref) {
 // --- Map Style ---
 
 /// Persists and exposes the user's chosen map style.
-final mapStyleProvider =
-    StateNotifierProvider<MapStyleNotifier, MapStyle>((ref) {
+final mapStyleProvider = StateNotifierProvider<MapStyleNotifier, MapStyle>((
+  ref,
+) {
   return MapStyleNotifier();
 });
 
