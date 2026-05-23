@@ -33,23 +33,37 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/auth/sign-in',
         builder: (context, state) => const SignInScreen(),
       ),
-      ShellRoute(
-        builder: (context, state, child) => _MainShell(child: child),
-        routes: [
-          GoRoute(
-            path: '/map',
-            pageBuilder: (context, state) =>
-                const NoTransitionPage(child: MapScreen()),
+      // StatefulShellRoute keeps every branch mounted in an IndexedStack, so
+      // switching tabs no longer disposes the previous screen. MapScreen's
+      // tracking toggle, anchor position, and MapLibre native camera state
+      // (zoom / bearing / target) all survive a round-trip to other tabs.
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            _MainShell(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/map',
+                builder: (context, state) => const MapScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: '/list',
-            pageBuilder: (context, state) =>
-                const NoTransitionPage(child: PlaceListScreen()),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/list',
+                builder: (context, state) => const PlaceListScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: '/profile',
-            pageBuilder: (context, state) =>
-                const NoTransitionPage(child: ProfileScreen()),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/profile',
+                builder: (context, state) => const ProfileScreen(),
+              ),
+            ],
           ),
         ],
       ),
@@ -88,8 +102,8 @@ final routerProvider = Provider<GoRouter>((ref) {
 });
 
 class _MainShell extends ConsumerWidget {
-  final Widget child;
-  const _MainShell({required this.child});
+  final StatefulNavigationShell navigationShell;
+  const _MainShell({required this.navigationShell});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -98,29 +112,26 @@ class _MainShell extends ConsumerWidget {
     ref.listen(positionStreamProvider, (_, _) {});
 
     return Scaffold(
-      body: child,
-      bottomNavigationBar: _BottomNav(),
+      body: navigationShell,
+      bottomNavigationBar: _BottomNav(navigationShell: navigationShell),
     );
   }
 }
 
-class _BottomNav extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final location = GoRouterState.of(context).matchedLocation;
-    final selectedIndex = switch (true) {
-      _ when location.startsWith('/list') => 1,
-      _ when location.startsWith('/profile') => 2,
-      _ => 0,
-    };
+class _BottomNav extends StatelessWidget {
+  final StatefulNavigationShell navigationShell;
+  const _BottomNav({required this.navigationShell});
 
+  @override
+  Widget build(BuildContext context) {
     return NavigationBar(
-      selectedIndex: selectedIndex,
-      onDestinationSelected: (index) {
-        if (index == 0) context.go('/map');
-        if (index == 1) context.go('/list');
-        if (index == 2) context.go('/profile');
-      },
+      selectedIndex: navigationShell.currentIndex,
+      onDestinationSelected: (index) => navigationShell.goBranch(
+        index,
+        // Tapping the already-selected tab pops that branch back to its
+        // root, matching the iOS/Material navigation convention.
+        initialLocation: index == navigationShell.currentIndex,
+      ),
       destinations: const [
         NavigationDestination(icon: Icon(Icons.map_outlined), label: 'Map'),
         NavigationDestination(

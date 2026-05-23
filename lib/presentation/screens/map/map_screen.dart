@@ -87,10 +87,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
     }
 
     setState(() => _anchorPos = pos);
-
-    if (prev != null && !_isTracking) {
-      _mapController.recenter(LatLng(pos.latitude, pos.longitude));
-    }
+    // Camera is intentionally left alone: tracking ON uses MapLibre's
+    // built-in mode (follows automatically), and tracking OFF means the
+    // user chose to keep whatever view they have — re-centering on every
+    // GPS step would silently override that choice.
   }
 
   Future<void> _toggleTracking() async {
