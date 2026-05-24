@@ -9,51 +9,28 @@ import '../../../domain/entities/note_entity.dart';
 import '../../../services/location_service.dart';
 import '../../providers/providers.dart';
 
-class PlaceListScreen extends ConsumerStatefulWidget {
+class PlaceListScreen extends ConsumerWidget {
   const PlaceListScreen({super.key});
 
   @override
-  ConsumerState<PlaceListScreen> createState() => _PlaceListScreenState();
-}
-
-class _PlaceListScreenState extends ConsumerState<PlaceListScreen> {
-  Position? _listOrigin;
-
-  @override
-  Widget build(BuildContext context) {
-    ref.listen<AsyncValue<Position>>(positionStreamProvider, (_, next) {
-      next.whenData((pos) {
-        if (_listOrigin != null || !mounted) return;
-        setState(() => _listOrigin = pos);
-      });
-    });
-
-    final positionAsync = ref.watch(positionStreamProvider);
-    if (_listOrigin == null && positionAsync.valueOrNull != null) {
-      _listOrigin = positionAsync.valueOrNull;
-    }
-    final origin = _listOrigin ?? positionAsync.valueOrNull;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final anchor = ref.watch(anchorPositionProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Nearby Notes')),
-      body: origin != null
+      body: anchor != null
           ? _NoteBoxList(
-              latitude: origin.latitude,
-              longitude: origin.longitude,
+              latitude: anchor.latitude,
+              longitude: anchor.longitude,
               onRefresh: () async {
-                final latest = ref.read(positionStreamProvider).valueOrNull;
-                final refreshOrigin = latest ?? origin;
-                if (latest != null && mounted) {
-                  setState(() => _listOrigin = latest);
-                }
-                final provider = noteBoxesSnapshotProvider(
-                  latLng(refreshOrigin.latitude, refreshOrigin.longitude),
+                final provider = noteBoxesProvider(
+                  latLng(anchor.latitude, anchor.longitude),
                 );
                 ref.invalidate(provider);
                 await ref.read(provider.future);
               },
             )
-          : positionAsync.when(
+          : ref.watch(positionStreamProvider).when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => e is LocationPermissionDeniedException
                   ? const _LocationDeniedView()
@@ -78,7 +55,7 @@ class _NoteBoxList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final noteBoxesAsync = ref.watch(
-      noteBoxesSnapshotProvider(latLng(latitude, longitude)),
+      noteBoxesProvider(latLng(latitude, longitude)),
     );
 
     return RefreshIndicator(
@@ -157,17 +134,13 @@ class _ScrollableStatusView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      children: [
-        SizedBox(
-          height:
-              MediaQuery.sizeOf(context).height -
-              kToolbarHeight -
-              MediaQuery.paddingOf(context).top,
-          child: child,
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) => ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(height: constraints.maxHeight, child: child),
+        ],
+      ),
     );
   }
 }
