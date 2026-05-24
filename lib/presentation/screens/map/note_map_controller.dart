@@ -6,11 +6,11 @@ import 'package:maplibre_gl/maplibre_gl.dart';
 import '../../../config/app_config.dart';
 import '../../../core/utils/marker_image.dart';
 import '../../../core/utils/place_icon.dart';
-import '../../../domain/entities/note_entity.dart';
+import '../../../domain/entities/place_entity.dart';
 
-/// Adapter between the notes domain and a [MapLibreMapController].
+/// Adapter between the places domain and a [MapLibreMapController].
 ///
-/// Encapsulates everything that's specific to rendering [NoteBoxEntity]s on
+/// Encapsulates everything that's specific to rendering [PlaceEntity]s on
 /// a MapLibre map:
 ///   * the clustered GeoJSON source and its three style layers
 ///   * the per-(icon, color) marker image cache registered via `addImage`
@@ -56,7 +56,7 @@ class NoteMapController {
   /// should complete when whatever UI was opened (e.g. a bottom sheet) is
   /// dismissed — the highlight overlay reverse-animates and is removed once
   /// it resolves.
-  final Future<void> Function(NoteBoxEntity noteBox) onPinSelected;
+  final Future<void> Function(PlaceEntity place) onPinSelected;
 
   NoteMapController({required this.vsync, required this.onPinSelected}) {
     _pinScaleController = AnimationController(
@@ -72,17 +72,17 @@ class NoteMapController {
   // ── Internal state ────────────────────────────────────────────────────────
   MapLibreMapController? _map;
   bool _sourceReady = false;
-  final Map<String, NoteBoxEntity> _noteBoxById = {};
+  final Map<String, PlaceEntity> _placeById = {};
   final Set<String> _registeredMarkerIds = {};
   Symbol? _selectedSymbol;
   Symbol? _animatingSymbol;
   late final AnimationController _pinScaleController;
   late final Animation<double> _pinScaleAnimation;
 
-  /// Last note-box snapshot we were asked to render. Note data often arrives
+  /// Last places snapshot we were asked to render. Data often arrives
   /// from the provider before the GeoJSON source/layers have finished being
   /// created, so we cache it here and replay it once [_sourceReady] flips.
-  List<NoteBoxEntity> _latestNoteBoxes = const [];
+  List<PlaceEntity> _latestPlaces = const [];
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -109,7 +109,7 @@ class NoteMapController {
   /// Called whenever the MapLibre style finishes loading. Re-registers the
   /// per-style state (images, source, layers) that a style swap drops, and
   /// clears any in-flight selection that referenced the previous style.
-  /// Replays the most recent note-box snapshot so that data which arrived
+  /// Replays the most recent places snapshot so that data which arrived
   /// before the source was ready (very common on cold start) doesn't get
   /// silently dropped.
   Future<void> onStyleLoaded(ColorScheme colorScheme) async {
@@ -118,7 +118,7 @@ class NoteMapController {
     await _clearSelection();
     await _setupSourcesAndLayers(colorScheme);
     _sourceReady = true;
-    await _pushMarkersToSource(_latestNoteBoxes);
+    await _pushMarkersToSource(_latestPlaces);
   }
 
   Future<void> _setupSourcesAndLayers(ColorScheme colorScheme) async {
@@ -193,50 +193,46 @@ class NoteMapController {
   }
 
   static String _toHex(Color color) {
-    // Color.toARGB32 returns 0xAARRGGBB; mask out the alpha for "#RRGGBB".
     final rgb = color.toARGB32() & 0x00FFFFFF;
     return '#${rgb.toRadixString(16).padLeft(6, '0').toUpperCase()}';
   }
 
   // ── Marker rendering ──────────────────────────────────────────────────────
 
-  Future<void> updateMarkers(List<NoteBoxEntity> noteBoxes) async {
-    // Always cache so we can replay on the next style load even if the
-    // source isn't ready yet right now.
-    _latestNoteBoxes = noteBoxes;
+  Future<void> updateMarkers(List<PlaceEntity> places) async {
+    _latestPlaces = places;
     if (_map == null || !_sourceReady) return;
-    await _pushMarkersToSource(noteBoxes);
+    await _pushMarkersToSource(places);
   }
 
-  Future<void> _pushMarkersToSource(List<NoteBoxEntity> noteBoxes) async {
+  Future<void> _pushMarkersToSource(List<PlaceEntity> places) async {
     final map = _map;
     if (map == null) return;
 
-    _noteBoxById
+    _placeById
       ..clear()
-      ..addEntries(noteBoxes.map((nb) => MapEntry(nb.note.id, nb)));
+      ..addEntries(places.map((p) => MapEntry(p.id, p)));
 
     // Register any (icon, color) combinations we haven't seen yet — must
     // happen before pushing features that reference them.
-    for (final nb in noteBoxes) {
-      await _ensureMarkerImage(nb.place.icon, nb.place.colorHex);
+    for (final place in places) {
+      await _ensureMarkerImage(place.icon, place.colorHex);
     }
 
     // Underlying features changed; any selection overlay is stale.
     await _clearSelection();
 
-    final features = noteBoxes
-        .map((nb) => {
+    final features = places
+        .map((place) => {
               'type': 'Feature',
-              'id': nb.note.id,
+              'id': place.id,
               'geometry': {
                 'type': 'Point',
-                'coordinates': [nb.place.longitude, nb.place.latitude],
+                'coordinates': [place.longitude, place.latitude],
               },
               'properties': {
-                'iconImageId':
-                    _markerImageId(nb.place.icon, nb.place.colorHex),
-                'title': nb.place.title,
+                'iconImageId': _markerImageId(place.icon, place.colorHex),
+                'title': place.title,
               },
             })
         .toList();
@@ -306,15 +302,15 @@ class NoteMapController {
   Future<void> _handlePinTap(Map feature) async {
     final map = _map;
     if (map == null) return;
-    final noteId = feature['id']?.toString();
-    if (noteId == null) return;
-    final noteBox = _noteBoxById[noteId];
-    if (noteBox == null) return;
+    final placeId = feature['id']?.toString();
+    if (placeId == null) return;
+    final place = _placeById[placeId];
+    if (place == null) return;
     final coords = _coordsOf(feature);
     if (coords == null) return;
 
-    await _ensureMarkerImage(noteBox.place.icon, noteBox.place.colorHex);
-    final imageId = _markerImageId(noteBox.place.icon, noteBox.place.colorHex);
+    await _ensureMarkerImage(place.icon, place.colorHex);
+    final imageId = _markerImageId(place.icon, place.colorHex);
 
     // Overlay a managed Symbol on top of the layer-rendered pin so its size
     // can be tweened. Pixel-identical to the layer pin at iconSize 0.5, so
@@ -330,7 +326,7 @@ class NoteMapController {
     _animatePin(overlay, toSelected: true);
 
     try {
-      await onPinSelected(noteBox);
+      await onPinSelected(place);
     } finally {
       // Only unwind if this selection is still current — a marker refresh
       // or another tap may have replaced it.
@@ -351,7 +347,6 @@ class NoteMapController {
     final map = _map;
     if (symbol == null || map == null) return;
 
-    // Skip if the selection has been cleared while we were mid-animation.
     if (_selectedSymbol?.id != symbol.id) return;
 
     final t = _pinScaleAnimation.value;

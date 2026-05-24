@@ -6,7 +6,7 @@ import 'package:maplibre_gl/maplibre_gl.dart';
 
 import '../../../config/app_config.dart';
 import '../../../core/map_style.dart';
-import '../../../domain/entities/note_entity.dart';
+import '../../../domain/entities/place_entity.dart';
 import '../../../services/location_service.dart';
 import '../../providers/providers.dart';
 import '../../widgets/map/location_checking_view.dart';
@@ -60,11 +60,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   // ── Pin tap → bottom sheet ────────────────────────────────────────────────
 
-  Future<void> _showPinPreview(NoteBoxEntity noteBox) async {
+  Future<void> _showPinPreview(PlaceEntity place) async {
     if (!mounted) return;
     await showModalBottomSheet<void>(
       context: context,
-      builder: (_) => NoteMarkerBottomSheet(noteBox: noteBox),
+      builder: (_) => NoteMarkerBottomSheet(place: place),
     );
   }
 
@@ -100,7 +100,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
     if (anchor != null) {
       ref
-          .watch(noteBoxesProvider(latLng(anchor.latitude, anchor.longitude)))
+          .watch(placesNearbyProvider(latLng(anchor.latitude, anchor.longitude)))
           .whenData(_mapController.updateMarkers);
     }
 

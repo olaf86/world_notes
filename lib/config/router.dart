@@ -82,11 +82,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        path: '/note/:noteId',
+        path: '/note/:placeId',
         builder: (context, state) {
-          final noteId = state.pathParameters['noteId']!;
+          final placeId = state.pathParameters['placeId']!;
           final placeTitle = state.uri.queryParameters['title'] ?? '';
-          return NoteBoxScreen(noteId: noteId, placeTitle: placeTitle);
+          return NoteBoxScreen(placeId: placeId, placeTitle: placeTitle);
         },
       ),
       GoRoute(

@@ -1,15 +1,15 @@
 import '../entities/message_entity.dart';
 
 abstract class MessageRepository {
-  Stream<List<MessageEntity>> watchMessages(String noteId);
+  Stream<List<MessageEntity>> watchMessages(String placeId);
   Future<List<MessageEntity>> getOlderMessages({
-    required String noteId,
+    required String placeId,
     required String beforeMessageId,
     required int limit,
   });
   Future<MessageEntity> sendMessage({
     String? id,
-    required String noteId,
+    required String placeId,
     required String content,
     required String userId,
     required String userName,

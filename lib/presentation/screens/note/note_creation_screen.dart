@@ -69,8 +69,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
       final b = (_selectedColor.b * 255).round().toRadixString(16).padLeft(2, '0');
       final colorHex = '#$r$g$b'.toUpperCase();
 
-      // Atomically create place + note in a single batch write.
-      final noteBox = await ref.read(noteRepositoryProvider).createPlaceWithNote(
+      final place = await ref.read(placeRepositoryProvider).createPlace(
             latitude: widget.latitude,
             longitude: widget.longitude,
             title: _titleController.text.trim(),
@@ -84,7 +83,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
 
       if (mounted) {
         context.pushReplacement(
-          '/note/${noteBox.note.id}?title=${Uri.encodeComponent(noteBox.place.title)}',
+          '/note/${place.id}?title=${Uri.encodeComponent(place.title)}',
         );
       }
     } catch (e) {

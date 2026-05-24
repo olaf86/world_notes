@@ -4,7 +4,7 @@ import '../../domain/entities/user_entity.dart';
 
 class MessageModel {
   final String id;
-  final String noteId;
+  final String placeId;
   final String userId;
   final String userName;
   final String? userPhotoUrl;
@@ -14,7 +14,7 @@ class MessageModel {
 
   MessageModel({
     required this.id,
-    required this.noteId,
+    required this.placeId,
     required this.userId,
     required this.userName,
     this.userPhotoUrl,
@@ -27,7 +27,7 @@ class MessageModel {
     final data = doc.data() as Map<String, dynamic>;
     return MessageModel(
       id: doc.id,
-      noteId: data['noteId'] as String,
+      placeId: data['placeId'] as String,
       userId: data['userId'] as String,
       userName: data['userName'] as String? ?? 'Unknown',
       userPhotoUrl: data['userPhotoUrl'] as String?,
@@ -39,7 +39,7 @@ class MessageModel {
 
   Map<String, dynamic> toFirestore() {
     return {
-      'noteId': noteId,
+      'placeId': placeId,
       'userId': userId,
       'userName': userName,
       'userPhotoUrl': userPhotoUrl,
@@ -51,7 +51,7 @@ class MessageModel {
 
   MessageEntity toEntity() => MessageEntity(
         id: id,
-        noteId: noteId,
+        placeId: placeId,
         author: UserEntity(
           id: userId,
           name: userName,

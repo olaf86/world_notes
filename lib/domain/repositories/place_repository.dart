@@ -7,6 +7,12 @@ abstract class PlaceRepository {
     required double radiusKm,
   });
 
+  Stream<List<PlaceEntity>> watchPlacesNearby({
+    required double latitude,
+    required double longitude,
+    required double radiusKm,
+  });
+
   Future<PlaceEntity> createPlace({
     required double latitude,
     required double longitude,
@@ -18,10 +24,4 @@ abstract class PlaceRepository {
   });
 
   Future<PlaceEntity?> getPlace(String placeId);
-
-  Stream<List<PlaceEntity>> watchPlacesNearby({
-    required double latitude,
-    required double longitude,
-    required double radiusKm,
-  });
 }

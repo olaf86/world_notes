@@ -23,9 +23,9 @@ class MessageRepositoryImpl implements MessageRepository {
   CollectionReference get _messages => _firestore.collection('messages');
 
   @override
-  Stream<List<MessageEntity>> watchMessages(String noteId) {
+  Stream<List<MessageEntity>> watchMessages(String placeId) {
     return _messages
-        .where('noteId', isEqualTo: noteId)
+        .where('placeId', isEqualTo: placeId)
         .orderBy('createdAt', descending: true)
         .limit(AppConfig.messagesPageSize)
         .snapshots()
@@ -35,7 +35,7 @@ class MessageRepositoryImpl implements MessageRepository {
 
   @override
   Future<List<MessageEntity>> getOlderMessages({
-    required String noteId,
+    required String placeId,
     required String beforeMessageId,
     required int limit,
   }) async {
@@ -43,7 +43,7 @@ class MessageRepositoryImpl implements MessageRepository {
     if (!pivotDoc.exists) return [];
 
     final snap = await _messages
-        .where('noteId', isEqualTo: noteId)
+        .where('placeId', isEqualTo: placeId)
         .orderBy('createdAt', descending: true)
         .startAfterDocument(pivotDoc)
         .limit(limit)
@@ -73,7 +73,7 @@ class MessageRepositoryImpl implements MessageRepository {
   @override
   Future<MessageEntity> sendMessage({
     String? id,
-    required String noteId,
+    required String placeId,
     required String content,
     required String userId,
     required String userName,
@@ -93,7 +93,7 @@ class MessageRepositoryImpl implements MessageRepository {
     final messageId = id ?? _uuid.v4();
     final model = MessageModel(
       id: messageId,
-      noteId: noteId,
+      placeId: placeId,
       userId: userId,
       userName: userName,
       userPhotoUrl: userPhotoUrl,
@@ -104,10 +104,9 @@ class MessageRepositoryImpl implements MessageRepository {
 
     await _messages.doc(messageId).set(model.toFirestore());
 
-    // Increment message count directly on the note document.
     await _firestore
-        .collection('notes')
-        .doc(noteId)
+        .collection('places')
+        .doc(placeId)
         .update({'messageCount': FieldValue.increment(1)});
 
     return model.toEntity();

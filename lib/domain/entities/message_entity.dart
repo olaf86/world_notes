@@ -2,7 +2,7 @@ import 'user_entity.dart';
 
 class MessageEntity {
   final String id;
-  final String noteId;
+  final String placeId;
   final UserEntity author;
   final String content;
   final String? imageUrl;
@@ -14,7 +14,7 @@ class MessageEntity {
 
   const MessageEntity({
     required this.id,
-    required this.noteId,
+    required this.placeId,
     required this.author,
     required this.content,
     this.imageUrl,

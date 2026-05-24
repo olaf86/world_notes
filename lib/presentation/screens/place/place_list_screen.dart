@@ -5,7 +5,7 @@ import 'package:geolocator/geolocator.dart';
 
 import '../../../config/app_config.dart';
 import '../../../core/utils/place_icon.dart';
-import '../../../domain/entities/note_entity.dart';
+import '../../../domain/entities/place_entity.dart';
 import '../../../services/location_service.dart';
 import '../../providers/providers.dart';
 
@@ -19,11 +19,11 @@ class PlaceListScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Nearby Notes')),
       body: anchor != null
-          ? _NoteBoxList(
+          ? _PlaceList(
               latitude: anchor.latitude,
               longitude: anchor.longitude,
               onRefresh: () async {
-                final provider = noteBoxesProvider(
+                final provider = placesNearbyProvider(
                   latLng(anchor.latitude, anchor.longitude),
                 );
                 ref.invalidate(provider);
@@ -41,12 +41,12 @@ class PlaceListScreen extends ConsumerWidget {
   }
 }
 
-class _NoteBoxList extends ConsumerWidget {
+class _PlaceList extends ConsumerWidget {
   final double latitude;
   final double longitude;
   final Future<void> Function() onRefresh;
 
-  const _NoteBoxList({
+  const _PlaceList({
     required this.latitude,
     required this.longitude,
     required this.onRefresh,
@@ -54,20 +54,20 @@ class _NoteBoxList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final noteBoxesAsync = ref.watch(
-      noteBoxesProvider(latLng(latitude, longitude)),
+    final placesAsync = ref.watch(
+      placesNearbyProvider(latLng(latitude, longitude)),
     );
 
     return RefreshIndicator(
       onRefresh: onRefresh,
-      child: noteBoxesAsync.when(
+      child: placesAsync.when(
         loading: () => const _ScrollableStatusView(
           child: Center(child: CircularProgressIndicator()),
         ),
         error: (e, _) =>
             _ScrollableStatusView(child: Center(child: Text('Error: $e'))),
-        data: (noteBoxes) {
-          if (noteBoxes.isEmpty) {
+        data: (places) {
+          if (places.isEmpty) {
             return _ScrollableStatusView(
               child: Center(
                 child: Column(
@@ -92,19 +92,13 @@ class _NoteBoxList extends ConsumerWidget {
             );
           }
 
-          final sorted = [...noteBoxes]
+          final sorted = [...places]
             ..sort((a, b) {
               final da = Geolocator.distanceBetween(
-                latitude,
-                longitude,
-                a.place.latitude,
-                a.place.longitude,
+                latitude, longitude, a.latitude, a.longitude,
               );
               final db = Geolocator.distanceBetween(
-                latitude,
-                longitude,
-                b.place.latitude,
-                b.place.longitude,
+                latitude, longitude, b.latitude, b.longitude,
               );
               return da.compareTo(db);
             });
@@ -115,7 +109,7 @@ class _NoteBoxList extends ConsumerWidget {
             separatorBuilder: (context, index) => const Divider(height: 1),
             itemBuilder: (context, index) {
               return _PlaceListTile(
-                noteBox: sorted[index],
+                place: sorted[index],
                 userLatitude: latitude,
                 userLongitude: longitude,
               );
@@ -146,20 +140,18 @@ class _ScrollableStatusView extends StatelessWidget {
 }
 
 class _PlaceListTile extends StatelessWidget {
-  final NoteBoxEntity noteBox;
+  final PlaceEntity place;
   final double userLatitude;
   final double userLongitude;
 
   const _PlaceListTile({
-    required this.noteBox,
+    required this.place,
     required this.userLatitude,
     required this.userLongitude,
   });
 
   @override
   Widget build(BuildContext context) {
-    final place = noteBox.place;
-    final note = noteBox.note;
     final color = parsePlaceColor(place.colorHex);
     final distanceM = Geolocator.distanceBetween(
       userLatitude,
@@ -202,7 +194,7 @@ class _PlaceListTile extends StatelessWidget {
               ),
               const SizedBox(width: 2),
               Text(
-                '${note.messageCount}',
+                '${place.messageCount}',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
@@ -212,7 +204,7 @@ class _PlaceListTile extends StatelessWidget {
         ],
       ),
       onTap: () => context.push(
-        '/note/${note.id}?title=${Uri.encodeComponent(place.title)}',
+        '/note/${place.id}?title=${Uri.encodeComponent(place.title)}',
       ),
     );
   }

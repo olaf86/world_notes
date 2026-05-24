@@ -9,6 +9,7 @@ class PlaceEntity {
   final String icon;
   final String createdByUserId;
   final DateTime createdAt;
+  final int messageCount;
 
   const PlaceEntity({
     required this.id,
@@ -21,5 +22,6 @@ class PlaceEntity {
     required this.icon,
     required this.createdByUserId,
     required this.createdAt,
+    this.messageCount = 0,
   });
 }

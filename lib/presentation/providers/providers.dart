@@ -10,14 +10,12 @@ import '../../config/app_config.dart';
 import '../../core/map_style.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../data/repositories/message_repository_impl.dart';
-import '../../data/repositories/note_repository_impl.dart';
 import '../../data/repositories/place_repository_impl.dart';
 import '../../domain/entities/message_entity.dart';
-import '../../domain/entities/note_entity.dart';
+import '../../domain/entities/place_entity.dart';
 import '../../domain/entities/user_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/message_repository.dart';
-import '../../domain/repositories/note_repository.dart';
 import '../../domain/repositories/place_repository.dart';
 import '../../services/location_service.dart';
 import '../../services/subscription_service.dart';
@@ -59,13 +57,6 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 
 final placeRepositoryProvider = Provider<PlaceRepository>((ref) {
   return PlaceRepositoryImpl(firestore: ref.watch(firestoreProvider));
-});
-
-final noteRepositoryProvider = Provider<NoteRepository>((ref) {
-  return NoteRepositoryImpl(
-    firestore: ref.watch(firestoreProvider),
-    placeRepository: ref.watch(placeRepositoryProvider),
-  );
 });
 
 final messageRepositoryProvider = Provider<MessageRepository>((ref) {
@@ -138,13 +129,13 @@ final anchorPositionProvider =
 /// Whether the map is following the user's live GPS position.
 final isTrackingProvider = StateProvider<bool>((ref) => false);
 
-// --- NoteBoxes ---
+// --- Places nearby ---
 
-final noteBoxesProvider = StreamProvider.family<List<NoteBoxEntity>, MapLatLng>(
+final placesNearbyProvider = StreamProvider.family<List<PlaceEntity>, MapLatLng>(
   (ref, latLng) {
     return ref
-        .watch(noteRepositoryProvider)
-        .watchNoteBoxesNearby(
+        .watch(placeRepositoryProvider)
+        .watchPlacesNearby(
           latitude: latLng.lat,
           longitude: latLng.lng,
           radiusKm: AppConfig.searchRadiusKm,
@@ -152,24 +143,13 @@ final noteBoxesProvider = StreamProvider.family<List<NoteBoxEntity>, MapLatLng>(
   },
 );
 
-final noteBoxesSnapshotProvider =
-    FutureProvider.family<List<NoteBoxEntity>, MapLatLng>((ref, latLng) {
-      return ref
-          .watch(noteRepositoryProvider)
-          .getNoteBoxesNearby(
-            latitude: latLng.lat,
-            longitude: latLng.lng,
-            radiusKm: AppConfig.searchRadiusKm,
-          );
-    });
-
 // --- Messages ---
 
 final messagesProvider = StreamProvider.family<List<MessageEntity>, String>((
   ref,
-  noteId,
+  placeId,
 ) {
-  return ref.watch(messageRepositoryProvider).watchMessages(noteId);
+  return ref.watch(messageRepositoryProvider).watchMessages(placeId);
 });
 
 // --- Premium ---

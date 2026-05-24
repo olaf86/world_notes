@@ -12,6 +12,7 @@ class PlaceModel {
   final String icon;
   final String createdByUserId;
   final DateTime createdAt;
+  final int messageCount;
 
   PlaceModel({
     required this.id,
@@ -24,6 +25,7 @@ class PlaceModel {
     required this.icon,
     required this.createdByUserId,
     required this.createdAt,
+    this.messageCount = 0,
   });
 
   factory PlaceModel.fromFirestore(DocumentSnapshot doc) {
@@ -39,6 +41,7 @@ class PlaceModel {
       icon: data['icon'] as String? ?? 'place',
       createdByUserId: data['createdByUserId'] as String,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      messageCount: (data['messageCount'] as int?) ?? 0,
     );
   }
 
@@ -53,6 +56,7 @@ class PlaceModel {
       'icon': icon,
       'createdByUserId': createdByUserId,
       'createdAt': FieldValue.serverTimestamp(),
+      'messageCount': messageCount,
     };
   }
 
@@ -67,5 +71,6 @@ class PlaceModel {
         icon: icon,
         createdByUserId: createdByUserId,
         createdAt: createdAt,
+        messageCount: messageCount,
       );
 }

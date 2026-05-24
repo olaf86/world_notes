@@ -64,7 +64,6 @@ class PlaceRepositoryImpl implements PlaceRepository {
     required double longitude,
     required double radiusKm,
   }) {
-    // Use the same 9-cell (center + 8 neighbours) query as getPlacesNearby.
     final prefixes = getGeohashPrefixes(
       latitude,
       longitude,
@@ -72,14 +71,12 @@ class PlaceRepositoryImpl implements PlaceRepository {
       precision: AppConfig.geohashPrecision,
     );
 
-    // Merge 9 snapshot streams into one deduplicated list.
     final streams = prefixes.map((prefix) => _places
         .where('geohash', isGreaterThanOrEqualTo: prefix)
         .where('geohash', isLessThan: '${prefix}z')
         .snapshots());
 
     return StreamGroup.merge(streams).map((_) => null).asyncMap((_) async {
-      // On any cell update, re-fetch all cells and merge.
       final results = await Future.wait(
         prefixes.map((prefix) => _places
             .where('geohash', isGreaterThanOrEqualTo: prefix)
@@ -132,6 +129,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
       icon: icon,
       createdByUserId: createdByUserId,
       createdAt: DateTime.now(),
+      messageCount: 0,
     );
 
     await _places.doc(id).set(model.toFirestore());

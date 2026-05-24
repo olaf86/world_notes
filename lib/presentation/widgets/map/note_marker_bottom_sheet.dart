@@ -2,17 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/place_icon.dart';
-import '../../../domain/entities/note_entity.dart';
+import '../../../domain/entities/place_entity.dart';
 
 class NoteMarkerBottomSheet extends StatelessWidget {
-  final NoteBoxEntity noteBox;
-  const NoteMarkerBottomSheet({super.key, required this.noteBox});
+  final PlaceEntity place;
+  const NoteMarkerBottomSheet({super.key, required this.place});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final place = noteBox.place;
-    final note = noteBox.note;
     final color = parsePlaceColor(place.colorHex);
 
     return Padding(
@@ -63,7 +61,7 @@ class NoteMarkerBottomSheet extends StatelessWidget {
               ),
               const SizedBox(width: 4),
               Text(
-                '${note.messageCount} messages',
+                '${place.messageCount} messages',
                 style: theme.textTheme.bodySmall,
               ),
             ],
@@ -73,7 +71,7 @@ class NoteMarkerBottomSheet extends StatelessWidget {
             onPressed: () {
               Navigator.of(context).pop();
               context.push(
-                '/note/${note.id}?title=${Uri.encodeComponent(place.title)}',
+                '/note/${place.id}?title=${Uri.encodeComponent(place.title)}',
               );
             },
             icon: const Icon(Icons.open_in_new),
@@ -83,5 +81,4 @@ class NoteMarkerBottomSheet extends StatelessWidget {
       ),
     );
   }
-
 }

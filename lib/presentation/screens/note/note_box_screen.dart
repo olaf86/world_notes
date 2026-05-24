@@ -13,10 +13,10 @@ import '../../providers/providers.dart';
 import '../../widgets/note/message_bubble.dart';
 
 class NoteBoxScreen extends ConsumerStatefulWidget {
-  final String noteId;
+  final String placeId;
   final String placeTitle;
 
-  const NoteBoxScreen({super.key, required this.noteId, required this.placeTitle});
+  const NoteBoxScreen({super.key, required this.placeId, required this.placeTitle});
 
   @override
   ConsumerState<NoteBoxScreen> createState() => _NoteBoxScreenState();
@@ -90,7 +90,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
 
     // Determine the oldest message currently shown.
     final streamMessages =
-        ref.read(messagesProvider(widget.noteId)).valueOrNull ?? [];
+        ref.read(messagesProvider(widget.placeId)).valueOrNull ?? [];
     final allVisible = [...streamMessages, ..._olderMessages];
     if (allVisible.isEmpty) return;
 
@@ -100,7 +100,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
       final fetched = await ref
           .read(messageRepositoryProvider)
           .getOlderMessages(
-            noteId: widget.noteId,
+            placeId: widget.placeId,
             beforeMessageId: allVisible.last.id,
             limit: AppConfig.messagesPageSize,
           );
@@ -169,7 +169,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
     final messageId = _uuid.v4();
     final optimistic = MessageEntity(
       id: messageId,
-      noteId: widget.noteId,
+      placeId: widget.placeId,
       author: UserEntity(
         id: user.id,
         name: user.name,
@@ -184,7 +184,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
     try {
       await ref.read(messageRepositoryProvider).sendMessage(
             id: messageId,
-            noteId: widget.noteId,
+            placeId: widget.placeId,
             content: text,
             userId: user.id,
             userName: user.name,
@@ -206,7 +206,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final messagesAsync = ref.watch(messagesProvider(widget.noteId));
+    final messagesAsync = ref.watch(messagesProvider(widget.placeId));
     final isPremiumAsync = ref.watch(isPremiumProvider);
     final isPremium = isPremiumAsync.valueOrNull ?? false;
     final currentUser = ref.watch(authStateProvider).valueOrNull;
@@ -215,7 +215,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
     // in the snapshot stream, the corresponding pending bubble is dropped.
     // Also scroll to the top when new messages arrive (if user is near top).
     ref.listen<AsyncValue<List<MessageEntity>>>(
-      messagesProvider(widget.noteId),
+      messagesProvider(widget.placeId),
       (prev, next) {
         next.whenData((messages) {
           if (_pendingMessages.isEmpty) return;
