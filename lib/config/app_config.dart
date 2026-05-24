@@ -19,7 +19,7 @@ class AppConfig {
 
   // Geohash precision for proximity queries (~1.2km radius)
   static const int geohashPrecision = 5;
-  static const double searchRadiusKm = 5.0;
+  static const double searchRadiusKm = 2.0;
 
   // Ads
   static const String bannerAdUnitId = String.fromEnvironment(
