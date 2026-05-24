@@ -20,6 +20,9 @@ class AppConfig {
   // Geohash precision 6: cells ~1.2km × 0.6km, 9-cell grid covers ~3.6km × 1.8km
   static const int geohashPrecision = 6;
 
+  // Max places returned per geohash cell. 9 cells × limit = max total before dedup.
+  static const int placesPerCellLimit = 20;
+
   // Ads
   static const String bannerAdUnitId = String.fromEnvironment(
     'BANNER_AD_UNIT_ID',

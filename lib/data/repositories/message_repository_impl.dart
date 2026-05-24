@@ -104,10 +104,10 @@ class MessageRepositoryImpl implements MessageRepository {
 
     await _messages.doc(messageId).set(model.toFirestore());
 
-    await _firestore
-        .collection('places')
-        .doc(placeId)
-        .update({'messageCount': FieldValue.increment(1)});
+    await _firestore.collection('places').doc(placeId).update({
+      'messageCount': FieldValue.increment(1),
+      'lastMessageAt': FieldValue.serverTimestamp(),
+    });
 
     return model.toEntity();
   }

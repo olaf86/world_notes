@@ -8,6 +8,9 @@ import '../../domain/entities/place_entity.dart';
 import '../../domain/repositories/place_repository.dart';
 import '../models/place_model.dart';
 
+// Required Firestore composite index:
+//   Collection: places
+//   Fields: geohash ASC, lastMessageAt DESC
 class PlaceRepositoryImpl implements PlaceRepository {
   final FirebaseFirestore _firestore;
   final _uuid = const Uuid();
@@ -16,6 +19,17 @@ class PlaceRepositoryImpl implements PlaceRepository {
       : _firestore = firestore;
 
   CollectionReference get _places => _firestore.collection('places');
+
+  /// Returns a query for one geohash cell ordered by most-recently-active.
+  ///
+  /// At precision 6, stored geohashes are exactly 6 chars, so
+  /// `isEqualTo: prefix` is equivalent to the old range query — but allows
+  /// a secondary orderBy without the "first orderBy must match range field"
+  /// restriction. Required composite index: (geohash ASC, lastMessageAt DESC).
+  Query _cellQuery(String prefix) => _places
+      .where('geohash', isEqualTo: prefix)
+      .orderBy('lastMessageAt', descending: true)
+      .limit(AppConfig.placesPerCellLimit);
 
   @override
   Future<List<PlaceEntity>> getPlacesNearby({
@@ -29,10 +43,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
     );
 
     final results = await Future.wait(
-      prefixes.map((prefix) => _places
-          .where('geohash', isGreaterThanOrEqualTo: prefix)
-          .where('geohash', isLessThan: '${prefix}z')
-          .get()),
+      prefixes.map((prefix) => _cellQuery(prefix).get()),
     );
 
     final seen = <String>{};
@@ -58,17 +69,11 @@ class PlaceRepositoryImpl implements PlaceRepository {
       precision: AppConfig.geohashPrecision,
     );
 
-    final streams = prefixes.map((prefix) => _places
-        .where('geohash', isGreaterThanOrEqualTo: prefix)
-        .where('geohash', isLessThan: '${prefix}z')
-        .snapshots());
+    final streams = prefixes.map((prefix) => _cellQuery(prefix).snapshots());
 
     return StreamGroup.merge(streams).map((_) => null).asyncMap((_) async {
       final results = await Future.wait(
-        prefixes.map((prefix) => _places
-            .where('geohash', isGreaterThanOrEqualTo: prefix)
-            .where('geohash', isLessThan: '${prefix}z')
-            .get()),
+        prefixes.map((prefix) => _cellQuery(prefix).get()),
       );
 
       final seen = <String>{};
@@ -113,6 +118,8 @@ class PlaceRepositoryImpl implements PlaceRepository {
       createdByUserId: createdByUserId,
       createdAt: DateTime.now(),
       messageCount: 0,
+      // lastMessageAt is null → toFirestore() writes serverTimestamp() so new
+      // places sort among themselves by creation time until first message.
     );
 
     await _places.doc(id).set(model.toFirestore());

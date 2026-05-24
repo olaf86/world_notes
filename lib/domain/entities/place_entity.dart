@@ -10,6 +10,7 @@ class PlaceEntity {
   final String createdByUserId;
   final DateTime createdAt;
   final int messageCount;
+  final DateTime? lastMessageAt;
 
   const PlaceEntity({
     required this.id,
@@ -23,5 +24,6 @@ class PlaceEntity {
     required this.createdByUserId,
     required this.createdAt,
     this.messageCount = 0,
+    this.lastMessageAt,
   });
 }
