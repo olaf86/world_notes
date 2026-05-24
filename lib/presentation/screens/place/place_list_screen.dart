@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:geolocator/geolocator.dart';
 
-import '../../../config/app_config.dart';
 import '../../../core/utils/place_icon.dart';
 import '../../../domain/entities/place_entity.dart';
 import '../../../services/location_service.dart';
@@ -80,7 +79,7 @@ class _PlaceList extends ConsumerWidget {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'No notes within ${AppConfig.searchRadiusKm.toInt()} km.\nDrop the first one on the map!',
+                      'No notes nearby.\nDrop the first one on the map!',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,

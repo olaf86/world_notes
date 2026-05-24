@@ -21,12 +21,10 @@ class PlaceRepositoryImpl implements PlaceRepository {
   Future<List<PlaceEntity>> getPlacesNearby({
     required double latitude,
     required double longitude,
-    required double radiusKm,
   }) async {
     final prefixes = getGeohashPrefixes(
       latitude,
       longitude,
-      radiusKm,
       precision: AppConfig.geohashPrecision,
     );
 
@@ -39,22 +37,13 @@ class PlaceRepositoryImpl implements PlaceRepository {
 
     final seen = <String>{};
     final places = <PlaceEntity>[];
-
     for (final snap in results) {
       for (final doc in snap.docs) {
-        if (seen.contains(doc.id)) continue;
-        seen.add(doc.id);
-        final place = PlaceModel.fromFirestore(doc).toEntity();
-        final dist = haversineDistance(
-          latitude,
-          longitude,
-          place.latitude,
-          place.longitude,
-        );
-        if (dist <= radiusKm) places.add(place);
+        if (seen.add(doc.id)) {
+          places.add(PlaceModel.fromFirestore(doc).toEntity());
+        }
       }
     }
-
     return places;
   }
 
@@ -62,12 +51,10 @@ class PlaceRepositoryImpl implements PlaceRepository {
   Stream<List<PlaceEntity>> watchPlacesNearby({
     required double latitude,
     required double longitude,
-    required double radiusKm,
   }) {
     final prefixes = getGeohashPrefixes(
       latitude,
       longitude,
-      radiusKm,
       precision: AppConfig.geohashPrecision,
     );
 
@@ -88,13 +75,9 @@ class PlaceRepositoryImpl implements PlaceRepository {
       final places = <PlaceEntity>[];
       for (final snap in results) {
         for (final doc in snap.docs) {
-          if (seen.contains(doc.id)) continue;
-          seen.add(doc.id);
-          final place = PlaceModel.fromFirestore(doc).toEntity();
-          final dist = haversineDistance(
-            latitude, longitude, place.latitude, place.longitude,
-          );
-          if (dist <= radiusKm) places.add(place);
+          if (seen.add(doc.id)) {
+            places.add(PlaceModel.fromFirestore(doc).toEntity());
+          }
         }
       }
       return places;

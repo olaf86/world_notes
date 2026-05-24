@@ -17,9 +17,8 @@ class AppConfig {
   static const double defaultLongitude = 139.7671;
   static const double defaultZoom = 14.0;
 
-  // Geohash precision for proximity queries (~1.2km radius)
-  static const int geohashPrecision = 5;
-  static const double searchRadiusKm = 2.0;
+  // Geohash precision 6: cells ~1.2km × 0.6km, 9-cell grid covers ~3.6km × 1.8km
+  static const int geohashPrecision = 6;
 
   // Ads
   static const String bannerAdUnitId = String.fromEnvironment(

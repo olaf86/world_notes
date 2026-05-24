@@ -6,7 +6,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../config/app_config.dart';
 import '../../core/map_style.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../data/repositories/message_repository_impl.dart';
@@ -138,7 +137,6 @@ final placesNearbyProvider = StreamProvider.family<List<PlaceEntity>, MapLatLng>
         .watchPlacesNearby(
           latitude: latLng.lat,
           longitude: latLng.lng,
-          radiusKm: AppConfig.searchRadiusKm,
         );
   },
 );

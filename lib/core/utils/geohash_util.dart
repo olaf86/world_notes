@@ -48,9 +48,8 @@ String encodeGeohash(double lat, double lng, {int precision = 5}) {
 
 List<String> getGeohashPrefixes(
   double lat,
-  double lng,
-  double radiusKm, {
-  int precision = 5,
+  double lng, {
+  int precision = 6,
 }) {
   final center = encodeGeohash(lat, lng, precision: precision);
   return _getNeighbors(center)..add(center);
