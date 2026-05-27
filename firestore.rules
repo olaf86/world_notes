@@ -53,7 +53,30 @@ service cloud.firestore {
                     // at least one of content or imageUrl must be present
                     && (request.resource.data.content.size() > 0
                         || request.resource.data.keys().hasAny(['imageUrl']));
-      allow update, delete: if isOwner(resource.data.userId);
+
+      // Author can soft-delete their own message (isDeleted + deletedAt only).
+      allow update: if isOwner(resource.data.userId)
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['isDeleted', 'deletedAt']);
+
+      // Any signed-in user can increment reportCount (one field only).
+      allow update: if isSignedIn()
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['reportCount']);
+
+      // isVisible / moderatedAt / moderationReason are written only by Cloud
+      // Functions via the Admin SDK, which bypasses security rules entirely.
+      allow delete: if false;
+    }
+
+    // ── reports ───────────────────────────────────────────────────────────────
+    match /reports/{reportId} {
+      // Reports are write-only from clients; read/update/delete only via Admin SDK.
+      allow create: if isSignedIn()
+                    && request.resource.data.reporterId == request.auth.uid
+                    && request.resource.data.messageId is string
+                    && request.resource.data.reason is string;
+      allow read, update, delete: if false;
     }
   }
 }

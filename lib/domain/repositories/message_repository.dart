@@ -17,4 +17,15 @@ abstract class MessageRepository {
     List<int>? imageBytes,
     String? imageName,
   });
+
+  /// Soft-deletes a message. Only the author may call this.
+  Future<void> deleteMessage({required String messageId});
+
+  /// Submits a user report for a message.
+  Future<void> reportMessage({
+    required String messageId,
+    required String placeId,
+    required String reporterId,
+    required String reason,
+  });
 }

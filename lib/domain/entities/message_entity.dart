@@ -9,8 +9,15 @@ class MessageEntity {
   final DateTime createdAt;
 
   /// True for optimistic messages that haven't been confirmed by Firestore yet.
-  /// Confirmed messages coming from the snapshot stream always have this false.
   final bool isPending;
+
+  /// True when the author has soft-deleted this message.
+  final bool isDeleted;
+  final DateTime? deletedAt;
+
+  /// False when Cloud Functions auto-moderation has hidden this message.
+  /// Invisible messages are filtered out server-side and never reach the client.
+  final bool isVisible;
 
   const MessageEntity({
     required this.id,
@@ -20,5 +27,8 @@ class MessageEntity {
     this.imageUrl,
     required this.createdAt,
     this.isPending = false,
+    this.isDeleted = false,
+    this.deletedAt,
+    this.isVisible = true,
   });
 }

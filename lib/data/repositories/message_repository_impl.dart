@@ -111,4 +111,38 @@ class MessageRepositoryImpl implements MessageRepository {
 
     return model.toEntity();
   }
+
+  @override
+  Future<void> deleteMessage({required String messageId}) async {
+    await _messages.doc(messageId).update({
+      'isDeleted': true,
+      'deletedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  @override
+  Future<void> reportMessage({
+    required String messageId,
+    required String placeId,
+    required String reporterId,
+    required String reason,
+  }) async {
+    final batch = _firestore.batch();
+
+    final reportRef = _firestore.collection('reports').doc();
+    batch.set(reportRef, {
+      'messageId': messageId,
+      'placeId': placeId,
+      'reporterId': reporterId,
+      'reason': reason,
+      'status': 'pending',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    batch.update(_messages.doc(messageId), {
+      'reportCount': FieldValue.increment(1),
+    });
+
+    await batch.commit();
+  }
 }

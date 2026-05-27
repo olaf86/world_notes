@@ -11,6 +11,9 @@ class MessageModel {
   final String content;
   final String? imageUrl;
   final DateTime createdAt;
+  final bool isDeleted;
+  final DateTime? deletedAt;
+  final bool isVisible;
 
   MessageModel({
     required this.id,
@@ -21,6 +24,9 @@ class MessageModel {
     required this.content,
     this.imageUrl,
     required this.createdAt,
+    this.isDeleted = false,
+    this.deletedAt,
+    this.isVisible = true,
   });
 
   factory MessageModel.fromFirestore(DocumentSnapshot doc) {
@@ -34,6 +40,9 @@ class MessageModel {
       content: data['content'] as String,
       imageUrl: data['imageUrl'] as String?,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      isDeleted: data['isDeleted'] as bool? ?? false,
+      deletedAt: (data['deletedAt'] as Timestamp?)?.toDate(),
+      isVisible: data['isVisible'] as bool? ?? true,
     );
   }
 
@@ -46,6 +55,9 @@ class MessageModel {
       'content': content,
       if (imageUrl != null) 'imageUrl': imageUrl,
       'createdAt': FieldValue.serverTimestamp(),
+      'isDeleted': false,
+      'isVisible': true,
+      'reportCount': 0,
     };
   }
 
@@ -60,5 +72,8 @@ class MessageModel {
         content: content,
         imageUrl: imageUrl,
         createdAt: createdAt,
+        isDeleted: isDeleted,
+        deletedAt: deletedAt,
+        isVisible: isVisible,
       );
 }

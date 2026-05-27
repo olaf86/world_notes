@@ -111,9 +111,28 @@ class _MainShell extends ConsumerWidget {
     // don't tear it down between MapScreen and PlaceListScreen.
     ref.listen(positionStreamProvider, (_, _) {});
 
-    return Scaffold(
-      body: navigationShell,
-      bottomNavigationBar: _BottomNav(navigationShell: navigationShell),
+    // When a full-screen route (e.g. NoteBoxScreen, SubscriptionScreen) is
+    // pushed on top of the shell on the root Navigator, both the shell and the
+    // new route are onstage in the Overlay during the push transition animation.
+    // Having two Scaffolds—including _MainShell's NavigationBar with its
+    // SemanticsRole.tabBar / explicitChildNodes semantics—simultaneously in the
+    // semantics tree triggers a Flutter 3.41.x regression:
+    //   'package:flutter/src/rendering/object.dart':
+    //   Failed assertion: '!semantics.parentDataDirty': is not true
+    //
+    // Fix: read ModalRoute.isCurrent, which becomes false the instant a new
+    // route is pushed (synchronously during the same build frame that adds the
+    // overlay entry), and exclude the entire shell from the semantics tree for
+    // as long as it is not the frontmost route.  This has no visible effect on
+    // accessibility because the shell is visually hidden behind the new route.
+    final bool isCurrent = ModalRoute.of(context)?.isCurrent ?? true;
+
+    return ExcludeSemantics(
+      excluding: !isCurrent,
+      child: Scaffold(
+        body: navigationShell,
+        bottomNavigationBar: _BottomNav(navigationShell: navigationShell),
+      ),
     );
   }
 }
