@@ -8,6 +8,21 @@ import '../../../domain/entities/message_entity.dart';
 import '../../providers/providers.dart';
 import '../../widgets/note/message_bubble.dart';
 
+// ---------------------------------------------------------------------------
+// Data returned by the compose sheet
+// ---------------------------------------------------------------------------
+
+class _ComposeResult {
+  final String text;
+  // TODO: add imageBytes / imageName for Premium image attachments
+
+  const _ComposeResult({required this.text});
+}
+
+// ---------------------------------------------------------------------------
+// Screen
+// ---------------------------------------------------------------------------
+
 class NoteBoxScreen extends ConsumerStatefulWidget {
   final String placeId;
   final String placeTitle;
@@ -23,7 +38,6 @@ class NoteBoxScreen extends ConsumerStatefulWidget {
 }
 
 class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
-  final _textController = TextEditingController();
   final _scrollController = ScrollController();
 
   BannerAd? _bannerAd;
@@ -34,14 +48,11 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
   @override
   void initState() {
     super.initState();
-    // Defer the ad load until after the first frame so isPremiumProvider
-    // has had a chance to emit its initial value.
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadAdIfNeeded());
   }
 
   @override
   void dispose() {
-    _textController.dispose();
     _scrollController.dispose();
     _bannerAd?.dispose();
     super.dispose();
@@ -65,16 +76,27 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
     )..load();
   }
 
+  // ── Compose sheet ─────────────────────────────────────────────────────────
+
+  Future<void> _openComposeSheet() async {
+    final result = await showModalBottomSheet<_ComposeResult>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _ComposeSheet(),
+    );
+    if (!mounted || result == null) return;
+    await _sendMessage(result.text);
+  }
+
   // ── Send ──────────────────────────────────────────────────────────────────
 
-  Future<void> _sendMessage() async {
-    final text = _textController.text.trim();
+  Future<void> _sendMessage(String text) async {
     if (text.isEmpty) return;
 
     final user = ref.read(authStateProvider).valueOrNull;
     if (user == null) return;
-
-    _textController.clear();
 
     try {
       await ref.read(messageRepositoryProvider).sendMessage(
@@ -212,7 +234,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
       // _MainShell in router.dart already occupies that slot. Having two
       // Scaffold.bottomNavigationBar widgets active simultaneously corrupts
       // the semantics tree and triggers '!semantics.parentDataDirty' errors.
-      // The input bar lives in the body Column instead.
+      // The compose bar lives in the body Column instead.
 
       body: Column(
         children: [
@@ -229,7 +251,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('Error: $e')),
               data: (messages) => messages.isEmpty
-                  ? _EmptyState()
+                  ? const _EmptyState()
                   : ListView.builder(
                       controller: _scrollController,
                       padding: const EdgeInsets.symmetric(
@@ -255,18 +277,15 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
             ),
           ),
 
-          // Input bar.
+          // Compose bar.
           // ConstrainedBox guards against offstage-layout: when NoteBoxScreen
           // is the top route, _MainShell becomes Offstage(offstage: true) and
-          // receives BoxConstraints() (unconstrained). Without this cap, a Row
-          // with Expanded child computes infinite width that crashes layout.
+          // receives BoxConstraints() (unconstrained). This cap ensures the
+          // bar always has a finite maximum width.
           ConstrainedBox(
             constraints:
                 BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width),
-            child: _InputBar(
-              controller: _textController,
-              onSend: _sendMessage,
-            ),
+            child: _ComposeBar(onTap: _openComposeSheet),
           ),
         ],
       ),
@@ -279,6 +298,8 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
 // ---------------------------------------------------------------------------
 
 class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -305,49 +326,156 @@ class _EmptyState extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Input bar
+// Compose bar  (bottom of screen — just opens the sheet)
 // ---------------------------------------------------------------------------
 
-/// Inline text-input row at the bottom of the screen.
-/// Uses a [Row] (not Column + CrossAxisAlignment.stretch) so unconstrained
-/// offstage width does not propagate as tight-infinity to any child.
-class _InputBar extends StatelessWidget {
-  final TextEditingController controller;
-  final VoidCallback onSend;
+class _ComposeBar extends StatelessWidget {
+  final VoidCallback onTap;
 
-  const _InputBar({required this.controller, required this.onSend});
+  const _ComposeBar({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return SafeArea(
       top: false,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: controller,
-                decoration: InputDecoration(
-                  hintText: 'Write a message…',
-                  isDense: true,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Write a message…',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) => onSend(),
+                Icon(Icons.add, color: theme.colorScheme.primary),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Compose sheet  (modal bottom sheet)
+// ---------------------------------------------------------------------------
+
+class _ComposeSheet extends StatefulWidget {
+  const _ComposeSheet();
+
+  @override
+  State<_ComposeSheet> createState() => _ComposeSheetState();
+}
+
+class _ComposeSheetState extends State<_ComposeSheet> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _send() {
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
+    Navigator.of(context).pop(_ComposeResult(text: text));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    // viewInsets.bottom pushes the sheet up when the keyboard appears.
+    // Applied at the outermost level so Flutter can measure the available
+    // height correctly without overflow.
+    return Padding(
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Drag handle.
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.outlineVariant,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
-            const SizedBox(width: 8),
-            IconButton.filled(
-              onPressed: onSend,
-              icon: const Icon(Icons.send),
-              tooltip: 'Send',
+
+            // Header row.
+            Row(
+              children: [
+                Text('New message', style: theme.textTheme.titleSmall),
+                const Spacer(),
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close),
+                  tooltip: 'Cancel',
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+
+            // Multiline text field.
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              maxLines: null,
+              minLines: 4,
+              keyboardType: TextInputType.multiline,
+              textInputAction: TextInputAction.newline,
+              decoration: InputDecoration(
+                hintText: 'Write a message…',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Action row — space on the left reserved for future attachments.
+            Row(
+              children: [
+                // TODO: image attachment button (Premium)
+                const Spacer(),
+                FilledButton.icon(
+                  onPressed: _send,
+                  icon: const Icon(Icons.send, size: 18),
+                  label: const Text('Send'),
+                ),
+              ],
             ),
           ],
         ),
