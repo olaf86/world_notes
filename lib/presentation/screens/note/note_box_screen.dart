@@ -29,7 +29,6 @@ class NoteBoxScreen extends ConsumerStatefulWidget {
 class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
   final _scrollController = ScrollController();
   final _textController = TextEditingController();
-  final _focusNode = FocusNode();
   bool _isComposing = false;
 
   BannerAd? _bannerAd;
@@ -47,7 +46,6 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
   void dispose() {
     _scrollController.dispose();
     _textController.dispose();
-    _focusNode.dispose();
     _bannerAd?.dispose();
     super.dispose();
   }
@@ -74,15 +72,10 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
 
   void _openCompose() {
     setState(() => _isComposing = true);
-    // Request focus after the panel has been inserted into the tree so the
-    // keyboard opens only after the first layout pass completes.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _focusNode.requestFocus();
-    });
   }
 
   void _closeCompose() {
-    _focusNode.unfocus();
+    FocusScope.of(context).unfocus();
     setState(() {
       _isComposing = false;
       _textController.clear();
@@ -287,22 +280,21 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
             ),
           ),
 
-          // Input area — no modal route involved, so no semantics conflict.
-          // AnimatedSwitcher gives a smooth crossfade between the two states.
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
+          // Input area — plain if/else, no AnimatedSwitcher.
+          // AnimatedSwitcher was causing RenderAnimatedOpacity to loop when
+          // the keyboard opened during the crossfade animation. A simple
+          // conditional rebuild avoids that entirely.
+          // ConstrainedBox caps width so Column(.stretch) never sees infinity.
+          ConstrainedBox(
+            constraints:
+                BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width),
             child: _isComposing
                 ? _ComposePanel(
-                    key: const ValueKey('panel'),
                     controller: _textController,
-                    focusNode: _focusNode,
                     onSend: _sendMessage,
                     onClose: _closeCompose,
                   )
-                : _ComposeBar(
-                    key: const ValueKey('bar'),
-                    onTap: _openCompose,
-                  ),
+                : _ComposeBar(onTap: _openCompose),
           ),
         ],
       ),
@@ -350,7 +342,7 @@ class _EmptyState extends StatelessWidget {
 class _ComposeBar extends StatelessWidget {
   final VoidCallback onTap;
 
-  const _ComposeBar({super.key, required this.onTap});
+  const _ComposeBar({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -401,14 +393,11 @@ class _ComposeBar extends StatelessWidget {
 /// Keyboard avoidance is handled automatically by Scaffold.resizeToAvoidBottomInset.
 class _ComposePanel extends StatelessWidget {
   final TextEditingController controller;
-  final FocusNode focusNode;
   final VoidCallback onSend;
   final VoidCallback onClose;
 
   const _ComposePanel({
-    super.key,
     required this.controller,
-    required this.focusNode,
     required this.onSend,
     required this.onClose,
   });
@@ -448,7 +437,7 @@ class _ComposePanel extends StatelessWidget {
             // Multiline text field.
             TextField(
               controller: controller,
-              focusNode: focusNode,
+              autofocus: true,
               maxLines: null,
               minLines: 4,
               keyboardType: TextInputType.multiline,
