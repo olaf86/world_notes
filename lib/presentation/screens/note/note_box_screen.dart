@@ -9,17 +9,6 @@ import '../../providers/providers.dart';
 import '../../widgets/note/message_bubble.dart';
 
 // ---------------------------------------------------------------------------
-// Data returned by the compose sheet
-// ---------------------------------------------------------------------------
-
-class _ComposeResult {
-  final String text;
-  // TODO: add imageBytes / imageName for Premium image attachments
-
-  const _ComposeResult({required this.text});
-}
-
-// ---------------------------------------------------------------------------
 // Screen
 // ---------------------------------------------------------------------------
 
@@ -39,6 +28,9 @@ class NoteBoxScreen extends ConsumerStatefulWidget {
 
 class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
   final _scrollController = ScrollController();
+  final _textController = TextEditingController();
+  final _focusNode = FocusNode();
+  bool _isComposing = false;
 
   BannerAd? _bannerAd;
   bool _adLoaded = false;
@@ -54,6 +46,8 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _textController.dispose();
+    _focusNode.dispose();
     _bannerAd?.dispose();
     super.dispose();
   }
@@ -76,24 +70,31 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
     )..load();
   }
 
-  // ── Compose sheet ─────────────────────────────────────────────────────────
+  // ── Compose panel ─────────────────────────────────────────────────────────
 
-  Future<void> _openComposeSheet() async {
-    final result = await showModalBottomSheet<_ComposeResult>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const _ComposeSheet(),
-    );
-    if (!mounted || result == null) return;
-    await _sendMessage(result.text);
+  void _openCompose() {
+    setState(() => _isComposing = true);
+    // Request focus after the panel has been inserted into the tree so the
+    // keyboard opens only after the first layout pass completes.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focusNode.requestFocus();
+    });
+  }
+
+  void _closeCompose() {
+    _focusNode.unfocus();
+    setState(() {
+      _isComposing = false;
+      _textController.clear();
+    });
   }
 
   // ── Send ──────────────────────────────────────────────────────────────────
 
-  Future<void> _sendMessage(String text) async {
+  Future<void> _sendMessage() async {
+    final text = _textController.text.trim();
     if (text.isEmpty) return;
+    _closeCompose();
 
     final user = ref.read(authStateProvider).valueOrNull;
     if (user == null) return;
@@ -286,15 +287,22 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
             ),
           ),
 
-          // Compose bar.
-          // ConstrainedBox guards against offstage-layout: when NoteBoxScreen
-          // is the top route, _MainShell becomes Offstage(offstage: true) and
-          // receives BoxConstraints() (unconstrained). This cap ensures the
-          // bar always has a finite maximum width.
-          ConstrainedBox(
-            constraints:
-                BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width),
-            child: _ComposeBar(onTap: _openComposeSheet),
+          // Input area — no modal route involved, so no semantics conflict.
+          // AnimatedSwitcher gives a smooth crossfade between the two states.
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: _isComposing
+                ? _ComposePanel(
+                    key: const ValueKey('panel'),
+                    controller: _textController,
+                    focusNode: _focusNode,
+                    onSend: _sendMessage,
+                    onClose: _closeCompose,
+                  )
+                : _ComposeBar(
+                    key: const ValueKey('bar'),
+                    onTap: _openCompose,
+                  ),
           ),
         ],
       ),
@@ -342,7 +350,7 @@ class _EmptyState extends StatelessWidget {
 class _ComposeBar extends StatelessWidget {
   final VoidCallback onTap;
 
-  const _ComposeBar({required this.onTap});
+  const _ComposeBar({super.key, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -381,95 +389,54 @@ class _ComposeBar extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Compose sheet  (modal bottom sheet)
+// Compose panel  (inline — no modal route, no semantics conflict)
 // ---------------------------------------------------------------------------
 
-class _ComposeSheet extends StatefulWidget {
-  const _ComposeSheet();
+/// Expands inline at the bottom of the screen when the user taps the compose
+/// bar. Using an in-screen widget (rather than showModalBottomSheet) avoids
+/// pushing a new route, which in Flutter 3.41.x causes
+/// '!semantics.parentDataDirty' assertion loops when two routes coexist in
+/// the semantics tree simultaneously.
+///
+/// Keyboard avoidance is handled automatically by Scaffold.resizeToAvoidBottomInset.
+class _ComposePanel extends StatelessWidget {
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final VoidCallback onSend;
+  final VoidCallback onClose;
 
-  @override
-  State<_ComposeSheet> createState() => _ComposeSheetState();
-}
-
-class _ComposeSheetState extends State<_ComposeSheet> {
-  final _controller = TextEditingController();
-  final _focusNode = FocusNode();
-
-  @override
-  void initState() {
-    super.initState();
-    // Request focus after the sheet's first layout pass so the keyboard does
-    // not open mid-layout. Opening the keyboard changes viewInsets, which
-    // rebuilds the viewInsets Padding; if that happens during layout it fires
-    // '!_debugDoingThisLayout'. Deferring to postFrameCallback avoids this.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _focusNode.requestFocus();
-    });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    _focusNode.dispose();
-    super.dispose();
-  }
-
-  void _send() {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
-    Navigator.of(context).pop(_ComposeResult(text: text));
-  }
+  const _ComposePanel({
+    super.key,
+    required this.controller,
+    required this.focusNode,
+    required this.onSend,
+    required this.onClose,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
-    // ConstrainedBox caps the width at the screen width. The modal bottom
-    // sheet route may pass unconstrained constraints in some layout phases
-    // (e.g. during the slide-in animation). Without this cap,
-    // Column(crossAxisAlignment: .stretch) computes crossSize = ∞ and
-    // forwards tight-infinity BoxConstraints to FilledButton.icon, which
-    // fails BoxConstraints.debugAssertIsValid — the same crash that
-    // afflicted _BottomInputBar. The constraint is a no-op in normal
-    // onstage operation where the modal already provides finite screen width.
-    //
-    // viewInsets.bottom pushes the sheet up when the keyboard appears.
-    // Applied inside the ConstrainedBox so the width cap is always in effect.
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width),
-      child: Padding(
-        padding:
-            EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+    return SafeArea(
+      top: false,
       child: Container(
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          border: Border(
+            top: BorderSide(color: theme.colorScheme.outlineVariant),
+          ),
         ),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Drag handle.
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.outlineVariant,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-
             // Header row.
             Row(
               children: [
                 Text('New message', style: theme.textTheme.titleSmall),
                 const Spacer(),
                 IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: onClose,
                   icon: const Icon(Icons.close),
                   tooltip: 'Cancel',
                   visualDensity: VisualDensity.compact,
@@ -479,11 +446,9 @@ class _ComposeSheetState extends State<_ComposeSheet> {
             const SizedBox(height: 8),
 
             // Multiline text field.
-            // autofocus is handled via _focusNode.requestFocus() in initState
-            // (deferred to postFrameCallback) to avoid layout re-entry.
             TextField(
-              controller: _controller,
-              focusNode: _focusNode,
+              controller: controller,
+              focusNode: focusNode,
               maxLines: null,
               minLines: 4,
               keyboardType: TextInputType.multiline,
@@ -501,13 +466,13 @@ class _ComposeSheetState extends State<_ComposeSheet> {
             ),
             const SizedBox(height: 12),
 
-            // Action row — space on the left reserved for future attachments.
+            // Action row — left side reserved for future image attachment.
             Row(
               children: [
                 // TODO: image attachment button (Premium)
                 const Spacer(),
                 FilledButton.icon(
-                  onPressed: _send,
+                  onPressed: onSend,
                   icon: const Icon(Icons.send, size: 18),
                   label: const Text('Send'),
                 ),
@@ -516,7 +481,6 @@ class _ComposeSheetState extends State<_ComposeSheet> {
           ],
         ),
       ),
-    ),  // ConstrainedBox
     );
   }
 }
