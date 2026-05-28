@@ -217,7 +217,16 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
     final isPremium = ref.watch(isPremiumProvider).valueOrNull ?? false;
     final currentUser = ref.watch(authStateProvider).valueOrNull;
 
-    return Scaffold(
+    // When a modal (e.g. the compose sheet) is pushed on top of this screen,
+    // this route's isCurrent becomes false. Both NoteBoxScreen and the modal
+    // would be in the semantics tree simultaneously, which triggers the same
+    // '!semantics.parentDataDirty' loop that _MainShell had. Exclude this
+    // screen's semantics while any other route is in front of it.
+    final bool isCurrent = ModalRoute.of(context)?.isCurrent ?? true;
+
+    return ExcludeSemantics(
+      excluding: !isCurrent,
+      child: Scaffold(
       appBar: AppBar(
         title: Text(widget.placeTitle),
         actions: [
@@ -289,6 +298,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
           ),
         ],
       ),
+    ),  // ExcludeSemantics
     );
   }
 }
@@ -383,10 +393,24 @@ class _ComposeSheet extends StatefulWidget {
 
 class _ComposeSheetState extends State<_ComposeSheet> {
   final _controller = TextEditingController();
+  final _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    // Request focus after the sheet's first layout pass so the keyboard does
+    // not open mid-layout. Opening the keyboard changes viewInsets, which
+    // rebuilds the viewInsets Padding; if that happens during layout it fires
+    // '!_debugDoingThisLayout'. Deferring to postFrameCallback avoids this.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focusNode.requestFocus();
+    });
+  }
 
   @override
   void dispose() {
     _controller.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -400,12 +424,22 @@ class _ComposeSheetState extends State<_ComposeSheet> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    // ConstrainedBox caps the width at the screen width. The modal bottom
+    // sheet route may pass unconstrained constraints in some layout phases
+    // (e.g. during the slide-in animation). Without this cap,
+    // Column(crossAxisAlignment: .stretch) computes crossSize = ∞ and
+    // forwards tight-infinity BoxConstraints to FilledButton.icon, which
+    // fails BoxConstraints.debugAssertIsValid — the same crash that
+    // afflicted _BottomInputBar. The constraint is a no-op in normal
+    // onstage operation where the modal already provides finite screen width.
+    //
     // viewInsets.bottom pushes the sheet up when the keyboard appears.
-    // Applied at the outermost level so Flutter can measure the available
-    // height correctly without overflow.
-    return Padding(
-      padding:
-          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+    // Applied inside the ConstrainedBox so the width cap is always in effect.
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width),
+      child: Padding(
+        padding:
+            EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
@@ -445,9 +479,11 @@ class _ComposeSheetState extends State<_ComposeSheet> {
             const SizedBox(height: 8),
 
             // Multiline text field.
+            // autofocus is handled via _focusNode.requestFocus() in initState
+            // (deferred to postFrameCallback) to avoid layout re-entry.
             TextField(
               controller: _controller,
-              autofocus: true,
+              focusNode: _focusNode,
               maxLines: null,
               minLines: 4,
               keyboardType: TextInputType.multiline,
@@ -480,6 +516,7 @@ class _ComposeSheetState extends State<_ComposeSheet> {
           ],
         ),
       ),
+    ),  // ConstrainedBox
     );
   }
 }
