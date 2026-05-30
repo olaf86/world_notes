@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
+import '../../../config/app_config.dart';
 import '../../../domain/entities/message_entity.dart';
 import '../../providers/providers.dart';
 import '../../widgets/note/message_bubble.dart';
@@ -27,12 +29,45 @@ class NoteBoxScreen extends ConsumerStatefulWidget {
 class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
   final _scrollController = ScrollController();
 
+  // Banner ad — ValueNotifier avoids calling setState() from the ad callback,
+  // which previously caused Column layout mutations mid-frame and triggered the
+  // '!semantics.parentDataDirty' loop.  Only the ValueListenableBuilder
+  // subtree is rebuilt when the ad loads; the rest of the screen is untouched.
+  BannerAd? _bannerAd;
+  final _adLoaded = ValueNotifier<bool>(false);
+
   // ── Lifecycle ─────────────────────────────────────────────────────────────
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadAdIfNeeded());
+  }
 
   @override
   void dispose() {
     _scrollController.dispose();
+    _adLoaded.dispose();
+    _bannerAd?.dispose();
     super.dispose();
+  }
+
+  // ── Ad loading ────────────────────────────────────────────────────────────
+
+  void _loadAdIfNeeded() {
+    if (ref.read(isPremiumProvider).valueOrNull == true) return;
+    _bannerAd = BannerAd(
+      adUnitId: AppConfig.bannerAdUnitId,
+      size: AdSize.banner,
+      request: const AdRequest(),
+      listener: BannerAdListener(
+        onAdLoaded: (_) => _adLoaded.value = true,
+        onAdFailedToLoad: (ad, error) {
+          ad.dispose();
+          _bannerAd = null;
+        },
+      ),
+    )..load();
   }
 
   // ── Compose ───────────────────────────────────────────────────────────────
@@ -192,6 +227,27 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
         ),
         body: Column(
           children: [
+            // Banner ad — non-premium only.
+            // AnimatedSize smoothly expands from 0 to banner height so the
+            // Column layout transition is gradual rather than a sudden jump.
+            // ValueListenableBuilder scopes the rebuild to this widget alone.
+            ValueListenableBuilder<bool>(
+              valueListenable: _adLoaded,
+              builder: (context, loaded, _) {
+                final ad = _bannerAd;
+                return AnimatedSize(
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeOut,
+                  child: (loaded && ad != null && !isPremium)
+                      ? SizedBox(
+                          height: ad.size.height.toDouble(),
+                          child: AdWidget(ad: ad),
+                        )
+                      : const SizedBox.shrink(),
+                );
+              },
+            ),
+
             // Message list.
             Expanded(
               child: messagesAsync.when(
