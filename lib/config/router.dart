@@ -67,9 +67,21 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
         ],
       ),
+      // These routes are pushed on the root Navigator on top of the
+      // StatefulShellRoute shell.  If they use the default opaque:true page,
+      // Flutter's Navigator marks the shell route as offstage and wraps it in
+      // Offstage(offstage:true), which passes BoxConstraints() (unbounded) to
+      // the entire shell widget tree.  That triggers layout failures and the
+      // cascading '!semantics.parentDataDirty' assertion loop.
+      //
+      // Fix: declare each route with opaque:false via CustomTransitionPage so
+      // Flutter never marks the shell as offstage.  The shell continues to
+      // receive proper screen-size constraints at all times.  NoteBoxScreen's
+      // Scaffold surface colour hides the shell visually once the fade is
+      // complete, so there is no perceptible difference to the user.
       GoRoute(
         path: '/note/create',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final lat = double.tryParse(
                 state.uri.queryParameters['lat'] ?? '',
               ) ??
@@ -78,24 +90,48 @@ final routerProvider = Provider<GoRouter>((ref) {
                 state.uri.queryParameters['lng'] ?? '',
               ) ??
               0;
-          return NoteCreationScreen(latitude: lat, longitude: lng);
+          return CustomTransitionPage<void>(
+            key: state.pageKey,
+            child: NoteCreationScreen(latitude: lat, longitude: lng),
+            opaque: false,
+            transitionsBuilder: (context, animation, _, child) =>
+                FadeTransition(opacity: animation, child: child),
+          );
         },
       ),
       GoRoute(
         path: '/note/:placeId',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final placeId = state.pathParameters['placeId']!;
           final placeTitle = state.uri.queryParameters['title'] ?? '';
-          return NoteBoxScreen(placeId: placeId, placeTitle: placeTitle);
+          return CustomTransitionPage<void>(
+            key: state.pageKey,
+            child: NoteBoxScreen(placeId: placeId, placeTitle: placeTitle),
+            opaque: false,
+            transitionsBuilder: (context, animation, _, child) =>
+                FadeTransition(opacity: animation, child: child),
+          );
         },
       ),
       GoRoute(
         path: '/subscription',
-        builder: (context, state) => const SubscriptionScreen(),
+        pageBuilder: (context, state) => CustomTransitionPage<void>(
+          key: state.pageKey,
+          child: const SubscriptionScreen(),
+          opaque: false,
+          transitionsBuilder: (context, animation, _, child) =>
+              FadeTransition(opacity: animation, child: child),
+        ),
       ),
       GoRoute(
         path: '/settings',
-        builder: (context, state) => const SettingsScreen(),
+        pageBuilder: (context, state) => CustomTransitionPage<void>(
+          key: state.pageKey,
+          child: const SettingsScreen(),
+          opaque: false,
+          transitionsBuilder: (context, animation, _, child) =>
+              FadeTransition(opacity: animation, child: child),
+        ),
       ),
     ],
   );
@@ -111,27 +147,49 @@ class _MainShell extends ConsumerWidget {
     // don't tear it down between MapScreen and PlaceListScreen.
     ref.listen(positionStreamProvider, (_, _) {});
 
-    // When a full-screen route (e.g. NoteBoxScreen, SubscriptionScreen) is
-    // pushed on top of the shell on the root Navigator, both the shell and the
-    // new route are onstage in the Overlay during the push transition animation.
-    // Having two Scaffolds—including _MainShell's NavigationBar with its
-    // SemanticsRole.tabBar / explicitChildNodes semantics—simultaneously in the
-    // semantics tree triggers a Flutter 3.41.x regression:
-    //   'package:flutter/src/rendering/object.dart':
-    //   Failed assertion: '!semantics.parentDataDirty': is not true
+    // LAYER 1 — Constraint clamp.
     //
-    // Fix: read ModalRoute.isCurrent, which becomes false the instant a new
-    // route is pushed (synchronously during the same build frame that adds the
-    // overlay entry), and exclude the entire shell from the semantics tree for
-    // as long as it is not the frontmost route.  This has no visible effect on
-    // accessibility because the shell is visually hidden behind the new route.
+    // StatefulShellRoute.indexedStack keeps all branches alive in an
+    // IndexedStack.  Inactive branches are wrapped in Offstage(offstage:true).
+    // Flutter's ModalRoute._ModalScope also wraps this shell in
+    // Offstage(offstage:true) whenever an opaque route is pushed on top.
+    //
+    // In both cases Offstage passes BoxConstraints() — 0..∞ in every
+    // dimension — to its child.  With unconstrained width/height, widgets
+    // such as Column(crossAxisAlignment:.stretch), FilledButton.icon,
+    // _ScrollableStatusView (SizedBox(height: constraints.maxHeight)), etc.
+    // try to set a dimension to ∞, throw BoxConstraints.debugAssertIsValid,
+    // and leave render objects in NEEDS-LAYOUT state.  The subsequent
+    // semantics flush then hits those dirty nodes every frame and fires
+    //   '!semantics.parentDataDirty': is not true
+    // in an infinite loop.
+    //
+    // Fix: clamp incoming constraints to the actual screen size before they
+    // reach any descendant.  MediaQuery.sizeOf is safe here because
+    // _MainShell is always rebuilt whenever the window size changes.
+    final size = MediaQuery.sizeOf(context);
+
+    // LAYER 2 — Semantics exclusion.
+    //
+    // Even with clamped constraints, both the shell and the new route sit in
+    // the semantics tree simultaneously while opaque:false routes are
+    // animating in.  NavigationBar carries SemanticsRole.tabBar /
+    // explicitChildNodes, which produces additional parentDataDirty noise
+    // when two routes coexist.  Excluding the shell from semantics while it
+    // is not the frontmost route removes that conflict entirely.
     final bool isCurrent = ModalRoute.of(context)?.isCurrent ?? true;
 
-    return ExcludeSemantics(
-      excluding: !isCurrent,
-      child: Scaffold(
-        body: navigationShell,
-        bottomNavigationBar: _BottomNav(navigationShell: navigationShell),
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxWidth: size.width,
+        maxHeight: size.height,
+      ),
+      child: ExcludeSemantics(
+        excluding: !isCurrent,
+        child: Scaffold(
+          body: navigationShell,
+          bottomNavigationBar: _BottomNav(navigationShell: navigationShell),
+        ),
       ),
     );
   }
