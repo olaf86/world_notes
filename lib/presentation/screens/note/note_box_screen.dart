@@ -225,64 +225,63 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
               ),
           ],
         ),
-        body: Column(
-          children: [
-            // Message list.
-            Expanded(
-              child: messagesAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text('Error: $e')),
-                data: (messages) => messages.isEmpty
-                    ? const _EmptyState()
-                    : ListView.builder(
-                        controller: _scrollController,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        itemCount: messages.length,
-                        itemBuilder: (context, index) {
-                          final message = messages[index];
-                          final isOwn = message.author.id == currentUser?.id;
-                          return MessageBubble(
-                            message: message,
-                            isOwn: isOwn,
-                            onDelete: isOwn
-                                ? () => _confirmDeleteMessage(message)
-                                : null,
-                            onReport: !isOwn
-                                ? () => _showReportDialog(message)
-                                : null,
-                          );
-                        },
+        // Message list — body is the list alone; the FAB and banner are
+        // declared separately so the FAB automatically floats above the banner.
+        body: messagesAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('Error: $e')),
+          data: (messages) => messages.isEmpty
+              ? const _EmptyState()
+              : ListView.builder(
+                  controller: _scrollController,
+                  // Extra bottom padding so the FAB never obscures the last
+                  // message (FAB 56 dp + margin 16 dp + breathing room 16 dp).
+                  padding: const EdgeInsets.only(top: 8, bottom: 88),
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) {
+                    final message = messages[index];
+                    final isOwn = message.author.id == currentUser?.id;
+                    return MessageBubble(
+                      message: message,
+                      isOwn: isOwn,
+                      onDelete: isOwn
+                          ? () => _confirmDeleteMessage(message)
+                          : null,
+                      onReport: !isOwn
+                          ? () => _showReportDialog(message)
+                          : null,
+                    );
+                  },
+                ),
+        ),
+
+        // FAB — opens the compose dialog, positioned bottom-right like X/Twitter.
+        floatingActionButton: FloatingActionButton(
+          onPressed: _openCompose,
+          tooltip: 'Write a message',
+          child: const Icon(Icons.edit_outlined),
+        ),
+
+        // Banner ad — placed in bottomNavigationBar so the Scaffold
+        // automatically lifts the FAB above it when the ad is loaded.
+        bottomNavigationBar: ValueListenableBuilder<bool>(
+          valueListenable: _adLoaded,
+          builder: (context, loaded, _) {
+            final ad = _bannerAd;
+            return AnimatedSize(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOut,
+              child: (loaded && ad != null && !isPremium)
+                  ? SafeArea(
+                      top: false,
+                      child: SizedBox(
+                        height: ad.size.height.toDouble(),
+                        child: AdWidget(ad: ad),
                       ),
-              ),
-            ),
-
-            // Banner ad — non-premium only, sits directly above the compose bar.
-            // AnimatedSize smoothly expands from 0 to banner height so the
-            // Column layout transition is gradual rather than a sudden jump.
-            // ValueListenableBuilder scopes the rebuild to this widget alone.
-            ValueListenableBuilder<bool>(
-              valueListenable: _adLoaded,
-              builder: (context, loaded, _) {
-                final ad = _bannerAd;
-                return AnimatedSize(
-                  duration: const Duration(milliseconds: 250),
-                  curve: Curves.easeOut,
-                  child: (loaded && ad != null && !isPremium)
-                      ? SizedBox(
-                          height: ad.size.height.toDouble(),
-                          child: AdWidget(ad: ad),
-                        )
-                      : const SizedBox.shrink(),
-                );
-              },
-            ),
-
-            // Compose bar — always visible, opens a dialog on tap.
-            _ComposeBar(onTap: _openCompose),
-          ],
+                    )
+                  : const SizedBox.shrink(),
+            );
+          },
         ),
       ),
     );
@@ -316,50 +315,6 @@ class _EmptyState extends StatelessWidget {
                 ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Compose bar  (bottom of screen — opens the compose dialog on tap)
-// ---------------------------------------------------------------------------
-
-class _ComposeBar extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _ComposeBar({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: GestureDetector(
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Write a message…',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-                Icon(Icons.edit_outlined, color: theme.colorScheme.primary),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }

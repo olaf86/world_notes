@@ -72,26 +72,23 @@ class _MessageBubbleState extends State<MessageBubble> {
     // ── Deleted tombstone ─────────────────────────────────────────────────
     if (message.isDeleted) {
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Center(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.remove_circle_outline,
-                size: 14,
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+        child: Row(
+          children: [
+            Icon(
+              Icons.remove_circle_outline,
+              size: 14,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'This message has been deleted.',
+              style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
+                fontStyle: FontStyle.italic,
               ),
-              const SizedBox(width: 4),
-              Text(
-                'This message has been deleted.',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       );
     }
@@ -101,206 +98,194 @@ class _MessageBubbleState extends State<MessageBubble> {
       return GestureDetector(
         onLongPress: _showActionSheet,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Row(
-            mainAxisAlignment: widget.isOwn
-                ? MainAxisAlignment.end
-                : MainAxisAlignment.start,
-            children: [
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 280),
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: theme.colorScheme.errorContainer,
+          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: theme.colorScheme.errorContainer),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.warning_amber_rounded,
+                      size: 15,
+                      color: theme.colorScheme.error,
                     ),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.warning_amber_rounded,
-                            size: 15,
-                            color: theme.colorScheme.error,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Flagged content',
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              color: theme.colorScheme.error,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
+                    const SizedBox(width: 6),
+                    Text(
+                      'Flagged content',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: theme.colorScheme.error,
+                        fontWeight: FontWeight.w600,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'This message was hidden by our moderation system '
-                        'for potentially harmful content.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      GestureDetector(
-                        onTap: () =>
-                            setState(() => _flaggedContentRevealed = true),
-                        child: Text(
-                          'Show anyway',
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            color: theme.colorScheme.primary,
-                            decoration: TextDecoration.underline,
-                            decorationColor: theme.colorScheme.primary,
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'This message was hidden by our moderation system '
+                  'for potentially harmful content.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: () => setState(() => _flaggedContentRevealed = true),
+                  child: Text(
+                    'Show anyway',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.primary,
+                      decoration: TextDecoration.underline,
+                      decorationColor: theme.colorScheme.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
     }
 
-    // ── Normal bubble (or revealed flagged content) ───────────────────────
+    // ── Normal item — bulletin-board style ───────────────────────────────
+    //
+    // All messages are left-aligned.  Own messages are distinguished by:
+    //   • A 3 dp primary-coloured left border
+    //   • A subtle primaryContainer background tint
+    //   • Author name rendered in primary colour
+    //   • A small "You" badge next to the name
     final timeStr = DateFormat('HH:mm').format(message.createdAt.toLocal());
     final hasActions = (widget.isOwn && widget.onDelete != null) ||
         (!widget.isOwn && widget.onReport != null);
 
     return GestureDetector(
       onLongPress: hasActions ? _showActionSheet : null,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Container(
+        decoration: widget.isOwn
+            ? BoxDecoration(
+                color: theme.colorScheme.primaryContainer.withValues(
+                  alpha: 0.35,
+                ),
+                border: Border(
+                  left: BorderSide(
+                    color: theme.colorScheme.primary,
+                    width: 3,
+                  ),
+                ),
+              )
+            : null,
+        // Compensate for the 3 dp border so content stays aligned with
+        // non-own messages.
+        padding: EdgeInsets.fromLTRB(widget.isOwn ? 9 : 12, 10, 12, 10),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          mainAxisAlignment: widget.isOwn
-              ? MainAxisAlignment.end
-              : MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (!widget.isOwn) ...[
-              _Avatar(
-                photoUrl: message.author.photoUrl,
-                name: message.author.name,
-              ),
-              const SizedBox(width: 8),
-            ],
-            Flexible(
+            _Avatar(
+              photoUrl: message.author.photoUrl,
+              name: message.author.name,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
               child: Column(
-                crossAxisAlignment: widget.isOwn
-                    ? CrossAxisAlignment.end
-                    : CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (!widget.isOwn)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 4, bottom: 2),
-                      child: Text(
-                        message.author.name,
+                  // ── Header: name · [You badge] · timestamp ──────────
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          message.author.name,
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: widget.isOwn
+                                ? theme.colorScheme.primary
+                                : theme.colorScheme.onSurface,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (widget.isOwn) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'You',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onPrimary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(width: 8),
+                      if (message.isPending) ...[
+                        SizedBox(
+                          width: 10,
+                          height: 10,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 1.5,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                      ],
+                      Text(
+                        message.isPending ? 'Sending…' : timeStr,
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
-                    ),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: widget.isOwn
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.surfaceContainerHigh,
-                      borderRadius: BorderRadius.only(
-                        topLeft: const Radius.circular(16),
-                        topRight: const Radius.circular(16),
-                        bottomLeft: widget.isOwn
-                            ? const Radius.circular(16)
-                            : const Radius.circular(4),
-                        bottomRight: widget.isOwn
-                            ? const Radius.circular(4)
-                            : const Radius.circular(16),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  // ── Image (optional) ────────────────────────────────
+                  if (message.imageUrl != null) ...[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: CachedNetworkImage(
+                        imageUrl: message.imageUrl!,
+                        width: 220,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => const SizedBox(
+                          height: 120,
+                          width: 220,
+                          child: Center(child: CircularProgressIndicator()),
+                        ),
+                        errorWidget: (context, url, error) => const SizedBox(
+                          height: 80,
+                          width: 220,
+                          child: Icon(Icons.broken_image_outlined),
+                        ),
                       ),
                     ),
-                    clipBehavior: Clip.antiAlias,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (message.imageUrl != null)
-                          CachedNetworkImage(
-                            imageUrl: message.imageUrl!,
-                            width: 220,
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) => const SizedBox(
-                              height: 120,
-                              width: 220,
-                              child: Center(
-                                child: CircularProgressIndicator(),
-                              ),
-                            ),
-                            errorWidget: (context, url, error) =>
-                                const SizedBox(
-                              height: 80,
-                              width: 220,
-                              child: Icon(Icons.broken_image_outlined),
-                            ),
-                          ),
-                        if (message.content.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 10,
-                            ),
-                            child: Text(
-                              message.content,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: widget.isOwn
-                                    ? theme.colorScheme.onPrimary
-                                    : theme.colorScheme.onSurface,
-                              ),
-                            ),
-                          ),
-                      ],
+                    const SizedBox(height: 4),
+                  ],
+                  // ── Text content ────────────────────────────────────
+                  if (message.content.isNotEmpty)
+                    Text(
+                      message.content,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurface,
+                      ),
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(
-                      top: 2,
-                      left: 4,
-                      right: 4,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (message.isPending) ...[
-                          SizedBox(
-                            width: 10,
-                            height: 10,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 1.5,
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                        ],
-                        Text(
-                          message.isPending ? 'Sending…' : timeStr,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 ],
               ),
             ),
-            if (widget.isOwn) const SizedBox(width: 8),
           ],
         ),
       ),
