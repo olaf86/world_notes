@@ -74,18 +74,48 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
 
   // ── Compose ───────────────────────────────────────────────────────────────
 
-  /// Pushes [NoteComposeScreen] for plain-text composition.
-  Future<void> _openCompose() async {
+  /// Pushes [NoteComposeScreen] via a non-opaque PageRoute.
+  ///
+  /// We must use `opaque: false` here.  A default-opaque MaterialPageRoute
+  /// causes Flutter to wrap NoteBoxScreen's _ModalScope in
+  /// `Offstage(offstage: true)` once the new route's slide-in completes,
+  /// which passes BoxConstraints() (0..∞) down into this Scaffold's render
+  /// tree.  The unbounded constraints throw layout assertions and leave
+  /// render objects in NEEDS-LAYOUT state, retriggering the
+  /// '!semantics.parentDataDirty' loop on every subsequent semantic flush.
+  ///
+  /// Keeping NoteBoxScreen on-stage with `opaque: false` matches the
+  /// approach used for the GoRouter-managed full-screen routes
+  /// (/note/:placeId, /subscription, /settings) in router.dart.
+  Future<void> _pushComposeRoute({
+    List<int>? imageBytes,
+    String? imageName,
+  }) async {
     if (!mounted) return;
     await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => NoteComposeScreen(
+      PageRouteBuilder<void>(
+        opaque: false,
+        pageBuilder: (_, _, _) => NoteComposeScreen(
           placeId: widget.placeId,
           placeTitle: widget.placeTitle,
+          initialImageBytes: imageBytes,
+          initialImageName: imageName,
         ),
+        transitionsBuilder: (context, animation, _, child) {
+          final tween = Tween(
+            begin: const Offset(1.0, 0.0),
+            end: Offset.zero,
+          ).chain(CurveTween(curve: Curves.easeInOut));
+          return SlideTransition(
+            position: animation.drive(tween),
+            child: child,
+          );
+        },
       ),
     );
   }
+
+  Future<void> _openCompose() => _pushComposeRoute();
 
   /// Opens the native image picker, then pushes [NoteComposeScreen] with the
   /// selected image pre-loaded so the user can optionally add a caption.
@@ -98,15 +128,9 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
     if (file == null || !mounted) return;
     final bytes = await file.readAsBytes();
     if (!mounted) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => NoteComposeScreen(
-          placeId: widget.placeId,
-          placeTitle: widget.placeTitle,
-          initialImageBytes: bytes,
-          initialImageName: file.name,
-        ),
-      ),
+    await _pushComposeRoute(
+      imageBytes: bytes,
+      imageName: file.name,
     );
   }
 
@@ -216,9 +240,22 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
     // is shown on top — prevents parentDataDirty noise when two routes coexist.
     final bool isCurrent = ModalRoute.of(context)?.isCurrent ?? true;
 
-    return ExcludeSemantics(
-      excluding: !isCurrent,
-      child: Scaffold(
+    // Defensive constraint clamp.  Even with opaque:false on all push routes,
+    // any future route that lands on top of NoteBoxScreen with opaque:true
+    // would wrap this Scaffold in Offstage(offstage:true), pushing
+    // BoxConstraints() (0..∞) into the FAB Column / Scaffold body and
+    // re-triggering '!semantics.parentDataDirty' loops.  Same pattern as
+    // _MainShell in router.dart.
+    final size = MediaQuery.sizeOf(context);
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxWidth: size.width,
+        maxHeight: size.height,
+      ),
+      child: ExcludeSemantics(
+        excluding: !isCurrent,
+        child: Scaffold(
         appBar: AppBar(
           title: Text(widget.placeTitle),
           actions: [
@@ -305,6 +342,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
                   : const SizedBox.shrink(),
             );
           },
+        ),
         ),
       ),
     );

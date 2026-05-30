@@ -34,10 +34,12 @@ class NoteComposeScreen extends ConsumerStatefulWidget {
 
 class _NoteComposeScreenState extends ConsumerState<NoteComposeScreen> {
   final _controller = TextEditingController();
+  final _focusNode = FocusNode();
 
   List<int>? _imageBytes;
   String? _imageName;
   bool _isSending = false;
+  Animation<double>? _routeAnimation;
 
   @override
   void initState() {
@@ -45,12 +47,50 @@ class _NoteComposeScreenState extends ConsumerState<NoteComposeScreen> {
     _imageBytes = widget.initialImageBytes;
     _imageName = widget.initialImageName;
     // Rebuild the Send button whenever the text changes.
-    _controller.addListener(() => setState(() {}));
+    _controller.addListener(_onTextChanged);
+
+    // Defer focus / keyboard until the push animation completes.
+    //
+    // Using `autofocus: true` on the TextField, or requesting focus from
+    // initState directly, brings up the keyboard during this route's first
+    // layout pass.  That mutates MediaQuery.viewInsets mid-layout and can
+    // throw layout assertions which leave render objects in NEEDS-LAYOUT —
+    // exactly the chain that fires '!semantics.parentDataDirty' on every
+    // frame.  Waiting for the route's slide-in animation to complete avoids
+    // overlapping the layout pass with the keyboard appearance.
+    WidgetsBinding.instance
+        .addPostFrameCallback(_requestFocusWhenRouteSettled);
+  }
+
+  void _onTextChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _requestFocusWhenRouteSettled(Duration _) {
+    if (!mounted) return;
+    final animation = ModalRoute.of(context)?.animation;
+    if (animation == null || animation.status == AnimationStatus.completed) {
+      _focusNode.requestFocus();
+      return;
+    }
+    _routeAnimation = animation;
+    animation.addStatusListener(_onRouteAnimationStatus);
+  }
+
+  void _onRouteAnimationStatus(AnimationStatus status) {
+    if (status == AnimationStatus.completed) {
+      _routeAnimation?.removeStatusListener(_onRouteAnimationStatus);
+      _routeAnimation = null;
+      if (mounted) _focusNode.requestFocus();
+    }
   }
 
   @override
   void dispose() {
+    _routeAnimation?.removeStatusListener(_onRouteAnimationStatus);
+    _controller.removeListener(_onTextChanged);
     _controller.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -128,7 +168,7 @@ class _NoteComposeScreenState extends ConsumerState<NoteComposeScreen> {
           Expanded(
             child: TextField(
               controller: _controller,
-              autofocus: true,
+              focusNode: _focusNode,
               maxLines: null,
               expands: true,
               keyboardType: TextInputType.multiline,
