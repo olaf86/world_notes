@@ -227,27 +227,6 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
         ),
         body: Column(
           children: [
-            // Banner ad — non-premium only.
-            // AnimatedSize smoothly expands from 0 to banner height so the
-            // Column layout transition is gradual rather than a sudden jump.
-            // ValueListenableBuilder scopes the rebuild to this widget alone.
-            ValueListenableBuilder<bool>(
-              valueListenable: _adLoaded,
-              builder: (context, loaded, _) {
-                final ad = _bannerAd;
-                return AnimatedSize(
-                  duration: const Duration(milliseconds: 250),
-                  curve: Curves.easeOut,
-                  child: (loaded && ad != null && !isPremium)
-                      ? SizedBox(
-                          height: ad.size.height.toDouble(),
-                          child: AdWidget(ad: ad),
-                        )
-                      : const SizedBox.shrink(),
-                );
-              },
-            ),
-
             // Message list.
             Expanded(
               child: messagesAsync.when(
@@ -278,6 +257,27 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
                         },
                       ),
               ),
+            ),
+
+            // Banner ad — non-premium only, sits directly above the compose bar.
+            // AnimatedSize smoothly expands from 0 to banner height so the
+            // Column layout transition is gradual rather than a sudden jump.
+            // ValueListenableBuilder scopes the rebuild to this widget alone.
+            ValueListenableBuilder<bool>(
+              valueListenable: _adLoaded,
+              builder: (context, loaded, _) {
+                final ad = _bannerAd;
+                return AnimatedSize(
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeOut,
+                  child: (loaded && ad != null && !isPremium)
+                      ? SizedBox(
+                          height: ad.size.height.toDouble(),
+                          child: AdWidget(ad: ad),
+                        )
+                      : const SizedBox.shrink(),
+                );
+              },
             ),
 
             // Compose bar — always visible, opens a dialog on tap.

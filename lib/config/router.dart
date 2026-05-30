@@ -94,8 +94,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             key: state.pageKey,
             child: NoteCreationScreen(latitude: lat, longitude: lng),
             opaque: false,
-            transitionsBuilder: (context, animation, _, child) =>
-                FadeTransition(opacity: animation, child: child),
+            transitionsBuilder: _slideTransition,
           );
         },
       ),
@@ -108,8 +107,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             key: state.pageKey,
             child: NoteBoxScreen(placeId: placeId, placeTitle: placeTitle),
             opaque: false,
-            transitionsBuilder: (context, animation, _, child) =>
-                FadeTransition(opacity: animation, child: child),
+            transitionsBuilder: _slideTransition,
           );
         },
       ),
@@ -119,8 +117,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           key: state.pageKey,
           child: const SubscriptionScreen(),
           opaque: false,
-          transitionsBuilder: (context, animation, _, child) =>
-              FadeTransition(opacity: animation, child: child),
+          transitionsBuilder: _slideTransition,
         ),
       ),
       GoRoute(
@@ -129,8 +126,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           key: state.pageKey,
           child: const SettingsScreen(),
           opaque: false,
-          transitionsBuilder: (context, animation, _, child) =>
-              FadeTransition(opacity: animation, child: child),
+          transitionsBuilder: _slideTransition,
         ),
       ),
     ],
@@ -222,4 +218,24 @@ class _BottomNav extends StatelessWidget {
       ],
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// Shared transition — right-to-left slide (standard push feel).
+// opaque:false is kept on all full-screen routes so the shell is never
+// wrapped in Offstage(offstage:true), which would pass BoxConstraints()
+// (0..∞) to the shell's children and trigger layout assertion loops.
+// ---------------------------------------------------------------------------
+
+Widget _slideTransition(
+  BuildContext context,
+  Animation<double> animation,
+  Animation<double> secondaryAnimation,
+  Widget child,
+) {
+  const begin = Offset(1.0, 0.0);
+  const end = Offset.zero;
+  final tween = Tween(begin: begin, end: end)
+      .chain(CurveTween(curve: Curves.easeInOut));
+  return SlideTransition(position: animation.drive(tween), child: child);
 }
