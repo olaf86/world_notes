@@ -8,7 +8,7 @@ import '../../../config/app_config.dart';
 import '../../../domain/entities/message_entity.dart';
 import '../../providers/providers.dart';
 import '../../widgets/note/message_bubble.dart';
-import 'note_compose_screen.dart';
+import '../../widgets/note/note_compose_sheet.dart';
 
 // ---------------------------------------------------------------------------
 // Screen
@@ -74,50 +74,42 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
 
   // ── Compose ───────────────────────────────────────────────────────────────
 
-  /// Pushes [NoteComposeScreen] via a non-opaque PageRoute.
+  /// Shows the compose UI as a modal bottom sheet.
   ///
-  /// We must use `opaque: false` here.  A default-opaque MaterialPageRoute
-  /// causes Flutter to wrap NoteBoxScreen's _ModalScope in
-  /// `Offstage(offstage: true)` once the new route's slide-in completes,
-  /// which passes BoxConstraints() (0..∞) down into this Scaffold's render
-  /// tree.  The unbounded constraints throw layout assertions and leave
-  /// render objects in NEEDS-LAYOUT state, retriggering the
-  /// '!semantics.parentDataDirty' loop on every subsequent semantic flush.
+  /// `showModalBottomSheet` returns a `ModalBottomSheetRoute` which extends
+  /// `PopupRoute` — the same route family used by `showDialog`.  Unlike
+  /// `Navigator.push` (`PageRoute`), PopupRoutes never wrap the route
+  /// underneath them in `Offstage(offstage: true)`, so NoteBoxScreen's
+  /// Scaffold never receives unbounded `BoxConstraints()` from the
+  /// Navigator and the `!semantics.parentDataDirty` chain cannot trigger.
   ///
-  /// Keeping NoteBoxScreen on-stage with `opaque: false` matches the
-  /// approach used for the GoRouter-managed full-screen routes
-  /// (/note/:placeId, /subscription, /settings) in router.dart.
-  Future<void> _pushComposeRoute({
+  /// See https://github.com/flutter/flutter/issues/169214 and
+  /// https://github.com/flutter/flutter/pull/171250 for the underlying
+  /// `computeDryBaseline` issue this avoids.
+  Future<void> _showComposeSheet({
     List<int>? imageBytes,
     String? imageName,
-  }) async {
-    if (!mounted) return;
-    await Navigator.of(context).push(
-      PageRouteBuilder<void>(
-        opaque: false,
-        pageBuilder: (_, _, _) => NoteComposeScreen(
-          placeId: widget.placeId,
-          placeTitle: widget.placeTitle,
-          initialImageBytes: imageBytes,
-          initialImageName: imageName,
-        ),
-        transitionsBuilder: (context, animation, _, child) {
-          final tween = Tween(
-            begin: const Offset(1.0, 0.0),
-            end: Offset.zero,
-          ).chain(CurveTween(curve: Curves.easeInOut));
-          return SlideTransition(
-            position: animation.drive(tween),
-            child: child,
-          );
-        },
+  }) {
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true, // Allow up to ~90 % screen height.
+      useSafeArea: true,
+      // Surface clipping for the rounded top corners.
+      clipBehavior: Clip.antiAlias,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => NoteComposeSheet(
+        placeId: widget.placeId,
+        initialImageBytes: imageBytes,
+        initialImageName: imageName,
       ),
     );
   }
 
-  Future<void> _openCompose() => _pushComposeRoute();
+  Future<void> _openCompose() => _showComposeSheet();
 
-  /// Opens the native image picker, then pushes [NoteComposeScreen] with the
+  /// Opens the native image picker, then shows the compose sheet with the
   /// selected image pre-loaded so the user can optionally add a caption.
   Future<void> _openImagePicker() async {
     final file = await ImagePicker().pickImage(
@@ -128,7 +120,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
     if (file == null || !mounted) return;
     final bytes = await file.readAsBytes();
     if (!mounted) return;
-    await _pushComposeRoute(
+    await _showComposeSheet(
       imageBytes: bytes,
       imageName: file.name,
     );
