@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../config/app_config.dart';
 import '../../../domain/entities/message_entity.dart';
 import '../../providers/providers.dart';
 import '../../widgets/note/message_bubble.dart';
+import 'note_compose_screen.dart';
 
 // ---------------------------------------------------------------------------
 // Screen
@@ -72,37 +74,40 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
 
   // ── Compose ───────────────────────────────────────────────────────────────
 
-  /// Opens an AlertDialog for message composition.
-  ///
-  /// Using a dialog instead of an inline panel avoids layout mutations inside
-  /// NoteBoxScreen's Scaffold body (keyboard appearance / Column resize) that
-  /// previously triggered '!semantics.parentDataDirty' assertion loops.
-  /// AlertDialog gets its own independent layout context from the dialog route.
+  /// Pushes [NoteComposeScreen] for plain-text composition.
   Future<void> _openCompose() async {
-    final text = await showDialog<String>(
-      context: context,
-      builder: (_) => const _ComposeDialog(),
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => NoteComposeScreen(
+          placeId: widget.placeId,
+          placeTitle: widget.placeTitle,
+        ),
+      ),
     );
-    if (text == null || text.isEmpty || !mounted) return;
+  }
 
-    final user = ref.read(authStateProvider).valueOrNull;
-    if (user == null) return;
-
-    try {
-      await ref.read(messageRepositoryProvider).sendMessage(
-            placeId: widget.placeId,
-            content: text,
-            userId: user.id,
-            userName: user.name,
-            userPhotoUrl: user.photoUrl,
-          );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to send: $e')),
-        );
-      }
-    }
+  /// Opens the native image picker, then pushes [NoteComposeScreen] with the
+  /// selected image pre-loaded so the user can optionally add a caption.
+  Future<void> _openImagePicker() async {
+    final file = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 1920,
+    );
+    if (file == null || !mounted) return;
+    final bytes = await file.readAsBytes();
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => NoteComposeScreen(
+          placeId: widget.placeId,
+          placeTitle: widget.placeTitle,
+          initialImageBytes: bytes,
+          initialImageName: file.name,
+        ),
+      ),
+    );
   }
 
   // ── Delete ────────────────────────────────────────────────────────────────
@@ -255,16 +260,29 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
                 ),
         ),
 
-        // FAB — opens the compose dialog, positioned bottom-right like X/Twitter.
-        // heroTag must differ from the map screen's FABs ('mapAddNote',
-        // 'tracking') so Flutter does not Hero-animate between them during
-        // route transitions, which caused the "Add Note" label to flash on
-        // this button when navigating back.
-        floatingActionButton: FloatingActionButton(
-          heroTag: 'noteCompose',
-          onPressed: _openCompose,
-          tooltip: 'Write a message',
-          child: const Icon(Icons.edit_outlined),
+        // Two FABs stacked vertically (bottom-right):
+        //   • Small photo FAB  — opens native image picker → compose screen
+        //   • Regular edit FAB — opens compose screen directly
+        // heroTags are unique to prevent Hero-animation conflicts with the
+        // map screen's FABs ('mapAddNote', 'tracking').
+        floatingActionButton: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            FloatingActionButton.small(
+              heroTag: 'noteImage',
+              onPressed: _openImagePicker,
+              tooltip: 'Add photo',
+              child: const Icon(Icons.photo_library_outlined),
+            ),
+            const SizedBox(height: 12),
+            FloatingActionButton(
+              heroTag: 'noteCompose',
+              onPressed: _openCompose,
+              tooltip: 'Write a message',
+              child: const Icon(Icons.edit_outlined),
+            ),
+          ],
         ),
 
         // Banner ad — placed in bottomNavigationBar so the Scaffold
@@ -325,62 +343,4 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Compose dialog  (shown via showDialog — independent layout context)
-// ---------------------------------------------------------------------------
-
-/// Full-screen compose dialog.  Owning its own TextEditingController avoids
-/// any shared mutable state with the parent screen.
-class _ComposeDialog extends StatefulWidget {
-  const _ComposeDialog();
-
-  @override
-  State<_ComposeDialog> createState() => _ComposeDialogState();
-}
-
-class _ComposeDialogState extends State<_ComposeDialog> {
-  final _controller = TextEditingController();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('New message'),
-      contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-      content: TextField(
-        controller: _controller,
-        autofocus: true,
-        maxLines: null,
-        minLines: 4,
-        keyboardType: TextInputType.multiline,
-        textInputAction: TextInputAction.newline,
-        decoration: InputDecoration(
-          hintText: 'Write a message…',
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 12,
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        FilledButton.icon(
-          onPressed: () => Navigator.pop(context, _controller.text.trim()),
-          icon: const Icon(Icons.send, size: 18),
-          label: const Text('Send'),
-        ),
-      ],
-    );
-  }
-}
+// Composition is now handled by NoteComposeScreen (note_compose_screen.dart).
