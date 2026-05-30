@@ -168,22 +168,7 @@ class _MessageBubbleState extends State<MessageBubble> {
     return GestureDetector(
       onLongPress: hasActions ? _showActionSheet : null,
       child: Container(
-        decoration: widget.isOwn
-            ? BoxDecoration(
-                color: theme.colorScheme.primaryContainer.withValues(
-                  alpha: 0.35,
-                ),
-                border: Border(
-                  left: BorderSide(
-                    color: theme.colorScheme.primary,
-                    width: 3,
-                  ),
-                ),
-              )
-            : null,
-        // Compensate for the 3 dp border so content stays aligned with
-        // non-own messages.
-        padding: EdgeInsets.fromLTRB(widget.isOwn ? 9 : 12, 10, 12, 10),
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
