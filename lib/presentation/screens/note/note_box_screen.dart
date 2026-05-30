@@ -1,7 +1,10 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../config/app_config.dart';
 import '../../../domain/entities/message_entity.dart';
@@ -79,11 +82,11 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
   /// previously triggered '!semantics.parentDataDirty' assertion loops.
   /// AlertDialog gets its own independent layout context from the dialog route.
   Future<void> _openCompose() async {
-    final text = await showDialog<String>(
+    final result = await showDialog<_ComposeResult>(
       context: context,
       builder: (_) => const _ComposeDialog(),
     );
-    if (text == null || text.isEmpty || !mounted) return;
+    if (result == null || !result.hasContent || !mounted) return;
 
     final user = ref.read(authStateProvider).valueOrNull;
     if (user == null) return;
@@ -91,10 +94,12 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
     try {
       await ref.read(messageRepositoryProvider).sendMessage(
             placeId: widget.placeId,
-            content: text,
+            content: result.text,
             userId: user.id,
             userName: user.name,
             userPhotoUrl: user.photoUrl,
+            imageBytes: result.imageBytes,
+            imageName: result.imageName,
           );
     } catch (e) {
       if (mounted) {
@@ -326,11 +331,33 @@ class _EmptyState extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
+// Compose result  (returned by _ComposeDialog)
+// ---------------------------------------------------------------------------
+
+class _ComposeResult {
+  final String text;
+  final List<int>? imageBytes;
+  final String? imageName;
+
+  const _ComposeResult({
+    required this.text,
+    this.imageBytes,
+    this.imageName,
+  });
+
+  /// True when there is at least text or an image to send.
+  bool get hasContent => text.isNotEmpty || imageBytes != null;
+}
+
+// ---------------------------------------------------------------------------
 // Compose dialog  (shown via showDialog — independent layout context)
 // ---------------------------------------------------------------------------
 
-/// Full-screen compose dialog.  Owning its own TextEditingController avoids
-/// any shared mutable state with the parent screen.
+/// Large compose dialog with text input and optional image attachment.
+///
+/// Using a dialog instead of an inline panel isolates keyboard/layout
+/// changes to the dialog's own route context, avoiding layout assertion
+/// loops in the parent screen's Scaffold.
 class _ComposeDialog extends StatefulWidget {
   const _ComposeDialog();
 
@@ -340,6 +367,11 @@ class _ComposeDialog extends StatefulWidget {
 
 class _ComposeDialogState extends State<_ComposeDialog> {
   final _controller = TextEditingController();
+  final _picker = ImagePicker();
+
+  List<int>? _imageBytes;
+  String? _imageName;
+  bool _picking = false;
 
   @override
   void dispose() {
@@ -347,40 +379,171 @@ class _ComposeDialogState extends State<_ComposeDialog> {
     super.dispose();
   }
 
+  Future<void> _pickImage(ImageSource source) async {
+    if (_picking) return;
+    setState(() => _picking = true);
+    try {
+      final file = await _picker.pickImage(
+        source: source,
+        imageQuality: 85,
+        maxWidth: 1920,
+      );
+      if (file == null || !mounted) return;
+      final bytes = await file.readAsBytes();
+      setState(() {
+        _imageBytes = bytes;
+        _imageName = file.name;
+      });
+    } finally {
+      if (mounted) setState(() => _picking = false);
+    }
+  }
+
+  void _removeImage() => setState(() {
+        _imageBytes = null;
+        _imageName = null;
+      });
+
+  void _submit() {
+    final result = _ComposeResult(
+      text: _controller.text.trim(),
+      imageBytes: _imageBytes,
+      imageName: _imageName,
+    );
+    if (!result.hasContent) return;
+    Navigator.pop(context, result);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('New message'),
-      contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-      content: TextField(
-        controller: _controller,
-        autofocus: true,
-        maxLines: null,
-        minLines: 4,
-        keyboardType: TextInputType.multiline,
-        textInputAction: TextInputAction.newline,
-        decoration: InputDecoration(
-          hintText: 'Write a message…',
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 12,
-          ),
+    final theme = Theme.of(context);
+    final bytes = _imageBytes;
+
+    return Dialog(
+      // Wide dialog — leaves 12 dp on each side, 32 dp top/bottom.
+      insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 32),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Title ────────────────────────────────────────────────────
+            Text('New message', style: theme.textTheme.titleLarge),
+            const SizedBox(height: 16),
+
+            // ── Text field ───────────────────────────────────────────────
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              maxLines: null,
+              minLines: 7,
+              keyboardType: TextInputType.multiline,
+              textInputAction: TextInputAction.newline,
+              decoration: InputDecoration(
+                hintText: 'Write a message…',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // ── Image attachment row ──────────────────────────────────────
+            Row(
+              children: [
+                // Camera button
+                IconButton.outlined(
+                  onPressed: _picking
+                      ? null
+                      : () => _pickImage(ImageSource.camera),
+                  tooltip: 'Take a photo',
+                  icon: const Icon(Icons.camera_alt_outlined),
+                ),
+                const SizedBox(width: 8),
+                // Gallery button
+                IconButton.outlined(
+                  onPressed: _picking
+                      ? null
+                      : () => _pickImage(ImageSource.gallery),
+                  tooltip: 'Choose from library',
+                  icon: const Icon(Icons.photo_library_outlined),
+                ),
+                if (_picking) ...[
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                ],
+                // Thumbnail preview + remove button
+                if (bytes != null) ...[
+                  const SizedBox(width: 12),
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.memory(
+                          Uint8List.fromList(bytes),
+                          width: 56,
+                          height: 56,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      Positioned(
+                        top: -6,
+                        right: -6,
+                        child: GestureDetector(
+                          onTap: _removeImage,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.errorContainer,
+                              shape: BoxShape.circle,
+                            ),
+                            padding: const EdgeInsets.all(2),
+                            child: Icon(
+                              Icons.close,
+                              size: 14,
+                              color: theme.colorScheme.onErrorContainer,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // ── Actions ───────────────────────────────────────────────────
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                const SizedBox(width: 8),
+                FilledButton.icon(
+                  onPressed: _submit,
+                  icon: const Icon(Icons.send, size: 18),
+                  label: const Text('Send'),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        FilledButton.icon(
-          onPressed: () => Navigator.pop(context, _controller.text.trim()),
-          icon: const Icon(Icons.send, size: 18),
-          label: const Text('Send'),
-        ),
-      ],
     );
   }
 }
