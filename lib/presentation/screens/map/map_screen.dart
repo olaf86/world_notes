@@ -229,6 +229,7 @@ class _AddNoteFab extends StatelessWidget {
       bottom: 24,
       right: 16,
       child: FloatingActionButton.extended(
+        heroTag: 'mapAddNote',
         onPressed: onPressed,
         icon: const Icon(Icons.add_location_alt_outlined),
         label: const Text('Add Note'),

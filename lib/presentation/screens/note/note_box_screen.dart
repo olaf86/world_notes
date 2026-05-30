@@ -256,7 +256,12 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
         ),
 
         // FAB — opens the compose dialog, positioned bottom-right like X/Twitter.
+        // heroTag must differ from the map screen's FABs ('mapAddNote',
+        // 'tracking') so Flutter does not Hero-animate between them during
+        // route transitions, which caused the "Add Note" label to flash on
+        // this button when navigating back.
         floatingActionButton: FloatingActionButton(
+          heroTag: 'noteCompose',
           onPressed: _openCompose,
           tooltip: 'Write a message',
           child: const Icon(Icons.edit_outlined),
