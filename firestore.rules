@@ -59,6 +59,25 @@ service cloud.firestore {
       // these rules. Clients can never set them after creation.
 
       allow delete: if false;
+
+      // Password hash — written and read only by Cloud Functions (Admin SDK).
+      // Clients must never see the hash, so all access is denied here.
+      match /secret/{doc} {
+        allow read, write: if false;
+      }
+
+      // Brute-force attempt counters — server-only.
+      match /attempts/{uid} {
+        allow read, write: if false;
+      }
+
+      // Access grants. A user may read their OWN membership (to know whether
+      // they still have access after a password change), but grants are
+      // written exclusively by the unlockNote / invite Cloud Functions.
+      match /members/{uid} {
+        allow read: if isSignedIn() && request.auth.uid == uid;
+        allow write: if false;
+      }
     }
 
     // ── notes ─────────────────────────────────────────────────────────────────

@@ -18,6 +18,11 @@ import {
 initializeApp();
 setGlobalOptions({maxInstances: 10, region: REGION});
 
+// Password set/verify functions. They set region explicitly in their own
+// options because, being defined during module import (before this file's
+// setGlobalOptions runs), the global region would not otherwise apply.
+export {setNotePassword, unlockNote} from "./notePassword";
+
 interface CreateNoteData {
   latitude?: unknown;
   longitude?: unknown;
