@@ -1,15 +1,13 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../../../config/app_config.dart';
 import '../../../domain/entities/message_entity.dart';
 import '../../providers/providers.dart';
 import '../../widgets/note/message_bubble.dart';
+import '../../widgets/note/message_creation_overlay.dart';
 
 // ---------------------------------------------------------------------------
 // Screen
@@ -29,7 +27,8 @@ class NoteBoxScreen extends ConsumerStatefulWidget {
   ConsumerState<NoteBoxScreen> createState() => _NoteBoxScreenState();
 }
 
-class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
+class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
+    with SingleTickerProviderStateMixin {
   final _scrollController = ScrollController();
 
   // Banner ad — ValueNotifier avoids calling setState() from the ad callback,
@@ -39,11 +38,27 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
   BannerAd? _bannerAd;
   final _adLoaded = ValueNotifier<bool>(false);
 
+  // ── Compose overlay state ─────────────────────────────────────────────────
+  //
+  // The message creation UI is rendered as an overlay inside this screen's
+  // own widget tree, not as a separate Navigator route.  Every Navigator-
+  // based attempt (Navigator.push, showModalBottomSheet, ShellRoute child
+  // route) triggered the '!semantics.parentDataDirty' loop on this screen
+  // because of the BlockSemantics widget that ModalBarrier injects.  An
+  // overlay driven purely by an AnimationController bypasses Navigator
+  // entirely, so no extra ModalBarrier / BlockSemantics layer is added.
+  late final AnimationController _composeController;
+  bool _isComposing = false;
+
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
   @override
   void initState() {
     super.initState();
+    _composeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 280),
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadAdIfNeeded());
   }
 
@@ -52,6 +67,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
     _scrollController.dispose();
     _adLoaded.dispose();
     _bannerAd?.dispose();
+    _composeController.dispose();
     super.dispose();
   }
 
@@ -73,62 +89,18 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
     )..load();
   }
 
-  // ── Compose ───────────────────────────────────────────────────────────────
+  // ── Compose overlay ───────────────────────────────────────────────────────
 
-  /// Opens the compose AlertDialog.
-  ///
-  /// We use `showDialog` (PopupRoute) — proven to coexist safely with this
-  /// Scaffold's render tree. Earlier attempts with `Navigator.push` (PageRoute)
-  /// and `showModalBottomSheet` with a fixed-height container both triggered
-  /// `!semantics.parentDataDirty` / `RenderPhysicalShape was not laid out`,
-  /// rooted in computeDryBaseline behaviour around the Material/PhysicalShape
-  /// chain (see flutter/flutter#169214, PR #171250).
-  ///
-  /// `_ComposeResult` carries an optional image attachment along with text.
-  Future<void> _openCompose({List<int>? imageBytes, String? imageName}) async {
-    final result = await showDialog<_ComposeResult>(
-      context: context,
-      builder: (_) => _ComposeDialog(
-        initialImageBytes: imageBytes,
-        initialImageName: imageName,
-      ),
-    );
-    if (result == null || !result.hasContent || !mounted) return;
-
-    final user = ref.read(authStateProvider).valueOrNull;
-    if (user == null) return;
-
-    try {
-      await ref.read(messageRepositoryProvider).sendMessage(
-            placeId: widget.placeId,
-            content: result.text,
-            userId: user.id,
-            userName: user.name,
-            userPhotoUrl: user.photoUrl,
-            imageBytes: result.imageBytes,
-            imageName: result.imageName,
-          );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to send: $e')),
-        );
-      }
-    }
+  void _openCompose() {
+    if (_isComposing) return;
+    setState(() => _isComposing = true);
+    _composeController.forward();
   }
 
-  /// AppBar shortcut: pick a photo via the native UI, then open the compose
-  /// dialog with that photo pre-loaded.
-  Future<void> _openImagePicker() async {
-    final file = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 85,
-      maxWidth: 1920,
-    );
-    if (file == null || !mounted) return;
-    final bytes = await file.readAsBytes();
-    if (!mounted) return;
-    await _openCompose(imageBytes: bytes, imageName: file.name);
+  Future<void> _closeCompose() async {
+    if (!_isComposing) return;
+    await _composeController.reverse();
+    if (mounted) setState(() => _isComposing = false);
   }
 
   // ── Delete ────────────────────────────────────────────────────────────────
@@ -245,25 +217,27 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
     // _MainShell in router.dart.
     final size = MediaQuery.sizeOf(context);
 
-    return ConstrainedBox(
+    return PopScope(
+      // Intercept back gesture / hardware back when the compose overlay is
+      // visible — close the overlay instead of popping the route.
+      canPop: !_isComposing,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _isComposing) _closeCompose();
+      },
+      child: ConstrainedBox(
       constraints: BoxConstraints(
         maxWidth: size.width,
         maxHeight: size.height,
       ),
       child: ExcludeSemantics(
         excluding: !isCurrent,
-        child: Scaffold(
+        child: Stack(
+          children: [
+            // ── Base layer: the message-box screen ──────────────────────
+            Scaffold(
         appBar: AppBar(
           title: Text(widget.placeTitle),
           actions: [
-            // Photo shortcut — separate from the compose FAB, opens the
-            // native image picker directly, then re-uses the compose dialog
-            // with the picked image attached.
-            IconButton(
-              icon: const Icon(Icons.image_outlined),
-              tooltip: 'Add photo',
-              onPressed: _openImagePicker,
-            ),
             if (!isPremium)
               IconButton(
                 icon: const Icon(Icons.star_outline),
@@ -302,17 +276,13 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
                 ),
         ),
 
-        // Single FAB — proven-stable structure.  Placing widgets in
-        // `Scaffold.floatingActionButton` is well exercised by Flutter when
-        // it is a single FloatingActionButton; wrapping it in a Column with
-        // crossAxisAlignment caused intermittent layout failures alongside
-        // the bottomNavigationBar/AnimatedSize combination.  The photo
-        // shortcut lives in the AppBar instead.
-        // heroTag is unique to prevent Hero conflicts with the map screen's
-        // FABs ('mapAddNote', 'tracking').
+        // FAB — opens the compose overlay (state flag + slide-up animation
+        // in a Stack sibling layer below).  heroTag is unique to prevent
+        // Hero conflicts with the map screen's FABs ('mapAddNote',
+        // 'tracking').
         floatingActionButton: FloatingActionButton(
           heroTag: 'noteCompose',
-          onPressed: () => _openCompose(),
+          onPressed: _openCompose,
           tooltip: 'Write a message',
           child: const Icon(Icons.edit_outlined),
         ),
@@ -338,7 +308,38 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
             );
           },
         ),
+            ),
+
+            // ── Overlay layer: compose UI, slides up from the bottom ────
+            //
+            // Rendered only while `_isComposing` is true.  The animation
+            // controller drives a SlideTransition from (0, 1) → (0, 0).
+            // Because this overlay lives in the SAME Stack as the base
+            // Scaffold (not a Navigator route), no ModalBarrier /
+            // BlockSemantics is added to the tree — sidestepping the
+            // '!semantics.parentDataDirty' loop seen with route pushes.
+            if (_isComposing)
+              Positioned.fill(
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 1),
+                    end: Offset.zero,
+                  ).animate(
+                    CurvedAnimation(
+                      parent: _composeController,
+                      curve: Curves.easeOutCubic,
+                      reverseCurve: Curves.easeInCubic,
+                    ),
+                  ),
+                  child: MessageCreationOverlay(
+                    placeId: widget.placeId,
+                    onClose: _closeCompose,
+                  ),
+                ),
+              ),
+          ],
         ),
+      ),
       ),
     );
   }
@@ -376,189 +377,5 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Compose result — what _ComposeDialog returns via Navigator.pop
-// ---------------------------------------------------------------------------
-
-class _ComposeResult {
-  final String text;
-  final List<int>? imageBytes;
-  final String? imageName;
-
-  const _ComposeResult({
-    required this.text,
-    this.imageBytes,
-    this.imageName,
-  });
-
-  bool get hasContent => text.isNotEmpty || imageBytes != null;
-}
-
-// ---------------------------------------------------------------------------
-// Compose dialog — AlertDialog (PopupRoute) with TextField + image picker
-// ---------------------------------------------------------------------------
-//
-// AlertDialog is intentionally the *proven-stable* approach for this screen.
-// PageRoute-based pushes and showModalBottomSheet with fixed-height containers
-// both surfaced layout assertion loops on Flutter 3.44 due to the underlying
-// computeDryBaseline / RenderPhysicalShape behaviour. The AlertDialog lets us
-// keep the larger TextField (minLines: 8) and inline image attachment without
-// triggering those code paths.
-
-class _ComposeDialog extends StatefulWidget {
-  final List<int>? initialImageBytes;
-  final String? initialImageName;
-
-  const _ComposeDialog({this.initialImageBytes, this.initialImageName});
-
-  @override
-  State<_ComposeDialog> createState() => _ComposeDialogState();
-}
-
-class _ComposeDialogState extends State<_ComposeDialog> {
-  final _controller = TextEditingController();
-  final _picker = ImagePicker();
-
-  List<int>? _imageBytes;
-  String? _imageName;
-  bool _picking = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _imageBytes = widget.initialImageBytes;
-    _imageName = widget.initialImageName;
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  Future<void> _pickImage() async {
-    if (_picking) return;
-    setState(() => _picking = true);
-    try {
-      final file = await _picker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 85,
-        maxWidth: 1920,
-      );
-      if (file == null || !mounted) return;
-      final bytes = await file.readAsBytes();
-      if (!mounted) return;
-      setState(() {
-        _imageBytes = bytes;
-        _imageName = file.name;
-      });
-    } finally {
-      if (mounted) setState(() => _picking = false);
-    }
-  }
-
-  void _removeImage() => setState(() {
-        _imageBytes = null;
-        _imageName = null;
-      });
-
-  void _submit() {
-    final result = _ComposeResult(
-      text: _controller.text.trim(),
-      imageBytes: _imageBytes,
-      imageName: _imageName,
-    );
-    if (!result.hasContent) return;
-    Navigator.pop(context, result);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final bytes = _imageBytes;
-
-    return AlertDialog(
-      title: const Text('New message'),
-      contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Text input — taller minLines for comfortable writing ───
-            TextField(
-              controller: _controller,
-              autofocus: true,
-              maxLines: null,
-              minLines: 8,
-              keyboardType: TextInputType.multiline,
-              textInputAction: TextInputAction.newline,
-              decoration: InputDecoration(
-                hintText: 'Write a message…',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            // ── Image attachment row ──────────────────────────────────
-            Row(
-              children: [
-                IconButton.outlined(
-                  onPressed: _picking ? null : _pickImage,
-                  tooltip: 'Add photo',
-                  icon: const Icon(Icons.image_outlined),
-                ),
-                if (_picking) ...[
-                  const SizedBox(width: 12),
-                  SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                ],
-                if (bytes != null) ...[
-                  const SizedBox(width: 12),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.memory(
-                      Uint8List.fromList(bytes),
-                      width: 56,
-                      height: 56,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  IconButton(
-                    onPressed: _removeImage,
-                    tooltip: 'Remove photo',
-                    icon: const Icon(Icons.close),
-                    iconSize: 18,
-                  ),
-                ],
-              ],
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        FilledButton.icon(
-          onPressed: _submit,
-          icon: const Icon(Icons.send, size: 18),
-          label: const Text('Send'),
-        ),
-      ],
-    );
-  }
-}
+// Compose UI is rendered as an in-tree overlay; see MessageCreationOverlay
+// in lib/presentation/widgets/note/message_creation_overlay.dart.
