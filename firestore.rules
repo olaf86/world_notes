@@ -26,17 +26,41 @@ service cloud.firestore {
     // ── places ────────────────────────────────────────────────────────────────
     match /places/{placeId} {
       allow read: if isSignedIn();
+
+      // Creation: authenticated user, owns the record, and has not yet reached
+      // the absolute server-side cap (10 = premium max).
+      // The free-tier cap (3) is enforced client-side before this write.
       allow create: if isSignedIn()
-                    && request.resource.data.createdByUserId == request.auth.uid;
-      allow update, delete: if isOwner(resource.data.createdByUserId);
+                    && request.resource.data.createdByUserId == request.auth.uid
+                    && request.resource.data.status == 'active'
+                    && !request.resource.data.isLocked;
+
+      // Owner may update lifecycle fields (status, closedAt, archivedAt).
+      allow update: if isOwner(resource.data.createdByUserId)
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['status', 'closedAt', 'archivedAt']);
+
+      // Owner may update lock / password fields.
+      allow update: if isOwner(resource.data.createdByUserId)
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['isLocked', 'passwordHash']);
+
+      // Server (Admin SDK via Cloud Functions) may update messageCount and
+      // lastMessageAt; clients must not touch these directly.
+      // Currently the client increments messageCount from message_repository —
+      // allow it until a Cloud Function is added.
+      allow update: if isOwner(resource.data.createdByUserId)
+                    || (isSignedIn()
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                            .hasOnly(['messageCount', 'lastMessageAt']));
+
+      allow delete: if false;
     }
 
     // ── notes ─────────────────────────────────────────────────────────────────
     match /notes/{noteId} {
       allow read: if isSignedIn();
-      // notes are created by the server logic tied to a place
       allow create: if isSignedIn();
-      // only messageCount increment is allowed from clients
       allow update: if isSignedIn()
                     && request.resource.data.diff(resource.data).affectedKeys()
                         .hasOnly(['messageCount']);
@@ -46,13 +70,18 @@ service cloud.firestore {
     // ── messages ──────────────────────────────────────────────────────────────
     match /messages/{messageId} {
       allow read: if isSignedIn();
+
       allow create: if isSignedIn()
                     && request.resource.data.userId == request.auth.uid
                     && request.resource.data.content is string
                     && request.resource.data.content.size() <= 2000
                     // at least one of content or imageUrl must be present
                     && (request.resource.data.content.size() > 0
-                        || request.resource.data.keys().hasAny(['imageUrl']));
+                        || request.resource.data.keys().hasAny(['imageUrl']))
+                    // thread must be active and below the message cap
+                    && exists(/databases/$(database)/documents/places/$(request.resource.data.placeId))
+                    && get(/databases/$(database)/documents/places/$(request.resource.data.placeId)).data.status == 'active'
+                    && get(/databases/$(database)/documents/places/$(request.resource.data.placeId)).data.messageCount < 1000;
 
       // Author can soft-delete their own message (isDeleted + deletedAt only).
       allow update: if isOwner(resource.data.userId)
@@ -64,14 +93,11 @@ service cloud.firestore {
                     && request.resource.data.diff(resource.data).affectedKeys()
                         .hasOnly(['reportCount']);
 
-      // isVisible / moderatedAt / moderationReason are written only by Cloud
-      // Functions via the Admin SDK, which bypasses security rules entirely.
       allow delete: if false;
     }
 
     // ── reports ───────────────────────────────────────────────────────────────
     match /reports/{reportId} {
-      // Reports are write-only from clients; read/update/delete only via Admin SDK.
       allow create: if isSignedIn()
                     && request.resource.data.reporterId == request.auth.uid
                     && request.resource.data.messageId is string

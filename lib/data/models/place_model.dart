@@ -14,6 +14,11 @@ class PlaceModel {
   final DateTime createdAt;
   final int messageCount;
   final DateTime? lastMessageAt;
+  final PlaceStatus status;
+  final DateTime? closedAt;
+  final DateTime? archivedAt;
+  final bool isLocked;
+  final String? passwordHash;
 
   PlaceModel({
     required this.id,
@@ -28,6 +33,11 @@ class PlaceModel {
     required this.createdAt,
     this.messageCount = 0,
     this.lastMessageAt,
+    this.status = PlaceStatus.active,
+    this.closedAt,
+    this.archivedAt,
+    this.isLocked = false,
+    this.passwordHash,
   });
 
   factory PlaceModel.fromFirestore(DocumentSnapshot doc) {
@@ -45,6 +55,11 @@ class PlaceModel {
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       messageCount: (data['messageCount'] as int?) ?? 0,
       lastMessageAt: (data['lastMessageAt'] as Timestamp?)?.toDate(),
+      status: PlaceStatus.fromJson(data['status'] as String?),
+      closedAt: (data['closedAt'] as Timestamp?)?.toDate(),
+      archivedAt: (data['archivedAt'] as Timestamp?)?.toDate(),
+      isLocked: data['isLocked'] as bool? ?? false,
+      passwordHash: data['passwordHash'] as String?,
     );
   }
 
@@ -63,6 +78,11 @@ class PlaceModel {
       'lastMessageAt': lastMessageAt != null
           ? Timestamp.fromDate(lastMessageAt!)
           : FieldValue.serverTimestamp(),
+      'status': status.toJson(),
+      if (closedAt != null) 'closedAt': Timestamp.fromDate(closedAt!),
+      if (archivedAt != null) 'archivedAt': Timestamp.fromDate(archivedAt!),
+      'isLocked': isLocked,
+      if (passwordHash != null) 'passwordHash': passwordHash,
     };
   }
 
@@ -79,5 +99,10 @@ class PlaceModel {
         createdAt: createdAt,
         messageCount: messageCount,
         lastMessageAt: lastMessageAt,
+        status: status,
+        closedAt: closedAt,
+        archivedAt: archivedAt,
+        isLocked: isLocked,
+        passwordHash: passwordHash,
       );
 }

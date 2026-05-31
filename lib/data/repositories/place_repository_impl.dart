@@ -132,4 +132,56 @@ class PlaceRepositoryImpl implements PlaceRepository {
     if (!doc.exists) return null;
     return PlaceModel.fromFirestore(doc).toEntity();
   }
+
+  // ── Ownership queries ─────────────────────────────────────────────────────
+
+  @override
+  Future<int> countUserActivePlaces(String userId) async {
+    final snap = await _places
+        .where('createdByUserId', isEqualTo: userId)
+        .where('status', whereIn: ['active', 'closed']) // excludes archived
+        .count()
+        .get();
+    return snap.count ?? 0;
+  }
+
+  // ── Lifecycle management ──────────────────────────────────────────────────
+
+  @override
+  Future<void> closePlace(String placeId) async {
+    await _places.doc(placeId).update({
+      'status': 'closed',
+      'closedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  @override
+  Future<void> archivePlace(String placeId) async {
+    await _places.doc(placeId).update({
+      'status': 'archived',
+      'archivedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  @override
+  Future<void> reopenPlace(String placeId) async {
+    await _places.doc(placeId).update({
+      'status': 'active',
+      'closedAt': null,
+    });
+  }
+
+  // ── Access control ────────────────────────────────────────────────────────
+
+  @override
+  Future<void> setPlaceLock({
+    required String placeId,
+    required bool isLocked,
+    String? passwordHash,
+  }) async {
+    await _places.doc(placeId).update({
+      'isLocked': isLocked,
+      'passwordHash': isLocked ? passwordHash : null,
+    });
+  }
 }
