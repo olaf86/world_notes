@@ -1,6 +1,5 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -51,7 +50,11 @@ class _MessageCreationOverlayState
   final _focusNode = FocusNode();
   final _picker = ImagePicker();
 
-  List<int>? _imageBytes;
+  // Stored as Uint8List (not List<int>) so that the same instance is reused
+  // across rebuilds.  MemoryImage uses reference equality on the byte array;
+  // if we wrapped with Uint8List.fromList() every build, Flutter would treat
+  // it as a different image and re-decode it, causing a white-flash flicker.
+  Uint8List? _imageBytes;
   String? _imageName;
   bool _isSending = false;
   bool _picking = false;
@@ -118,7 +121,7 @@ class _MessageCreationOverlayState
       }
 
       setState(() {
-        _imageBytes = bytes;
+        _imageBytes = bytes; // Uint8List — no conversion needed
         _imageName = file.name;
       });
     } finally {
@@ -130,6 +133,8 @@ class _MessageCreationOverlayState
         _imageBytes = null;
         _imageName = null;
       });
+
+  static const _maxChars = 2000;
 
   // ── Submit ────────────────────────────────────────────────────────────────
 
@@ -183,6 +188,8 @@ class _MessageCreationOverlayState
               canSend: _hasContent,
               onClose: widget.onClose,
               onSend: _submit,
+              charCount: _controller.text.length,
+              maxChars: _maxChars,
             ),
             const Divider(height: 1),
 
@@ -202,6 +209,12 @@ class _MessageCreationOverlayState
                   textInputAction: TextInputAction.newline,
                   textAlignVertical: TextAlignVertical.top,
                   style: theme.textTheme.bodyLarge,
+                  maxLength: _maxChars,
+                  // Hide the default counter — we show it in the header instead.
+                  buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
+                  inputFormatters: [
+                    LengthLimitingTextInputFormatter(_maxChars),
+                  ],
                   decoration: const InputDecoration(
                     hintText: "What's happening at this place?",
                     // Remove Material 3's default filled look (grey tinted
@@ -251,17 +264,29 @@ class _Header extends StatelessWidget {
   final bool canSend;
   final VoidCallback onClose;
   final VoidCallback onSend;
+  final int charCount;
+  final int maxChars;
 
   const _Header({
     required this.isSending,
     required this.canSend,
     required this.onClose,
     required this.onSend,
+    required this.charCount,
+    required this.maxChars,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final remaining = maxChars - charCount;
+    // Show counter only when the user has started typing.
+    // Turn red when fewer than 100 characters remain.
+    final showCounter = charCount > 0;
+    final counterColor = remaining < 100
+        ? theme.colorScheme.error
+        : theme.colorScheme.onSurfaceVariant;
+
     return SizedBox(
       height: 56,
       child: Row(
@@ -277,6 +302,17 @@ class _Header extends StatelessWidget {
               style: theme.textTheme.titleMedium,
             ),
           ),
+          if (showCounter)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Text(
+                '$remaining',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: counterColor,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: isSending
@@ -307,7 +343,9 @@ class _Header extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _ImagePreview extends StatelessWidget {
-  final List<int> bytes;
+  // Uint8List rather than List<int> so Image.memory receives the same instance
+  // on every rebuild — avoids MemoryImage re-decoding and the resulting flicker.
+  final Uint8List bytes;
   final VoidCallback onRemove;
 
   const _ImagePreview({required this.bytes, required this.onRemove});
@@ -320,7 +358,7 @@ class _ImagePreview extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(12),
           child: Image.memory(
-            Uint8List.fromList(bytes),
+            bytes, // same instance — no Uint8List.fromList() allocation
             width: double.infinity,
             height: 180,
             fit: BoxFit.cover,
