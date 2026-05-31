@@ -91,9 +91,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final user = ref.read(authStateProvider).valueOrNull;
     if (user == null) return;
 
-    // Client-side note-limit gate. Firestore rules can't aggregate a per-user
-    // count, so the free (3) / premium (10) cap is enforced here before the
-    // creation form is even opened.
+    // Fast client-side PRE-CHECK only (for UX) — blocks opening the creation
+    // form when the user is already at their cap, so they don't fill it out
+    // just to be rejected. This is NOT the source of truth and is bypassable
+    // by a direct Firestore write: rules can't aggregate a per-user count.
+    // Authoritative enforcement of the free (3) / premium (10) cap moves to a
+    // `createNote` Cloud Function in Phase 3, which counts and creates inside
+    // a transaction (rules will then deny direct client place creation).
     final limit = ref.read(noteLimitProvider);
     final isPremium = ref.read(isPremiumProvider).valueOrNull ?? false;
     final current =
