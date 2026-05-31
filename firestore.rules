@@ -12,6 +12,11 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == uid;
     }
 
+    // Returns the data map of a place document.
+    function getPlace(placeId) {
+      return get(/databases/$(database)/documents/places/$(placeId)).data;
+    }
+
     // ── users ─────────────────────────────────────────────────────────────────
     match /users/{uid} {
       allow read: if isSignedIn();
@@ -27,32 +32,43 @@ service cloud.firestore {
     match /places/{placeId} {
       allow read: if isSignedIn();
 
-      // Creation: authenticated user, owns the record, and has not yet reached
-      // the absolute server-side cap (10 = premium max).
-      // The free-tier cap (3) is enforced client-side before this write.
+      // Creation rules:
+      //   • caller owns the record
+      //   • starts open, active (not archived)
+      //   • expiresAt is in the future and at most 1 year out (max lifetime)
+      // The free-tier note cap (3) and premium cap (10) are enforced
+      // client-side via countUserActivePlaces() before this write.
+      // Visibility may be set, but switching to 'private' with a real password
+      // is finalised by a Cloud Function (Phase 3) — passwordVersion stays 0
+      // here and the password hash is never written by the client.
       allow create: if isSignedIn()
                     && request.resource.data.createdByUserId == request.auth.uid
-                    && request.resource.data.status == 'active'
-                    && !request.resource.data.isLocked;
+                    && request.resource.data.isOpen == true
+                    && request.resource.data.isArchived == false
+                    && request.resource.data.visibility in ['public', 'private']
+                    && request.resource.data.passwordVersion == 0
+                    && request.resource.data.expiresAt > request.time
+                    && request.resource.data.expiresAt
+                        < request.time + duration.value(366, 'd');
 
-      // Owner may update lifecycle fields (status, closedAt, archivedAt).
+      // Owner writability changes (close / re-open).
+      //   • Re-opening (isOpen → true) is allowed ONLY when the thread was
+      //     closed manually by the owner; message-limit closes are permanent.
       allow update: if isOwner(resource.data.createdByUserId)
                     && request.resource.data.diff(resource.data).affectedKeys()
-                        .hasOnly(['status', 'closedAt', 'archivedAt']);
+                        .hasOnly(['isOpen', 'closedReason', 'closedAt'])
+                    && (request.resource.data.isOpen == false
+                        || resource.data.closedReason == 'owner');
 
-      // Owner may update lock / password fields.
-      allow update: if isOwner(resource.data.createdByUserId)
+      // Message counter — any signed-in user posting a message increments it.
+      // (Will move to a Cloud Function later for tamper-proofing.)
+      allow update: if isSignedIn()
                     && request.resource.data.diff(resource.data).affectedKeys()
-                        .hasOnly(['isLocked', 'passwordHash']);
+                        .hasOnly(['messageCount', 'lastMessageAt']);
 
-      // Server (Admin SDK via Cloud Functions) may update messageCount and
-      // lastMessageAt; clients must not touch these directly.
-      // Currently the client increments messageCount from message_repository —
-      // allow it until a Cloud Function is added.
-      allow update: if isOwner(resource.data.createdByUserId)
-                    || (isSignedIn()
-                        && request.resource.data.diff(resource.data).affectedKeys()
-                            .hasOnly(['messageCount', 'lastMessageAt']));
+      // Lifecycle (isArchived/archivedAt), visibility, and passwordVersion are
+      // written ONLY by Cloud Functions via the Admin SDK, which bypasses
+      // these rules. Clients can never set them after creation.
 
       allow delete: if false;
     }
@@ -78,10 +94,12 @@ service cloud.firestore {
                     // at least one of content or imageUrl must be present
                     && (request.resource.data.content.size() > 0
                         || request.resource.data.keys().hasAny(['imageUrl']))
-                    // thread must be active and below the message cap
+                    // thread must be open, not archived, not expired, below cap
                     && exists(/databases/$(database)/documents/places/$(request.resource.data.placeId))
-                    && get(/databases/$(database)/documents/places/$(request.resource.data.placeId)).data.status == 'active'
-                    && get(/databases/$(database)/documents/places/$(request.resource.data.placeId)).data.messageCount < 1000;
+                    && getPlace(request.resource.data.placeId).isOpen == true
+                    && getPlace(request.resource.data.placeId).isArchived == false
+                    && getPlace(request.resource.data.placeId).expiresAt > request.time
+                    && getPlace(request.resource.data.placeId).messageCount < 1000;
 
       // Author can soft-delete their own message (isDeleted + deletedAt only).
       allow update: if isOwner(resource.data.userId)

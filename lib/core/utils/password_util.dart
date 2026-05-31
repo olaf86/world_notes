@@ -1,33 +1,15 @@
-import 'dart:convert';
-import 'package:crypto/crypto.dart';
-
-/// Password hashing and validation utilities for note lock/unlock.
+/// Password strength validation for note locks.
 ///
-/// Security approach (MVP):
-///   HMAC-SHA256 keyed by the placeId is used instead of plain SHA-256.
-///   This makes the hash place-specific — the same password on two different
-///   notes produces different hashes, rendering generic rainbow tables useless.
+/// NOTE on hashing: password *verification* is performed server-side by a
+/// Cloud Function (Phase 3), which keeps the hash out of reach of clients —
+/// storing the hash in a client-readable document would let an attacker read
+/// it and forge an access grant.  The client only ever sends the plaintext
+/// password to the Cloud Function over HTTPS; it never hashes locally.
 ///
-/// Future improvement:
-///   Move verification to a Cloud Function so the hash is never exposed to
-///   clients and brute-force attempts can be rate-limited server-side.
+/// This utility therefore covers only client-side strength checking before
+/// the password is submitted.
 abstract class PasswordUtil {
   PasswordUtil._();
-
-  /// Computes HMAC-SHA256 of [password] keyed by [placeId].
-  static String hash(String password, String placeId) {
-    final key = utf8.encode(placeId);
-    final bytes = utf8.encode(password);
-    final hmac = Hmac(sha256, key);
-    return hmac.convert(bytes).toString();
-  }
-
-  /// Returns true when [entered] matches the stored [hash] for [placeId].
-  static bool verify(String entered, String hash, String placeId) {
-    return PasswordUtil.hash(entered, placeId) == hash;
-  }
-
-  // ── Strength validation ───────────────────────────────────────────────────
 
   static const int minLength = 8;
 

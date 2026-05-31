@@ -64,4 +64,11 @@ class AppConfig {
 
   /// Maximum image size (bytes) accepted for upload.
   static const int maxImageBytes = 5 * 1024 * 1024; // 5 MB
+
+  /// Maximum lifetime of a note before it auto-archives.
+  static const int maxNoteLifetimeDays = 365;
+
+  /// Expiry presets (in days) offered when creating a note. Selection is
+  /// required — a note can never be created without an expiry.
+  static const List<int> noteExpiryPresetDays = [7, 30, 90, 180, 365];
 }

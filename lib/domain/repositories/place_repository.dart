@@ -19,6 +19,8 @@ abstract class PlaceRepository {
     required String colorHex,
     required String icon,
     required String createdByUserId,
+    required DateTime expiresAt,
+    PlaceVisibility visibility,
   });
 
   Future<PlaceEntity?> getPlace(String placeId);
@@ -26,34 +28,16 @@ abstract class PlaceRepository {
   // ── Ownership queries ─────────────────────────────────────────────────────
 
   /// Returns the number of active (non-archived) notes owned by [userId].
-  /// Used to enforce free / premium creation limits before writing to Firestore.
+  /// Used to enforce free / premium creation limits before writing.
   Future<int> countUserActivePlaces(String userId);
 
-  // ── Lifecycle management (owner only) ─────────────────────────────────────
+  // ── Writability (owner only) ──────────────────────────────────────────────
 
-  /// Closes the note thread — no new messages allowed, but the thread remains
-  /// readable by proximity users.
-  Future<void> closePlace(String placeId);
+  /// Closes the thread (read-only).  [reason] records whether this was a
+  /// manual owner close or an automatic message-limit close.
+  Future<void> closePlace(String placeId, {required ClosedReason reason});
 
-  /// Archives the note thread — moves it to cold-storage status.
-  /// Future: content restricted; access requires owner approval.
-  Future<void> archivePlace(String placeId);
-
-  /// Re-opens a previously closed or archived place.
+  /// Re-opens a thread.  Only valid for owner-closed threads — the caller
+  /// must verify [PlaceEntity.canReopen] first (rules also enforce this).
   Future<void> reopenPlace(String placeId);
-
-  // ── Access control (owner only) ───────────────────────────────────────────
-
-  /// Sets or clears the password lock on a note.
-  ///
-  /// Pass [isLocked] = true with a non-null [passwordHash] to lock the note.
-  /// Pass [isLocked] = false (and null [passwordHash]) to unlock.
-  ///
-  /// [passwordHash] must be HMAC-SHA256 of the password keyed by the placeId,
-  /// computed by [PasswordUtil.hash].  Never store plain-text passwords.
-  Future<void> setPlaceLock({
-    required String placeId,
-    required bool isLocked,
-    String? passwordHash,
-  });
 }
