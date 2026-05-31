@@ -26,10 +26,10 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
 
   Color _selectedColor = Colors.green;
   String _selectedIcon = 'place';
-  // Expiry is required. Default to 90 days (3 months) — a balanced lifetime
-  // that keeps the map from filling with stale notes while not feeling
-  // aggressively short.
-  int _expiryDays = 90;
+  // Expiry is required. Defaults to AppConfig.defaultNoteExpiryDays (3 months)
+  // — a balanced lifetime that keeps the map from filling with stale notes
+  // while not feeling aggressively short.
+  int _expiryDays = AppConfig.defaultNoteExpiryDays;
   bool _loading = false;
 
   /// Human-readable label for an expiry preset (in days).

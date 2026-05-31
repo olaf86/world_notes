@@ -71,4 +71,8 @@ class AppConfig {
   /// Expiry presets (in days) offered when creating a note. Selection is
   /// required — a note can never be created without an expiry.
   static const List<int> noteExpiryPresetDays = [7, 30, 90, 180, 365];
+
+  /// Default expiry preset pre-selected on the note creation screen (3 months).
+  /// Must be one of [noteExpiryPresetDays].
+  static const int defaultNoteExpiryDays = 90;
 }
