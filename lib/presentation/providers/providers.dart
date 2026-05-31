@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -34,6 +35,12 @@ final firebaseStorageProvider = Provider<FirebaseStorage>(
   (_) => FirebaseStorage.instance,
 );
 
+// Functions live in asia-northeast1 (matches the default Firestore DB), so the
+// client must target that region or callable lookups 404.
+final firebaseFunctionsProvider = Provider<FirebaseFunctions>(
+  (_) => FirebaseFunctions.instanceFor(region: 'asia-northeast1'),
+);
+
 // --- Services ---
 
 final locationServiceProvider = Provider<LocationService>(
@@ -56,7 +63,10 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 });
 
 final placeRepositoryProvider = Provider<PlaceRepository>((ref) {
-  return PlaceRepositoryImpl(firestore: ref.watch(firestoreProvider));
+  return PlaceRepositoryImpl(
+    firestore: ref.watch(firestoreProvider),
+    functions: ref.watch(firebaseFunctionsProvider),
+  );
 });
 
 final messageRepositoryProvider = Provider<MessageRepository>((ref) {

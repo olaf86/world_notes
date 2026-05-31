@@ -11,15 +11,22 @@ abstract class PlaceRepository {
     required double longitude,
   });
 
-  Future<PlaceEntity> createPlace({
+  /// Creates a note via the `createNote` Cloud Function (the only path that
+  /// may create a place — direct client writes are denied by rules). The
+  /// function enforces the per-user note cap in a transaction and computes
+  /// the geohash server-side. Returns the new place id.
+  ///
+  /// Throws [FirebaseFunctionsException] — callers should surface a clear
+  /// message for `unavailable`/`deadline-exceeded` (offline) and
+  /// `resource-exhausted` (note limit reached).
+  Future<String> createNote({
     required double latitude,
     required double longitude,
     required String title,
     String? subtitle,
     required String colorHex,
     required String icon,
-    required String createdByUserId,
-    required DateTime expiresAt,
+    required int expiryDays,
     PlaceVisibility visibility,
   });
 

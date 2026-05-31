@@ -32,24 +32,12 @@ service cloud.firestore {
     match /places/{placeId} {
       allow read: if isSignedIn();
 
-      // Creation rules:
-      //   • caller owns the record
-      //   • starts open, active (not archived)
-      //   • expiresAt is in the future and at most 1 year out (max lifetime)
-      // The free-tier note cap (3) and premium cap (10) are enforced
-      // client-side via countUserActivePlaces() before this write.
-      // Visibility may be set, but switching to 'private' with a real password
-      // is finalised by a Cloud Function (Phase 3) — passwordVersion stays 0
-      // here and the password hash is never written by the client.
-      allow create: if isSignedIn()
-                    && request.resource.data.createdByUserId == request.auth.uid
-                    && request.resource.data.isOpen == true
-                    && request.resource.data.isArchived == false
-                    && request.resource.data.visibility in ['public', 'private']
-                    && request.resource.data.passwordVersion == 0
-                    && request.resource.data.expiresAt > request.time
-                    && request.resource.data.expiresAt
-                        < request.time + duration.value(366, 'd');
+      // Direct client creation is DENIED. Notes are created exclusively by the
+      // `createNote` Cloud Function (Admin SDK, which bypasses these rules),
+      // which enforces the per-user note cap in a transaction and computes the
+      // geohash server-side. This closes the bypass where a direct write could
+      // exceed the free (3) / premium (10) cap.
+      allow create: if false;
 
       // Owner writability changes (close / re-open).
       //   • Re-opening (isOpen → true) is allowed ONLY when the thread was
