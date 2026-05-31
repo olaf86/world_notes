@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,7 +10,6 @@ import '../../../config/app_config.dart';
 import '../../../domain/entities/message_entity.dart';
 import '../../providers/providers.dart';
 import '../../widgets/note/message_bubble.dart';
-import '../../widgets/note/note_compose_sheet.dart';
 
 // ---------------------------------------------------------------------------
 // Screen
@@ -74,43 +75,50 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
 
   // ── Compose ───────────────────────────────────────────────────────────────
 
-  /// Shows the compose UI as a modal bottom sheet.
+  /// Opens the compose AlertDialog.
   ///
-  /// `showModalBottomSheet` returns a `ModalBottomSheetRoute` which extends
-  /// `PopupRoute` — the same route family used by `showDialog`.  Unlike
-  /// `Navigator.push` (`PageRoute`), PopupRoutes never wrap the route
-  /// underneath them in `Offstage(offstage: true)`, so NoteBoxScreen's
-  /// Scaffold never receives unbounded `BoxConstraints()` from the
-  /// Navigator and the `!semantics.parentDataDirty` chain cannot trigger.
+  /// We use `showDialog` (PopupRoute) — proven to coexist safely with this
+  /// Scaffold's render tree. Earlier attempts with `Navigator.push` (PageRoute)
+  /// and `showModalBottomSheet` with a fixed-height container both triggered
+  /// `!semantics.parentDataDirty` / `RenderPhysicalShape was not laid out`,
+  /// rooted in computeDryBaseline behaviour around the Material/PhysicalShape
+  /// chain (see flutter/flutter#169214, PR #171250).
   ///
-  /// See https://github.com/flutter/flutter/issues/169214 and
-  /// https://github.com/flutter/flutter/pull/171250 for the underlying
-  /// `computeDryBaseline` issue this avoids.
-  Future<void> _showComposeSheet({
-    List<int>? imageBytes,
-    String? imageName,
-  }) {
-    return showModalBottomSheet<void>(
+  /// `_ComposeResult` carries an optional image attachment along with text.
+  Future<void> _openCompose({List<int>? imageBytes, String? imageName}) async {
+    final result = await showDialog<_ComposeResult>(
       context: context,
-      isScrollControlled: true, // Allow up to ~90 % screen height.
-      useSafeArea: true,
-      // Surface clipping for the rounded top corners.
-      clipBehavior: Clip.antiAlias,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => NoteComposeSheet(
-        placeId: widget.placeId,
+      builder: (_) => _ComposeDialog(
         initialImageBytes: imageBytes,
         initialImageName: imageName,
       ),
     );
+    if (result == null || !result.hasContent || !mounted) return;
+
+    final user = ref.read(authStateProvider).valueOrNull;
+    if (user == null) return;
+
+    try {
+      await ref.read(messageRepositoryProvider).sendMessage(
+            placeId: widget.placeId,
+            content: result.text,
+            userId: user.id,
+            userName: user.name,
+            userPhotoUrl: user.photoUrl,
+            imageBytes: result.imageBytes,
+            imageName: result.imageName,
+          );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to send: $e')),
+        );
+      }
+    }
   }
 
-  Future<void> _openCompose() => _showComposeSheet();
-
-  /// Opens the native image picker, then shows the compose sheet with the
-  /// selected image pre-loaded so the user can optionally add a caption.
+  /// AppBar shortcut: pick a photo via the native UI, then open the compose
+  /// dialog with that photo pre-loaded.
   Future<void> _openImagePicker() async {
     final file = await ImagePicker().pickImage(
       source: ImageSource.gallery,
@@ -120,10 +128,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
     if (file == null || !mounted) return;
     final bytes = await file.readAsBytes();
     if (!mounted) return;
-    await _showComposeSheet(
-      imageBytes: bytes,
-      imageName: file.name,
-    );
+    await _openCompose(imageBytes: bytes, imageName: file.name);
   }
 
   // ── Delete ────────────────────────────────────────────────────────────────
@@ -251,6 +256,14 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
         appBar: AppBar(
           title: Text(widget.placeTitle),
           actions: [
+            // Photo shortcut — separate from the compose FAB, opens the
+            // native image picker directly, then re-uses the compose dialog
+            // with the picked image attached.
+            IconButton(
+              icon: const Icon(Icons.image_outlined),
+              tooltip: 'Add photo',
+              onPressed: _openImagePicker,
+            ),
             if (!isPremium)
               IconButton(
                 icon: const Icon(Icons.star_outline),
@@ -289,29 +302,19 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen> {
                 ),
         ),
 
-        // Two FABs stacked vertically (bottom-right):
-        //   • Small photo FAB  — opens native image picker → compose screen
-        //   • Regular edit FAB — opens compose screen directly
-        // heroTags are unique to prevent Hero-animation conflicts with the
-        // map screen's FABs ('mapAddNote', 'tracking').
-        floatingActionButton: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            FloatingActionButton.small(
-              heroTag: 'noteImage',
-              onPressed: _openImagePicker,
-              tooltip: 'Add photo',
-              child: const Icon(Icons.photo_library_outlined),
-            ),
-            const SizedBox(height: 12),
-            FloatingActionButton(
-              heroTag: 'noteCompose',
-              onPressed: _openCompose,
-              tooltip: 'Write a message',
-              child: const Icon(Icons.edit_outlined),
-            ),
-          ],
+        // Single FAB — proven-stable structure.  Placing widgets in
+        // `Scaffold.floatingActionButton` is well exercised by Flutter when
+        // it is a single FloatingActionButton; wrapping it in a Column with
+        // crossAxisAlignment caused intermittent layout failures alongside
+        // the bottomNavigationBar/AnimatedSize combination.  The photo
+        // shortcut lives in the AppBar instead.
+        // heroTag is unique to prevent Hero conflicts with the map screen's
+        // FABs ('mapAddNote', 'tracking').
+        floatingActionButton: FloatingActionButton(
+          heroTag: 'noteCompose',
+          onPressed: () => _openCompose(),
+          tooltip: 'Write a message',
+          child: const Icon(Icons.edit_outlined),
         ),
 
         // Banner ad — placed in bottomNavigationBar so the Scaffold
@@ -373,4 +376,189 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-// Composition is now handled by NoteComposeScreen (note_compose_screen.dart).
+// ---------------------------------------------------------------------------
+// Compose result — what _ComposeDialog returns via Navigator.pop
+// ---------------------------------------------------------------------------
+
+class _ComposeResult {
+  final String text;
+  final List<int>? imageBytes;
+  final String? imageName;
+
+  const _ComposeResult({
+    required this.text,
+    this.imageBytes,
+    this.imageName,
+  });
+
+  bool get hasContent => text.isNotEmpty || imageBytes != null;
+}
+
+// ---------------------------------------------------------------------------
+// Compose dialog — AlertDialog (PopupRoute) with TextField + image picker
+// ---------------------------------------------------------------------------
+//
+// AlertDialog is intentionally the *proven-stable* approach for this screen.
+// PageRoute-based pushes and showModalBottomSheet with fixed-height containers
+// both surfaced layout assertion loops on Flutter 3.44 due to the underlying
+// computeDryBaseline / RenderPhysicalShape behaviour. The AlertDialog lets us
+// keep the larger TextField (minLines: 8) and inline image attachment without
+// triggering those code paths.
+
+class _ComposeDialog extends StatefulWidget {
+  final List<int>? initialImageBytes;
+  final String? initialImageName;
+
+  const _ComposeDialog({this.initialImageBytes, this.initialImageName});
+
+  @override
+  State<_ComposeDialog> createState() => _ComposeDialogState();
+}
+
+class _ComposeDialogState extends State<_ComposeDialog> {
+  final _controller = TextEditingController();
+  final _picker = ImagePicker();
+
+  List<int>? _imageBytes;
+  String? _imageName;
+  bool _picking = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _imageBytes = widget.initialImageBytes;
+    _imageName = widget.initialImageName;
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    if (_picking) return;
+    setState(() => _picking = true);
+    try {
+      final file = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+        maxWidth: 1920,
+      );
+      if (file == null || !mounted) return;
+      final bytes = await file.readAsBytes();
+      if (!mounted) return;
+      setState(() {
+        _imageBytes = bytes;
+        _imageName = file.name;
+      });
+    } finally {
+      if (mounted) setState(() => _picking = false);
+    }
+  }
+
+  void _removeImage() => setState(() {
+        _imageBytes = null;
+        _imageName = null;
+      });
+
+  void _submit() {
+    final result = _ComposeResult(
+      text: _controller.text.trim(),
+      imageBytes: _imageBytes,
+      imageName: _imageName,
+    );
+    if (!result.hasContent) return;
+    Navigator.pop(context, result);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final bytes = _imageBytes;
+
+    return AlertDialog(
+      title: const Text('New message'),
+      contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Text input — taller minLines for comfortable writing ───
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              maxLines: null,
+              minLines: 8,
+              keyboardType: TextInputType.multiline,
+              textInputAction: TextInputAction.newline,
+              decoration: InputDecoration(
+                hintText: 'Write a message…',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // ── Image attachment row ──────────────────────────────────
+            Row(
+              children: [
+                IconButton.outlined(
+                  onPressed: _picking ? null : _pickImage,
+                  tooltip: 'Add photo',
+                  icon: const Icon(Icons.image_outlined),
+                ),
+                if (_picking) ...[
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                ],
+                if (bytes != null) ...[
+                  const SizedBox(width: 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.memory(
+                      Uint8List.fromList(bytes),
+                      width: 56,
+                      height: 56,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    onPressed: _removeImage,
+                    tooltip: 'Remove photo',
+                    icon: const Icon(Icons.close),
+                    iconSize: 18,
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton.icon(
+          onPressed: _submit,
+          icon: const Icon(Icons.send, size: 18),
+          label: const Text('Send'),
+        ),
+      ],
+    );
+  }
+}
