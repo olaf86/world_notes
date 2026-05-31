@@ -49,7 +49,7 @@ service cloud.firestore {
       allow create: if isSignedIn()
                     && request.resource.data.userId == request.auth.uid
                     && request.resource.data.content is string
-                    && request.resource.data.content.size() <= 1000
+                    && request.resource.data.content.size() <= 2000
                     // at least one of content or imageUrl must be present
                     && (request.resource.data.content.size() > 0
                         || request.resource.data.keys().hasAny(['imageUrl']));

@@ -1,6 +1,5 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -51,7 +50,11 @@ class _MessageCreationOverlayState
   final _focusNode = FocusNode();
   final _picker = ImagePicker();
 
-  List<int>? _imageBytes;
+  // Stored as Uint8List (not List<int>) so that the same instance is reused
+  // across rebuilds.  MemoryImage uses reference equality on the byte array;
+  // if we wrapped with Uint8List.fromList() every build, Flutter would treat
+  // it as a different image and re-decode it, causing a white-flash flicker.
+  Uint8List? _imageBytes;
   String? _imageName;
   bool _isSending = false;
   bool _picking = false;
@@ -84,20 +87,41 @@ class _MessageCreationOverlayState
 
   // ── Image picking ─────────────────────────────────────────────────────────
 
+  // Maximum accepted byte size after picker-side compression (5 MB).
+  static const _maxImageBytes = 5 * 1024 * 1024;
+
   Future<void> _pickImage(ImageSource source) async {
     if (_picking) return;
     setState(() => _picking = true);
     try {
+      // imageQuality + maxWidth/maxHeight compress the image on-device via
+      // the platform image_picker plugin before we ever read the bytes.
+      // This keeps memory usage low and avoids uploading unnecessarily large
+      // files without requiring a separate compression package.
       final file = await _picker.pickImage(
         source: source,
-        imageQuality: 85,
+        imageQuality: 80,
         maxWidth: 1920,
+        maxHeight: 1920,
       );
       if (file == null || !mounted) return;
       final bytes = await file.readAsBytes();
       if (!mounted) return;
+
+      // Safety check: reject if the image is still above the size limit
+      // (e.g. an unusual format that the picker doesn't compress well).
+      if (bytes.length > _maxImageBytes) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Image is too large (max 5 MB). Please choose a smaller image.'),
+            duration: Duration(seconds: 4),
+          ),
+        );
+        return;
+      }
+
       setState(() {
-        _imageBytes = bytes;
+        _imageBytes = bytes; // Uint8List — no conversion needed
         _imageName = file.name;
       });
     } finally {
@@ -109,6 +133,8 @@ class _MessageCreationOverlayState
         _imageBytes = null;
         _imageName = null;
       });
+
+  static const _maxChars = 2000;
 
   // ── Submit ────────────────────────────────────────────────────────────────
 
@@ -130,12 +156,18 @@ class _MessageCreationOverlayState
           );
       if (mounted) widget.onClose();
     } catch (e) {
-      if (mounted) {
-        setState(() => _isSending = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to send: $e')),
-        );
-      }
+      if (!mounted) return;
+      setState(() => _isSending = false);
+      final message = _imageBytes != null
+          ? 'Failed to upload image. '
+              'Check that Firebase Storage is enabled and security rules allow writes.\n$e'
+          : 'Failed to send: $e';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          duration: const Duration(seconds: 6),
+        ),
+      );
     }
   }
 
@@ -156,6 +188,8 @@ class _MessageCreationOverlayState
               canSend: _hasContent,
               onClose: widget.onClose,
               onSend: _submit,
+              charCount: _controller.text.length,
+              maxChars: _maxChars,
             ),
             const Divider(height: 1),
 
@@ -175,9 +209,21 @@ class _MessageCreationOverlayState
                   textInputAction: TextInputAction.newline,
                   textAlignVertical: TextAlignVertical.top,
                   style: theme.textTheme.bodyLarge,
+                  maxLength: _maxChars,
+                  // Hide the default counter — we show it in the header instead.
+                  buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
+                  inputFormatters: [
+                    LengthLimitingTextInputFormatter(_maxChars),
+                  ],
                   decoration: const InputDecoration(
                     hintText: "What's happening at this place?",
+                    // Remove Material 3's default filled look (grey tinted
+                    // background + rounded corners).  The composer lives
+                    // inside a plain white/surface Material already.
+                    filled: false,
                     border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
                     contentPadding: EdgeInsets.zero,
                   ),
                 ),
@@ -218,17 +264,27 @@ class _Header extends StatelessWidget {
   final bool canSend;
   final VoidCallback onClose;
   final VoidCallback onSend;
+  final int charCount;
+  final int maxChars;
 
   const _Header({
     required this.isSending,
     required this.canSend,
     required this.onClose,
     required this.onSend,
+    required this.charCount,
+    required this.maxChars,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final remaining = maxChars - charCount;
+    // Turn red when fewer than 100 characters remain.
+    final counterColor = remaining < 100
+        ? theme.colorScheme.error
+        : theme.colorScheme.onSurfaceVariant;
+
     return SizedBox(
       height: 56,
       child: Row(
@@ -242,6 +298,16 @@ class _Header extends StatelessWidget {
             child: Text(
               'New message',
               style: theme.textTheme.titleMedium,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Text(
+              '$charCount/$maxChars',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: counterColor,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
             ),
           ),
           Padding(
@@ -274,7 +340,9 @@ class _Header extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _ImagePreview extends StatelessWidget {
-  final List<int> bytes;
+  // Uint8List rather than List<int> so Image.memory receives the same instance
+  // on every rebuild — avoids MemoryImage re-decoding and the resulting flicker.
+  final Uint8List bytes;
   final VoidCallback onRemove;
 
   const _ImagePreview({required this.bytes, required this.onRemove});
@@ -287,7 +355,7 @@ class _ImagePreview extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(12),
           child: Image.memory(
-            Uint8List.fromList(bytes),
+            bytes, // same instance — no Uint8List.fromList() allocation
             width: double.infinity,
             height: 180,
             fit: BoxFit.cover,
