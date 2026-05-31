@@ -25,6 +25,9 @@ abstract class PlaceRepository {
 
   Future<PlaceEntity?> getPlace(String placeId);
 
+  /// Live stream of a single place document. Emits null if it does not exist.
+  Stream<PlaceEntity?> watchPlace(String placeId);
+
   // ── Ownership queries ─────────────────────────────────────────────────────
 
   /// Returns the number of active (non-archived) notes owned by [userId].

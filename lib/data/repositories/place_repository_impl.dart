@@ -135,6 +135,13 @@ class PlaceRepositoryImpl implements PlaceRepository {
     return PlaceModel.fromFirestore(doc).toEntity();
   }
 
+  @override
+  Stream<PlaceEntity?> watchPlace(String placeId) {
+    return _places.doc(placeId).snapshots().map(
+          (doc) => doc.exists ? PlaceModel.fromFirestore(doc).toEntity() : null,
+        );
+  }
+
   // ── Ownership queries ─────────────────────────────────────────────────────
 
   @override

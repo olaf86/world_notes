@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../config/app_config.dart';
 import '../../core/map_style.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../data/repositories/message_repository_impl.dart';
@@ -140,6 +141,20 @@ final placesNearbyProvider = StreamProvider.family<List<PlaceEntity>, MapLatLng>
         );
   },
 );
+
+/// Live stream of a single place by id (null if it doesn't exist).
+final placeProvider = StreamProvider.family<PlaceEntity?, String>((ref, placeId) {
+  return ref.watch(placeRepositoryProvider).watchPlace(placeId);
+});
+
+// --- Note creation limit ---
+
+/// The maximum number of active notes the current user may own, based on
+/// premium status. Used to gate note creation client-side.
+final noteLimitProvider = Provider<int>((ref) {
+  final isPremium = ref.watch(isPremiumProvider).valueOrNull ?? false;
+  return isPremium ? AppConfig.premiumNoteLimit : AppConfig.freeNoteLimit;
+});
 
 // --- Messages ---
 

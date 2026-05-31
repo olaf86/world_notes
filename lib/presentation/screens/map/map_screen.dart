@@ -87,7 +87,60 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   Future<void> _onAddNote(Position pos) async {
     if (!mounted) return;
+
+    final user = ref.read(authStateProvider).valueOrNull;
+    if (user == null) return;
+
+    // Client-side note-limit gate. Firestore rules can't aggregate a per-user
+    // count, so the free (3) / premium (10) cap is enforced here before the
+    // creation form is even opened.
+    final limit = ref.read(noteLimitProvider);
+    final isPremium = ref.read(isPremiumProvider).valueOrNull ?? false;
+    final current =
+        await ref.read(placeRepositoryProvider).countUserActivePlaces(user.id);
+    if (!mounted) return;
+
+    if (current >= limit) {
+      await _showLimitReachedDialog(limit: limit, isPremium: isPremium);
+      return;
+    }
+
+    if (!mounted) return;
     context.push('/note/create?lat=${pos.latitude}&lng=${pos.longitude}');
+  }
+
+  Future<void> _showLimitReachedDialog({
+    required int limit,
+    required bool isPremium,
+  }) async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Note limit reached'),
+        content: Text(
+          isPremium
+              ? 'You\'ve reached the maximum of $limit active notes. '
+                  'Archive or let an existing note expire to create a new one.'
+              : 'Free accounts can keep $limit active notes. '
+                  'Upgrade to Premium for up to ${AppConfig.premiumNoteLimit}, '
+                  'or let an existing note expire to free up a slot.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('OK'),
+          ),
+          if (!isPremium)
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                context.push('/subscription');
+              },
+              child: const Text('Go Premium'),
+            ),
+        ],
+      ),
+    );
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
