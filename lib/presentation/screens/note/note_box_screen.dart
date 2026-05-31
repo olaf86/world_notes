@@ -134,7 +134,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     try {
       await ref
           .read(messageRepositoryProvider)
-          .deleteMessage(messageId: message.id);
+          .deleteMessage(placeId: widget.placeId, messageId: message.id);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

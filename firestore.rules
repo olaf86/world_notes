@@ -17,6 +17,28 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/places/$(placeId)).data;
     }
 
+    // True if the caller holds a still-valid access grant for a private note:
+    // either invited, or unlocked at the note's current passwordVersion
+    // (changing the password bumps the version, revoking old grants).
+    function hasNoteMembership(placeId, place) {
+      let path = /databases/$(database)/documents/places/$(placeId)/members/$(request.auth.uid);
+      return exists(path)
+             && (get(path).data.invited == true
+                 || get(path).data.viaPasswordVersion == place.passwordVersion);
+    }
+
+    // True if the caller may access a note's messages: public notes are open
+    // to all signed-in users; private notes require ownership or membership.
+    // get() results are cached per request, so this costs ~1-2 reads for a
+    // whole messages query, not per message.
+    function canAccessNote(placeId) {
+      let place = getPlace(placeId);
+      return isSignedIn()
+             && (place.visibility == 'public'
+                 || request.auth.uid == place.createdByUserId
+                 || hasNoteMembership(placeId, place));
+    }
+
     // ── users ─────────────────────────────────────────────────────────────────
     match /users/{uid} {
       allow read: if isSignedIn();
@@ -78,6 +100,40 @@ service cloud.firestore {
         allow read: if isSignedIn() && request.auth.uid == uid;
         allow write: if false;
       }
+
+      // ── messages (subcollection) ──────────────────────────────────────
+      // Nested under the place so reads can be gated on the parent note's
+      // visibility + membership. For private notes, only the owner and
+      // unlocked/invited members can read or post.
+      match /messages/{messageId} {
+        allow read: if canAccessNote(placeId);
+
+        allow create: if canAccessNote(placeId)
+                      && request.resource.data.userId == request.auth.uid
+                      && request.resource.data.placeId == placeId
+                      && request.resource.data.content is string
+                      && request.resource.data.content.size() <= 2000
+                      // at least one of content or imageUrl must be present
+                      && (request.resource.data.content.size() > 0
+                          || request.resource.data.keys().hasAny(['imageUrl']))
+                      // thread must be open, not archived, not expired, < cap
+                      && getPlace(placeId).isOpen == true
+                      && getPlace(placeId).isArchived == false
+                      && getPlace(placeId).expiresAt > request.time
+                      && getPlace(placeId).messageCount < 1000;
+
+        // Author soft-deletes own message (isDeleted + deletedAt only).
+        allow update: if isOwner(resource.data.userId)
+                      && request.resource.data.diff(resource.data).affectedKeys()
+                          .hasOnly(['isDeleted', 'deletedAt']);
+
+        // Any member can increment reportCount (one field only).
+        allow update: if canAccessNote(placeId)
+                      && request.resource.data.diff(resource.data).affectedKeys()
+                          .hasOnly(['reportCount']);
+
+        allow delete: if false;
+      }
     }
 
     // ── notes ─────────────────────────────────────────────────────────────────
@@ -87,37 +143,6 @@ service cloud.firestore {
       allow update: if isSignedIn()
                     && request.resource.data.diff(resource.data).affectedKeys()
                         .hasOnly(['messageCount']);
-      allow delete: if false;
-    }
-
-    // ── messages ──────────────────────────────────────────────────────────────
-    match /messages/{messageId} {
-      allow read: if isSignedIn();
-
-      allow create: if isSignedIn()
-                    && request.resource.data.userId == request.auth.uid
-                    && request.resource.data.content is string
-                    && request.resource.data.content.size() <= 2000
-                    // at least one of content or imageUrl must be present
-                    && (request.resource.data.content.size() > 0
-                        || request.resource.data.keys().hasAny(['imageUrl']))
-                    // thread must be open, not archived, not expired, below cap
-                    && exists(/databases/$(database)/documents/places/$(request.resource.data.placeId))
-                    && getPlace(request.resource.data.placeId).isOpen == true
-                    && getPlace(request.resource.data.placeId).isArchived == false
-                    && getPlace(request.resource.data.placeId).expiresAt > request.time
-                    && getPlace(request.resource.data.placeId).messageCount < 1000;
-
-      // Author can soft-delete their own message (isDeleted + deletedAt only).
-      allow update: if isOwner(resource.data.userId)
-                    && request.resource.data.diff(resource.data).affectedKeys()
-                        .hasOnly(['isDeleted', 'deletedAt']);
-
-      // Any signed-in user can increment reportCount (one field only).
-      allow update: if isSignedIn()
-                    && request.resource.data.diff(resource.data).affectedKeys()
-                        .hasOnly(['reportCount']);
-
       allow delete: if false;
     }
 

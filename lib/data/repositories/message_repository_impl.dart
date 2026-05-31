@@ -20,12 +20,17 @@ class MessageRepositoryImpl implements MessageRepository {
   })  : _firestore = firestore,
         _storage = storage;
 
-  CollectionReference get _messages => _firestore.collection('messages');
+  // Messages live in a subcollection under their place:
+  //   places/{placeId}/messages/{messageId}
+  // This lets security rules gate reads on the parent note's visibility +
+  // membership without a per-message field lookup, and keeps a private note's
+  // messages physically scoped to that note.
+  CollectionReference _messagesOf(String placeId) =>
+      _firestore.collection('places').doc(placeId).collection('messages');
 
   @override
   Stream<List<MessageEntity>> watchMessages(String placeId) {
-    return _messages
-        .where('placeId', isEqualTo: placeId)
+    return _messagesOf(placeId)
         .orderBy('createdAt', descending: true)
         .limit(AppConfig.messagesPageSize)
         .snapshots()
@@ -39,11 +44,10 @@ class MessageRepositoryImpl implements MessageRepository {
     required String beforeMessageId,
     required int limit,
   }) async {
-    final pivotDoc = await _messages.doc(beforeMessageId).get();
+    final pivotDoc = await _messagesOf(placeId).doc(beforeMessageId).get();
     if (!pivotDoc.exists) return [];
 
-    final snap = await _messages
-        .where('placeId', isEqualTo: placeId)
+    final snap = await _messagesOf(placeId)
         .orderBy('createdAt', descending: true)
         .startAfterDocument(pivotDoc)
         .limit(limit)
@@ -102,7 +106,7 @@ class MessageRepositoryImpl implements MessageRepository {
       createdAt: DateTime.now(),
     );
 
-    await _messages.doc(messageId).set(model.toFirestore());
+    await _messagesOf(placeId).doc(messageId).set(model.toFirestore());
 
     await _firestore.collection('places').doc(placeId).update({
       'messageCount': FieldValue.increment(1),
@@ -113,8 +117,11 @@ class MessageRepositoryImpl implements MessageRepository {
   }
 
   @override
-  Future<void> deleteMessage({required String messageId}) async {
-    await _messages.doc(messageId).update({
+  Future<void> deleteMessage({
+    required String placeId,
+    required String messageId,
+  }) async {
+    await _messagesOf(placeId).doc(messageId).update({
       'isDeleted': true,
       'deletedAt': FieldValue.serverTimestamp(),
     });
@@ -139,7 +146,7 @@ class MessageRepositoryImpl implements MessageRepository {
       'createdAt': FieldValue.serverTimestamp(),
     });
 
-    batch.update(_messages.doc(messageId), {
+    batch.update(_messagesOf(placeId).doc(messageId), {
       'reportCount': FieldValue.increment(1),
     });
 
