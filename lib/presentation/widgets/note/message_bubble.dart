@@ -288,52 +288,50 @@ class _MessageBubbleState extends State<MessageBubble> {
                     ],
                   ),
                   const SizedBox(height: 4),
+                  // ── Text content (X style: text first, image after) ──
+                  if (message.content.isNotEmpty) ...[
+                    Text(
+                      message.content,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                    if (message.imageUrl != null) const SizedBox(height: 8),
+                  ],
                   // ── Image (optional) ────────────────────────────────
                   //
-                  // Displayed as a centred square crop (Instagram style).
-                  // Width is capped at 220 dp; AspectRatio keeps it square;
-                  // BoxFit.cover fills the square without distorting.
-                  // Tap opens the full-resolution image in a zoomable viewer.
-                  if (message.imageUrl != null) ...[
-                    Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 220),
-                        child: GestureDetector(
-                          onTap: () => _openImageViewer(message.imageUrl!),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: AspectRatio(
-                              aspectRatio: 1.0,
-                              child: CachedNetworkImage(
-                                imageUrl: message.imageUrl!,
-                                fit: BoxFit.cover,
-                                placeholder: (context, url) => Container(
-                                  color: theme.colorScheme.surfaceContainerHighest,
-                                  child: const Center(
-                                    child: CircularProgressIndicator(),
-                                  ),
+                  // Left-aligned, fills the available column width up to
+                  // maxWidth (280 dp).  AspectRatio keeps it square (1:1)
+                  // with BoxFit.cover so the crop never distorts the image.
+                  // Tap opens a full-screen zoomable viewer.
+                  if (message.imageUrl != null)
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 280),
+                      child: GestureDetector(
+                        onTap: () => _openImageViewer(message.imageUrl!),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: AspectRatio(
+                            aspectRatio: 1.0,
+                            child: CachedNetworkImage(
+                              imageUrl: message.imageUrl!,
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Container(
+                                color: theme.colorScheme.surfaceContainerHighest,
+                                child: const Center(
+                                  child: CircularProgressIndicator(),
                                 ),
-                                errorWidget: (context, url, error) => Container(
-                                  color: theme.colorScheme.surfaceContainerHighest,
-                                  child: Icon(
-                                    Icons.broken_image_outlined,
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
+                              ),
+                              errorWidget: (context, url, error) => Container(
+                                color: theme.colorScheme.surfaceContainerHighest,
+                                child: Icon(
+                                  Icons.broken_image_outlined,
+                                  color: theme.colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                  ],
-                  // ── Text content ────────────────────────────────────
-                  if (message.content.isNotEmpty)
-                    Text(
-                      message.content,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurface,
                       ),
                     ),
                 ],
