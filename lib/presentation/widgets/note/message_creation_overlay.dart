@@ -84,18 +84,39 @@ class _MessageCreationOverlayState
 
   // ── Image picking ─────────────────────────────────────────────────────────
 
+  // Maximum accepted byte size after picker-side compression (5 MB).
+  static const _maxImageBytes = 5 * 1024 * 1024;
+
   Future<void> _pickImage(ImageSource source) async {
     if (_picking) return;
     setState(() => _picking = true);
     try {
+      // imageQuality + maxWidth/maxHeight compress the image on-device via
+      // the platform image_picker plugin before we ever read the bytes.
+      // This keeps memory usage low and avoids uploading unnecessarily large
+      // files without requiring a separate compression package.
       final file = await _picker.pickImage(
         source: source,
-        imageQuality: 85,
+        imageQuality: 80,
         maxWidth: 1920,
+        maxHeight: 1920,
       );
       if (file == null || !mounted) return;
       final bytes = await file.readAsBytes();
       if (!mounted) return;
+
+      // Safety check: reject if the image is still above the size limit
+      // (e.g. an unusual format that the picker doesn't compress well).
+      if (bytes.length > _maxImageBytes) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Image is too large (max 5 MB). Please choose a smaller image.'),
+            duration: Duration(seconds: 4),
+          ),
+        );
+        return;
+      }
+
       setState(() {
         _imageBytes = bytes;
         _imageName = file.name;
@@ -130,12 +151,18 @@ class _MessageCreationOverlayState
           );
       if (mounted) widget.onClose();
     } catch (e) {
-      if (mounted) {
-        setState(() => _isSending = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to send: $e')),
-        );
-      }
+      if (!mounted) return;
+      setState(() => _isSending = false);
+      final message = _imageBytes != null
+          ? 'Failed to upload image. '
+              'Check that Firebase Storage is enabled and security rules allow writes.\n$e'
+          : 'Failed to send: $e';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          duration: const Duration(seconds: 6),
+        ),
+      );
     }
   }
 
@@ -177,7 +204,13 @@ class _MessageCreationOverlayState
                   style: theme.textTheme.bodyLarge,
                   decoration: const InputDecoration(
                     hintText: "What's happening at this place?",
+                    // Remove Material 3's default filled look (grey tinted
+                    // background + rounded corners).  The composer lives
+                    // inside a plain white/surface Material already.
+                    filled: false,
                     border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
                     contentPadding: EdgeInsets.zero,
                   ),
                 ),
