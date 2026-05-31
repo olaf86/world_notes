@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/place_icon.dart';
+import '../../../core/utils/time_format.dart';
 import '../../../domain/entities/place_entity.dart';
 
 class NoteMarkerBottomSheet extends StatelessWidget {
@@ -52,17 +53,30 @@ class NoteMarkerBottomSheet extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Icon(
-                Icons.chat_bubble_outline,
-                size: 16,
-                color: theme.colorScheme.onSurfaceVariant,
+              _MetaChip(
+                icon: Icons.chat_bubble_outline,
+                label: '${place.messageCount} messages',
               ),
-              const SizedBox(width: 4),
-              Text(
-                '${place.messageCount} messages',
-                style: theme.textTheme.bodySmall,
+              if (place.isPrivate)
+                _MetaChip(
+                  icon: Icons.lock_outline,
+                  label: 'Private',
+                  color: theme.colorScheme.tertiary,
+                ),
+              if (place.isClosed)
+                _MetaChip(
+                  icon: Icons.do_not_disturb_on_outlined,
+                  label: 'Closed',
+                  color: theme.colorScheme.error,
+                ),
+              _MetaChip(
+                icon: Icons.schedule,
+                label: remainingLifetimeLabel(place.expiresAt),
               ),
             ],
           ),
@@ -75,10 +89,38 @@ class NoteMarkerBottomSheet extends StatelessWidget {
               );
             },
             icon: const Icon(Icons.open_in_new),
-            label: const Text('Open Note'),
+            label: Text(place.isClosed ? 'View Note' : 'Open Note'),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Compact icon + label chip used for note metadata (message count, status,
+/// remaining lifetime). [color] tints both icon and text; defaults to the
+/// muted onSurfaceVariant.
+class _MetaChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color? color;
+
+  const _MetaChip({required this.icon, required this.label, this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final c = color ?? theme.colorScheme.onSurfaceVariant;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: c),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: theme.textTheme.bodySmall?.copyWith(color: c),
+        ),
+      ],
     );
   }
 }

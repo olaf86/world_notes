@@ -167,7 +167,29 @@ class _PlaceListTile extends StatelessWidget {
         backgroundColor: color,
         child: Icon(placeIconData(place.icon), color: Colors.white, size: 20),
       ),
-      title: Text(place.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      title: Row(
+        children: [
+          if (place.isClosed) ...[
+            Icon(
+              Icons.do_not_disturb_on_outlined,
+              size: 14,
+              color: Theme.of(context).colorScheme.error,
+            ),
+            const SizedBox(width: 4),
+          ] else if (place.isPrivate) ...[
+            Icon(
+              Icons.lock_outline,
+              size: 14,
+              color: Theme.of(context).colorScheme.tertiary,
+            ),
+            const SizedBox(width: 4),
+          ],
+          Expanded(
+            child:
+                Text(place.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+        ],
+      ),
       subtitle: place.subtitle != null
           ? Text(place.subtitle!, maxLines: 1, overflow: TextOverflow.ellipsis)
           : null,
