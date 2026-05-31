@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../presentation/providers/providers.dart';
 import '../presentation/screens/auth/sign_in_screen.dart';
 import '../presentation/screens/map/map_screen.dart';
+import '../presentation/screens/note/message_creation_screen.dart';
 import '../presentation/screens/note/note_box_screen.dart';
 import '../presentation/screens/note/note_creation_screen.dart';
 import '../presentation/screens/place/place_list_screen.dart';
@@ -12,10 +13,23 @@ import '../presentation/screens/profile/profile_screen.dart';
 import '../presentation/screens/settings/settings_screen.dart';
 import '../presentation/screens/subscription/subscription_screen.dart';
 
+// Root Navigator key — used by the main shell and as the implicit parent for
+// top-level routes.
+final _rootNavigatorKey = GlobalKey<NavigatorState>();
+
+// Note shell Navigator key — owns /note/:placeId and its child
+// /note/:placeId/post.  Pushing the message creation screen onto THIS
+// navigator (instead of the root navigator) keeps the offstage/Constraints
+// chain contained to a small render subtree, avoiding the dry-baseline /
+// '!semantics.parentDataDirty' cascade that occurs when complex routes are
+// stacked on the root navigator.
+final _noteShellNavigatorKey = GlobalKey<NavigatorState>();
+
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
 
   return GoRouter(
+    navigatorKey: _rootNavigatorKey,
     initialLocation: '/map',
     redirect: (context, state) {
       // While auth state is still resolving, don't redirect.
@@ -98,18 +112,54 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      GoRoute(
-        path: '/note/:placeId',
-        pageBuilder: (context, state) {
-          final placeId = state.pathParameters['placeId']!;
-          final placeTitle = state.uri.queryParameters['title'] ?? '';
-          return CustomTransitionPage<void>(
-            key: state.pageKey,
-            child: NoteBoxScreen(placeId: placeId, placeTitle: placeTitle),
-            opaque: false,
-            transitionsBuilder: _slideTransition,
-          );
-        },
+      // Note ShellRoute — owns /note/:placeId AND /note/:placeId/post in its
+      // own Navigator (`_noteShellNavigatorKey`).  The post sub-route is
+      // pushed onto this inner Navigator, so the route stack pops/pushes
+      // happen against a small render subtree (just NoteBoxScreen) instead
+      // of the entire app shell.  The outer shell + tabs stay untouched
+      // beneath, exactly as before.
+      ShellRoute(
+        navigatorKey: _noteShellNavigatorKey,
+        // The shell wrapper itself does not render any UI — its only job is
+        // to host the inner Navigator.  The CustomTransitionPage applies the
+        // right-to-left slide that we previously had on /note/:placeId.
+        pageBuilder: (context, state, child) => CustomTransitionPage<void>(
+          key: state.pageKey,
+          child: child,
+          opaque: false,
+          transitionsBuilder: _slideTransition,
+        ),
+        routes: [
+          GoRoute(
+            path: '/note/:placeId',
+            builder: (context, state) {
+              final placeId = state.pathParameters['placeId']!;
+              final placeTitle = state.uri.queryParameters['title'] ?? '';
+              return NoteBoxScreen(
+                placeId: placeId,
+                placeTitle: placeTitle,
+              );
+            },
+            routes: [
+              // /note/:placeId/post — the new message creation screen.
+              // Pushed inside the note shell with a bottom-to-top slide,
+              // X / Twitter style.  opaque:false keeps NoteBoxScreen laid
+              // out below so no Offstage wrapper is ever applied.
+              GoRoute(
+                path: 'post',
+                pageBuilder: (context, state) {
+                  final placeId = state.pathParameters['placeId']!;
+                  return CustomTransitionPage<void>(
+                    key: state.pageKey,
+                    child: MessageCreationScreen(placeId: placeId),
+                    opaque: false,
+                    transitionsBuilder: _slideUpTransition,
+                  );
+                },
+              ),
+            ],
+          ),
+        ],
       ),
       GoRoute(
         path: '/subscription',
@@ -237,5 +287,23 @@ Widget _slideTransition(
   const end = Offset.zero;
   final tween = Tween(begin: begin, end: end)
       .chain(CurveTween(curve: Curves.easeInOut));
+  return SlideTransition(position: animation.drive(tween), child: child);
+}
+
+// ---------------------------------------------------------------------------
+// Slide-up transition — bottom-to-top, X / Twitter compose feel.
+// Used by /note/:placeId/post.
+// ---------------------------------------------------------------------------
+
+Widget _slideUpTransition(
+  BuildContext context,
+  Animation<double> animation,
+  Animation<double> secondaryAnimation,
+  Widget child,
+) {
+  const begin = Offset(0.0, 1.0);
+  const end = Offset.zero;
+  final tween = Tween(begin: begin, end: end)
+      .chain(CurveTween(curve: Curves.easeOutCubic));
   return SlideTransition(position: animation.drive(tween), child: child);
 }
