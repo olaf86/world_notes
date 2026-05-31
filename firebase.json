@@ -1,1 +1,55 @@
-{"firestore":{"rules":"firestore.rules","indexes":"firestore.indexes.json"},"storage":{"rules":"storage.rules"},"flutter":{"platforms":{"android":{"default":{"projectId":"world-notes-prod","appId":"1:260600606826:android:9db9fd461f88cd57fe1a13","fileOutput":"android/app/google-services.json"}},"ios":{"default":{"projectId":"world-notes-prod","appId":"1:260600606826:ios:bac4b29736a3ef63fe1a13","uploadDebugSymbols":false,"fileOutput":"ios/Runner/GoogleService-Info.plist"}},"dart":{"lib/firebase_options.dart":{"projectId":"world-notes-prod","configurations":{"android":"1:260600606826:android:9db9fd461f88cd57fe1a13","ios":"1:260600606826:ios:bac4b29736a3ef63fe1a13"}}}}}}
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "world-notes-prod",
+          "appId": "1:260600606826:android:9db9fd461f88cd57fe1a13",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "world-notes-prod",
+          "appId": "1:260600606826:ios:bac4b29736a3ef63fe1a13",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "world-notes-prod",
+          "configurations": {
+            "android": "1:260600606826:android:9db9fd461f88cd57fe1a13",
+            "ios": "1:260600606826:ios:bac4b29736a3ef63fe1a13"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "disallowLegacyRuntimeConfig": true,
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run lint",
+        "npm --prefix \"$RESOURCE_DIR\" run build"
+      ]
+    }
+  ]
+}
