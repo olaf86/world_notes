@@ -27,6 +27,56 @@ class _MessageBubbleState extends State<MessageBubble> {
   /// Resets to false each time the screen is re-entered (not persisted).
   bool _flaggedContentRevealed = false;
 
+  // ── Full-screen image viewer ──────────────────────────────────────────────
+
+  void _openImageViewer(String imageUrl) {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black87,
+      barrierDismissible: true,
+      builder: (ctx) => Dialog.fullscreen(
+        backgroundColor: Colors.black,
+        child: Stack(
+          children: [
+            // Pinch-to-zoom image — tap outside to dismiss.
+            GestureDetector(
+              onTap: () => Navigator.pop(ctx),
+              behavior: HitTestBehavior.opaque,
+              child: InteractiveViewer(
+                minScale: 1.0,
+                maxScale: 4.0,
+                child: Center(
+                  child: CachedNetworkImage(
+                    imageUrl: imageUrl,
+                    fit: BoxFit.contain,
+                    placeholder: (context, url) => const Center(
+                      child: CircularProgressIndicator(color: Colors.white),
+                    ),
+                    errorWidget: (context, url, error) => const Icon(
+                      Icons.broken_image_outlined,
+                      color: Colors.white,
+                      size: 48,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            // Close button (top-right, respects safe area).
+            Positioned(
+              top: MediaQuery.of(ctx).padding.top + 4,
+              right: 4,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white),
+                tooltip: 'Close',
+                onPressed: () => Navigator.pop(ctx),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showActionSheet() {
     final hasActions = (widget.isOwn && widget.onDelete != null) ||
         (!widget.isOwn && widget.onReport != null);
@@ -239,26 +289,44 @@ class _MessageBubbleState extends State<MessageBubble> {
                   ),
                   const SizedBox(height: 4),
                   // ── Image (optional) ────────────────────────────────
+                  //
+                  // Displayed as a centred square crop (Instagram style).
+                  // Width is capped at 220 dp; AspectRatio keeps it square;
+                  // BoxFit.cover fills the square without distorting.
+                  // Tap opens the full-resolution image in a zoomable viewer.
                   if (message.imageUrl != null) ...[
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: CachedNetworkImage(
-                        imageUrl: message.imageUrl!,
-                        width: 220,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => const SizedBox(
-                          height: 120,
-                          width: 220,
-                          child: Center(child: CircularProgressIndicator()),
-                        ),
-                        errorWidget: (context, url, error) => const SizedBox(
-                          height: 80,
-                          width: 220,
-                          child: Icon(Icons.broken_image_outlined),
+                    Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 220),
+                        child: GestureDetector(
+                          onTap: () => _openImageViewer(message.imageUrl!),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: AspectRatio(
+                              aspectRatio: 1.0,
+                              child: CachedNetworkImage(
+                                imageUrl: message.imageUrl!,
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => Container(
+                                  color: theme.colorScheme.surfaceContainerHighest,
+                                  child: const Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                ),
+                                errorWidget: (context, url, error) => Container(
+                                  color: theme.colorScheme.surfaceContainerHighest,
+                                  child: Icon(
+                                    Icons.broken_image_outlined,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 10),
                   ],
                   // ── Text content ────────────────────────────────────
                   if (message.content.isNotEmpty)
