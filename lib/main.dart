@@ -1,4 +1,6 @@
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,6 +18,24 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // App Check attests that requests come from a genuine, untampered build of
+  // this app — the gate that makes the Phase 3 callable functions trustworthy.
+  //   • iOS: App Attest on iOS 14+, falling back to DeviceCheck on iOS 11–13,
+  //     so we keep the 13.0 deployment target without dropping older devices.
+  //     App Attest needs a REAL device; the Simulator can't attest.
+  //   • Debug builds use the debug provider — print the debug token from the
+  //     console logs once and register it in Firebase Console → App Check.
+  // NOTE: backend enforcement (enforceAppCheck) stays OFF until tokens are
+  // confirmed flowing in the console's "unenforced" metrics, to avoid lockout.
+  await FirebaseAppCheck.instance.activate(
+    appleProvider: kDebugMode
+        ? AppleProvider.debug
+        : AppleProvider.appAttestWithDeviceCheckFallback,
+    androidProvider:
+        kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
+  );
+
   await MobileAds.instance.initialize();
   await SubscriptionService.initialize();
 
