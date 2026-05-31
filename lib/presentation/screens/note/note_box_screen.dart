@@ -5,6 +5,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../../../config/app_config.dart';
 import '../../../domain/entities/message_entity.dart';
+import '../../../domain/entities/place_entity.dart';
 import '../../providers/providers.dart';
 import '../../widgets/note/message_bubble.dart';
 import '../../widgets/note/message_creation_overlay.dart';
@@ -197,6 +198,55 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     }
   }
 
+  // ── Owner thread controls ─────────────────────────────────────────────────
+
+  Future<void> _closeThread() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Close this thread?'),
+        content: const Text(
+          'No new messages can be posted once closed. Existing messages stay '
+          'readable, and you can re-open it later.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Close thread'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await ref
+          .read(placeRepositoryProvider)
+          .closePlace(widget.placeId, reason: ClosedReason.owner);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to close: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _reopenThread() async {
+    try {
+      await ref.read(placeRepositoryProvider).reopenPlace(widget.placeId);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to re-open: $e')),
+        );
+      }
+    }
+  }
+
   // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
@@ -204,6 +254,14 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     final messagesAsync = ref.watch(messagesProvider(widget.placeId));
     final isPremium = ref.watch(isPremiumProvider).valueOrNull ?? false;
     final currentUser = ref.watch(authStateProvider).valueOrNull;
+    final place = ref.watch(placeProvider(widget.placeId)).valueOrNull;
+
+    final isOwner = place != null &&
+        currentUser != null &&
+        place.createdByUserId == currentUser.id;
+    // Whether a new message may be posted right now — only once the place is
+    // loaded and still accepting messages (open, not expired/archived/full).
+    final canPostMessage = place?.canAcceptMessages ?? false;
 
     // Exclude this screen's semantics while a dialog (delete, report, compose)
     // is shown on top — prevents parentDataDirty noise when two routes coexist.
@@ -244,48 +302,87 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                 tooltip: 'Go Premium',
                 onPressed: () => context.push('/subscription'),
               ),
+            // Owner-only thread controls.
+            if (isOwner)
+              PopupMenuButton<String>(
+                tooltip: 'Thread options',
+                onSelected: (value) {
+                  if (value == 'close') _closeThread();
+                  if (value == 'reopen') _reopenThread();
+                },
+                itemBuilder: (ctx) => [
+                  if (place.isOpen)
+                    const PopupMenuItem(
+                      value: 'close',
+                      child: ListTile(
+                        leading: Icon(Icons.lock_outline),
+                        title: Text('Close thread'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  if (place.canReopen)
+                    const PopupMenuItem(
+                      value: 'reopen',
+                      child: ListTile(
+                        leading: Icon(Icons.lock_open_outlined),
+                        title: Text('Re-open thread'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                ],
+              ),
           ],
         ),
-        // Message list — body is the list alone; the FAB and banner are
-        // declared separately so the FAB automatically floats above the banner.
-        body: messagesAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Error: $e')),
-          data: (messages) => messages.isEmpty
-              ? const _EmptyState()
-              : ListView.builder(
-                  controller: _scrollController,
-                  // Extra bottom padding so the FAB never obscures the last
-                  // message (FAB 56 dp + margin 16 dp + breathing room 16 dp).
-                  padding: const EdgeInsets.only(top: 8, bottom: 88),
-                  itemCount: messages.length,
-                  itemBuilder: (context, index) {
-                    final message = messages[index];
-                    final isOwn = message.author.id == currentUser?.id;
-                    return MessageBubble(
-                      message: message,
-                      isOwn: isOwn,
-                      onDelete: isOwn
-                          ? () => _confirmDeleteMessage(message)
-                          : null,
-                      onReport: !isOwn
-                          ? () => _showReportDialog(message)
-                          : null,
-                    );
-                  },
-                ),
+        // Body = optional status banner + message list.
+        body: Column(
+          children: [
+            if (place != null && !place.canAcceptMessages)
+              _ThreadStatusBanner(place: place),
+            Expanded(
+              child: messagesAsync.when(
+                loading: () =>
+                    const Center(child: CircularProgressIndicator()),
+                error: (e, _) => Center(child: Text('Error: $e')),
+                data: (messages) => messages.isEmpty
+                    ? const _EmptyState()
+                    : ListView.builder(
+                        controller: _scrollController,
+                        // Extra bottom padding so the FAB never obscures the
+                        // last message (FAB 56 + margin 16 + breathing 16).
+                        padding: const EdgeInsets.only(top: 8, bottom: 88),
+                        itemCount: messages.length,
+                        itemBuilder: (context, index) {
+                          final message = messages[index];
+                          final isOwn = message.author.id == currentUser?.id;
+                          return MessageBubble(
+                            message: message,
+                            isOwn: isOwn,
+                            onDelete: isOwn
+                                ? () => _confirmDeleteMessage(message)
+                                : null,
+                            onReport: !isOwn
+                                ? () => _showReportDialog(message)
+                                : null,
+                          );
+                        },
+                      ),
+              ),
+            ),
+          ],
         ),
 
         // FAB — opens the compose overlay (state flag + slide-up animation
         // in a Stack sibling layer below).  heroTag is unique to prevent
         // Hero conflicts with the map screen's FABs ('mapAddNote',
-        // 'tracking').
-        floatingActionButton: FloatingActionButton(
-          heroTag: 'noteCompose',
-          onPressed: _openCompose,
-          tooltip: 'Write a message',
-          child: const Icon(Icons.edit_outlined),
-        ),
+        // 'tracking').  Hidden when the thread is closed / expired / full.
+        floatingActionButton: canPostMessage
+            ? FloatingActionButton(
+                heroTag: 'noteCompose',
+                onPressed: _openCompose,
+                tooltip: 'Write a message',
+                child: const Icon(Icons.edit_outlined),
+              )
+            : null,
 
         // Banner ad — placed in bottomNavigationBar so the Scaffold
         // automatically lifts the FAB above it when the ad is loaded.
@@ -340,6 +437,62 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
           ],
         ),
       ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Thread status banner — shown when the thread can't accept new messages
+// ---------------------------------------------------------------------------
+
+class _ThreadStatusBanner extends StatelessWidget {
+  final PlaceEntity place;
+  const _ThreadStatusBanner({required this.place});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    // Resolve the most relevant reason, in priority order.
+    final (IconData icon, String text) = switch (place) {
+      _ when place.isArchived || place.isExpired => (
+          Icons.inventory_2_outlined,
+          'This note has been archived. It is read-only.',
+        ),
+      _ when place.isAtMessageLimit => (
+          Icons.do_not_disturb_on_outlined,
+          'This thread reached its ${AppConfig.maxMessagesPerThread}-message '
+              'limit and is now closed.',
+        ),
+      _ when place.closedReason == ClosedReason.messageLimit => (
+          Icons.do_not_disturb_on_outlined,
+          'This thread is full and closed.',
+        ),
+      _ => (
+          Icons.lock_outline,
+          'The owner closed this thread. It is read-only.',
+        ),
+    };
+
+    return Material(
+      color: theme.colorScheme.surfaceContainerHighest,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: theme.colorScheme.onSurfaceVariant),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                text,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

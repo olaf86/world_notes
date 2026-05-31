@@ -46,4 +46,33 @@ class AppConfig {
 
   // Message pagination
   static const int messagesPageSize = 20;
+
+  // ── Application constraints ───────────────────────────────────────────────
+
+  /// Maximum number of messages allowed per note thread.
+  /// Firestore rules enforce this server-side.
+  static const int maxMessagesPerThread = 1000;
+
+  /// Maximum character length of a single message.
+  static const int maxMessageLength = 2000;
+
+  /// Maximum active notes a free user may own simultaneously.
+  static const int freeNoteLimit = 3;
+
+  /// Maximum active notes a premium user may own simultaneously.
+  static const int premiumNoteLimit = 10;
+
+  /// Maximum image size (bytes) accepted for upload.
+  static const int maxImageBytes = 5 * 1024 * 1024; // 5 MB
+
+  /// Maximum lifetime of a note before it auto-archives.
+  static const int maxNoteLifetimeDays = 365;
+
+  /// Expiry presets (in days) offered when creating a note. Selection is
+  /// required — a note can never be created without an expiry.
+  static const List<int> noteExpiryPresetDays = [7, 30, 90, 180, 365];
+
+  /// Default expiry preset pre-selected on the note creation screen (3 months).
+  /// Must be one of [noteExpiryPresetDays].
+  static const int defaultNoteExpiryDays = 90;
 }

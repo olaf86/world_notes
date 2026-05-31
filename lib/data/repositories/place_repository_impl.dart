@@ -4,7 +4,8 @@ import 'package:uuid/uuid.dart';
 
 import '../../config/app_config.dart';
 import '../../core/utils/geohash_util.dart';
-import '../../domain/entities/place_entity.dart';
+import '../../domain/entities/place_entity.dart'
+    show PlaceEntity, PlaceVisibility, ClosedReason;
 import '../../domain/repositories/place_repository.dart';
 import '../models/place_model.dart';
 
@@ -45,14 +46,21 @@ class PlaceRepositoryImpl implements PlaceRepository {
     final results = await Future.wait(
       prefixes.map((prefix) => _cellQuery(prefix).get()),
     );
+    return _collectVisible(results);
+  }
 
+  /// Dedups documents across overlapping geohash cells and drops notes that
+  /// should not appear in proximity search: archived (server-set) and expired
+  /// (client-side gate until the archive Cloud Function runs).
+  List<PlaceEntity> _collectVisible(List<QuerySnapshot> results) {
     final seen = <String>{};
     final places = <PlaceEntity>[];
     for (final snap in results) {
       for (final doc in snap.docs) {
-        if (seen.add(doc.id)) {
-          places.add(PlaceModel.fromFirestore(doc).toEntity());
-        }
+        if (!seen.add(doc.id)) continue;
+        final place = PlaceModel.fromFirestore(doc).toEntity();
+        if (place.isArchived || place.isExpired) continue;
+        places.add(place);
       }
     }
     return places;
@@ -75,17 +83,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
       final results = await Future.wait(
         prefixes.map((prefix) => _cellQuery(prefix).get()),
       );
-
-      final seen = <String>{};
-      final places = <PlaceEntity>[];
-      for (final snap in results) {
-        for (final doc in snap.docs) {
-          if (seen.add(doc.id)) {
-            places.add(PlaceModel.fromFirestore(doc).toEntity());
-          }
-        }
-      }
-      return places;
+      return _collectVisible(results);
     });
   }
 
@@ -98,6 +96,8 @@ class PlaceRepositoryImpl implements PlaceRepository {
     required String colorHex,
     required String icon,
     required String createdByUserId,
+    required DateTime expiresAt,
+    PlaceVisibility visibility = PlaceVisibility.public,
   }) async {
     final id = _uuid.v4();
     final geohash = encodeGeohash(
@@ -117,6 +117,8 @@ class PlaceRepositoryImpl implements PlaceRepository {
       icon: icon,
       createdByUserId: createdByUserId,
       createdAt: DateTime.now(),
+      expiresAt: expiresAt,
+      visibility: visibility,
       messageCount: 0,
       // lastMessageAt is null → toFirestore() writes serverTimestamp() so new
       // places sort among themselves by creation time until first message.
@@ -131,5 +133,44 @@ class PlaceRepositoryImpl implements PlaceRepository {
     final doc = await _places.doc(placeId).get();
     if (!doc.exists) return null;
     return PlaceModel.fromFirestore(doc).toEntity();
+  }
+
+  @override
+  Stream<PlaceEntity?> watchPlace(String placeId) {
+    return _places.doc(placeId).snapshots().map(
+          (doc) => doc.exists ? PlaceModel.fromFirestore(doc).toEntity() : null,
+        );
+  }
+
+  // ── Ownership queries ─────────────────────────────────────────────────────
+
+  @override
+  Future<int> countUserActivePlaces(String userId) async {
+    final snap = await _places
+        .where('createdByUserId', isEqualTo: userId)
+        .where('isArchived', isEqualTo: false)
+        .count()
+        .get();
+    return snap.count ?? 0;
+  }
+
+  // ── Writability ───────────────────────────────────────────────────────────
+
+  @override
+  Future<void> closePlace(String placeId, {required ClosedReason reason}) async {
+    await _places.doc(placeId).update({
+      'isOpen': false,
+      'closedReason': reason.toJson(),
+      'closedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  @override
+  Future<void> reopenPlace(String placeId) async {
+    await _places.doc(placeId).update({
+      'isOpen': true,
+      'closedReason': FieldValue.delete(),
+      'closedAt': FieldValue.delete(),
+    });
   }
 }

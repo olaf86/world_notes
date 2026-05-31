@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../config/app_config.dart';
 import '../../providers/providers.dart';
 
 class NoteCreationScreen extends ConsumerStatefulWidget {
@@ -25,7 +26,21 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
 
   Color _selectedColor = Colors.green;
   String _selectedIcon = 'place';
+  // Expiry is required. Defaults to AppConfig.defaultNoteExpiryDays (3 months)
+  // — a balanced lifetime that keeps the map from filling with stale notes
+  // while not feeling aggressively short.
+  int _expiryDays = AppConfig.defaultNoteExpiryDays;
   bool _loading = false;
+
+  /// Human-readable label for an expiry preset (in days).
+  static String _expiryLabel(int days) => switch (days) {
+        7 => '1 week',
+        30 => '1 month',
+        90 => '3 months',
+        180 => '6 months',
+        365 => '1 year',
+        _ => '$days days',
+      };
 
   static const _colors = [
     Colors.green,
@@ -79,6 +94,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
             colorHex: colorHex,
             icon: _selectedIcon,
             createdByUserId: user.id,
+            expiresAt: DateTime.now().add(Duration(days: _expiryDays)),
           );
 
       if (mounted) {
@@ -187,6 +203,30 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
                           : Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Auto-close after',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'The note stops accepting messages and is archived when this '
+              'period ends.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: AppConfig.noteExpiryPresetDays.map((days) {
+                return ChoiceChip(
+                  label: Text(_expiryLabel(days)),
+                  selected: _expiryDays == days,
+                  onSelected: (_) => setState(() => _expiryDays = days),
                 );
               }).toList(),
             ),
