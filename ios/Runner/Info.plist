@@ -43,6 +43,8 @@
 	<string>Used to notify you of nearby notes in the background.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Used to show notes near your current location.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Used to take a photo and attach it to your message.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Used to attach photos to your messages.</string>
 	<key>UIApplicationSceneManifest</key>

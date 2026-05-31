@@ -280,9 +280,7 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final remaining = maxChars - charCount;
-    // Show counter only when the user has started typing.
     // Turn red when fewer than 100 characters remain.
-    final showCounter = charCount > 0;
     final counterColor = remaining < 100
         ? theme.colorScheme.error
         : theme.colorScheme.onSurfaceVariant;
@@ -302,17 +300,16 @@ class _Header extends StatelessWidget {
               style: theme.textTheme.titleMedium,
             ),
           ),
-          if (showCounter)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Text(
-                '$remaining',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: counterColor,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Text(
+              '$charCount/$maxChars',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: counterColor,
+                fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: isSending
