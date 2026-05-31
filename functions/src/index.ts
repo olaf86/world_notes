@@ -1,5 +1,7 @@
 import {setGlobalOptions} from "firebase-functions/v2";
 import {onCall, HttpsError} from "firebase-functions/v2/https";
+import {onSchedule} from "firebase-functions/v2/scheduler";
+import * as logger from "firebase-functions/logger";
 import {initializeApp} from "firebase-admin/app";
 import {getFirestore, FieldValue, Timestamp} from "firebase-admin/firestore";
 
@@ -146,5 +148,67 @@ export const createNote = onCall<CreateNoteData>(
     });
 
     return {placeId: placeRef.id};
+  },
+);
+
+/**
+ * Scheduled auto-archive.
+ *
+ * Once per day, moves every note past its expiry into the archived state:
+ *   • isArchived = true (so it drops out of proximity search and can no longer
+ *     accept messages — both already enforced client-side / by rules),
+ *   • archivedAt timestamp,
+ *   • decrements the owner's activeNoteCount so the slot frees up against the
+ *     creation cap (the counter is the source of truth used by createNote).
+ *
+ * Archival is terminal — there is no return to active. Notes are processed in
+ * batches; because each batch flips isArchived to true, the same query no
+ * longer returns them, so re-querying until empty drains the backlog.
+ *
+ * Requires composite index (isArchived ASC, expiresAt ASC).
+ */
+export const archiveExpiredNotes = onSchedule(
+  {schedule: "every 24 hours", timeZone: "Asia/Tokyo"},
+  async () => {
+    const db = getFirestore();
+    const now = Timestamp.now();
+    const batchSize = 200;
+    let totalArchived = 0;
+
+    for (;;) {
+      const snap = await db
+        .collection("places")
+        .where("isArchived", "==", false)
+        .where("expiresAt", "<=", now)
+        .limit(batchSize)
+        .get();
+
+      if (snap.empty) break;
+
+      const batch = db.batch();
+      const decrements = new Map<string, number>();
+
+      for (const doc of snap.docs) {
+        batch.update(doc.ref, {
+          isArchived: true,
+          archivedAt: FieldValue.serverTimestamp(),
+        });
+        const ownerId = doc.get("createdByUserId") as string;
+        decrements.set(ownerId, (decrements.get(ownerId) ?? 0) + 1);
+      }
+      for (const [ownerId, count] of decrements) {
+        batch.set(
+          db.collection("users").doc(ownerId),
+          {activeNoteCount: FieldValue.increment(-count)},
+          {merge: true},
+        );
+      }
+
+      await batch.commit();
+      totalArchived += snap.size;
+      if (snap.size < batchSize) break;
+    }
+
+    logger.info(`archiveExpiredNotes: archived ${totalArchived} notes.`);
   },
 );
