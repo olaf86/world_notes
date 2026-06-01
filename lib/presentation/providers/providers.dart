@@ -8,6 +8,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../config/app_config.dart';
+import '../../config/regions.dart';
 import '../../core/map_style.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../data/repositories/message_repository_impl.dart';
@@ -35,11 +36,13 @@ final firebaseStorageProvider = Provider<FirebaseStorage>(
   (_) => FirebaseStorage.instance,
 );
 
-// Functions live in asia-northeast1 (matches the default Firestore DB), so the
-// client must target that region or callable lookups 404.
-final firebaseFunctionsProvider = Provider<FirebaseFunctions>(
-  (_) => FirebaseFunctions.instanceFor(region: 'asia-northeast1'),
-);
+// The client must target a region where the functions are actually deployed,
+// or callable lookups 404. The region is resolved by [effectiveRegionProvider]
+// (manual override > nearest available to current location > default).
+final firebaseFunctionsProvider = Provider<FirebaseFunctions>((ref) {
+  final region = ref.watch(effectiveRegionProvider);
+  return FirebaseFunctions.instanceFor(region: region);
+});
 
 // --- Services ---
 
@@ -234,6 +237,59 @@ class MapStyleNotifier extends StateNotifier<MapStyle> {
     await prefs.setString(_prefKey, style.name);
   }
 }
+
+// --- Region selection ---
+
+/// User's region preference: a region id to force, or null for "Auto"
+/// (nearest available to the current location). Persisted across launches.
+class RegionPreferenceNotifier extends StateNotifier<String?> {
+  static const _prefKey = 'region_override';
+
+  RegionPreferenceNotifier() : super(null) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString(_prefKey);
+    // Ignore a saved region that no longer exists / is unavailable.
+    if (saved != null && (Regions.byId(saved)?.available ?? false)) {
+      state = saved;
+    }
+  }
+
+  /// Pass a region id to pin it, or null to return to Auto.
+  Future<void> setOverride(String? regionId) async {
+    state = regionId;
+    final prefs = await SharedPreferences.getInstance();
+    if (regionId == null) {
+      await prefs.remove(_prefKey);
+    } else {
+      await prefs.setString(_prefKey, regionId);
+    }
+  }
+}
+
+final regionPreferenceProvider =
+    StateNotifierProvider<RegionPreferenceNotifier, String?>(
+  (ref) => RegionPreferenceNotifier(),
+);
+
+/// The region the client actually targets:
+///   1. a valid, available manual override, else
+///   2. the nearest available region to the current location, else
+///   3. the default region.
+final effectiveRegionProvider = Provider<String>((ref) {
+  final override = ref.watch(regionPreferenceProvider);
+  if (override != null && (Regions.byId(override)?.available ?? false)) {
+    return override;
+  }
+  final pos = ref.watch(anchorPositionProvider);
+  if (pos != null) {
+    return Regions.nearestAvailableId(pos.latitude, pos.longitude);
+  }
+  return Regions.defaultId;
+});
 
 class MapLatLng {
   final double lat;
