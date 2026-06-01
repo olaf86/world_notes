@@ -1,8 +1,10 @@
+import 'package:apple_maps_flutter/apple_maps_flutter.dart' as apple;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
-import 'package:maplibre_gl/maplibre_gl.dart';
+import 'package:maplibre_gl/maplibre_gl.dart' as maplibre;
 
 import '../../../config/app_config.dart';
 import '../../../core/map_style.dart';
@@ -12,6 +14,7 @@ import '../../providers/providers.dart';
 import '../../widgets/map/location_checking_view.dart';
 import '../../widgets/map/location_permission_view.dart';
 import '../../widgets/map/note_marker_bottom_sheet.dart';
+import 'apple_note_map_controller.dart';
 import 'note_map_controller.dart';
 
 /// Composition root of the map tab.
@@ -41,20 +44,28 @@ class MapScreen extends ConsumerStatefulWidget {
 
 class _MapScreenState extends ConsumerState<MapScreen>
     with SingleTickerProviderStateMixin {
-  late final NoteMapController _mapController;
+  late final NoteMapController _mapLibreController;
+  late final AppleNoteMapController _appleMapController;
+
+  bool get _usesAppleMaps =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
   @override
   void initState() {
     super.initState();
-    _mapController = NoteMapController(
+    _mapLibreController = NoteMapController(
       vsync: this,
+      onPinSelected: _showPinPreview,
+    );
+    _appleMapController = AppleNoteMapController(
       onPinSelected: _showPinPreview,
     );
   }
 
   @override
   void dispose() {
-    _mapController.dispose();
+    _mapLibreController.dispose();
+    _appleMapController.dispose();
     super.dispose();
   }
 
@@ -74,15 +85,27 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final notifier = ref.read(isTrackingProvider.notifier);
     final next = !notifier.state;
     notifier.state = next;
-    await _mapController.setTrackingMode(
-      next ? MyLocationTrackingMode.tracking : MyLocationTrackingMode.none,
-    );
+    if (_usesAppleMaps) {
+      await _appleMapController.setTrackingMode(
+        next ? apple.TrackingMode.follow : apple.TrackingMode.none,
+      );
+    } else {
+      await _mapLibreController.setTrackingMode(
+        next
+            ? maplibre.MyLocationTrackingMode.tracking
+            : maplibre.MyLocationTrackingMode.none,
+      );
+    }
   }
 
   void _onUserPanned() {
     if (!ref.read(isTrackingProvider)) return;
     ref.read(isTrackingProvider.notifier).state = false;
-    _mapController.setTrackingMode(MyLocationTrackingMode.none);
+    if (_usesAppleMaps) {
+      _appleMapController.setTrackingMode(apple.TrackingMode.none);
+    } else {
+      _mapLibreController.setTrackingMode(maplibre.MyLocationTrackingMode.none);
+    }
   }
 
   Future<void> _onAddNote(Position pos) async {
@@ -100,8 +123,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
     // a transaction (rules will then deny direct client place creation).
     final limit = ref.read(noteLimitProvider);
     final isPremium = ref.read(isPremiumProvider).valueOrNull ?? false;
-    final current =
-        await ref.read(placeRepositoryProvider).countUserActivePlaces(user.id);
+    final current = await ref
+        .read(placeRepositoryProvider)
+        .countUserActivePlaces(user.id);
     if (!mounted) return;
 
     if (current >= limit) {
@@ -124,10 +148,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
         content: Text(
           isPremium
               ? 'You\'ve reached the maximum of $limit active notes. '
-                  'Archive or let an existing note expire to create a new one.'
+                    'Archive or let an existing note expire to create a new one.'
               : 'Free accounts can keep $limit active notes. '
-                  'Upgrade to Premium for up to ${AppConfig.premiumNoteLimit}, '
-                  'or let an existing note expire to free up a slot.',
+                    'Upgrade to Premium for up to ${AppConfig.premiumNoteLimit}, '
+                    'or let an existing note expire to free up a slot.',
         ),
         actions: [
           TextButton(
@@ -157,18 +181,28 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
     if (anchor != null) {
       ref
-          .watch(placesNearbyProvider(latLng(anchor.latitude, anchor.longitude)))
-          .whenData(_mapController.updateMarkers);
+          .watch(
+            placesNearbyProvider(latLng(anchor.latitude, anchor.longitude)),
+          )
+          .whenData(
+            _usesAppleMaps
+                ? _appleMapController.updateMarkers
+                : _mapLibreController.updateMarkers,
+          );
     }
 
-    ref.listen<MapStyle>(mapStyleProvider, (_, next) {
-      _mapController.changeStyle(next.styleUrl(AppConfig.stadiaApiKey));
-    });
+    if (!_usesAppleMaps) {
+      ref.listen<MapStyle>(mapStyleProvider, (_, next) {
+        _mapLibreController.changeStyle(next.styleUrl(AppConfig.stadiaApiKey));
+      });
+    }
 
     if (anchor != null) {
       return _MapView(
         anchor: anchor,
-        mapController: _mapController,
+        usesAppleMaps: _usesAppleMaps,
+        mapLibreController: _mapLibreController,
+        appleMapController: _appleMapController,
         isTracking: isTracking,
         onPointerDown: _onUserPanned,
         onTrackingToggle: _toggleTracking,
@@ -193,7 +227,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
 class _MapView extends ConsumerWidget {
   final Position anchor;
-  final NoteMapController mapController;
+  final bool usesAppleMaps;
+  final NoteMapController mapLibreController;
+  final AppleNoteMapController appleMapController;
   final bool isTracking;
   final VoidCallback onPointerDown;
   final VoidCallback onTrackingToggle;
@@ -201,7 +237,9 @@ class _MapView extends ConsumerWidget {
 
   const _MapView({
     required this.anchor,
-    required this.mapController,
+    required this.usesAppleMaps,
+    required this.mapLibreController,
+    required this.appleMapController,
     required this.isTracking,
     required this.onPointerDown,
     required this.onTrackingToggle,
@@ -210,8 +248,9 @@ class _MapView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final styleUrl =
-        ref.read(mapStyleProvider).styleUrl(AppConfig.stadiaApiKey);
+    final styleUrl = ref
+        .read(mapStyleProvider)
+        .styleUrl(AppConfig.stadiaApiKey);
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -219,28 +258,67 @@ class _MapView extends ConsumerWidget {
         children: [
           Listener(
             onPointerDown: (_) => onPointerDown(),
-            child: MapLibreMap(
-              styleString: styleUrl,
-              initialCameraPosition: CameraPosition(
-                target: LatLng(anchor.latitude, anchor.longitude),
-                zoom: AppConfig.defaultZoom,
-              ),
-              myLocationEnabled: true,
-              myLocationTrackingMode: MyLocationTrackingMode.none,
-              onMapCreated: mapController.attach,
-              onStyleLoadedCallback: () =>
-                  mapController.onStyleLoaded(colorScheme),
-              featureTapsTriggersMapClick: true,
-              onMapClick: (point, _) => mapController.onMapClick(point),
-            ),
+            child: usesAppleMaps
+                ? _AppleMapSurface(
+                    anchor: anchor,
+                    mapController: appleMapController,
+                  )
+                : maplibre.MapLibreMap(
+                    styleString: styleUrl,
+                    initialCameraPosition: maplibre.CameraPosition(
+                      target: maplibre.LatLng(
+                        anchor.latitude,
+                        anchor.longitude,
+                      ),
+                      zoom: AppConfig.defaultZoom,
+                    ),
+                    myLocationEnabled: true,
+                    myLocationTrackingMode:
+                        maplibre.MyLocationTrackingMode.none,
+                    onMapCreated: mapLibreController.attach,
+                    onStyleLoadedCallback: () =>
+                        mapLibreController.onStyleLoaded(colorScheme),
+                    featureTapsTriggersMapClick: true,
+                    onMapClick: (point, _) =>
+                        mapLibreController.onMapClick(point),
+                  ),
           ),
-          _TrackingButton(
-            isTracking: isTracking,
-            onPressed: onTrackingToggle,
-          ),
+          _TrackingButton(isTracking: isTracking, onPressed: onTrackingToggle),
           _AddNoteFab(onPressed: onAddNote),
         ],
       ),
+    );
+  }
+}
+
+class _AppleMapSurface extends StatelessWidget {
+  final Position anchor;
+  final AppleNoteMapController mapController;
+
+  const _AppleMapSurface({required this.anchor, required this.mapController});
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<Set<apple.Annotation>>(
+      valueListenable: mapController.annotations,
+      builder: (context, annotations, _) {
+        return ValueListenableBuilder<apple.TrackingMode>(
+          valueListenable: mapController.trackingMode,
+          builder: (context, trackingMode, _) {
+            return apple.AppleMap(
+              initialCameraPosition: apple.CameraPosition(
+                target: apple.LatLng(anchor.latitude, anchor.longitude),
+                zoom: AppConfig.defaultZoom,
+              ),
+              myLocationEnabled: true,
+              myLocationButtonEnabled: false,
+              trackingMode: trackingMode,
+              annotations: annotations,
+              onMapCreated: mapController.attach,
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -249,10 +327,7 @@ class _TrackingButton extends StatelessWidget {
   final bool isTracking;
   final VoidCallback onPressed;
 
-  const _TrackingButton({
-    required this.isTracking,
-    required this.onPressed,
-  });
+  const _TrackingButton({required this.isTracking, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -263,8 +338,7 @@ class _TrackingButton extends StatelessWidget {
       child: FloatingActionButton.small(
         heroTag: 'tracking',
         onPressed: onPressed,
-        backgroundColor:
-            isTracking ? colorScheme.primary : colorScheme.surface,
+        backgroundColor: isTracking ? colorScheme.primary : colorScheme.surface,
         elevation: 2,
         child: Icon(
           isTracking ? Icons.my_location : Icons.location_searching,

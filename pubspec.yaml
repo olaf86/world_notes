@@ -17,6 +17,7 @@ dependencies:
 
   # Map
   maplibre_gl: ^0.26.1
+  apple_maps_flutter: ^1.4.0
 
   # Firebase
   firebase_core: ^3.13.0
