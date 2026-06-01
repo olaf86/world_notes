@@ -2,7 +2,7 @@
   "applinks": {
     "details": [
       {
-        "appIDs": ["TEAMID_PLACEHOLDER.dev.asobo.worldnotes"],
+        "appIDs": ["48C76HC76Y.dev.asobo.worldnotes"],
         "components": [
           {
             "/": "/i/*",
