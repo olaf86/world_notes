@@ -1,16 +1,12 @@
-import 'package:async/async.dart';
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
 import '../../config/app_config.dart';
 import '../../core/utils/geohash_util.dart';
 import '../../domain/entities/place_entity.dart'
-    show
-        PlaceEntity,
-        PlaceVisibility,
-        ClosedReason,
-        NoteMembership,
-        NoteMember;
+    show PlaceEntity, PlaceVisibility, ClosedReason, NoteMembership, NoteMember;
 import '../../domain/repositories/place_repository.dart';
 import '../models/place_model.dart';
 
@@ -24,8 +20,8 @@ class PlaceRepositoryImpl implements PlaceRepository {
   PlaceRepositoryImpl({
     required FirebaseFirestore firestore,
     required FirebaseFunctions functions,
-  })  : _firestore = firestore,
-        _functions = functions;
+  }) : _firestore = firestore,
+       _functions = functions;
 
   CollectionReference get _places => _firestore.collection('places');
 
@@ -85,14 +81,32 @@ class PlaceRepositoryImpl implements PlaceRepository {
       precision: AppConfig.geohashPrecision,
     );
 
-    final streams = prefixes.map((prefix) => _cellQuery(prefix).snapshots());
+    late final StreamController<List<PlaceEntity>> controller;
+    final latest = List<QuerySnapshot?>.filled(prefixes.length, null);
+    final subscriptions = <StreamSubscription<QuerySnapshot>>[];
 
-    return StreamGroup.merge(streams).map((_) => null).asyncMap((_) async {
-      final results = await Future.wait(
-        prefixes.map((prefix) => _cellQuery(prefix).get()),
-      );
-      return _collectVisible(results);
-    });
+    void emitIfReady() {
+      if (latest.any((snap) => snap == null)) return;
+      controller.add(_collectVisible(latest.cast<QuerySnapshot>()));
+    }
+
+    controller = StreamController<List<PlaceEntity>>(
+      onListen: () {
+        for (var i = 0; i < prefixes.length; i++) {
+          subscriptions.add(
+            _cellQuery(prefixes[i]).snapshots().listen((snap) {
+              latest[i] = snap;
+              emitIfReady();
+            }, onError: controller.addError),
+          );
+        }
+      },
+      onCancel: () async {
+        await Future.wait(subscriptions.map((sub) => sub.cancel()));
+      },
+    );
+
+    return controller.stream;
   }
 
   @override
@@ -132,7 +146,10 @@ class PlaceRepositoryImpl implements PlaceRepository {
 
   @override
   Stream<PlaceEntity?> watchPlace(String placeId) {
-    return _places.doc(placeId).snapshots().map(
+    return _places
+        .doc(placeId)
+        .snapshots()
+        .map(
           (doc) => doc.exists ? PlaceModel.fromFirestore(doc).toEntity() : null,
         );
   }
@@ -152,7 +169,10 @@ class PlaceRepositoryImpl implements PlaceRepository {
   // ── Writability ───────────────────────────────────────────────────────────
 
   @override
-  Future<void> closePlace(String placeId, {required ClosedReason reason}) async {
+  Future<void> closePlace(
+    String placeId, {
+    required ClosedReason reason,
+  }) async {
     await _places.doc(placeId).update({
       'isOpen': false,
       'closedReason': reason.toJson(),
@@ -176,10 +196,9 @@ class PlaceRepositoryImpl implements PlaceRepository {
     required String placeId,
     required String password,
   }) async {
-    await _functions.httpsCallable('setNotePassword').call<Map<String, dynamic>>({
-      'placeId': placeId,
-      'password': password,
-    });
+    await _functions
+        .httpsCallable('setNotePassword')
+        .call<Map<String, dynamic>>({'placeId': placeId, 'password': password});
   }
 
   @override
@@ -204,13 +223,13 @@ class PlaceRepositoryImpl implements PlaceRepository {
         .doc(userId)
         .snapshots()
         .map((doc) {
-      if (!doc.exists) return null;
-      final data = doc.data()!;
-      return NoteMembership(
-        invited: data['invited'] as bool? ?? false,
-        viaPasswordVersion: (data['viaPasswordVersion'] as int?) ?? -1,
-      );
-    });
+          if (!doc.exists) return null;
+          final data = doc.data()!;
+          return NoteMembership(
+            invited: data['invited'] as bool? ?? false,
+            viaPasswordVersion: (data['viaPasswordVersion'] as int?) ?? -1,
+          );
+        });
   }
 
   // ── Invitations ───────────────────────────────────────────────────────────
@@ -225,9 +244,9 @@ class PlaceRepositoryImpl implements PlaceRepository {
 
   @override
   Future<void> revokeInvite(String placeId) async {
-    await _functions
-        .httpsCallable('revokeInvite')
-        .call<Map<String, dynamic>>({'placeId': placeId});
+    await _functions.httpsCallable('revokeInvite').call<Map<String, dynamic>>({
+      'placeId': placeId,
+    });
   }
 
   @override
@@ -254,14 +273,16 @@ class PlaceRepositoryImpl implements PlaceRepository {
         .doc(placeId)
         .collection('members')
         .snapshots()
-        .map((snap) => snap.docs.map((doc) {
-              final data = doc.data();
-              return NoteMember(
-                userId: doc.id,
-                displayName: data['displayName'] as String?,
-                email: data['email'] as String?,
-                invited: data['invited'] as bool? ?? false,
-              );
-            }).toList());
+        .map(
+          (snap) => snap.docs.map((doc) {
+            final data = doc.data();
+            return NoteMember(
+              userId: doc.id,
+              displayName: data['displayName'] as String?,
+              email: data['email'] as String?,
+              invited: data['invited'] as bool? ?? false,
+            );
+          }).toList(),
+        );
   }
 }
