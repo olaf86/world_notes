@@ -50,4 +50,28 @@ abstract class PlaceRepository {
   /// Re-opens a thread.  Only valid for owner-closed threads — the caller
   /// must verify [PlaceEntity.canReopen] first (rules also enforce this).
   Future<void> reopenPlace(String placeId);
+
+  // ── Private access (Cloud Functions) ──────────────────────────────────────
+
+  /// Owner-only: sets or changes the note's password (locks it as private)
+  /// via the `setNotePassword` function. Throws [FirebaseFunctionsException].
+  Future<void> setNotePassword({
+    required String placeId,
+    required String password,
+  });
+
+  /// Verifies [password] via the `unlockNote` function; on success the server
+  /// records this user's access grant. Throws [FirebaseFunctionsException]
+  /// (`permission-denied` = wrong password, `resource-exhausted` = locked out).
+  Future<void> unlockNote({
+    required String placeId,
+    required String password,
+  });
+
+  /// Live stream of the current user's access grant to a private note
+  /// (null when none). Used to decide whether to prompt for a password.
+  Stream<NoteMembership?> watchMembership({
+    required String placeId,
+    required String userId,
+  });
 }

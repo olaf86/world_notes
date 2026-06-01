@@ -157,6 +157,18 @@ final placeProvider = StreamProvider.family<PlaceEntity?, String>((ref, placeId)
   return ref.watch(placeRepositoryProvider).watchPlace(placeId);
 });
 
+/// The current user's access grant for a (private) note — null if none.
+/// For public notes this isn't needed; callers gate on PlaceEntity.isPublic.
+final noteMembershipProvider =
+    StreamProvider.family<NoteMembership?, String>((ref, placeId) {
+  final user = ref.watch(authStateProvider).valueOrNull;
+  if (user == null) return Stream.value(null);
+  return ref.watch(placeRepositoryProvider).watchMembership(
+        placeId: placeId,
+        userId: user.id,
+      );
+});
+
 // --- Note creation limit ---
 
 /// The maximum number of active notes the current user may own, based on

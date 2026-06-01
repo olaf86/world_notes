@@ -5,7 +5,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import '../../config/app_config.dart';
 import '../../core/utils/geohash_util.dart';
 import '../../domain/entities/place_entity.dart'
-    show PlaceEntity, PlaceVisibility, ClosedReason;
+    show PlaceEntity, PlaceVisibility, ClosedReason, NoteMembership;
 import '../../domain/repositories/place_repository.dart';
 import '../models/place_model.dart';
 
@@ -161,6 +161,50 @@ class PlaceRepositoryImpl implements PlaceRepository {
       'isOpen': true,
       'closedReason': FieldValue.delete(),
       'closedAt': FieldValue.delete(),
+    });
+  }
+
+  // ── Private access ──────────────────────────────────────────────────────
+
+  @override
+  Future<void> setNotePassword({
+    required String placeId,
+    required String password,
+  }) async {
+    await _functions.httpsCallable('setNotePassword').call<Map<String, dynamic>>({
+      'placeId': placeId,
+      'password': password,
+    });
+  }
+
+  @override
+  Future<void> unlockNote({
+    required String placeId,
+    required String password,
+  }) async {
+    await _functions.httpsCallable('unlockNote').call<Map<String, dynamic>>({
+      'placeId': placeId,
+      'password': password,
+    });
+  }
+
+  @override
+  Stream<NoteMembership?> watchMembership({
+    required String placeId,
+    required String userId,
+  }) {
+    return _places
+        .doc(placeId)
+        .collection('members')
+        .doc(userId)
+        .snapshots()
+        .map((doc) {
+      if (!doc.exists) return null;
+      final data = doc.data()!;
+      return NoteMembership(
+        invited: data['invited'] as bool? ?? false,
+        viaPasswordVersion: (data['viaPasswordVersion'] as int?) ?? -1,
+      );
     });
   }
 }
