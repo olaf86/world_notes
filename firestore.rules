@@ -44,9 +44,19 @@ service cloud.firestore {
       allow read: if isSignedIn();
       // only the account holder can write their own document
       allow create: if isOwner(uid);
+      // isPremium and activeNoteCount are server-managed (Cloud Functions /
+      // RevenueCat sync). activeNoteCount is the source of truth for the note
+      // creation cap, so the owner must NOT be able to reset it and bypass it.
       allow update: if isOwner(uid)
                     && !request.resource.data.diff(resource.data).affectedKeys()
-                        .hasAny(['isPremium']); // isPremium is server-only
+                        .hasAny(['isPremium', 'activeNoteCount'])
+                    // Defensive string-length caps (avoid storage abuse).
+                    && (!request.resource.data.diff(resource.data).affectedKeys()
+                          .hasAny(['name'])
+                        || request.resource.data.name.size() <= 100)
+                    && (!request.resource.data.diff(resource.data).affectedKeys()
+                          .hasAny(['photoUrl'])
+                        || request.resource.data.photoUrl.size() <= 2000);
       allow delete: if false;
     }
 
@@ -70,15 +80,13 @@ service cloud.firestore {
                     && (request.resource.data.isOpen == false
                         || resource.data.closedReason == 'owner');
 
-      // Message counter — any signed-in user posting a message increments it.
-      // (Will move to a Cloud Function later for tamper-proofing.)
-      allow update: if isSignedIn()
-                    && request.resource.data.diff(resource.data).affectedKeys()
-                        .hasOnly(['messageCount', 'lastMessageAt']);
-
+      // messageCount / lastMessageAt are maintained ONLY by the onMessageCreated
+      // Cloud Function trigger (Admin SDK, bypasses these rules). Clients used to
+      // write them directly, which let anyone tamper with any note's counter
+      // (block posting, reset the cap, reorder the list) — now denied.
+      //
       // Lifecycle (isArchived/archivedAt), visibility, and passwordVersion are
-      // written ONLY by Cloud Functions via the Admin SDK, which bypasses
-      // these rules. Clients can never set them after creation.
+      // likewise written ONLY by Cloud Functions. Clients can never set them.
 
       allow delete: if false;
 
@@ -113,6 +121,10 @@ service cloud.firestore {
                       && request.resource.data.placeId == placeId
                       && request.resource.data.content is string
                       && request.resource.data.content.size() <= 2000
+                      // imageUrl, when present, must be a bounded string
+                      && (!request.resource.data.keys().hasAny(['imageUrl'])
+                          || (request.resource.data.imageUrl is string
+                              && request.resource.data.imageUrl.size() <= 2000))
                       // at least one of content or imageUrl must be present
                       && (request.resource.data.content.size() > 0
                           || request.resource.data.keys().hasAny(['imageUrl']))
@@ -127,31 +139,30 @@ service cloud.firestore {
                       && request.resource.data.diff(resource.data).affectedKeys()
                           .hasOnly(['isDeleted', 'deletedAt']);
 
-        // Any member can increment reportCount (one field only).
+        // Any member can report — but only a monotonic +1 to reportCount, so a
+        // user can't reset their own count to evade moderation or inflate one.
         allow update: if canAccessNote(placeId)
                       && request.resource.data.diff(resource.data).affectedKeys()
-                          .hasOnly(['reportCount']);
+                          .hasOnly(['reportCount'])
+                      && request.resource.data.reportCount is int
+                      && request.resource.data.reportCount
+                          == resource.data.reportCount + 1;
 
         allow delete: if false;
       }
     }
 
-    // ── notes ─────────────────────────────────────────────────────────────────
-    match /notes/{noteId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn()
-                    && request.resource.data.diff(resource.data).affectedKeys()
-                        .hasOnly(['messageCount']);
-      allow delete: if false;
-    }
+    // The legacy top-level `notes` collection was merged into `places`; it has
+    // no rule block, so it falls through to default-deny.
 
     // ── reports ───────────────────────────────────────────────────────────────
     match /reports/{reportId} {
       allow create: if isSignedIn()
                     && request.resource.data.reporterId == request.auth.uid
                     && request.resource.data.messageId is string
-                    && request.resource.data.reason is string;
+                    && request.resource.data.messageId.size() <= 200
+                    && request.resource.data.reason is string
+                    && request.resource.data.reason.size() <= 500;
       allow read, update, delete: if false;
     }
   }

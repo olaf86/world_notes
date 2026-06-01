@@ -5,6 +5,9 @@
 export const FREE_NOTE_LIMIT = 3;
 export const PREMIUM_NOTE_LIMIT = 10;
 
+/** Maximum messages per thread (must match AppConfig.maxMessagesPerThread). */
+export const MAX_MESSAGES_PER_THREAD = 1000;
+
 /** Allowed note expiry presets, in days (must match noteExpiryPresetDays). */
 export const NOTE_EXPIRY_PRESET_DAYS = [7, 30, 90, 180, 365];
 

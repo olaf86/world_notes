@@ -23,6 +23,10 @@ setGlobalOptions({maxInstances: 10, region: REGION});
 // setGlobalOptions runs), the global region would not otherwise apply.
 export {setNotePassword, unlockNote} from "./notePassword";
 
+// Firestore trigger that maintains place.messageCount / lastMessageAt and
+// performs the message-limit auto-close. Sets region in its own options.
+export {onMessageCreated} from "./messageTriggers";
+
 interface CreateNoteData {
   latitude?: unknown;
   longitude?: unknown;

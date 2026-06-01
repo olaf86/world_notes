@@ -108,10 +108,10 @@ class MessageRepositoryImpl implements MessageRepository {
 
     await _messagesOf(placeId).doc(messageId).set(model.toFirestore());
 
-    await _firestore.collection('places').doc(placeId).update({
-      'messageCount': FieldValue.increment(1),
-      'lastMessageAt': FieldValue.serverTimestamp(),
-    });
+    // place.messageCount / lastMessageAt are updated by the onMessageCreated
+    // Cloud Function trigger, not the client (clients can no longer write
+    // those fields). The new message itself streams in immediately; the note's
+    // counter/sort updates a moment later when the trigger commits.
 
     return model.toEntity();
   }
