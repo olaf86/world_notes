@@ -14,5 +14,10 @@ export const NOTE_EXPIRY_PRESET_DAYS = [7, 30, 90, 180, 365];
 export const MAX_TITLE_LENGTH = 100;
 export const MAX_SUBTITLE_LENGTH = 200;
 
-/** Firestore / Functions region (matches the default DB in Tokyo). */
+/**
+ * Region the functions are DEPLOYED to (matches the default DB in Tokyo).
+ * The client picks which deployed region to call via Regions/effectiveRegion
+ * in the app — keep the app's `available` regions in sync with where these
+ * functions are actually deployed.
+ */
 export const REGION = "asia-northeast1";

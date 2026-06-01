@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../config/regions.dart';
 import '../../../core/map_style.dart';
 import '../../providers/providers.dart';
 
@@ -30,8 +31,70 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => ref.read(mapStyleProvider.notifier).setStyle(style),
             ),
           ),
+          const SizedBox(height: 24),
+          const _RegionSection(),
         ],
       ),
+    );
+  }
+}
+
+/// Data-region selector: "Auto" (nearest to your location) or a pinned region
+/// for travellers. Only regions where the backend is deployed are offered.
+class _RegionSection extends ConsumerWidget {
+  const _RegionSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final override = ref.watch(regionPreferenceProvider);
+    final effective = ref.watch(effectiveRegionProvider);
+    final available = Regions.available;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Data Region',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Choose which region serves your requests. Auto picks the closest to '
+          'your current location — handy to override while travelling.',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // Auto option.
+        RadioListTile<String?>(
+          value: null,
+          groupValue: override,
+          onChanged: (_) =>
+              ref.read(regionPreferenceProvider.notifier).setOverride(null),
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Auto (nearest)'),
+          subtitle: Text(
+            'Currently: ${Regions.byId(effective)?.label ?? effective}',
+          ),
+        ),
+
+        // Explicit regions.
+        ...available.map(
+          (r) => RadioListTile<String?>(
+            value: r.id,
+            groupValue: override,
+            onChanged: (v) =>
+                ref.read(regionPreferenceProvider.notifier).setOverride(v),
+            contentPadding: EdgeInsets.zero,
+            title: Text(r.label),
+          ),
+        ),
+      ],
     );
   }
 }
