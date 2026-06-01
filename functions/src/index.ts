@@ -27,6 +27,15 @@ export {setNotePassword, unlockNote} from "./notePassword";
 // performs the message-limit auto-close. Sets region in its own options.
 export {onMessageCreated} from "./messageTriggers";
 
+// Invite-link functions (share-link access to private notes). Region set in
+// their own options.
+export {
+  createInviteLink,
+  claimInvite,
+  revokeInvite,
+  revokeNoteAccess,
+} from "./invites";
+
 interface CreateNoteData {
   latitude?: unknown;
   longitude?: unknown;

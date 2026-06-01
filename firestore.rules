@@ -101,11 +101,13 @@ service cloud.firestore {
         allow read, write: if false;
       }
 
-      // Access grants. A user may read their OWN membership (to know whether
-      // they still have access after a password change), but grants are
-      // written exclusively by the unlockNote / invite Cloud Functions.
-      match /members/{uid} {
-        allow read: if isSignedIn() && request.auth.uid == uid;
+      // Access grants. A user may read their OWN membership; the note owner may
+      // read the whole list (to manage access). Grants are written exclusively
+      // by the unlockNote / claimInvite / revoke Cloud Functions.
+      match /members/{memberUid} {
+        allow read: if isSignedIn()
+                    && (request.auth.uid == memberUid
+                        || getPlace(placeId).createdByUserId == request.auth.uid);
         allow write: if false;
       }
 
@@ -154,6 +156,14 @@ service cloud.firestore {
 
     // The legacy top-level `notes` collection was merged into `places`; it has
     // no rule block, so it falls through to default-deny.
+
+    // ── invites ─────────────────────────────────────────────────────────────
+    // Invite tokens are secrets (the doc id is the token). Read/write only via
+    // the createInviteLink / claimInvite / revokeInvite Cloud Functions
+    // (Admin SDK); clients can never enumerate or read them.
+    match /invites/{token} {
+      allow read, write: if false;
+    }
 
     // ── reports ───────────────────────────────────────────────────────────────
     match /reports/{reportId} {
