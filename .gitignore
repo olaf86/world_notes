@@ -12,6 +12,10 @@
 .swiftpm/
 migrate_working_dir/
 
+# Firebase CLI agent tooling artifacts (regenerable; not app code)
+.agents/
+skills-lock.json
+
 # IntelliJ related
 *.iml
 *.ipr

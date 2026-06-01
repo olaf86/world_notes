@@ -1,148 +1,232 @@
-import { onDocumentCreated } from 'firebase-functions/v2/firestore';
-import { defineSecret } from 'firebase-functions/params';
-import { initializeApp } from 'firebase-admin/app';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import {setGlobalOptions} from "firebase-functions/v2";
+import {onCall, HttpsError} from "firebase-functions/v2/https";
+import {onSchedule} from "firebase-functions/v2/scheduler";
+import * as logger from "firebase-functions/logger";
+import {initializeApp} from "firebase-admin/app";
+import {getFirestore, FieldValue, Timestamp} from "firebase-admin/firestore";
+
+import {encodeGeohash} from "./geohash";
+import {
+  FREE_NOTE_LIMIT,
+  PREMIUM_NOTE_LIMIT,
+  NOTE_EXPIRY_PRESET_DAYS,
+  MAX_TITLE_LENGTH,
+  MAX_SUBTITLE_LENGTH,
+  REGION,
+} from "./constants";
 
 initializeApp();
+setGlobalOptions({maxInstances: 10, region: REGION});
 
-const perspectiveApiKey = defineSecret('PERSPECTIVE_API_KEY');
+// Password set/verify functions. They set region explicitly in their own
+// options because, being defined during module import (before this file's
+// setGlobalOptions runs), the global region would not otherwise apply.
+export {setNotePassword, unlockNote} from "./notePassword";
 
-// Threshold above which a message is auto-hidden.
-const TOXICITY_THRESHOLD = 0.85;
-const SEVERE_TOXICITY_THRESHOLD = 0.70;
-const SEXUALLY_EXPLICIT_THRESHOLD = 0.80;
+// Firestore trigger that maintains place.messageCount / lastMessageAt and
+// performs the message-limit auto-close. Sets region in its own options.
+export {onMessageCreated} from "./messageTriggers";
 
-// Auto-hide when report count reaches this number while awaiting review.
-const REPORT_THRESHOLD = 5;
+// Invite-link functions (share-link access to private notes). Region set in
+// their own options.
+export {
+  createInviteLink,
+  claimInvite,
+  revokeInvite,
+  revokeNoteAccess,
+} from "./invites";
 
-interface AttributeScore {
-  summaryScore: { value: number };
-}
-
-interface PerspectiveResponse {
-  attributeScores: {
-    TOXICITY?: AttributeScore;
-    SEVERE_TOXICITY?: AttributeScore;
-    SEXUALLY_EXPLICIT?: AttributeScore;
-  };
-}
-
-async function isToxic(text: string, apiKey: string): Promise<boolean> {
-  if (!text.trim()) return false;
-
-  const res = await fetch(
-    `https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        comment: { text },
-        requestedAttributes: {
-          TOXICITY: {},
-          SEVERE_TOXICITY: {},
-          SEXUALLY_EXPLICIT: {},
-        },
-        // Support both Japanese and English content.
-        languages: ['ja', 'en'],
-        doNotStore: true,
-      }),
-    }
-  );
-
-  if (!res.ok) {
-    console.error('Perspective API error', res.status, await res.text());
-    return false;
-  }
-
-  const data = (await res.json()) as PerspectiveResponse;
-  const toxicity = data.attributeScores.TOXICITY?.summaryScore.value ?? 0;
-  const severeToxicity =
-    data.attributeScores.SEVERE_TOXICITY?.summaryScore.value ?? 0;
-  const sexuallyExplicit =
-    data.attributeScores.SEXUALLY_EXPLICIT?.summaryScore.value ?? 0;
-
-  return (
-    toxicity >= TOXICITY_THRESHOLD ||
-    severeToxicity >= SEVERE_TOXICITY_THRESHOLD ||
-    sexuallyExplicit >= SEXUALLY_EXPLICIT_THRESHOLD
-  );
+interface CreateNoteData {
+  latitude?: unknown;
+  longitude?: unknown;
+  title?: unknown;
+  subtitle?: unknown;
+  colorHex?: unknown;
+  icon?: unknown;
+  expiryDays?: unknown;
+  visibility?: unknown;
 }
 
 /**
- * Triggered when a new message is created.
- * Checks content via the Perspective API and hides toxic messages.
+ * Authoritative note creation.
  *
- * Deploy:
- *   firebase functions:secrets:set PERSPECTIVE_API_KEY
- *   firebase deploy --only functions
+ * This is the ONLY way a `places` document may be created — Firestore rules
+ * deny direct client creation. Enforcing the per-user note cap requires
+ * counting the user's notes, which security rules cannot do; doing it here in
+ * a transaction (reading + writing the same users/{uid} doc) makes the check
+ * race-free: two concurrent creates serialize on that document.
+ *
+ * The active-note counter (users/{uid}.activeNoteCount) is the source of
+ * truth for the cap. It is incremented here and decremented by the
+ * auto-archive function (Phase 3 #2).
  */
-export const onMessageCreated = onDocumentCreated(
-  { document: 'messages/{messageId}', secrets: [perspectiveApiKey] },
-  async (event) => {
-    const data = event.data?.data();
-    if (!data) return;
-
-    const content = (data['content'] as string) ?? '';
-    const apiKey = perspectiveApiKey.value();
-
-    if (!apiKey) {
-      console.warn('PERSPECTIVE_API_KEY not set — skipping moderation');
-      return;
+export const createNote = onCall<CreateNoteData>(
+  {enforceAppCheck: true},
+  async (req) => {
+    const uid = req.auth?.uid;
+    if (!uid) {
+      throw new HttpsError("unauthenticated", "You must be signed in.");
     }
 
-    let shouldHide = false;
-    try {
-      shouldHide = await isToxic(content, apiKey);
-    } catch (err) {
-      console.error('Moderation check failed', err);
-      return;
+    // ── Validate input ──────────────────────────────────────────────────
+    const {latitude, longitude, title, subtitle, colorHex, icon, expiryDays} =
+      req.data ?? {};
+
+    if (
+      typeof latitude !== "number" ||
+      typeof longitude !== "number" ||
+      latitude < -90 ||
+      latitude > 90 ||
+      longitude < -180 ||
+      longitude > 180
+    ) {
+      throw new HttpsError("invalid-argument", "Invalid coordinates.");
+    }
+    if (
+      typeof title !== "string" ||
+      title.trim().length === 0 ||
+      title.length > MAX_TITLE_LENGTH
+    ) {
+      throw new HttpsError(
+        "invalid-argument",
+        `Title is required (max ${MAX_TITLE_LENGTH} chars).`,
+      );
+    }
+    if (
+      subtitle != null &&
+      (typeof subtitle !== "string" || subtitle.length > MAX_SUBTITLE_LENGTH)
+    ) {
+      throw new HttpsError("invalid-argument", "Invalid subtitle.");
+    }
+    if (
+      typeof expiryDays !== "number" ||
+      !NOTE_EXPIRY_PRESET_DAYS.includes(expiryDays)
+    ) {
+      throw new HttpsError("invalid-argument", "Invalid expiry selection.");
     }
 
-    if (shouldHide) {
-      await getFirestore()
-        .collection('messages')
-        .doc(event.params['messageId'])
-        .update({
-          isVisible: false,
-          moderatedAt: FieldValue.serverTimestamp(),
-          moderationReason: 'auto_toxicity',
-        });
-      console.log(`Auto-hid message ${event.params['messageId']}`);
-    }
-  }
+    const visibility =
+      req.data?.visibility === "private" ? "private" : "public";
+    const trimmedSubtitle =
+      typeof subtitle === "string" && subtitle.trim().length > 0 ?
+        subtitle.trim() :
+        null;
+    const geohash = encodeGeohash(latitude, longitude, 6);
+    const expiresAt = Timestamp.fromMillis(
+      Date.now() + expiryDays * 24 * 60 * 60 * 1000,
+    );
+
+    const db = getFirestore();
+    const userRef = db.collection("users").doc(uid);
+    const placeRef = db.collection("places").doc();
+
+    await db.runTransaction(async (tx) => {
+      const userSnap = await tx.get(userRef);
+      const isPremium = userSnap.get("isPremium") === true;
+      const limit = isPremium ? PREMIUM_NOTE_LIMIT : FREE_NOTE_LIMIT;
+      const activeCount = (userSnap.get("activeNoteCount") as number) ?? 0;
+
+      if (activeCount >= limit) {
+        throw new HttpsError(
+          "resource-exhausted",
+          isPremium ?
+            `You've reached the maximum of ${limit} active notes.` :
+            `Free accounts can keep ${limit} active notes. ` +
+              "Upgrade to Premium for more.",
+          {limit, isPremium},
+        );
+      }
+
+      tx.set(placeRef, {
+        latitude,
+        longitude,
+        geohash,
+        title: (title as string).trim(),
+        subtitle: trimmedSubtitle,
+        colorHex: typeof colorHex === "string" ? colorHex : "#4CAF50",
+        icon: typeof icon === "string" ? icon : "place",
+        createdByUserId: uid,
+        createdAt: FieldValue.serverTimestamp(),
+        messageCount: 0,
+        lastMessageAt: FieldValue.serverTimestamp(),
+        visibility,
+        passwordVersion: 0,
+        isOpen: true,
+        isArchived: false,
+        expiresAt,
+      });
+
+      // Counter is the source of truth for the cap. set(merge) handles users
+      // whose doc predates this field (treated as 0 above).
+      tx.set(
+        userRef,
+        {activeNoteCount: FieldValue.increment(1)},
+        {merge: true},
+      );
+    });
+
+    return {placeId: placeRef.id};
+  },
 );
 
 /**
- * Triggered when a report is created.
- * Auto-hides messages that accumulate REPORT_THRESHOLD pending reports.
+ * Scheduled auto-archive.
+ *
+ * Once per day, moves every note past its expiry into the archived state:
+ *   • isArchived = true (so it drops out of proximity search and can no longer
+ *     accept messages — both already enforced client-side / by rules),
+ *   • archivedAt timestamp,
+ *   • decrements the owner's activeNoteCount so the slot frees up against the
+ *     creation cap (the counter is the source of truth used by createNote).
+ *
+ * Archival is terminal — there is no return to active. Notes are processed in
+ * batches; because each batch flips isArchived to true, the same query no
+ * longer returns them, so re-querying until empty drains the backlog.
+ *
+ * Requires composite index (isArchived ASC, expiresAt ASC).
  */
-export const onReportCreated = onDocumentCreated(
-  'reports/{reportId}',
-  async (event) => {
-    const data = event.data?.data();
-    if (!data) return;
+export const archiveExpiredNotes = onSchedule(
+  {schedule: "every 24 hours", timeZone: "Asia/Tokyo"},
+  async () => {
+    const db = getFirestore();
+    const now = Timestamp.now();
+    const batchSize = 200;
+    let totalArchived = 0;
 
-    const messageId = data['messageId'] as string;
-    if (!messageId) return;
+    for (;;) {
+      const snap = await db
+        .collection("places")
+        .where("isArchived", "==", false)
+        .where("expiresAt", "<=", now)
+        .limit(batchSize)
+        .get();
 
-    const messageRef = getFirestore().collection('messages').doc(messageId);
-    const messageSnap = await messageRef.get();
-    if (!messageSnap.exists) return;
+      if (snap.empty) break;
 
-    const msgData = messageSnap.data();
-    if (!msgData) return;
+      const batch = db.batch();
+      const decrements = new Map<string, number>();
 
-    // Already hidden — nothing more to do.
-    if (msgData['isVisible'] === false) return;
+      for (const doc of snap.docs) {
+        batch.update(doc.ref, {
+          isArchived: true,
+          archivedAt: FieldValue.serverTimestamp(),
+        });
+        const ownerId = doc.get("createdByUserId") as string;
+        decrements.set(ownerId, (decrements.get(ownerId) ?? 0) + 1);
+      }
+      for (const [ownerId, count] of decrements) {
+        batch.set(
+          db.collection("users").doc(ownerId),
+          {activeNoteCount: FieldValue.increment(-count)},
+          {merge: true},
+        );
+      }
 
-    const reportCount = (msgData['reportCount'] as number) ?? 0;
-    if (reportCount >= REPORT_THRESHOLD) {
-      await messageRef.update({
-        isVisible: false,
-        moderatedAt: FieldValue.serverTimestamp(),
-        moderationReason: 'report_threshold',
-      });
-      console.log(`Auto-hid message ${messageId} after ${reportCount} reports`);
+      await batch.commit();
+      totalArchived += snap.size;
+      if (snap.size < batchSize) break;
     }
-  }
+
+    logger.info(`archiveExpiredNotes: archived ${totalArchived} notes.`);
+  },
 );

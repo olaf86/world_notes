@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["48C76HC76Y.dev.asobo.worldnotes"],
+        "components": [
+          {
+            "/": "/i/*",
+            "comment": "Private-note invite links"
+          }
+        ]
+      }
+    ]
+  }
+}

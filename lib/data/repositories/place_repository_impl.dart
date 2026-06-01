@@ -1,11 +1,16 @@
 import 'package:async/async.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:uuid/uuid.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 import '../../config/app_config.dart';
 import '../../core/utils/geohash_util.dart';
 import '../../domain/entities/place_entity.dart'
-    show PlaceEntity, PlaceVisibility, ClosedReason;
+    show
+        PlaceEntity,
+        PlaceVisibility,
+        ClosedReason,
+        NoteMembership,
+        NoteMember;
 import '../../domain/repositories/place_repository.dart';
 import '../models/place_model.dart';
 
@@ -14,10 +19,13 @@ import '../models/place_model.dart';
 //   Fields: geohash ASC, lastMessageAt DESC
 class PlaceRepositoryImpl implements PlaceRepository {
   final FirebaseFirestore _firestore;
-  final _uuid = const Uuid();
+  final FirebaseFunctions _functions;
 
-  PlaceRepositoryImpl({required FirebaseFirestore firestore})
-      : _firestore = firestore;
+  PlaceRepositoryImpl({
+    required FirebaseFirestore firestore,
+    required FirebaseFunctions functions,
+  })  : _firestore = firestore,
+        _functions = functions;
 
   CollectionReference get _places => _firestore.collection('places');
 
@@ -88,44 +96,31 @@ class PlaceRepositoryImpl implements PlaceRepository {
   }
 
   @override
-  Future<PlaceEntity> createPlace({
+  Future<String> createNote({
     required double latitude,
     required double longitude,
     required String title,
     String? subtitle,
     required String colorHex,
     required String icon,
-    required String createdByUserId,
-    required DateTime expiresAt,
+    required int expiryDays,
     PlaceVisibility visibility = PlaceVisibility.public,
   }) async {
-    final id = _uuid.v4();
-    final geohash = encodeGeohash(
-      latitude,
-      longitude,
-      precision: AppConfig.geohashPrecision,
-    );
-
-    final model = PlaceModel(
-      id: id,
-      latitude: latitude,
-      longitude: longitude,
-      geohash: geohash,
-      title: title,
-      subtitle: subtitle,
-      colorHex: colorHex,
-      icon: icon,
-      createdByUserId: createdByUserId,
-      createdAt: DateTime.now(),
-      expiresAt: expiresAt,
-      visibility: visibility,
-      messageCount: 0,
-      // lastMessageAt is null → toFirestore() writes serverTimestamp() so new
-      // places sort among themselves by creation time until first message.
-    );
-
-    await _places.doc(id).set(model.toFirestore());
-    return model.toEntity();
+    // All creation goes through the Cloud Function: it enforces the per-user
+    // note cap in a transaction and computes the geohash server-side. Direct
+    // client writes to `places` are denied by security rules.
+    final callable = _functions.httpsCallable('createNote');
+    final result = await callable.call<Map<String, dynamic>>({
+      'latitude': latitude,
+      'longitude': longitude,
+      'title': title,
+      'subtitle': subtitle,
+      'colorHex': colorHex,
+      'icon': icon,
+      'expiryDays': expiryDays,
+      'visibility': visibility.toJson(),
+    });
+    return result.data['placeId'] as String;
   }
 
   @override
@@ -172,5 +167,101 @@ class PlaceRepositoryImpl implements PlaceRepository {
       'closedReason': FieldValue.delete(),
       'closedAt': FieldValue.delete(),
     });
+  }
+
+  // ── Private access ──────────────────────────────────────────────────────
+
+  @override
+  Future<void> setNotePassword({
+    required String placeId,
+    required String password,
+  }) async {
+    await _functions.httpsCallable('setNotePassword').call<Map<String, dynamic>>({
+      'placeId': placeId,
+      'password': password,
+    });
+  }
+
+  @override
+  Future<void> unlockNote({
+    required String placeId,
+    required String password,
+  }) async {
+    await _functions.httpsCallable('unlockNote').call<Map<String, dynamic>>({
+      'placeId': placeId,
+      'password': password,
+    });
+  }
+
+  @override
+  Stream<NoteMembership?> watchMembership({
+    required String placeId,
+    required String userId,
+  }) {
+    return _places
+        .doc(placeId)
+        .collection('members')
+        .doc(userId)
+        .snapshots()
+        .map((doc) {
+      if (!doc.exists) return null;
+      final data = doc.data()!;
+      return NoteMembership(
+        invited: data['invited'] as bool? ?? false,
+        viaPasswordVersion: (data['viaPasswordVersion'] as int?) ?? -1,
+      );
+    });
+  }
+
+  // ── Invitations ───────────────────────────────────────────────────────────
+
+  @override
+  Future<String> createInviteLink(String placeId) async {
+    final result = await _functions
+        .httpsCallable('createInviteLink')
+        .call<Map<String, dynamic>>({'placeId': placeId});
+    return result.data['token'] as String;
+  }
+
+  @override
+  Future<void> revokeInvite(String placeId) async {
+    await _functions
+        .httpsCallable('revokeInvite')
+        .call<Map<String, dynamic>>({'placeId': placeId});
+  }
+
+  @override
+  Future<void> revokeNoteAccess({
+    required String placeId,
+    required String userId,
+  }) async {
+    await _functions
+        .httpsCallable('revokeNoteAccess')
+        .call<Map<String, dynamic>>({'placeId': placeId, 'userId': userId});
+  }
+
+  @override
+  Future<String> claimInvite(String token) async {
+    final result = await _functions
+        .httpsCallable('claimInvite')
+        .call<Map<String, dynamic>>({'token': token});
+    return result.data['placeId'] as String;
+  }
+
+  @override
+  Stream<List<NoteMember>> watchMembers(String placeId) {
+    return _places
+        .doc(placeId)
+        .collection('members')
+        .snapshots()
+        .map((snap) => snap.docs.map((doc) {
+              final data = doc.data();
+              return NoteMember(
+                userId: doc.id,
+                displayName: data['displayName'] as String?,
+                email: data['email'] as String?,
+                invited: data['invited'] as bool? ?? false,
+              );
+            }).toList());
   }
 }

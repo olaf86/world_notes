@@ -1,12 +1,15 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../../../config/app_config.dart';
+import '../../../core/utils/password_util.dart';
 import '../../../domain/entities/message_entity.dart';
 import '../../../domain/entities/place_entity.dart';
 import '../../providers/providers.dart';
+import '../../widgets/note/manage_access_sheet.dart';
 import '../../widgets/note/message_bubble.dart';
 import '../../widgets/note/message_creation_overlay.dart';
 
@@ -134,7 +137,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     try {
       await ref
           .read(messageRepositoryProvider)
-          .deleteMessage(messageId: message.id);
+          .deleteMessage(placeId: widget.placeId, messageId: message.id);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -247,11 +250,197 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     }
   }
 
+  /// Owner: open the access-management sheet (invite link + member list).
+  void _showManageAccess() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => ManageAccessSheet(placeId: widget.placeId),
+    );
+  }
+
+  // ── Private access (set password / unlock) ───────────────────────────────
+
+  /// Owner: set or change the note password (locks it as private).
+  Future<void> _promptSetPassword({required bool isChange}) async {
+    final controller = TextEditingController();
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        String? error;
+        var busy = false;
+        return StatefulBuilder(
+          builder: (ctx, setLocal) {
+            Future<void> submit() async {
+              final weakness = PasswordUtil.validate(controller.text);
+              if (weakness != null) {
+                setLocal(() => error = weakness);
+                return;
+              }
+              setLocal(() {
+                busy = true;
+                error = null;
+              });
+              try {
+                await ref.read(placeRepositoryProvider).setNotePassword(
+                      placeId: widget.placeId,
+                      password: controller.text,
+                    );
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('This note is now private.')),
+                  );
+                }
+              } on FirebaseFunctionsException catch (e) {
+                setLocal(() {
+                  busy = false;
+                  error = e.message ?? 'Failed to set the password.';
+                });
+              } catch (_) {
+                setLocal(() {
+                  busy = false;
+                  error = 'Failed to set the password.';
+                });
+              }
+            }
+
+            return AlertDialog(
+              title: Text(isChange ? 'Change password' : 'Set password'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Lock this note. Visitors must enter the password to read '
+                    'or post. Use 8+ characters with upper- and lower-case '
+                    'letters, a digit, and a symbol.',
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: controller,
+                    obscureText: true,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      labelText: 'New password',
+                      errorText: error,
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: busy ? null : () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: busy ? null : submit,
+                  child: busy
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+    controller.dispose();
+  }
+
+  /// Visitor: enter a password to unlock a private note. On success the
+  /// membership stream updates and the screen rebuilds with access.
+  Future<void> _promptUnlock() async {
+    final controller = TextEditingController();
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        String? error;
+        var busy = false;
+        return StatefulBuilder(
+          builder: (ctx, setLocal) {
+            Future<void> submit() async {
+              if (controller.text.isEmpty) return;
+              setLocal(() {
+                busy = true;
+                error = null;
+              });
+              try {
+                await ref.read(placeRepositoryProvider).unlockNote(
+                      placeId: widget.placeId,
+                      password: controller.text,
+                    );
+                if (ctx.mounted) Navigator.pop(ctx);
+              } on FirebaseFunctionsException catch (e) {
+                setLocal(() {
+                  busy = false;
+                  error = switch (e.code) {
+                    'permission-denied' => 'Incorrect password.',
+                    'resource-exhausted' =>
+                      'Too many attempts. Please try again later.',
+                    'unavailable' || 'deadline-exceeded' =>
+                      'Network error. Check your connection.',
+                    _ => e.message ?? 'Could not unlock this note.',
+                  };
+                });
+              } catch (_) {
+                setLocal(() {
+                  busy = false;
+                  error = 'Could not unlock this note.';
+                });
+              }
+            }
+
+            return AlertDialog(
+              title: const Text('Enter password'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('This note is private.'),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: controller,
+                    obscureText: true,
+                    autofocus: true,
+                    onSubmitted: (_) => submit(),
+                    decoration: InputDecoration(
+                      labelText: 'Password',
+                      errorText: error,
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: busy ? null : () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: busy ? null : submit,
+                  child: busy
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Unlock'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+    controller.dispose();
+  }
+
   // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    final messagesAsync = ref.watch(messagesProvider(widget.placeId));
     final isPremium = ref.watch(isPremiumProvider).valueOrNull ?? false;
     final currentUser = ref.watch(authStateProvider).valueOrNull;
     final place = ref.watch(placeProvider(widget.placeId)).valueOrNull;
@@ -259,6 +448,23 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     final isOwner = place != null &&
         currentUser != null &&
         place.createdByUserId == currentUser.id;
+
+    // Private-note access gate. For a private note the viewer doesn't own,
+    // check their membership grant; if it's absent or stale, show the locked
+    // view and DON'T subscribe to messages (the read would be denied anyway).
+    if (place != null && place.isPrivate && !isOwner) {
+      final membership =
+          ref.watch(noteMembershipProvider(widget.placeId)).valueOrNull;
+      if (!place.isAccessibleBy(currentUser?.id, membership)) {
+        return _LockedNoteView(
+          title: widget.placeTitle,
+          onUnlock: _promptUnlock,
+        );
+      }
+    }
+
+    // Public, owned, or unlocked — safe to read messages now.
+    final messagesAsync = ref.watch(messagesProvider(widget.placeId));
     // Whether a new message may be posted right now — only once the place is
     // loaded and still accepting messages (open, not expired/archived/full).
     final canPostMessage = place?.canAcceptMessages ?? false;
@@ -309,13 +515,17 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                 onSelected: (value) {
                   if (value == 'close') _closeThread();
                   if (value == 'reopen') _reopenThread();
+                  if (value == 'password') {
+                    _promptSetPassword(isChange: place.isPrivate);
+                  }
+                  if (value == 'access') _showManageAccess();
                 },
                 itemBuilder: (ctx) => [
                   if (place.isOpen)
                     const PopupMenuItem(
                       value: 'close',
                       child: ListTile(
-                        leading: Icon(Icons.lock_outline),
+                        leading: Icon(Icons.do_not_disturb_on_outlined),
                         title: Text('Close thread'),
                         contentPadding: EdgeInsets.zero,
                       ),
@@ -326,6 +536,27 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                       child: ListTile(
                         leading: Icon(Icons.lock_open_outlined),
                         title: Text('Re-open thread'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  PopupMenuItem(
+                    value: 'password',
+                    child: ListTile(
+                      leading: Icon(place.isPrivate
+                          ? Icons.password
+                          : Icons.lock_person_outlined),
+                      title: Text(
+                        place.isPrivate ? 'Change password' : 'Set password',
+                      ),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  if (place.isPrivate)
+                    const PopupMenuItem(
+                      value: 'access',
+                      child: ListTile(
+                        leading: Icon(Icons.group_outlined),
+                        title: Text('Manage access'),
                         contentPadding: EdgeInsets.zero,
                       ),
                     ),
@@ -492,6 +723,59 @@ class _ThreadStatusBanner extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Locked view — shown when a private note has not been unlocked
+// ---------------------------------------------------------------------------
+
+class _LockedNoteView extends StatelessWidget {
+  final String title;
+  final VoidCallback onUnlock;
+
+  const _LockedNoteView({required this.title, required this.onUnlock});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.lock_outline,
+                size: 64,
+                color: theme.colorScheme.outline,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'This note is private',
+                style: theme.textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Enter the password to read and post messages here.',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                onPressed: onUnlock,
+                icon: const Icon(Icons.key_outlined),
+                label: const Text('Enter password'),
+              ),
+            ],
+          ),
         ),
       ),
     );

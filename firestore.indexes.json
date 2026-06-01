@@ -17,11 +17,11 @@
       ]
     },
     {
-      "collectionGroup": "messages",
+      "collectionGroup": "places",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "placeId", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        { "fieldPath": "isArchived", "order": "ASCENDING" },
+        { "fieldPath": "expiresAt", "order": "ASCENDING" }
       ]
     },
     {

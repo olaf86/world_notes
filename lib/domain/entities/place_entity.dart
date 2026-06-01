@@ -111,4 +111,49 @@ class PlaceEntity {
   /// Whether new messages may be posted right now.
   bool get canAcceptMessages =>
       isOpen && !isArchived && !isExpired && !isAtMessageLimit;
+
+  /// Whether [uid] / [membership] may view this private note's content.
+  /// Public notes are always accessible.
+  bool isAccessibleBy(String? uid, NoteMembership? membership) {
+    if (isPublic) return true;
+    if (uid != null && uid == createdByUserId) return true;
+    if (membership == null) return false;
+    return membership.invited ||
+        membership.viaPasswordVersion == passwordVersion;
+  }
+}
+
+/// A user's access grant to a private note (places/{id}/members/{uid}).
+class NoteMembership {
+  /// Granted by an owner invitation (survives password changes).
+  final bool invited;
+
+  /// The note's passwordVersion at unlock time. Access is valid only while it
+  /// still matches the note's current passwordVersion.
+  final int viaPasswordVersion;
+
+  const NoteMembership({
+    required this.invited,
+    required this.viaPasswordVersion,
+  });
+}
+
+/// A member of a private note, as seen by the owner in the access list.
+class NoteMember {
+  final String userId;
+  final String? displayName;
+  final String? email;
+
+  /// True for invite-link members; false for password-unlock members.
+  final bool invited;
+
+  const NoteMember({
+    required this.userId,
+    this.displayName,
+    this.email,
+    this.invited = false,
+  });
+
+  /// Best label to show for this member.
+  String get label => displayName ?? email ?? userId;
 }

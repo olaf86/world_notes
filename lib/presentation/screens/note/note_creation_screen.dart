@@ -1,3 +1,4 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -84,22 +85,39 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
       final b = (_selectedColor.b * 255).round().toRadixString(16).padLeft(2, '0');
       final colorHex = '#$r$g$b'.toUpperCase();
 
-      final place = await ref.read(placeRepositoryProvider).createPlace(
+      final title = _titleController.text.trim();
+      final placeId = await ref.read(placeRepositoryProvider).createNote(
             latitude: widget.latitude,
             longitude: widget.longitude,
-            title: _titleController.text.trim(),
+            title: title,
             subtitle: _subtitleController.text.trim().isEmpty
                 ? null
                 : _subtitleController.text.trim(),
             colorHex: colorHex,
             icon: _selectedIcon,
-            createdByUserId: user.id,
-            expiresAt: DateTime.now().add(Duration(days: _expiryDays)),
+            expiryDays: _expiryDays,
           );
 
       if (mounted) {
         context.pushReplacement(
-          '/note/${place.id}?title=${Uri.encodeComponent(place.title)}',
+          '/note/$placeId?title=${Uri.encodeComponent(title)}',
+        );
+      }
+    } on FirebaseFunctionsException catch (e) {
+      // createNote runs server-side, so failures arrive as callable errors.
+      // Method A: note creation requires connectivity — tell the user plainly
+      // when the network is the problem instead of a generic error.
+      final message = switch (e.code) {
+        'unavailable' || 'deadline-exceeded' =>
+          'Couldn\'t reach the server. Check your internet connection and try again.',
+        'resource-exhausted' =>
+          e.message ?? 'You\'ve reached your note limit.',
+        'unauthenticated' => 'Please sign in again to create a note.',
+        _ => e.message ?? 'Could not create the note. Please try again.',
+      };
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
         );
       }
     } catch (e) {

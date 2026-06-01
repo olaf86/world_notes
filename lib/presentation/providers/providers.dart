@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -34,6 +35,12 @@ final firebaseStorageProvider = Provider<FirebaseStorage>(
   (_) => FirebaseStorage.instance,
 );
 
+// Functions live in asia-northeast1 (matches the default Firestore DB), so the
+// client must target that region or callable lookups 404.
+final firebaseFunctionsProvider = Provider<FirebaseFunctions>(
+  (_) => FirebaseFunctions.instanceFor(region: 'asia-northeast1'),
+);
+
 // --- Services ---
 
 final locationServiceProvider = Provider<LocationService>(
@@ -56,7 +63,10 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 });
 
 final placeRepositoryProvider = Provider<PlaceRepository>((ref) {
-  return PlaceRepositoryImpl(firestore: ref.watch(firestoreProvider));
+  return PlaceRepositoryImpl(
+    firestore: ref.watch(firestoreProvider),
+    functions: ref.watch(firebaseFunctionsProvider),
+  );
 });
 
 final messageRepositoryProvider = Provider<MessageRepository>((ref) {
@@ -145,6 +155,24 @@ final placesNearbyProvider = StreamProvider.family<List<PlaceEntity>, MapLatLng>
 /// Live stream of a single place by id (null if it doesn't exist).
 final placeProvider = StreamProvider.family<PlaceEntity?, String>((ref, placeId) {
   return ref.watch(placeRepositoryProvider).watchPlace(placeId);
+});
+
+/// The current user's access grant for a (private) note — null if none.
+/// For public notes this isn't needed; callers gate on PlaceEntity.isPublic.
+final noteMembershipProvider =
+    StreamProvider.family<NoteMembership?, String>((ref, placeId) {
+  final user = ref.watch(authStateProvider).valueOrNull;
+  if (user == null) return Stream.value(null);
+  return ref.watch(placeRepositoryProvider).watchMembership(
+        placeId: placeId,
+        userId: user.id,
+      );
+});
+
+/// Owner view of a private note's access list.
+final noteMembersProvider =
+    StreamProvider.family<List<NoteMember>, String>((ref, placeId) {
+  return ref.watch(placeRepositoryProvider).watchMembers(placeId);
 });
 
 // --- Note creation limit ---
