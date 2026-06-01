@@ -6,6 +6,24 @@
   "storage": {
     "rules": "storage.rules"
   },
+  "hosting": {
+    "public": "public",
+    "ignore": ["firebase.json", "**/node_modules/**"],
+    "appAssociation": "NONE",
+    "rewrites": [
+      { "source": "/i/**", "destination": "/index.html" }
+    ],
+    "headers": [
+      {
+        "source": "/.well-known/apple-app-site-association",
+        "headers": [{ "key": "Content-Type", "value": "application/json" }]
+      },
+      {
+        "source": "/.well-known/assetlinks.json",
+        "headers": [{ "key": "Content-Type", "value": "application/json" }]
+      }
+    ]
+  },
   "flutter": {
     "platforms": {
       "android": {

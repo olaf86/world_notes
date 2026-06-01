@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["TEAMID_PLACEHOLDER.dev.asobo.worldnotes"],
+        "components": [
+          {
+            "/": "/i/*",
+            "comment": "Private-note invite links"
+          }
+        ]
+      }
+    ]
+  }
+}
