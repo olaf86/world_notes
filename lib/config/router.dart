@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../presentation/providers/providers.dart';
 import '../presentation/screens/auth/sign_in_screen.dart';
+import '../presentation/screens/invite/invite_claim_screen.dart';
 import '../presentation/screens/map/map_screen.dart';
 import '../presentation/screens/note/note_box_screen.dart';
 import '../presentation/screens/note/note_creation_screen.dart';
@@ -23,8 +24,13 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       final isLoggedIn = authState.valueOrNull != null;
       final isAuthRoute = state.matchedLocation.startsWith('/auth');
+      // Invite deep links are reachable while logged out so the claim screen
+      // can prompt sign-in instead of bouncing to /map and losing the token.
+      final isInviteRoute = state.matchedLocation.startsWith('/i/');
 
-      if (!isLoggedIn && !isAuthRoute) return '/auth/sign-in';
+      if (!isLoggedIn && !isAuthRoute && !isInviteRoute) {
+        return '/auth/sign-in';
+      }
       if (isLoggedIn && isAuthRoute) return '/map';
       return null;
     },
@@ -110,6 +116,17 @@ final routerProvider = Provider<GoRouter>((ref) {
             transitionsBuilder: _slideTransition,
           );
         },
+      ),
+      // Invite deep link: worldnotes.asobo.dev/i/{token}. Reachable logged out
+      // (see redirect) so the claim screen can prompt sign-in.
+      GoRoute(
+        path: '/i/:token',
+        pageBuilder: (context, state) => CustomTransitionPage<void>(
+          key: state.pageKey,
+          child: InviteClaimScreen(token: state.pathParameters['token']!),
+          opaque: false,
+          transitionsBuilder: _slideTransition,
+        ),
       ),
       GoRoute(
         path: '/subscription',

@@ -9,6 +9,7 @@ import '../../../core/utils/password_util.dart';
 import '../../../domain/entities/message_entity.dart';
 import '../../../domain/entities/place_entity.dart';
 import '../../providers/providers.dart';
+import '../../widgets/note/manage_access_sheet.dart';
 import '../../widgets/note/message_bubble.dart';
 import '../../widgets/note/message_creation_overlay.dart';
 
@@ -247,6 +248,15 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
         );
       }
     }
+  }
+
+  /// Owner: open the access-management sheet (invite link + member list).
+  void _showManageAccess() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => ManageAccessSheet(placeId: widget.placeId),
+    );
   }
 
   // ── Private access (set password / unlock) ───────────────────────────────
@@ -508,6 +518,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                   if (value == 'password') {
                     _promptSetPassword(isChange: place.isPrivate);
                   }
+                  if (value == 'access') _showManageAccess();
                 },
                 itemBuilder: (ctx) => [
                   if (place.isOpen)
@@ -540,6 +551,15 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),
+                  if (place.isPrivate)
+                    const PopupMenuItem(
+                      value: 'access',
+                      child: ListTile(
+                        leading: Icon(Icons.group_outlined),
+                        title: Text('Manage access'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
                 ],
               ),
           ],

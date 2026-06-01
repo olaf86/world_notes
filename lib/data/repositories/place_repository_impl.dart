@@ -5,7 +5,12 @@ import 'package:cloud_functions/cloud_functions.dart';
 import '../../config/app_config.dart';
 import '../../core/utils/geohash_util.dart';
 import '../../domain/entities/place_entity.dart'
-    show PlaceEntity, PlaceVisibility, ClosedReason, NoteMembership;
+    show
+        PlaceEntity,
+        PlaceVisibility,
+        ClosedReason,
+        NoteMembership,
+        NoteMember;
 import '../../domain/repositories/place_repository.dart';
 import '../models/place_model.dart';
 
@@ -206,5 +211,57 @@ class PlaceRepositoryImpl implements PlaceRepository {
         viaPasswordVersion: (data['viaPasswordVersion'] as int?) ?? -1,
       );
     });
+  }
+
+  // ── Invitations ───────────────────────────────────────────────────────────
+
+  @override
+  Future<String> createInviteLink(String placeId) async {
+    final result = await _functions
+        .httpsCallable('createInviteLink')
+        .call<Map<String, dynamic>>({'placeId': placeId});
+    return result.data['token'] as String;
+  }
+
+  @override
+  Future<void> revokeInvite(String placeId) async {
+    await _functions
+        .httpsCallable('revokeInvite')
+        .call<Map<String, dynamic>>({'placeId': placeId});
+  }
+
+  @override
+  Future<void> revokeNoteAccess({
+    required String placeId,
+    required String userId,
+  }) async {
+    await _functions
+        .httpsCallable('revokeNoteAccess')
+        .call<Map<String, dynamic>>({'placeId': placeId, 'userId': userId});
+  }
+
+  @override
+  Future<String> claimInvite(String token) async {
+    final result = await _functions
+        .httpsCallable('claimInvite')
+        .call<Map<String, dynamic>>({'token': token});
+    return result.data['placeId'] as String;
+  }
+
+  @override
+  Stream<List<NoteMember>> watchMembers(String placeId) {
+    return _places
+        .doc(placeId)
+        .collection('members')
+        .snapshots()
+        .map((snap) => snap.docs.map((doc) {
+              final data = doc.data();
+              return NoteMember(
+                userId: doc.id,
+                displayName: data['displayName'] as String?,
+                email: data['email'] as String?,
+                invited: data['invited'] as bool? ?? false,
+              );
+            }).toList());
   }
 }

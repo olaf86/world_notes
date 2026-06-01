@@ -74,4 +74,26 @@ abstract class PlaceRepository {
     required String placeId,
     required String userId,
   });
+
+  // ── Invitations (Cloud Functions) ─────────────────────────────────────────
+
+  /// Owner-only: returns the note's reusable invite token (creating one if
+  /// needed) via `createInviteLink`. Combine with [AppConfig.inviteLink].
+  Future<String> createInviteLink(String placeId);
+
+  /// Owner-only: revokes the note's invite link.
+  Future<void> revokeInvite(String placeId);
+
+  /// Owner-only: removes a single member's access grant.
+  Future<void> revokeNoteAccess({
+    required String placeId,
+    required String userId,
+  });
+
+  /// Redeems an invite token for the signed-in user; returns the placeId to
+  /// open. Throws [FirebaseFunctionsException] (`not-found` = invalid/revoked).
+  Future<String> claimInvite(String token);
+
+  /// Owner view of the note's access list (invited + password-unlock members).
+  Stream<List<NoteMember>> watchMembers(String placeId);
 }

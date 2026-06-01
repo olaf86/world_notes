@@ -169,6 +169,12 @@ final noteMembershipProvider =
       );
 });
 
+/// Owner view of a private note's access list.
+final noteMembersProvider =
+    StreamProvider.family<List<NoteMember>, String>((ref, placeId) {
+  return ref.watch(placeRepositoryProvider).watchMembers(placeId);
+});
+
 // --- Note creation limit ---
 
 /// The maximum number of active notes the current user may own, based on
