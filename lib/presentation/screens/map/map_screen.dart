@@ -213,9 +213,8 @@ class _MapView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final styleUrl = ref
-        .read(mapStyleProvider)
-        .styleUrl(AppConfig.stadiaApiKey);
+    final mapStyle = ref.watch(mapStyleProvider);
+    final styleUrl = mapStyle.styleUrl(AppConfig.stadiaApiKey);
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -226,6 +225,7 @@ class _MapView extends ConsumerWidget {
             child: mapAdapter.buildMap(
               anchor: anchor,
               colorScheme: colorScheme,
+              mapStyle: mapStyle,
               styleUrl: styleUrl,
             ),
           ),

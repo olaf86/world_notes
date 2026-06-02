@@ -29,19 +29,26 @@ class AppleNoteMapController implements NoteMapAdapter {
   );
 
   final Map<String, apple.BitmapDescriptor> _iconsByMarkerId = {};
+  apple.AppleMapController? _map;
+  apple.MapAppearanceMode _appearanceMode = apple.MapAppearanceMode.light;
   int _markerRevision = 0;
 
-  void attach(apple.AppleMapController _) {}
+  void attach(apple.AppleMapController map) {
+    _map = map;
+    _applyAppearanceMode(_appearanceMode);
+  }
 
   @override
-  bool get supportsMapStyle => false;
+  bool get supportsMapStyle => true;
 
   @override
   Widget buildMap({
     required Position anchor,
     required ColorScheme colorScheme,
+    required MapStyle mapStyle,
     required String styleUrl,
   }) {
+    _appearanceMode = _appearanceModeFor(mapStyle);
     return ValueListenableBuilder<Set<apple.Annotation>>(
       valueListenable: annotations,
       builder: (context, currentAnnotations, _) {
@@ -57,6 +64,7 @@ class AppleNoteMapController implements NoteMapAdapter {
               myLocationButtonEnabled: false,
               trackingMode: currentTrackingMode,
               annotations: currentAnnotations,
+              appearanceMode: _appearanceMode,
               onMapCreated: attach,
             );
           },
@@ -80,8 +88,24 @@ class AppleNoteMapController implements NoteMapAdapter {
 
   @override
   Future<void> changeStyle(MapStyle style, String apiKey) async {
-    // MapKit's public Flutter wrapper only exposes Apple's map types, not the
-    // custom Stadia styles used by the MapLibre adapter.
+    final mode = _appearanceModeFor(style);
+    _appearanceMode = mode;
+    await _applyAppearanceMode(mode);
+  }
+
+  Future<void> _applyAppearanceMode(apple.MapAppearanceMode mode) async {
+    try {
+      await _map?.setAppearanceMode(mode);
+    } catch (error, stack) {
+      debugPrint('Failed to apply Apple map appearance: $error\n$stack');
+    }
+  }
+
+  apple.MapAppearanceMode _appearanceModeFor(MapStyle style) {
+    return switch (style) {
+      MapStyle.dark => apple.MapAppearanceMode.dark,
+      MapStyle.standard || MapStyle.pop => apple.MapAppearanceMode.light,
+    };
   }
 
   @override

@@ -26,6 +26,7 @@ class MapLibreNoteMapAdapter implements NoteMapAdapter {
   Widget buildMap({
     required Position anchor,
     required ColorScheme colorScheme,
+    required MapStyle mapStyle,
     required String styleUrl,
   }) {
     return maplibre.MapLibreMap(

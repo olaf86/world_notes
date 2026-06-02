@@ -10,6 +10,7 @@ abstract class NoteMapAdapter {
   Widget buildMap({
     required Position anchor,
     required ColorScheme colorScheme,
+    required MapStyle mapStyle,
     required String styleUrl,
   });
 
