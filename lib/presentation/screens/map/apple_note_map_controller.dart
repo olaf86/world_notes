@@ -1,10 +1,13 @@
 import 'package:apple_maps_flutter/apple_maps_flutter.dart' as apple;
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 
+import '../../../config/app_config.dart';
+import '../../../core/map_style.dart';
 import '../../../core/utils/marker_image.dart';
 import '../../../core/utils/place_icon.dart';
 import '../../../domain/entities/place_entity.dart';
+import 'note_map_adapter.dart';
 
 /// Adapter between the places domain and Apple's native MapKit view.
 ///
@@ -13,7 +16,7 @@ import '../../../domain/entities/place_entity.dart';
 /// tracking, but not MapKit's native annotation clustering. We keep the iOS
 /// path lightweight so it can remove third-party tile costs without changing
 /// the repository/query layer.
-class AppleNoteMapController {
+class AppleNoteMapController implements NoteMapAdapter {
   final Future<void> Function(PlaceEntity place) onPinSelected;
 
   AppleNoteMapController({required this.onPinSelected});
@@ -30,15 +33,58 @@ class AppleNoteMapController {
 
   void attach(apple.AppleMapController _) {}
 
+  @override
+  bool get supportsMapStyle => false;
+
+  @override
+  Widget buildMap({
+    required Position anchor,
+    required ColorScheme colorScheme,
+    required String styleUrl,
+  }) {
+    return ValueListenableBuilder<Set<apple.Annotation>>(
+      valueListenable: annotations,
+      builder: (context, currentAnnotations, _) {
+        return ValueListenableBuilder<apple.TrackingMode>(
+          valueListenable: trackingMode,
+          builder: (context, currentTrackingMode, _) {
+            return apple.AppleMap(
+              initialCameraPosition: apple.CameraPosition(
+                target: apple.LatLng(anchor.latitude, anchor.longitude),
+                zoom: AppConfig.defaultZoom,
+              ),
+              myLocationEnabled: true,
+              myLocationButtonEnabled: false,
+              trackingMode: currentTrackingMode,
+              annotations: currentAnnotations,
+              onMapCreated: attach,
+            );
+          },
+        );
+      },
+    );
+  }
+
+  @override
   void dispose() {
     annotations.dispose();
     trackingMode.dispose();
   }
 
-  Future<void> setTrackingMode(apple.TrackingMode mode) async {
-    trackingMode.value = mode;
+  @override
+  Future<void> setTrackingEnabled(bool enabled) async {
+    trackingMode.value = enabled
+        ? apple.TrackingMode.follow
+        : apple.TrackingMode.none;
   }
 
+  @override
+  Future<void> changeStyle(MapStyle style, String apiKey) async {
+    // MapKit's public Flutter wrapper only exposes Apple's map types, not the
+    // custom Stadia styles used by the MapLibre adapter.
+  }
+
+  @override
   Future<void> updateMarkers(List<PlaceEntity> places) async {
     final revision = ++_markerRevision;
     final next = <apple.Annotation>{};

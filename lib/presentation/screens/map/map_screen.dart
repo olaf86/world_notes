@@ -1,10 +1,7 @@
-import 'package:apple_maps_flutter/apple_maps_flutter.dart' as apple;
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
-import 'package:maplibre_gl/maplibre_gl.dart' as maplibre;
 
 import '../../../config/app_config.dart';
 import '../../../core/map_style.dart';
@@ -14,8 +11,8 @@ import '../../providers/providers.dart';
 import '../../widgets/map/location_checking_view.dart';
 import '../../widgets/map/location_permission_view.dart';
 import '../../widgets/map/note_marker_bottom_sheet.dart';
-import 'apple_note_map_controller.dart';
-import 'note_map_controller.dart';
+import 'note_map_adapter.dart';
+import 'note_map_adapter_factory.dart';
 
 /// Composition root of the map tab.
 ///
@@ -44,28 +41,20 @@ class MapScreen extends ConsumerStatefulWidget {
 
 class _MapScreenState extends ConsumerState<MapScreen>
     with SingleTickerProviderStateMixin {
-  late final NoteMapController _mapLibreController;
-  late final AppleNoteMapController _appleMapController;
-
-  bool get _usesAppleMaps =>
-      !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+  late final NoteMapAdapter _mapAdapter;
 
   @override
   void initState() {
     super.initState();
-    _mapLibreController = NoteMapController(
+    _mapAdapter = createNoteMapAdapter(
       vsync: this,
-      onPinSelected: _showPinPreview,
-    );
-    _appleMapController = AppleNoteMapController(
       onPinSelected: _showPinPreview,
     );
   }
 
   @override
   void dispose() {
-    _mapLibreController.dispose();
-    _appleMapController.dispose();
+    _mapAdapter.dispose();
     super.dispose();
   }
 
@@ -85,27 +74,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final notifier = ref.read(isTrackingProvider.notifier);
     final next = !notifier.state;
     notifier.state = next;
-    if (_usesAppleMaps) {
-      await _appleMapController.setTrackingMode(
-        next ? apple.TrackingMode.follow : apple.TrackingMode.none,
-      );
-    } else {
-      await _mapLibreController.setTrackingMode(
-        next
-            ? maplibre.MyLocationTrackingMode.tracking
-            : maplibre.MyLocationTrackingMode.none,
-      );
-    }
+    await _mapAdapter.setTrackingEnabled(next);
   }
 
   void _onUserPanned() {
     if (!ref.read(isTrackingProvider)) return;
     ref.read(isTrackingProvider.notifier).state = false;
-    if (_usesAppleMaps) {
-      _appleMapController.setTrackingMode(apple.TrackingMode.none);
-    } else {
-      _mapLibreController.setTrackingMode(maplibre.MyLocationTrackingMode.none);
-    }
+    _mapAdapter.setTrackingEnabled(false);
   }
 
   Future<void> _onAddNote(Position pos) async {
@@ -184,25 +159,19 @@ class _MapScreenState extends ConsumerState<MapScreen>
           .watch(
             placesNearbyProvider(latLng(anchor.latitude, anchor.longitude)),
           )
-          .whenData(
-            _usesAppleMaps
-                ? _appleMapController.updateMarkers
-                : _mapLibreController.updateMarkers,
-          );
+          .whenData(_mapAdapter.updateMarkers);
     }
 
-    if (!_usesAppleMaps) {
+    if (_mapAdapter.supportsMapStyle) {
       ref.listen<MapStyle>(mapStyleProvider, (_, next) {
-        _mapLibreController.changeStyle(next.styleUrl(AppConfig.stadiaApiKey));
+        _mapAdapter.changeStyle(next, AppConfig.stadiaApiKey);
       });
     }
 
     if (anchor != null) {
       return _MapView(
         anchor: anchor,
-        usesAppleMaps: _usesAppleMaps,
-        mapLibreController: _mapLibreController,
-        appleMapController: _appleMapController,
+        mapAdapter: _mapAdapter,
         isTracking: isTracking,
         onPointerDown: _onUserPanned,
         onTrackingToggle: _toggleTracking,
@@ -227,9 +196,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
 class _MapView extends ConsumerWidget {
   final Position anchor;
-  final bool usesAppleMaps;
-  final NoteMapController mapLibreController;
-  final AppleNoteMapController appleMapController;
+  final NoteMapAdapter mapAdapter;
   final bool isTracking;
   final VoidCallback onPointerDown;
   final VoidCallback onTrackingToggle;
@@ -237,9 +204,7 @@ class _MapView extends ConsumerWidget {
 
   const _MapView({
     required this.anchor,
-    required this.usesAppleMaps,
-    required this.mapLibreController,
-    required this.appleMapController,
+    required this.mapAdapter,
     required this.isTracking,
     required this.onPointerDown,
     required this.onTrackingToggle,
@@ -258,67 +223,16 @@ class _MapView extends ConsumerWidget {
         children: [
           Listener(
             onPointerDown: (_) => onPointerDown(),
-            child: usesAppleMaps
-                ? _AppleMapSurface(
-                    anchor: anchor,
-                    mapController: appleMapController,
-                  )
-                : maplibre.MapLibreMap(
-                    styleString: styleUrl,
-                    initialCameraPosition: maplibre.CameraPosition(
-                      target: maplibre.LatLng(
-                        anchor.latitude,
-                        anchor.longitude,
-                      ),
-                      zoom: AppConfig.defaultZoom,
-                    ),
-                    myLocationEnabled: true,
-                    myLocationTrackingMode:
-                        maplibre.MyLocationTrackingMode.none,
-                    onMapCreated: mapLibreController.attach,
-                    onStyleLoadedCallback: () =>
-                        mapLibreController.onStyleLoaded(colorScheme),
-                    featureTapsTriggersMapClick: true,
-                    onMapClick: (point, _) =>
-                        mapLibreController.onMapClick(point),
-                  ),
+            child: mapAdapter.buildMap(
+              anchor: anchor,
+              colorScheme: colorScheme,
+              styleUrl: styleUrl,
+            ),
           ),
           _TrackingButton(isTracking: isTracking, onPressed: onTrackingToggle),
           _AddNoteFab(onPressed: onAddNote),
         ],
       ),
-    );
-  }
-}
-
-class _AppleMapSurface extends StatelessWidget {
-  final Position anchor;
-  final AppleNoteMapController mapController;
-
-  const _AppleMapSurface({required this.anchor, required this.mapController});
-
-  @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder<Set<apple.Annotation>>(
-      valueListenable: mapController.annotations,
-      builder: (context, annotations, _) {
-        return ValueListenableBuilder<apple.TrackingMode>(
-          valueListenable: mapController.trackingMode,
-          builder: (context, trackingMode, _) {
-            return apple.AppleMap(
-              initialCameraPosition: apple.CameraPosition(
-                target: apple.LatLng(anchor.latitude, anchor.longitude),
-                zoom: AppConfig.defaultZoom,
-              ),
-              myLocationEnabled: true,
-              myLocationButtonEnabled: false,
-              trackingMode: trackingMode,
-              annotations: annotations,
-              onMapCreated: mapController.attach,
-            );
-          },
-        );
-      },
     );
   }
 }
