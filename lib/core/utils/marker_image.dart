@@ -22,9 +22,11 @@ class MarkerImage {
   static Future<Uint8List> render({
     required IconData iconData,
     required Color color,
+    double scale = 1.0,
   }) async {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
+    canvas.scale(scale);
 
     final center = Offset(_width / 2, _circleCenterY);
 
@@ -80,7 +82,10 @@ class MarkerImage {
     );
 
     final picture = recorder.endRecording();
-    final img = await picture.toImage(_width.toInt(), _height.toInt());
+    final img = await picture.toImage(
+      (_width * scale).round(),
+      (_height * scale).round(),
+    );
     final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
     return byteData!.buffer.asUint8List();
   }
