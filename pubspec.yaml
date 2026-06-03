@@ -20,7 +20,7 @@ dependencies:
   apple_maps_flutter:
     git:
       url: https://github.com/olaf86/apple_maps_flutter.git
-      ref: 2b9dc6d0f174c12daab04e0e3121f6a6896ae70e
+      ref: e2841415fa1ee75bf3365947c0250dfbd2e2f1e6
 
   # Firebase
   firebase_core: ^3.13.0

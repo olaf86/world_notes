@@ -9,11 +9,8 @@ git clone https://github.com/flutter/flutter.git \
     --depth 1 -b stable "$FLUTTER_ROOT"
 export PATH="$PATH:$FLUTTER_ROOT/bin"
 
-# Flutter 3.27+ enables Swift Package Manager by default. google_mobile_ads
-# does not support SPM and its podspec depends on webview_flutter_wkwebview
-# via CocoaPods; when SPM is active Flutter registers that pod via SPM instead,
-# making it invisible to CocoaPods. Disable SPM so all plugins use CocoaPods.
-flutter config --no-enable-swift-package-manager
+# Keep Flutter's iOS plugin integration on Swift Package Manager.
+flutter config --enable-swift-package-manager
 
 # ---------------------------------------------------------------------------
 # Restore secret files
@@ -36,12 +33,6 @@ if [ ! -f "$CI_PRIMARY_REPOSITORY_PATH/ios/Flutter/Generated.xcconfig" ]; then
   echo "ERROR: Generated.xcconfig was not created by flutter pub get"
   exit 1
 fi
-
-# ---------------------------------------------------------------------------
-# CocoaPods — Xcode Cloud does not run pod install automatically
-# ---------------------------------------------------------------------------
-cd "$CI_PRIMARY_REPOSITORY_PATH/ios"
-pod install
 
 # ---------------------------------------------------------------------------
 # Inject --dart-define values into Generated.xcconfig
