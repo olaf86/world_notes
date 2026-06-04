@@ -24,6 +24,9 @@ const ARGON2_OPTS = {
 // Online brute-force protection for unlockNote.
 const MAX_ATTEMPTS = 5;
 const ATTEMPT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const PATTERN_PREFIX = "pattern:v1:";
+const MAX_PATTERN_LENGTH = 30;
+const MAX_LOCK_HINT_LENGTH = 140;
 
 /**
  * Server-side password strength check (mirror of PasswordUtil.validate).
@@ -32,12 +35,49 @@ const ATTEMPT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
  * @return {string | null} An error message, or null if the password is valid.
  */
 function validatePassword(pw: string): string | null {
+  if (isValidPatternPassword(pw)) return null;
   if (pw.length < 8) return "Password must be at least 8 characters.";
   if (!/[A-Z]/.test(pw)) return "Password needs an uppercase letter.";
   if (!/[a-z]/.test(pw)) return "Password needs a lowercase letter.";
   if (!/[0-9]/.test(pw)) return "Password needs a digit.";
   if (!/[^A-Za-z0-9]/.test(pw)) return "Password needs a special character.";
   return null;
+}
+
+/**
+ * Returns true when [pw] is an encoded 3x3 pattern lock path.
+ *
+ * @param {string} pw The encoded password candidate.
+ * @return {boolean} Whether the candidate is a valid pattern lock.
+ */
+function isValidPatternPassword(pw: string): boolean {
+  if (!pw.startsWith(PATTERN_PREFIX)) return false;
+  const encoded = pw.slice(PATTERN_PREFIX.length);
+  if (!new RegExp(`^[0-8]{1,${MAX_PATTERN_LENGTH}}$`).test(encoded)) {
+    return false;
+  }
+  for (let i = 1; i < encoded.length; i++) {
+    if (!areAdjacentPatternNodes(encoded[i - 1], encoded[i])) return false;
+  }
+  return true;
+}
+
+/**
+ * Checks that two 3x3 pattern lock nodes are neighboring dots.
+ *
+ * @param {string} a The previous node id, encoded as 0-8.
+ * @param {string} b The next node id, encoded as 0-8.
+ * @return {boolean} Whether the nodes can be connected directly.
+ */
+function areAdjacentPatternNodes(a: string, b: string): boolean {
+  if (a === b) return false;
+  const from = Number(a);
+  const to = Number(b);
+  const ax = from % 3;
+  const ay = Math.floor(from / 3);
+  const bx = to % 3;
+  const by = Math.floor(to / 3);
+  return Math.abs(ax - bx) <= 1 && Math.abs(ay - by) <= 1;
 }
 
 /**
@@ -48,13 +88,17 @@ function validatePassword(pw: string): string | null {
  * Bumping passwordVersion invalidates every remembered unlock from the old
  * password (members carry the version they unlocked with).
  */
-export const setNotePassword = onCall<{placeId?: unknown; password?: unknown}>(
+export const setNotePassword = onCall<{
+  placeId?: unknown;
+  password?: unknown;
+  lockHint?: unknown;
+}>(
   {secrets: [PEPPER], enforceAppCheck: true, region: REGION},
   async (req) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
 
-    const {placeId, password} = req.data ?? {};
+    const {placeId, password, lockHint} = req.data ?? {};
     if (typeof placeId !== "string" || placeId.length === 0) {
       throw new HttpsError("invalid-argument", "placeId is required.");
     }
@@ -63,6 +107,12 @@ export const setNotePassword = onCall<{placeId?: unknown; password?: unknown}>(
     }
     const weakness = validatePassword(password);
     if (weakness) throw new HttpsError("invalid-argument", weakness);
+    if (
+      lockHint != null &&
+      (typeof lockHint !== "string" || lockHint.length > MAX_LOCK_HINT_LENGTH)
+    ) {
+      throw new HttpsError("invalid-argument", "Invalid hint.");
+    }
 
     const db = getFirestore();
     const placeRef = db.collection("places").doc(placeId);
@@ -88,6 +138,10 @@ export const setNotePassword = onCall<{placeId?: unknown; password?: unknown}>(
     batch.update(placeRef, {
       visibility: "private",
       passwordVersion: newVersion,
+      lockHint:
+        typeof lockHint === "string" && lockHint.trim().length > 0 ?
+          lockHint.trim() :
+          FieldValue.delete(),
     });
     await batch.commit();
 

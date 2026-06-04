@@ -195,10 +195,15 @@ class PlaceRepositoryImpl implements PlaceRepository {
   Future<void> setNotePassword({
     required String placeId,
     required String password,
+    String? lockHint,
   }) async {
     await _functions
         .httpsCallable('setNotePassword')
-        .call<Map<String, dynamic>>({'placeId': placeId, 'password': password});
+        .call<Map<String, dynamic>>({
+          'placeId': placeId,
+          'password': password,
+          'lockHint': lockHint,
+        });
   }
 
   @override

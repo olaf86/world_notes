@@ -28,10 +28,10 @@ enum ClosedReason {
   String toJson() => name;
 
   static ClosedReason? fromJson(String? value) => switch (value) {
-        'owner' => owner,
-        'messageLimit' => messageLimit,
-        _ => null,
-      };
+    'owner' => owner,
+    'messageLimit' => messageLimit,
+    _ => null,
+  };
 }
 
 class PlaceEntity {
@@ -56,6 +56,10 @@ class PlaceEntity {
   /// The password hash itself is NOT stored here — it lives in a Cloud
   /// Function-protected location so clients can never read it.
   final int passwordVersion;
+
+  /// Optional public hint shown on the locked view. The hint itself must not
+  /// contain the full pattern.
+  final String? lockHint;
 
   // ── Axis 2: Writability ─────────────────────────────────────────────────
   /// true = open for new messages, false = closed (read-only).
@@ -88,6 +92,7 @@ class PlaceEntity {
     this.lastMessageAt,
     this.visibility = PlaceVisibility.public,
     this.passwordVersion = 0,
+    this.lockHint,
     this.isOpen = true,
     this.closedReason,
     this.closedAt,
