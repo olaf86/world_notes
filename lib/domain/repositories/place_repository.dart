@@ -58,15 +58,13 @@ abstract class PlaceRepository {
   Future<void> setNotePassword({
     required String placeId,
     required String password,
+    String? lockHint,
   });
 
   /// Verifies [password] via the `unlockNote` function; on success the server
   /// records this user's access grant. Throws [FirebaseFunctionsException]
   /// (`permission-denied` = wrong password, `resource-exhausted` = locked out).
-  Future<void> unlockNote({
-    required String placeId,
-    required String password,
-  });
+  Future<void> unlockNote({required String placeId, required String password});
 
   /// Live stream of the current user's access grant to a private note
   /// (null when none). Used to decide whether to prompt for a password.

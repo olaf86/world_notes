@@ -5,13 +5,14 @@ import 'package:go_router/go_router.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../../../config/app_config.dart';
-import '../../../core/utils/password_util.dart';
+import '../../../core/utils/pattern_lock_util.dart';
 import '../../../domain/entities/message_entity.dart';
 import '../../../domain/entities/place_entity.dart';
 import '../../providers/providers.dart';
 import '../../widgets/note/manage_access_sheet.dart';
 import '../../widgets/note/message_bubble.dart';
 import '../../widgets/note/message_creation_overlay.dart';
+import '../../widgets/pattern_lock/pattern_lock_input.dart';
 
 // ---------------------------------------------------------------------------
 // Screen
@@ -140,9 +141,9 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
           .deleteMessage(placeId: widget.placeId, messageId: message.id);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
       }
     }
   }
@@ -177,7 +178,9 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     if (currentUser == null) return;
 
     try {
-      await ref.read(messageRepositoryProvider).reportMessage(
+      await ref
+          .read(messageRepositoryProvider)
+          .reportMessage(
             messageId: message.id,
             placeId: widget.placeId,
             reporterId: currentUser.id,
@@ -194,9 +197,9 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to submit report: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to submit report: $e')));
       }
     }
   }
@@ -231,9 +234,9 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
           .closePlace(widget.placeId, reason: ClosedReason.owner);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to close: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to close: $e')));
       }
     }
   }
@@ -243,9 +246,9 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
       await ref.read(placeRepositoryProvider).reopenPlace(widget.placeId);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to re-open: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to re-open: $e')));
       }
     }
   }
@@ -259,22 +262,33 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     );
   }
 
-  // ── Private access (set password / unlock) ───────────────────────────────
+  // ── Private access (set pattern lock / unlock) ───────────────────────────
 
-  /// Owner: set or change the note password (locks it as private).
+  void _showPatternTooLongSnack() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Pattern is too long. Use 30 nodes or fewer.'),
+      ),
+    );
+  }
+
+  /// Owner: set or change the note pattern lock (locks it as private).
   Future<void> _promptSetPassword({required bool isChange}) async {
-    final controller = TextEditingController();
+    final place = ref.read(placeProvider(widget.placeId)).valueOrNull;
+    final hintController = TextEditingController(text: place?.lockHint ?? '');
     await showDialog<void>(
       context: context,
       builder: (ctx) {
+        List<int> pattern = const [];
         String? error;
         var busy = false;
         return StatefulBuilder(
           builder: (ctx, setLocal) {
             Future<void> submit() async {
-              final weakness = PasswordUtil.validate(controller.text);
-              if (weakness != null) {
-                setLocal(() => error = weakness);
+              if (busy) return;
+              final validation = PatternLockUtil.validate(pattern);
+              if (validation != null) {
+                setLocal(() => error = validation);
                 return;
               }
               setLocal(() {
@@ -282,50 +296,90 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                 error = null;
               });
               try {
-                await ref.read(placeRepositoryProvider).setNotePassword(
+                await ref
+                    .read(placeRepositoryProvider)
+                    .setNotePassword(
                       placeId: widget.placeId,
-                      password: controller.text,
+                      password: PatternLockUtil.encode(pattern),
+                      lockHint: hintController.text.trim().isEmpty
+                          ? null
+                          : hintController.text.trim(),
                     );
                 if (ctx.mounted) Navigator.pop(ctx);
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('This note is now private.')),
+                    const SnackBar(
+                      content: Text(
+                        'Pattern lock saved. This note is private.',
+                      ),
+                    ),
                   );
                 }
               } on FirebaseFunctionsException catch (e) {
                 setLocal(() {
                   busy = false;
-                  error = e.message ?? 'Failed to set the password.';
+                  error = e.message ?? 'Failed to save the pattern lock.';
                 });
               } catch (_) {
                 setLocal(() {
                   busy = false;
-                  error = 'Failed to set the password.';
+                  error = 'Failed to save the pattern lock.';
                 });
               }
             }
 
             return AlertDialog(
-              title: Text(isChange ? 'Change password' : 'Set password'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'Lock this note. Visitors must enter the password to read '
-                    'or post. Use 8+ characters with upper- and lower-case '
-                    'letters, a digit, and a symbol.',
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: controller,
-                    obscureText: true,
-                    autofocus: true,
-                    decoration: InputDecoration(
-                      labelText: 'New password',
-                      errorText: error,
+              title: Text(
+                isChange ? 'Change pattern lock' : 'Set pattern lock',
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Draw a path between neighboring dots. Short patterns are '
+                      'easy to guess; longer paths are better for private notes.',
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 12),
+                    PatternLockInput(
+                      size: 248,
+                      onChanged: (path) {
+                        setLocal(() {
+                          pattern = path;
+                          error = null;
+                        });
+                      },
+                      onTooLong: _showPatternTooLongSnack,
+                    ),
+                    if (error != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        error!,
+                        style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(ctx).colorScheme.error,
+                        ),
+                      ),
+                    ],
+                    if (pattern.isNotEmpty && pattern.length < 4) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'This is a very short pattern.',
+                        style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(ctx).colorScheme.tertiary,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: hintController,
+                      maxLength: 140,
+                      decoration: InputDecoration(
+                        labelText: 'Hint (optional)',
+                        counterText: '',
+                      ),
+                    ),
+                  ],
+                ),
               ),
               actions: [
                 TextButton(
@@ -348,37 +402,45 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
         );
       },
     );
-    controller.dispose();
+    hintController.dispose();
   }
 
-  /// Visitor: enter a password to unlock a private note. On success the
+  /// Visitor: draw a pattern to unlock a private note. On success the
   /// membership stream updates and the screen rebuilds with access.
   Future<void> _promptUnlock() async {
-    final controller = TextEditingController();
+    final place = ref.read(placeProvider(widget.placeId)).valueOrNull;
     await showDialog<void>(
       context: context,
       builder: (ctx) {
+        List<int> pattern = const [];
         String? error;
         var busy = false;
         return StatefulBuilder(
           builder: (ctx, setLocal) {
             Future<void> submit() async {
-              if (controller.text.isEmpty) return;
+              if (busy) return;
+              final validation = PatternLockUtil.validate(pattern);
+              if (validation != null) {
+                setLocal(() => error = validation);
+                return;
+              }
               setLocal(() {
                 busy = true;
                 error = null;
               });
               try {
-                await ref.read(placeRepositoryProvider).unlockNote(
+                await ref
+                    .read(placeRepositoryProvider)
+                    .unlockNote(
                       placeId: widget.placeId,
-                      password: controller.text,
+                      password: PatternLockUtil.encode(pattern),
                     );
                 if (ctx.mounted) Navigator.pop(ctx);
               } on FirebaseFunctionsException catch (e) {
                 setLocal(() {
                   busy = false;
                   error = switch (e.code) {
-                    'permission-denied' => 'Incorrect password.',
+                    'permission-denied' => 'Incorrect pattern.',
                     'resource-exhausted' =>
                       'Too many attempts. Please try again later.',
                     'unavailable' || 'deadline-exceeded' =>
@@ -395,23 +457,45 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
             }
 
             return AlertDialog(
-              title: const Text('Enter password'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('This note is private.'),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: controller,
-                    obscureText: true,
-                    autofocus: true,
-                    onSubmitted: (_) => submit(),
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      errorText: error,
+              title: const Text('Draw pattern'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('This note is private.'),
+                    if (place?.lockHint case final hint?
+                        when hint.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Hint: $hint',
+                        style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    PatternLockInput(
+                      size: 248,
+                      onChanged: (path) {
+                        setLocal(() {
+                          pattern = path;
+                          error = null;
+                        });
+                      },
+                      onCompleted: (_) => submit(),
+                      onTooLong: _showPatternTooLongSnack,
                     ),
-                  ),
-                ],
+                    if (error != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        error!,
+                        style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(ctx).colorScheme.error,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
               actions: [
                 TextButton(
@@ -434,7 +518,6 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
         );
       },
     );
-    controller.dispose();
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -445,7 +528,8 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     final currentUser = ref.watch(authStateProvider).valueOrNull;
     final place = ref.watch(placeProvider(widget.placeId)).valueOrNull;
 
-    final isOwner = place != null &&
+    final isOwner =
+        place != null &&
         currentUser != null &&
         place.createdByUserId == currentUser.id;
 
@@ -453,11 +537,13 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     // check their membership grant; if it's absent or stale, show the locked
     // view and DON'T subscribe to messages (the read would be denied anyway).
     if (place != null && place.isPrivate && !isOwner) {
-      final membership =
-          ref.watch(noteMembershipProvider(widget.placeId)).valueOrNull;
+      final membership = ref
+          .watch(noteMembershipProvider(widget.placeId))
+          .valueOrNull;
       if (!place.isAccessibleBy(currentUser?.id, membership)) {
         return _LockedNoteView(
           title: widget.placeTitle,
+          lockHint: place.lockHint,
           onUnlock: _promptUnlock,
         );
       }
@@ -489,185 +575,194 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
         if (!didPop && _isComposing) _closeCompose();
       },
       child: ConstrainedBox(
-      constraints: BoxConstraints(
-        maxWidth: size.width,
-        maxHeight: size.height,
-      ),
-      child: ExcludeSemantics(
-        excluding: !isCurrent,
-        child: Stack(
-          children: [
-            // ── Base layer: the message-box screen ──────────────────────
-            Scaffold(
-        appBar: AppBar(
-          title: Text(widget.placeTitle),
-          actions: [
-            if (!isPremium)
-              IconButton(
-                icon: const Icon(Icons.star_outline),
-                tooltip: 'Go Premium',
-                onPressed: () => context.push('/subscription'),
-              ),
-            // Owner-only thread controls.
-            if (isOwner)
-              PopupMenuButton<String>(
-                tooltip: 'Thread options',
-                onSelected: (value) {
-                  if (value == 'close') _closeThread();
-                  if (value == 'reopen') _reopenThread();
-                  if (value == 'password') {
-                    _promptSetPassword(isChange: place.isPrivate);
-                  }
-                  if (value == 'access') _showManageAccess();
-                },
-                itemBuilder: (ctx) => [
-                  if (place.isOpen)
-                    const PopupMenuItem(
-                      value: 'close',
-                      child: ListTile(
-                        leading: Icon(Icons.do_not_disturb_on_outlined),
-                        title: Text('Close thread'),
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                    ),
-                  if (place.canReopen)
-                    const PopupMenuItem(
-                      value: 'reopen',
-                      child: ListTile(
-                        leading: Icon(Icons.lock_open_outlined),
-                        title: Text('Re-open thread'),
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                    ),
-                  PopupMenuItem(
-                    value: 'password',
-                    child: ListTile(
-                      leading: Icon(place.isPrivate
-                          ? Icons.password
-                          : Icons.lock_person_outlined),
-                      title: Text(
-                        place.isPrivate ? 'Change password' : 'Set password',
-                      ),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ),
-                  if (place.isPrivate)
-                    const PopupMenuItem(
-                      value: 'access',
-                      child: ListTile(
-                        leading: Icon(Icons.group_outlined),
-                        title: Text('Manage access'),
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                    ),
-                ],
-              ),
-          ],
+        constraints: BoxConstraints(
+          maxWidth: size.width,
+          maxHeight: size.height,
         ),
-        // Body = optional status banner + message list.
-        body: Column(
-          children: [
-            if (place != null && !place.canAcceptMessages)
-              _ThreadStatusBanner(place: place),
-            Expanded(
-              child: messagesAsync.when(
-                loading: () =>
-                    const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text('Error: $e')),
-                data: (messages) => messages.isEmpty
-                    ? const _EmptyState()
-                    : ListView.builder(
-                        controller: _scrollController,
-                        // Extra bottom padding so the FAB never obscures the
-                        // last message (FAB 56 + margin 16 + breathing 16).
-                        padding: const EdgeInsets.only(top: 8, bottom: 88),
-                        itemCount: messages.length,
-                        itemBuilder: (context, index) {
-                          final message = messages[index];
-                          final isOwn = message.author.id == currentUser?.id;
-                          return MessageBubble(
-                            message: message,
-                            isOwn: isOwn,
-                            onDelete: isOwn
-                                ? () => _confirmDeleteMessage(message)
-                                : null,
-                            onReport: !isOwn
-                                ? () => _showReportDialog(message)
-                                : null,
-                          );
+        child: ExcludeSemantics(
+          excluding: !isCurrent,
+          child: Stack(
+            children: [
+              // ── Base layer: the message-box screen ──────────────────────
+              Scaffold(
+                appBar: AppBar(
+                  title: Text(widget.placeTitle),
+                  actions: [
+                    if (!isPremium)
+                      IconButton(
+                        icon: const Icon(Icons.star_outline),
+                        tooltip: 'Go Premium',
+                        onPressed: () => context.push('/subscription'),
+                      ),
+                    // Owner-only thread controls.
+                    if (isOwner)
+                      PopupMenuButton<String>(
+                        tooltip: 'Thread options',
+                        onSelected: (value) {
+                          if (value == 'close') _closeThread();
+                          if (value == 'reopen') _reopenThread();
+                          if (value == 'password') {
+                            _promptSetPassword(isChange: place.isPrivate);
+                          }
+                          if (value == 'access') _showManageAccess();
                         },
+                        itemBuilder: (ctx) => [
+                          if (place.isOpen)
+                            const PopupMenuItem(
+                              value: 'close',
+                              child: ListTile(
+                                leading: Icon(Icons.do_not_disturb_on_outlined),
+                                title: Text('Close thread'),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                          if (place.canReopen)
+                            const PopupMenuItem(
+                              value: 'reopen',
+                              child: ListTile(
+                                leading: Icon(Icons.lock_open_outlined),
+                                title: Text('Re-open thread'),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                          PopupMenuItem(
+                            value: 'password',
+                            child: ListTile(
+                              leading: Icon(
+                                place.isPrivate
+                                    ? Icons.grid_3x3
+                                    : Icons.lock_person_outlined,
+                              ),
+                              title: Text(
+                                place.isPrivate
+                                    ? 'Change pattern lock'
+                                    : 'Set pattern lock',
+                              ),
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                          if (place.isPrivate)
+                            const PopupMenuItem(
+                              value: 'access',
+                              child: ListTile(
+                                leading: Icon(Icons.group_outlined),
+                                title: Text('Manage access'),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                        ],
                       ),
-              ),
-            ),
-          ],
-        ),
-
-        // FAB — opens the compose overlay (state flag + slide-up animation
-        // in a Stack sibling layer below).  heroTag is unique to prevent
-        // Hero conflicts with the map screen's FABs ('mapAddNote',
-        // 'tracking').  Hidden when the thread is closed / expired / full.
-        floatingActionButton: canPostMessage
-            ? FloatingActionButton(
-                heroTag: 'noteCompose',
-                onPressed: _openCompose,
-                tooltip: 'Write a message',
-                child: const Icon(Icons.edit_outlined),
-              )
-            : null,
-
-        // Banner ad — placed in bottomNavigationBar so the Scaffold
-        // automatically lifts the FAB above it when the ad is loaded.
-        bottomNavigationBar: ValueListenableBuilder<bool>(
-          valueListenable: _adLoaded,
-          builder: (context, loaded, _) {
-            final ad = _bannerAd;
-            return AnimatedSize(
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeOut,
-              child: (loaded && ad != null && !isPremium)
-                  ? SafeArea(
-                      top: false,
-                      child: SizedBox(
-                        height: ad.size.height.toDouble(),
-                        child: AdWidget(ad: ad),
+                  ],
+                ),
+                // Body = optional status banner + message list.
+                body: Column(
+                  children: [
+                    if (place != null && !place.canAcceptMessages)
+                      _ThreadStatusBanner(place: place),
+                    Expanded(
+                      child: messagesAsync.when(
+                        loading: () =>
+                            const Center(child: CircularProgressIndicator()),
+                        error: (e, _) => Center(child: Text('Error: $e')),
+                        data: (messages) => messages.isEmpty
+                            ? const _EmptyState()
+                            : ListView.builder(
+                                controller: _scrollController,
+                                // Extra bottom padding so the FAB never obscures the
+                                // last message (FAB 56 + margin 16 + breathing 16).
+                                padding: const EdgeInsets.only(
+                                  top: 8,
+                                  bottom: 88,
+                                ),
+                                itemCount: messages.length,
+                                itemBuilder: (context, index) {
+                                  final message = messages[index];
+                                  final isOwn =
+                                      message.author.id == currentUser?.id;
+                                  return MessageBubble(
+                                    message: message,
+                                    isOwn: isOwn,
+                                    onDelete: isOwn
+                                        ? () => _confirmDeleteMessage(message)
+                                        : null,
+                                    onReport: !isOwn
+                                        ? () => _showReportDialog(message)
+                                        : null,
+                                  );
+                                },
+                              ),
                       ),
-                    )
-                  : const SizedBox.shrink(),
-            );
-          },
-        ),
-            ),
-
-            // ── Overlay layer: compose UI, slides up from the bottom ────
-            //
-            // Rendered only while `_isComposing` is true.  The animation
-            // controller drives a SlideTransition from (0, 1) → (0, 0).
-            // Because this overlay lives in the SAME Stack as the base
-            // Scaffold (not a Navigator route), no ModalBarrier /
-            // BlockSemantics is added to the tree — sidestepping the
-            // '!semantics.parentDataDirty' loop seen with route pushes.
-            if (_isComposing)
-              Positioned.fill(
-                child: SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(0, 1),
-                    end: Offset.zero,
-                  ).animate(
-                    CurvedAnimation(
-                      parent: _composeController,
-                      curve: Curves.easeOutCubic,
-                      reverseCurve: Curves.easeInCubic,
                     ),
-                  ),
-                  child: MessageCreationOverlay(
-                    placeId: widget.placeId,
-                    onClose: _closeCompose,
-                  ),
+                  ],
+                ),
+
+                // FAB — opens the compose overlay (state flag + slide-up animation
+                // in a Stack sibling layer below).  heroTag is unique to prevent
+                // Hero conflicts with the map screen's FABs ('mapAddNote',
+                // 'tracking').  Hidden when the thread is closed / expired / full.
+                floatingActionButton: canPostMessage
+                    ? FloatingActionButton(
+                        heroTag: 'noteCompose',
+                        onPressed: _openCompose,
+                        tooltip: 'Write a message',
+                        child: const Icon(Icons.edit_outlined),
+                      )
+                    : null,
+
+                // Banner ad — placed in bottomNavigationBar so the Scaffold
+                // automatically lifts the FAB above it when the ad is loaded.
+                bottomNavigationBar: ValueListenableBuilder<bool>(
+                  valueListenable: _adLoaded,
+                  builder: (context, loaded, _) {
+                    final ad = _bannerAd;
+                    return AnimatedSize(
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeOut,
+                      child: (loaded && ad != null && !isPremium)
+                          ? SafeArea(
+                              top: false,
+                              child: SizedBox(
+                                height: ad.size.height.toDouble(),
+                                child: AdWidget(ad: ad),
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                    );
+                  },
                 ),
               ),
-          ],
+
+              // ── Overlay layer: compose UI, slides up from the bottom ────
+              //
+              // Rendered only while `_isComposing` is true.  The animation
+              // controller drives a SlideTransition from (0, 1) → (0, 0).
+              // Because this overlay lives in the SAME Stack as the base
+              // Scaffold (not a Navigator route), no ModalBarrier /
+              // BlockSemantics is added to the tree — sidestepping the
+              // '!semantics.parentDataDirty' loop seen with route pushes.
+              if (_isComposing)
+                Positioned.fill(
+                  child: SlideTransition(
+                    position:
+                        Tween<Offset>(
+                          begin: const Offset(0, 1),
+                          end: Offset.zero,
+                        ).animate(
+                          CurvedAnimation(
+                            parent: _composeController,
+                            curve: Curves.easeOutCubic,
+                            reverseCurve: Curves.easeInCubic,
+                          ),
+                        ),
+                    child: MessageCreationOverlay(
+                      placeId: widget.placeId,
+                      onClose: _closeCompose,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -688,22 +783,22 @@ class _ThreadStatusBanner extends StatelessWidget {
     // Resolve the most relevant reason, in priority order.
     final (IconData icon, String text) = switch (place) {
       _ when place.isArchived || place.isExpired => (
-          Icons.inventory_2_outlined,
-          'This note has been archived. It is read-only.',
-        ),
+        Icons.inventory_2_outlined,
+        'This note has been archived. It is read-only.',
+      ),
       _ when place.isAtMessageLimit => (
-          Icons.do_not_disturb_on_outlined,
-          'This thread reached its ${AppConfig.maxMessagesPerThread}-message '
-              'limit and is now closed.',
-        ),
+        Icons.do_not_disturb_on_outlined,
+        'This thread reached its ${AppConfig.maxMessagesPerThread}-message '
+            'limit and is now closed.',
+      ),
       _ when place.closedReason == ClosedReason.messageLimit => (
-          Icons.do_not_disturb_on_outlined,
-          'This thread is full and closed.',
-        ),
+        Icons.do_not_disturb_on_outlined,
+        'This thread is full and closed.',
+      ),
       _ => (
-          Icons.lock_outline,
-          'The owner closed this thread. It is read-only.',
-        ),
+        Icons.lock_outline,
+        'The owner closed this thread. It is read-only.',
+      ),
     };
 
     return Material(
@@ -735,9 +830,14 @@ class _ThreadStatusBanner extends StatelessWidget {
 
 class _LockedNoteView extends StatelessWidget {
   final String title;
+  final String? lockHint;
   final VoidCallback onUnlock;
 
-  const _LockedNoteView({required this.title, required this.onUnlock});
+  const _LockedNoteView({
+    required this.title,
+    this.lockHint,
+    required this.onUnlock,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -756,23 +856,30 @@ class _LockedNoteView extends StatelessWidget {
                 color: theme.colorScheme.outline,
               ),
               const SizedBox(height: 16),
-              Text(
-                'This note is private',
-                style: theme.textTheme.titleMedium,
-              ),
+              Text('This note is private', style: theme.textTheme.titleMedium),
               const SizedBox(height: 8),
               Text(
-                'Enter the password to read and post messages here.',
+                'Draw the pattern lock to read and post messages here.',
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
+              if (lockHint case final hint? when hint.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'Hint: $hint',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
               const SizedBox(height: 24),
               FilledButton.icon(
                 onPressed: onUnlock,
                 icon: const Icon(Icons.key_outlined),
-                label: const Text('Enter password'),
+                label: const Text('Draw pattern'),
               ),
             ],
           ),
@@ -805,8 +912,8 @@ class _EmptyState extends StatelessWidget {
             'No messages yet.\nBe the first to write!',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
