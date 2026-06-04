@@ -17,8 +17,21 @@ flutter config --enable-swift-package-manager
 # GoogleService-Info.plist is stored as a base64-encoded secret env var.
 # To encode: base64 -i GoogleService-Info.plist | pbcopy
 # ---------------------------------------------------------------------------
-echo "$GOOGLE_SERVICE_INFO_PLIST" | base64 --decode \
-    > "$CI_PRIMARY_REPOSITORY_PATH/ios/Runner/GoogleService-Info.plist"
+if [ -z "${GOOGLE_SERVICE_INFO_PLIST:-}" ]; then
+  echo "ERROR: GOOGLE_SERVICE_INFO_PLIST is not set"
+  exit 1
+fi
+
+decode_base64() {
+  if printf '' | base64 --decode >/dev/null 2>&1; then
+    base64 --decode
+  else
+    base64 -D
+  fi
+}
+
+printf '%s' "$GOOGLE_SERVICE_INFO_PLIST" | decode_base64 \
+  > "$CI_PRIMARY_REPOSITORY_PATH/ios/Runner/GoogleService-Info.plist"
 
 # ---------------------------------------------------------------------------
 # Flutter dependencies & code generation
@@ -40,7 +53,7 @@ fi
 # Xcode Cloud sets env vars but doesn't pass them via flutter CLI,
 # so we write DART_DEFINES manually after flutter pub get generates the file.
 # ---------------------------------------------------------------------------
-encode() { printf '%s' "$1" | base64; }
+encode() { printf '%s' "$1" | base64 | tr -d '\n'; }
 
 DART_DEFINES="$(encode "STADIA_API_KEY=$STADIA_API_KEY")\
 ,$(encode "REVENUECAT_API_KEY_IOS=$REVENUECAT_API_KEY_IOS")\
@@ -48,3 +61,17 @@ DART_DEFINES="$(encode "STADIA_API_KEY=$STADIA_API_KEY")\
 
 echo "DART_DEFINES=$DART_DEFINES" \
     >> "$CI_PRIMARY_REPOSITORY_PATH/ios/Flutter/Generated.xcconfig"
+
+# ---------------------------------------------------------------------------
+# Clear SwiftPM binary artifact cache before Xcode Cloud starts archive/test.
+# Xcode Cloud can restore a stale or partially-created artifact directory, and
+# SwiftPM then fails with "already exists in file system" while downloading
+# binary targets such as MapLibre.dynamic.xcframework.zip.
+# ---------------------------------------------------------------------------
+SWIFTPM_ARTIFACTS_CACHE="$HOME/Library/Caches/org.swift.swiftpm/artifacts"
+
+if [ -n "$SWIFTPM_ARTIFACTS_CACHE" ] && [ -d "$SWIFTPM_ARTIFACTS_CACHE" ]; then
+  rm -rf "$SWIFTPM_ARTIFACTS_CACHE"
+fi
+
+mkdir -p "$SWIFTPM_ARTIFACTS_CACHE"
