@@ -9,8 +9,9 @@ git clone https://github.com/flutter/flutter.git \
     --depth 1 -b stable "$FLUTTER_ROOT"
 export PATH="$PATH:$FLUTTER_ROOT/bin"
 
-# Keep Flutter's iOS plugin integration on Swift Package Manager.
-flutter config --enable-swift-package-manager
+# Use CocoaPods for iOS plugins in CI. Xcode Cloud has been intermittently
+# failing while resolving Firebase SwiftPM binary artifacts.
+flutter config --no-enable-swift-package-manager
 
 # ---------------------------------------------------------------------------
 # Restore secret files
@@ -40,6 +41,15 @@ flutter precache --ios
 
 cd "$CI_PRIMARY_REPOSITORY_PATH"
 flutter pub get
+
+if ! command -v pod >/dev/null 2>&1; then
+  echo "ERROR: CocoaPods is not installed"
+  exit 1
+fi
+
+cd "$CI_PRIMARY_REPOSITORY_PATH/ios"
+pod install
+cd "$CI_PRIMARY_REPOSITORY_PATH"
 
 # Verify Generated.xcconfig was created by flutter pub get
 if [ ! -f "$CI_PRIMARY_REPOSITORY_PATH/ios/Flutter/Generated.xcconfig" ]; then
