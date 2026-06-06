@@ -39,6 +39,11 @@ service cloud.firestore {
                  || hasNoteMembership(placeId, place));
     }
 
+    function hasWriteSession(placeId) {
+      let path = /databases/$(database)/documents/places/$(placeId)/writeSessions/$(request.auth.uid);
+      return exists(path) && get(path).data.expiresAt > request.time;
+    }
+
     // ── users ─────────────────────────────────────────────────────────────────
     match /users/{uid} {
       allow read: if isSignedIn();
@@ -111,6 +116,13 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // Short-lived write sessions. Created only by the createWriteSession
+      // Cloud Function; message creation requires an unexpired session.
+      match /writeSessions/{sessionUid} {
+        allow read: if isSignedIn() && request.auth.uid == sessionUid;
+        allow write: if false;
+      }
+
       // ── messages (subcollection) ──────────────────────────────────────
       // Nested under the place so reads can be gated on the parent note's
       // visibility + membership. For private notes, only the owner and
@@ -119,6 +131,7 @@ service cloud.firestore {
         allow read: if canAccessNote(placeId);
 
         allow create: if canAccessNote(placeId)
+                      && hasWriteSession(placeId)
                       && request.resource.data.userId == request.auth.uid
                       && request.resource.data.placeId == placeId
                       && request.resource.data.content is string

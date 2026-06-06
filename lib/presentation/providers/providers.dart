@@ -144,38 +144,48 @@ final isTrackingProvider = StateProvider<bool>((ref) => false);
 
 // --- Places nearby ---
 
-final placesNearbyProvider = StreamProvider.family<List<PlaceEntity>, MapLatLng>(
-  (ref, latLng) {
-    return ref
-        .watch(placeRepositoryProvider)
-        .watchPlacesNearby(
-          latitude: latLng.lat,
-          longitude: latLng.lng,
-        );
-  },
-);
+final placesNearbyProvider =
+    StreamProvider.family<List<PlaceEntity>, MapLatLng>((ref, latLng) {
+      return ref
+          .watch(placeRepositoryProvider)
+          .watchPlacesNearby(latitude: latLng.lat, longitude: latLng.lng);
+    });
 
 /// Live stream of a single place by id (null if it doesn't exist).
-final placeProvider = StreamProvider.family<PlaceEntity?, String>((ref, placeId) {
+final placeProvider = StreamProvider.family<PlaceEntity?, String>((
+  ref,
+  placeId,
+) {
   return ref.watch(placeRepositoryProvider).watchPlace(placeId);
 });
 
 /// The current user's access grant for a (private) note — null if none.
 /// For public notes this isn't needed; callers gate on PlaceEntity.isPublic.
-final noteMembershipProvider =
-    StreamProvider.family<NoteMembership?, String>((ref, placeId) {
+final noteMembershipProvider = StreamProvider.family<NoteMembership?, String>((
+  ref,
+  placeId,
+) {
   final user = ref.watch(authStateProvider).valueOrNull;
   if (user == null) return Stream.value(null);
-  return ref.watch(placeRepositoryProvider).watchMembership(
-        placeId: placeId,
-        userId: user.id,
-      );
+  return ref
+      .watch(placeRepositoryProvider)
+      .watchMembership(placeId: placeId, userId: user.id);
 });
 
 /// Owner view of a private note's access list.
-final noteMembersProvider =
-    StreamProvider.family<List<NoteMember>, String>((ref, placeId) {
+final noteMembersProvider = StreamProvider.family<List<NoteMember>, String>((
+  ref,
+  placeId,
+) {
   return ref.watch(placeRepositoryProvider).watchMembers(placeId);
+});
+
+/// Active notes owned by the current user. Used by the My Notes read-only
+/// destination; returns an empty stream while signed out.
+final myPlacesProvider = StreamProvider<List<PlaceEntity>>((ref) {
+  final user = ref.watch(authStateProvider).valueOrNull;
+  if (user == null) return Stream.value(const []);
+  return ref.watch(placeRepositoryProvider).watchMyPlaces(user.id);
 });
 
 // --- Note creation limit ---
@@ -272,8 +282,8 @@ class RegionPreferenceNotifier extends StateNotifier<String?> {
 
 final regionPreferenceProvider =
     StateNotifierProvider<RegionPreferenceNotifier, String?>(
-  (ref) => RegionPreferenceNotifier(),
-);
+      (ref) => RegionPreferenceNotifier(),
+    );
 
 /// The region the client actually targets:
 ///   1. a valid, available manual override, else

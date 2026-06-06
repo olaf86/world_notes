@@ -41,7 +41,15 @@ abstract class PlaceRepository {
   /// Used to enforce free / premium creation limits before writing.
   Future<int> countUserActivePlaces(String userId);
 
+  /// Active notes owned by [userId], used by the My Notes read-only view.
+  Stream<List<PlaceEntity>> watchMyPlaces(String userId);
+  Future<List<PlaceEntity>> getMyPlaces(String userId);
+
   // ── Writability (owner only) ──────────────────────────────────────────────
+
+  /// Creates a short-lived server-side write session for direct message
+  /// creation. My Notes read-only screens intentionally never call this.
+  Future<void> createWriteSession(String placeId);
 
   /// Closes the thread (read-only).  [reason] records whether this was a
   /// manual owner close or an automatic message-limit close.

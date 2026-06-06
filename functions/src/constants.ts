@@ -8,6 +8,9 @@ export const PREMIUM_NOTE_LIMIT = 200;
 /** Maximum messages per thread (must match AppConfig.maxMessagesPerThread). */
 export const MAX_MESSAGES_PER_THREAD = 1000;
 
+/** Write session lifetime, in minutes. */
+export const WRITE_SESSION_TTL_MINUTES = 60;
+
 /** Allowed note expiry presets, in days (must match noteExpiryPresetDays). */
 export const NOTE_EXPIRY_PRESET_DAYS = [7, 30, 90, 180, 365];
 

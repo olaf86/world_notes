@@ -83,12 +83,12 @@ Function checks:
 - `messageCount < MAX_MESSAGES_PER_THREAD`.
 - App Check is enforced when practical.
 
-The function then writes `places/{placeId}/writeSessions/{uid}` with a short TTL, for example 15 minutes.
+The function then writes `places/{placeId}/writeSessions/{uid}` with a moderate TTL, for example 60 minutes.
 
 Client behavior:
 
-- Normal `/note/:placeId` access requests a write session before showing or enabling compose.
-- My Notes opens the same screen with `readOnly=true`, does not request a write session, and hides compose UI.
+- Normal `/note/:placeId` access requests a write session before showing or enabling the message editor.
+- My Notes opens the same screen with `readOnly=true`, does not request a write session, and hides the message editor UI.
 - If a normal session expires while the note screen is open, the client can request a fresh one before sending.
 
 Important boundary:
@@ -189,7 +189,7 @@ final myPlacesProvider = StreamProvider<List<PlaceEntity>>((ref) {
 Use the existing note route with a read-only query parameter:
 
 ```dart
-/note/:placeId?title=...&readOnly=true
+/note/:placeId?readOnly=true
 ```
 
 This is preferable to a separate `/my-notes/:placeId` route for the first implementation:
@@ -212,12 +212,12 @@ const NoteBoxScreen({
 Route behavior:
 
 - `/note/:placeId` passes `readOnly: false`.
-- My Notes opens `/note/:placeId?title=...&readOnly=true`.
+- My Notes opens `/note/:placeId?readOnly=true`.
 
 Read-only mode behavior:
 
 - Messages are visible if the user has read access.
-- Compose FAB is hidden.
+- The message editor FAB is hidden.
 - Message creation overlay cannot be opened.
 - Owner thread controls are hidden in phase 1 to keep My Notes strictly read-only.
 - No write session is requested.
@@ -247,13 +247,13 @@ Future<void> createWriteSession(String placeId);
 Normal note detail flow:
 
 - If `readOnly == false` and `place.canAcceptMessages`, call `createWriteSession(placeId)`.
-- Enable compose only after the session exists or the callable succeeds.
+- Enable the message editor only after the session exists or the callable succeeds.
 - On send failure caused by an expired or missing session, request a fresh session and retry once or show a clear error.
 
 My Notes flow:
 
 - If `readOnly == true`, never call `createWriteSession`.
-- Compose stays hidden regardless of `place.canAcceptMessages`.
+- The message editor stays hidden regardless of `place.canAcceptMessages`.
 
 ## Implementation Plan
 
@@ -286,8 +286,8 @@ My Notes flow:
 
 6. Note detail UI
    - Add `readOnly` field to `NoteBoxScreen`.
-   - Hide compose FAB when `readOnly` is true.
-   - Prevent compose overlay from opening when `readOnly` is true.
+   - Hide the message editor FAB when `readOnly` is true.
+   - Prevent the message editor overlay from opening when `readOnly` is true.
    - Hide owner mutation menu in read-only mode for phase 1.
    - Add a small read-only banner.
    - Request write session only when `readOnly == false`.
@@ -299,7 +299,7 @@ My Notes flow:
    - Repository/provider test: signed-out user gets an empty My Notes stream.
    - Repository/provider test: signed-in user queries only their active notes.
    - Widget test: My Notes row opens `/note/:placeId?readOnly=true`.
-   - Widget test: `NoteBoxScreen(readOnly: true)` does not show the compose FAB and does not request a write session.
+   - Widget test: `NoteBoxScreen(readOnly: true)` does not show the message editor FAB and does not request a write session.
    - Widget test: Map branch top toggle switches between nearby map and nearby list.
 
 ## Deferred
@@ -309,4 +309,3 @@ My Notes flow:
 - Remote owner management from My Notes.
 - Archived note history.
 - Server-side ordering for My Notes with a new composite index.
-

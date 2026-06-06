@@ -156,6 +156,23 @@ class PlaceRepositoryImpl implements PlaceRepository {
 
   // ── Ownership queries ─────────────────────────────────────────────────────
 
+  Query _myPlacesQuery(String userId) => _places
+      .where('createdByUserId', isEqualTo: userId)
+      .where('isArchived', isEqualTo: false);
+
+  List<PlaceEntity> _collectMyPlaces(QuerySnapshot snap) {
+    final places = snap.docs
+        .map((doc) => PlaceModel.fromFirestore(doc).toEntity())
+        .where((place) => !place.isArchived && !place.isExpired)
+        .toList();
+    places.sort((a, b) {
+      final aTime = a.lastMessageAt ?? a.createdAt;
+      final bTime = b.lastMessageAt ?? b.createdAt;
+      return bTime.compareTo(aTime);
+    });
+    return places;
+  }
+
   @override
   Future<int> countUserActivePlaces(String userId) async {
     final snap = await _places
@@ -166,7 +183,25 @@ class PlaceRepositoryImpl implements PlaceRepository {
     return snap.count ?? 0;
   }
 
+  @override
+  Stream<List<PlaceEntity>> watchMyPlaces(String userId) {
+    return _myPlacesQuery(userId).snapshots().map(_collectMyPlaces);
+  }
+
+  @override
+  Future<List<PlaceEntity>> getMyPlaces(String userId) async {
+    final snap = await _myPlacesQuery(userId).get();
+    return _collectMyPlaces(snap);
+  }
+
   // ── Writability ───────────────────────────────────────────────────────────
+
+  @override
+  Future<void> createWriteSession(String placeId) async {
+    await _functions
+        .httpsCallable('createWriteSession')
+        .call<Map<String, dynamic>>({'placeId': placeId});
+  }
 
   @override
   Future<void> closePlace(

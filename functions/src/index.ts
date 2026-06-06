@@ -36,6 +36,10 @@ export {
   revokeNoteAccess,
 } from "./invites";
 
+// Short-lived write sessions required by Firestore Rules before direct
+// message creation. Region set in its own options.
+export {createWriteSession} from "./writeSessions";
+
 interface CreateNoteData {
   latitude?: unknown;
   longitude?: unknown;

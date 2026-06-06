@@ -5,10 +5,10 @@ import 'package:go_router/go_router.dart';
 import '../presentation/providers/providers.dart';
 import '../presentation/screens/auth/sign_in_screen.dart';
 import '../presentation/screens/invite/invite_claim_screen.dart';
-import '../presentation/screens/map/map_screen.dart';
+import '../presentation/screens/map/nearby_screen.dart';
+import '../presentation/screens/my_notes/my_notes_screen.dart';
 import '../presentation/screens/note/note_box_screen.dart';
 import '../presentation/screens/note/note_creation_screen.dart';
-import '../presentation/screens/place/place_list_screen.dart';
 import '../presentation/screens/profile/profile_screen.dart';
 import '../presentation/screens/settings/settings_screen.dart';
 import '../presentation/screens/subscription/subscription_screen.dart';
@@ -40,7 +40,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const SignInScreen(),
       ),
       // StatefulShellRoute keeps every branch mounted in an IndexedStack, so
-      // switching tabs no longer disposes the previous screen. MapScreen's
+      // switching tabs no longer disposes the previous screen. NearbyScreen's
       // tracking toggle, anchor position, and MapLibre native camera state
       // (zoom / bearing / target) all survive a round-trip to other tabs.
       StatefulShellRoute.indexedStack(
@@ -51,15 +51,15 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/map',
-                builder: (context, state) => const MapScreen(),
+                builder: (context, state) => const NearbyScreen(),
               ),
             ],
           ),
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/list',
-                builder: (context, state) => const PlaceListScreen(),
+                path: '/my-notes',
+                builder: (context, state) => const MyNotesScreen(),
               ),
             ],
           ),
@@ -88,14 +88,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/note/create',
         pageBuilder: (context, state) {
-          final lat = double.tryParse(
-                state.uri.queryParameters['lat'] ?? '',
-              ) ??
-              0;
-          final lng = double.tryParse(
-                state.uri.queryParameters['lng'] ?? '',
-              ) ??
-              0;
+          final lat =
+              double.tryParse(state.uri.queryParameters['lat'] ?? '') ?? 0;
+          final lng =
+              double.tryParse(state.uri.queryParameters['lng'] ?? '') ?? 0;
           return CustomTransitionPage<void>(
             key: state.pageKey,
             child: NoteCreationScreen(latitude: lat, longitude: lng),
@@ -109,9 +105,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) {
           final placeId = state.pathParameters['placeId']!;
           final placeTitle = state.uri.queryParameters['title'] ?? '';
+          final readOnly = state.uri.queryParameters['readOnly'] == 'true';
           return CustomTransitionPage<void>(
             key: state.pageKey,
-            child: NoteBoxScreen(placeId: placeId, placeTitle: placeTitle),
+            child: NoteBoxScreen(
+              placeId: placeId,
+              placeTitle: placeTitle,
+              readOnly: readOnly,
+            ),
             opaque: false,
             transitionsBuilder: _slideTransition,
           );
@@ -193,10 +194,7 @@ class _MainShell extends ConsumerWidget {
     final bool isCurrent = ModalRoute.of(context)?.isCurrent ?? true;
 
     return ConstrainedBox(
-      constraints: BoxConstraints(
-        maxWidth: size.width,
-        maxHeight: size.height,
-      ),
+      constraints: BoxConstraints(maxWidth: size.width, maxHeight: size.height),
       child: ExcludeSemantics(
         excluding: !isCurrent,
         child: Scaffold(
@@ -225,8 +223,8 @@ class _BottomNav extends StatelessWidget {
       destinations: const [
         NavigationDestination(icon: Icon(Icons.map_outlined), label: 'Map'),
         NavigationDestination(
-          icon: Icon(Icons.list_alt_outlined),
-          label: 'List',
+          icon: Icon(Icons.bookmark_border_outlined),
+          label: 'My Notes',
         ),
         NavigationDestination(
           icon: Icon(Icons.person_outline),
@@ -252,7 +250,9 @@ Widget _slideTransition(
 ) {
   const begin = Offset(1.0, 0.0);
   const end = Offset.zero;
-  final tween = Tween(begin: begin, end: end)
-      .chain(CurveTween(curve: Curves.easeInOut));
+  final tween = Tween(
+    begin: begin,
+    end: end,
+  ).chain(CurveTween(curve: Curves.easeInOut));
   return SlideTransition(position: animation.drive(tween), child: child);
 }

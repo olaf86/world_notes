@@ -217,22 +217,20 @@ class _MapView extends ConsumerWidget {
     final styleUrl = mapStyle.styleUrl(AppConfig.stadiaApiKey);
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          Listener(
-            onPointerDown: (_) => onPointerDown(),
-            child: mapAdapter.buildMap(
-              anchor: anchor,
-              colorScheme: colorScheme,
-              mapStyle: mapStyle,
-              styleUrl: styleUrl,
-            ),
+    return Stack(
+      children: [
+        Listener(
+          onPointerDown: (_) => onPointerDown(),
+          child: mapAdapter.buildMap(
+            anchor: anchor,
+            colorScheme: colorScheme,
+            mapStyle: mapStyle,
+            styleUrl: styleUrl,
           ),
-          _TrackingButton(isTracking: isTracking, onPressed: onTrackingToggle),
-          _AddNoteFab(onPressed: onAddNote),
-        ],
-      ),
+        ),
+        _TrackingButton(isTracking: isTracking, onPressed: onTrackingToggle),
+        _AddNoteFab(onPressed: onAddNote),
+      ],
     );
   }
 }

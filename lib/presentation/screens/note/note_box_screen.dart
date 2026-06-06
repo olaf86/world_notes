@@ -21,11 +21,13 @@ import '../../widgets/pattern_lock/pattern_lock_input.dart';
 class NoteBoxScreen extends ConsumerStatefulWidget {
   final String placeId;
   final String placeTitle;
+  final bool readOnly;
 
   const NoteBoxScreen({
     super.key,
     required this.placeId,
     required this.placeTitle,
+    this.readOnly = false,
   });
 
   @override
@@ -43,7 +45,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
   BannerAd? _bannerAd;
   final _adLoaded = ValueNotifier<bool>(false);
 
-  // ── Compose overlay state ─────────────────────────────────────────────────
+  // ── Message editor overlay state ──────────────────────────────────────────
   //
   // The message creation UI is rendered as an overlay inside this screen's
   // own widget tree, not as a separate Navigator route.  Every Navigator-
@@ -52,15 +54,16 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
   // because of the BlockSemantics widget that ModalBarrier injects.  An
   // overlay driven purely by an AnimationController bypasses Navigator
   // entirely, so no extra ModalBarrier / BlockSemantics layer is added.
-  late final AnimationController _composeController;
-  bool _isComposing = false;
+  late final AnimationController _messageEditorController;
+  bool _isMessageEditorOpen = false;
+  bool _preparingMessageEditor = false;
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
   @override
   void initState() {
     super.initState();
-    _composeController = AnimationController(
+    _messageEditorController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 280),
     );
@@ -72,7 +75,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     _scrollController.dispose();
     _adLoaded.dispose();
     _bannerAd?.dispose();
-    _composeController.dispose();
+    _messageEditorController.dispose();
     super.dispose();
   }
 
@@ -94,18 +97,38 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     )..load();
   }
 
-  // ── Compose overlay ───────────────────────────────────────────────────────
+  // ── Message editor overlay ────────────────────────────────────────────────
 
-  void _openCompose() {
-    if (_isComposing) return;
-    setState(() => _isComposing = true);
-    _composeController.forward();
+  Future<void> _openMessageEditor() async {
+    if (_isMessageEditorOpen || _preparingMessageEditor || widget.readOnly) {
+      return;
+    }
+    setState(() => _preparingMessageEditor = true);
+    try {
+      await _ensureWriteSession();
+      if (!mounted) return;
+      setState(() => _isMessageEditorOpen = true);
+      _messageEditorController.forward();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Cannot write here: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _preparingMessageEditor = false);
+    }
   }
 
-  Future<void> _closeCompose() async {
-    if (!_isComposing) return;
-    await _composeController.reverse();
-    if (mounted) setState(() => _isComposing = false);
+  Future<void> _ensureWriteSession() async {
+    if (widget.readOnly) return;
+    await ref.read(placeRepositoryProvider).createWriteSession(widget.placeId);
+  }
+
+  Future<void> _closeMessageEditor() async {
+    if (!_isMessageEditorOpen) return;
+    await _messageEditorController.reverse();
+    if (mounted) setState(() => _isMessageEditorOpen = false);
   }
 
   // ── Delete ────────────────────────────────────────────────────────────────
@@ -532,6 +555,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
         place != null &&
         currentUser != null &&
         place.createdByUserId == currentUser.id;
+    final displayTitle = place?.title ?? widget.placeTitle;
 
     // Private-note access gate. For a private note the viewer doesn't own,
     // check their membership grant; if it's absent or stale, show the locked
@@ -542,7 +566,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
           .valueOrNull;
       if (!place.isAccessibleBy(currentUser?.id, membership)) {
         return _LockedNoteView(
-          title: widget.placeTitle,
+          title: displayTitle,
           lockHint: place.lockHint,
           onUnlock: _promptUnlock,
         );
@@ -553,10 +577,12 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     final messagesAsync = ref.watch(messagesProvider(widget.placeId));
     // Whether a new message may be posted right now — only once the place is
     // loaded and still accepting messages (open, not expired/archived/full).
-    final canPostMessage = place?.canAcceptMessages ?? false;
+    final canPostMessage =
+        !widget.readOnly && (place?.canAcceptMessages ?? false);
 
-    // Exclude this screen's semantics while a dialog (delete, report, compose)
-    // is shown on top — prevents parentDataDirty noise when two routes coexist.
+    // Exclude this screen's semantics while a dialog, report sheet, or message
+    // editor is shown on top — prevents parentDataDirty noise when two routes
+    // coexist.
     final bool isCurrent = ModalRoute.of(context)?.isCurrent ?? true;
 
     // Defensive constraint clamp.  Even with opaque:false on all push routes,
@@ -568,11 +594,11 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     final size = MediaQuery.sizeOf(context);
 
     return PopScope(
-      // Intercept back gesture / hardware back when the compose overlay is
+      // Intercept back gesture / hardware back when the message editor is
       // visible — close the overlay instead of popping the route.
-      canPop: !_isComposing,
+      canPop: !_isMessageEditorOpen,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && _isComposing) _closeCompose();
+        if (!didPop && _isMessageEditorOpen) _closeMessageEditor();
       },
       child: ConstrainedBox(
         constraints: BoxConstraints(
@@ -586,7 +612,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
               // ── Base layer: the message-box screen ──────────────────────
               Scaffold(
                 appBar: AppBar(
-                  title: Text(widget.placeTitle),
+                  title: Text(displayTitle),
                   actions: [
                     if (!isPremium)
                       IconButton(
@@ -595,7 +621,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                         onPressed: () => context.push('/subscription'),
                       ),
                     // Owner-only thread controls.
-                    if (isOwner)
+                    if (isOwner && !widget.readOnly)
                       PopupMenuButton<String>(
                         tooltip: 'Thread options',
                         onSelected: (value) {
@@ -657,6 +683,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                 // Body = optional status banner + message list.
                 body: Column(
                   children: [
+                    if (widget.readOnly) const _ReadOnlyBanner(),
                     if (place != null && !place.canAcceptMessages)
                       _ThreadStatusBanner(place: place),
                     Expanded(
@@ -696,16 +723,26 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                   ],
                 ),
 
-                // FAB — opens the compose overlay (state flag + slide-up animation
+                // FAB — opens the message editor (state flag + slide-up animation
                 // in a Stack sibling layer below).  heroTag is unique to prevent
                 // Hero conflicts with the map screen's FABs ('mapAddNote',
                 // 'tracking').  Hidden when the thread is closed / expired / full.
                 floatingActionButton: canPostMessage
                     ? FloatingActionButton(
-                        heroTag: 'noteCompose',
-                        onPressed: _openCompose,
+                        heroTag: 'noteMessageEditor',
+                        onPressed: _preparingMessageEditor
+                            ? null
+                            : _openMessageEditor,
                         tooltip: 'Write a message',
-                        child: const Icon(Icons.edit_outlined),
+                        child: _preparingMessageEditor
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.edit_outlined),
                       )
                     : null,
 
@@ -732,15 +769,15 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                 ),
               ),
 
-              // ── Overlay layer: compose UI, slides up from the bottom ────
+              // ── Overlay layer: message editor, slides up from the bottom ─
               //
-              // Rendered only while `_isComposing` is true.  The animation
+              // Rendered only while `_isMessageEditorOpen` is true.  The animation
               // controller drives a SlideTransition from (0, 1) → (0, 0).
               // Because this overlay lives in the SAME Stack as the base
               // Scaffold (not a Navigator route), no ModalBarrier /
               // BlockSemantics is added to the tree — sidestepping the
               // '!semantics.parentDataDirty' loop seen with route pushes.
-              if (_isComposing)
+              if (_isMessageEditorOpen)
                 Positioned.fill(
                   child: SlideTransition(
                     position:
@@ -749,14 +786,15 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                           end: Offset.zero,
                         ).animate(
                           CurvedAnimation(
-                            parent: _composeController,
+                            parent: _messageEditorController,
                             curve: Curves.easeOutCubic,
                             reverseCurve: Curves.easeInCubic,
                           ),
                         ),
                     child: MessageCreationOverlay(
                       placeId: widget.placeId,
-                      onClose: _closeCompose,
+                      onClose: _closeMessageEditor,
+                      onBeforeSend: _ensureWriteSession,
                     ),
                   ),
                 ),
@@ -812,6 +850,43 @@ class _ThreadStatusBanner extends StatelessWidget {
             Expanded(
               child: Text(
                 text,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Read-only banner — shown when opened from My Notes
+// ---------------------------------------------------------------------------
+
+class _ReadOnlyBanner extends StatelessWidget {
+  const _ReadOnlyBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: theme.colorScheme.surfaceContainerHighest,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            Icon(
+              Icons.visibility_outlined,
+              size: 18,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Read-only from My Notes.',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -921,5 +996,5 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-// Compose UI is rendered as an in-tree overlay; see MessageCreationOverlay
-// in lib/presentation/widgets/note/message_creation_overlay.dart.
+// The message editor is rendered as an in-tree overlay; see
+// MessageCreationOverlay in lib/presentation/widgets/note/message_creation_overlay.dart.

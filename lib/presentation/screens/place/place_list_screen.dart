@@ -9,33 +9,40 @@ import '../../../services/location_service.dart';
 import '../../providers/providers.dart';
 
 class PlaceListScreen extends ConsumerWidget {
-  const PlaceListScreen({super.key});
+  final bool embedded;
+
+  const PlaceListScreen({super.key, this.embedded = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final anchor = ref.watch(anchorPositionProvider);
 
+    final body = anchor != null
+        ? _PlaceList(
+            latitude: anchor.latitude,
+            longitude: anchor.longitude,
+            onRefresh: () async {
+              final provider = placesNearbyProvider(
+                latLng(anchor.latitude, anchor.longitude),
+              );
+              ref.invalidate(provider);
+              await ref.read(provider.future);
+            },
+          )
+        : ref
+              .watch(positionStreamProvider)
+              .when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (e, _) => e is LocationPermissionDeniedException
+                    ? const _LocationDeniedView()
+                    : const _ErrorView(),
+                data: (_) => const Center(child: CircularProgressIndicator()),
+              );
+
+    if (embedded) return body;
     return Scaffold(
       appBar: AppBar(title: const Text('Nearby Notes')),
-      body: anchor != null
-          ? _PlaceList(
-              latitude: anchor.latitude,
-              longitude: anchor.longitude,
-              onRefresh: () async {
-                final provider = placesNearbyProvider(
-                  latLng(anchor.latitude, anchor.longitude),
-                );
-                ref.invalidate(provider);
-                await ref.read(provider.future);
-              },
-            )
-          : ref.watch(positionStreamProvider).when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => e is LocationPermissionDeniedException
-                  ? const _LocationDeniedView()
-                  : const _ErrorView(),
-              data: (_) => const Center(child: CircularProgressIndicator()),
-            ),
+      body: body,
     );
   }
 }
@@ -94,10 +101,16 @@ class _PlaceList extends ConsumerWidget {
           final sorted = [...places]
             ..sort((a, b) {
               final da = Geolocator.distanceBetween(
-                latitude, longitude, a.latitude, a.longitude,
+                latitude,
+                longitude,
+                a.latitude,
+                a.longitude,
               );
               final db = Geolocator.distanceBetween(
-                latitude, longitude, b.latitude, b.longitude,
+                latitude,
+                longitude,
+                b.latitude,
+                b.longitude,
               );
               return da.compareTo(db);
             });
@@ -130,9 +143,7 @@ class _ScrollableStatusView extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) => ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        children: [
-          SizedBox(height: constraints.maxHeight, child: child),
-        ],
+        children: [SizedBox(height: constraints.maxHeight, child: child)],
       ),
     );
   }
@@ -185,8 +196,11 @@ class _PlaceListTile extends StatelessWidget {
             const SizedBox(width: 4),
           ],
           Expanded(
-            child:
-                Text(place.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+            child: Text(
+              place.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),

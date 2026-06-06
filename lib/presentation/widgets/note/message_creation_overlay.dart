@@ -5,12 +5,13 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../providers/providers.dart';
 
-/// Full-screen "new message" composer rendered as an **overlay inside
+/// Full-screen "new message" editor rendered as an **overlay inside
 /// NoteBoxScreen**, not as a separate Navigator route.
 ///
 /// Why an overlay rather than a Route push?
 ///
-/// Every attempt to present the composer through a Navigator route — whether
+/// Every attempt to present the message editor through a Navigator route —
+/// whether
 /// `Navigator.push` (PageRoute), `showModalBottomSheet`, `showDialog` (which
 /// only works as a small AlertDialog), or wrapping in a `ShellRoute` — runs
 /// into Flutter's `!semantics.parentDataDirty` debug loop on this screen.
@@ -32,11 +33,13 @@ import '../../providers/providers.dart';
 class MessageCreationOverlay extends ConsumerStatefulWidget {
   final String placeId;
   final VoidCallback onClose;
+  final Future<void> Function()? onBeforeSend;
 
   const MessageCreationOverlay({
     super.key,
     required this.placeId,
     required this.onClose,
+    this.onBeforeSend,
   });
 
   @override
@@ -113,7 +116,9 @@ class _MessageCreationOverlayState
       if (bytes.length > _maxImageBytes) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Image is too large (max 5 MB). Please choose a smaller image.'),
+            content: Text(
+              'Image is too large (max 5 MB). Please choose a smaller image.',
+            ),
             duration: Duration(seconds: 4),
           ),
         );
@@ -130,9 +135,9 @@ class _MessageCreationOverlayState
   }
 
   void _removeImage() => setState(() {
-        _imageBytes = null;
-        _imageName = null;
-      });
+    _imageBytes = null;
+    _imageName = null;
+  });
 
   static const _maxChars = 2000;
 
@@ -145,7 +150,10 @@ class _MessageCreationOverlayState
 
     setState(() => _isSending = true);
     try {
-      await ref.read(messageRepositoryProvider).sendMessage(
+      await widget.onBeforeSend?.call();
+      await ref
+          .read(messageRepositoryProvider)
+          .sendMessage(
             placeId: widget.placeId,
             content: _controller.text.trim(),
             userId: user.id,
@@ -160,13 +168,10 @@ class _MessageCreationOverlayState
       setState(() => _isSending = false);
       final message = _imageBytes != null
           ? 'Failed to upload image. '
-              'Check that Firebase Storage is enabled and security rules allow writes.\n$e'
+                'Check that Firebase Storage is enabled and security rules allow writes.\n$e'
           : 'Failed to send: $e';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          duration: const Duration(seconds: 6),
-        ),
+        SnackBar(content: Text(message), duration: const Duration(seconds: 6)),
       );
     }
   }
@@ -211,14 +216,20 @@ class _MessageCreationOverlayState
                   style: theme.textTheme.bodyLarge,
                   maxLength: _maxChars,
                   // Hide the default counter — we show it in the header instead.
-                  buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
+                  buildCounter:
+                      (
+                        _, {
+                        required currentLength,
+                        required isFocused,
+                        maxLength,
+                      }) => null,
                   inputFormatters: [
                     LengthLimitingTextInputFormatter(_maxChars),
                   ],
                   decoration: const InputDecoration(
                     hintText: "What's happening at this place?",
                     // Remove Material 3's default filled look (grey tinted
-                    // background + rounded corners).  The composer lives
+                    // background + rounded corners).  The editor lives
                     // inside a plain white/surface Material already.
                     filled: false,
                     border: InputBorder.none,
@@ -234,10 +245,7 @@ class _MessageCreationOverlayState
             if (bytes != null)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                child: _ImagePreview(
-                  bytes: bytes,
-                  onRemove: _removeImage,
-                ),
+                child: _ImagePreview(bytes: bytes, onRemove: _removeImage),
               ),
 
             const Divider(height: 1),
@@ -295,10 +303,7 @@ class _Header extends StatelessWidget {
             onPressed: isSending ? null : onClose,
           ),
           Expanded(
-            child: Text(
-              'New message',
-              style: theme.textTheme.titleMedium,
-            ),
+            child: Text('New message', style: theme.textTheme.titleMedium),
           ),
           Padding(
             padding: const EdgeInsets.only(right: 8),
@@ -322,8 +327,7 @@ class _Header extends StatelessWidget {
                     onPressed: canSend ? onSend : null,
                     style: FilledButton.styleFrom(
                       minimumSize: const Size(64, 36),
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                     child: const Text('Send'),
@@ -371,11 +375,7 @@ class _ImagePreview extends StatelessWidget {
                 shape: BoxShape.circle,
               ),
               padding: const EdgeInsets.all(4),
-              child: const Icon(
-                Icons.close,
-                size: 18,
-                color: Colors.white,
-              ),
+              child: const Icon(Icons.close, size: 18, color: Colors.white),
             ),
           ),
         ),
