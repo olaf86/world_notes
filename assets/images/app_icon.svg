@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="World Notes app icon">
+  <rect width="1024" height="1024" fill="#EAF8F2"/>
+  <circle cx="512" cy="512" r="388" fill="#D3F0E6"/>
+  <circle cx="512" cy="386" r="244" fill="#EF5350"/>
+  <path d="M304 514h416L512 876z" fill="#EF5350"/>
+  <circle cx="512" cy="386" r="96" fill="#FFFFFF"/>
+  <circle cx="512" cy="386" r="46" fill="#0B4E59"/>
+  <path d="M547 134Q598 60 704 30Q650 108 607 150Z" fill="#EF5350"/>
+  <path d="M607 150Q702 78 826 50Q748 132 682 197Z" fill="#EF5350"/>
+  <path d="M682 197Q780 136 890 116Q805 205 736 267Z" fill="#EF5350"/>
+</svg>
