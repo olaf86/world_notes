@@ -13,12 +13,12 @@ import 'note_map_adapter.dart';
 
 /// Adapter between the places domain and Apple's native MapKit view.
 ///
-/// This is intentionally simpler than the MapLibre controller: the public
-/// apple_maps_flutter API supports annotations, camera updates, and location
-/// tracking, but not MapKit's native annotation clustering. We keep the iOS
-/// path lightweight so it can remove third-party tile costs without changing
-/// the repository/query layer.
+/// This uses MapKit's native annotation clustering through the forked
+/// apple_maps_flutter API so the iOS path can remove third-party tile costs
+/// without changing the repository/query layer.
 class AppleNoteMapController implements NoteMapAdapter {
+  static const String _noteClusterId = 'world_notes_places';
+  static const double _clusterMaxZoom = 14;
   static const double _selectedMarkerScale = 1.35;
 
   final Future<void> Function(PlaceEntity place) onPinSelected;
@@ -49,6 +49,7 @@ class AppleNoteMapController implements NoteMapAdapter {
   List<PlaceEntity> _latestPlaces = const [];
   apple.AppleMapController? _map;
   apple.MapAppearanceMode _appearanceMode = apple.MapAppearanceMode.light;
+  bool _clusteringEnabled = AppConfig.defaultZoom < _clusterMaxZoom;
   String? _selectedPlaceId;
   int _markerRevision = 0;
   int _selectionRevision = 0;
@@ -88,6 +89,8 @@ class AppleNoteMapController implements NoteMapAdapter {
               annotations: currentAnnotations,
               appearanceMode: _appearanceMode,
               onMapCreated: attach,
+              onCameraMove: _onCameraMove,
+              onCameraIdle: _onCameraIdle,
             );
           },
         );
@@ -142,6 +145,26 @@ class AppleNoteMapController implements NoteMapAdapter {
     await _rebuildAnnotations();
   }
 
+  void _onCameraMove(apple.CameraPosition position) {
+    _setClusteringEnabled(position.zoom < _clusterMaxZoom);
+  }
+
+  void _onCameraIdle() {
+    unawaited(_syncClusteringWithMapZoom());
+  }
+
+  Future<void> _syncClusteringWithMapZoom() async {
+    final zoom = await _map?.getZoomLevel();
+    if (zoom == null) return;
+    _setClusteringEnabled(zoom < _clusterMaxZoom);
+  }
+
+  void _setClusteringEnabled(bool enabled) {
+    if (_clusteringEnabled == enabled) return;
+    _clusteringEnabled = enabled;
+    unawaited(_rebuildAnnotations());
+  }
+
   Future<void> _showSelectedPin(PlaceEntity place) async {
     final revision = ++_selectionRevision;
     _selectedPlaceId = place.id;
@@ -180,10 +203,15 @@ class AppleNoteMapController implements NoteMapAdapter {
 
       next.add(
         apple.Annotation(
-          annotationId: apple.AnnotationId(place.id),
+          annotationId: apple.AnnotationId(
+            _annotationIdFor(place.id, isSelected: isSelected),
+          ),
           position: apple.LatLng(place.latitude, place.longitude),
           icon: icon,
           infoWindow: apple.InfoWindow.noText,
+          clusteringIdentifier: isSelected || !_clusteringEnabled
+              ? null
+              : _noteClusterId,
           zIndex: isSelected ? 1 : 0,
           onTap: () => unawaited(_showSelectedPin(place)),
         ),
@@ -193,6 +221,14 @@ class AppleNoteMapController implements NoteMapAdapter {
     if (revision == _markerRevision) {
       annotations.value = next;
     }
+  }
+
+  String _annotationIdFor(String placeId, {required bool isSelected}) {
+    // MapKit does not reliably re-cluster an existing annotation when only
+    // its clusteringIdentifier changes. Make the clustered/unclustered state
+    // part of the id so zoom-threshold changes become remove/add updates.
+    if (isSelected) return 'selected-$placeId';
+    return '${_clusteringEnabled ? 'clustered' : 'single'}-$placeId';
   }
 
   Future<apple.BitmapDescriptor> _markerIcon(
