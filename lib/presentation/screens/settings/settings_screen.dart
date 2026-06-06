@@ -70,28 +70,31 @@ class _RegionSection extends ConsumerWidget {
         ),
         const SizedBox(height: 8),
 
-        // Auto option.
-        RadioListTile<String?>(
-          value: null,
+        RadioGroup<String?>(
           groupValue: override,
-          onChanged: (_) =>
-              ref.read(regionPreferenceProvider.notifier).setOverride(null),
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Auto (nearest)'),
-          subtitle: Text(
-            'Currently: ${Regions.byId(effective)?.label ?? effective}',
-          ),
-        ),
+          onChanged: (value) =>
+              ref.read(regionPreferenceProvider.notifier).setOverride(value),
+          child: Column(
+            children: [
+              // Auto option.
+              RadioListTile<String?>(
+                value: null,
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Auto (nearest)'),
+                subtitle: Text(
+                  'Currently: ${Regions.byId(effective)?.label ?? effective}',
+                ),
+              ),
 
-        // Explicit regions.
-        ...available.map(
-          (r) => RadioListTile<String?>(
-            value: r.id,
-            groupValue: override,
-            onChanged: (v) =>
-                ref.read(regionPreferenceProvider.notifier).setOverride(v),
-            contentPadding: EdgeInsets.zero,
-            title: Text(r.label),
+              // Explicit regions.
+              ...available.map(
+                (r) => RadioListTile<String?>(
+                  value: r.id,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(r.label),
+                ),
+              ),
+            ],
           ),
         ),
       ],

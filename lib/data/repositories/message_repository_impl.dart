@@ -5,6 +5,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../config/app_config.dart';
+import '../../core/utils/image_upload_util.dart';
 import '../../domain/entities/message_entity.dart';
 import '../../domain/repositories/message_repository.dart';
 import '../models/message_model.dart';
@@ -60,16 +61,16 @@ class MessageRepositoryImpl implements MessageRepository {
 
   Future<String?> _uploadImage({
     required List<int> bytes,
-    required String name,
+    required String? name,
     required String userId,
   }) async {
-    final ext = name.contains('.') ? name.split('.').last : 'jpg';
-    final ref = _storage
-        .ref()
-        .child('messages/$userId/${_uuid.v4()}.$ext');
+    final ext = ImageUploadUtil.extensionForFileName(name);
+    final ref = _storage.ref().child('messages/$userId/${_uuid.v4()}.$ext');
     await ref.putData(
       Uint8List.fromList(bytes),
-      SettableMetadata(contentType: 'image/$ext'),
+      SettableMetadata(
+        contentType: ImageUploadUtil.contentTypeForExtension(ext),
+      ),
     );
     return ref.getDownloadURL();
   }
@@ -86,7 +87,7 @@ class MessageRepositoryImpl implements MessageRepository {
     String? imageName,
   }) async {
     String? imageUrl;
-    if (imageBytes != null && imageName != null) {
+    if (imageBytes != null) {
       imageUrl = await _uploadImage(
         bytes: imageBytes,
         name: imageName,

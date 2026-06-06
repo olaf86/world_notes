@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../core/utils/image_upload_util.dart';
 import '../../providers/providers.dart';
 
 /// Full-screen "new message" editor rendered as an **overlay inside
@@ -90,9 +91,6 @@ class _MessageCreationOverlayState
 
   // ── Image picking ─────────────────────────────────────────────────────────
 
-  // Maximum accepted byte size after picker-side compression (5 MB).
-  static const _maxImageBytes = 5 * 1024 * 1024;
-
   Future<void> _pickImage(ImageSource source) async {
     if (_picking) return;
     setState(() => _picking = true);
@@ -113,7 +111,7 @@ class _MessageCreationOverlayState
 
       // Safety check: reject if the image is still above the size limit
       // (e.g. an unusual format that the picker doesn't compress well).
-      if (bytes.length > _maxImageBytes) {
+      if (!ImageUploadUtil.isWithinSizeLimit(bytes.length)) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -182,81 +180,88 @@ class _MessageCreationOverlayState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final bytes = _imageBytes;
+    final keyboardBottom = MediaQuery.viewInsetsOf(context).bottom;
 
     return Material(
       color: theme.colorScheme.surface,
-      child: SafeArea(
-        child: Column(
-          children: [
-            _Header(
-              isSending: _isSending,
-              canSend: _hasContent,
-              onClose: widget.onClose,
-              onSend: _submit,
-              charCount: _controller.text.length,
-              maxChars: _maxChars,
-            ),
-            const Divider(height: 1),
+      child: AnimatedPadding(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        padding: EdgeInsets.only(bottom: keyboardBottom),
+        child: SafeArea(
+          bottom: keyboardBottom == 0,
+          child: Column(
+            children: [
+              _Header(
+                isSending: _isSending,
+                canSend: _hasContent,
+                onClose: widget.onClose,
+                onSend: _submit,
+                charCount: _controller.text.length,
+                maxChars: _maxChars,
+              ),
+              const Divider(height: 1),
 
-            // Text editor — fills the available vertical space.
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                child: TextField(
-                  controller: _controller,
-                  focusNode: _focusNode,
-                  maxLines: null,
-                  expands: true,
-                  keyboardType: TextInputType.multiline,
-                  textInputAction: TextInputAction.newline,
-                  textAlignVertical: TextAlignVertical.top,
-                  style: theme.textTheme.bodyLarge,
-                  maxLength: _maxChars,
-                  // Hide the default counter — we show it in the header instead.
-                  buildCounter:
-                      (
-                        _, {
-                        required currentLength,
-                        required isFocused,
-                        maxLength,
-                      }) => null,
-                  inputFormatters: [
-                    LengthLimitingTextInputFormatter(_maxChars),
-                  ],
-                  decoration: const InputDecoration(
-                    hintText: "What's happening at this place?",
-                    // Remove Material 3's default filled look (grey tinted
-                    // background + rounded corners).  The editor lives
-                    // inside a plain white/surface Material already.
-                    filled: false,
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    contentPadding: EdgeInsets.zero,
+              // Text editor — fills the available vertical space.
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  child: TextField(
+                    controller: _controller,
+                    focusNode: _focusNode,
+                    maxLines: null,
+                    expands: true,
+                    keyboardType: TextInputType.multiline,
+                    textInputAction: TextInputAction.newline,
+                    textAlignVertical: TextAlignVertical.top,
+                    style: theme.textTheme.bodyLarge,
+                    maxLength: _maxChars,
+                    // Hide the default counter — we show it in the header instead.
+                    buildCounter:
+                        (
+                          _, {
+                          required currentLength,
+                          required isFocused,
+                          maxLength,
+                        }) => null,
+                    inputFormatters: [
+                      LengthLimitingTextInputFormatter(_maxChars),
+                    ],
+                    decoration: const InputDecoration(
+                      hintText: "What's happening at this place?",
+                      // Remove Material 3's default filled look (grey tinted
+                      // background + rounded corners).  The editor lives
+                      // inside a plain white/surface Material already.
+                      filled: false,
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                    ),
                   ),
                 ),
               ),
-            ),
 
-            // Image attachment preview (if any).
-            if (bytes != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                child: _ImagePreview(bytes: bytes, onRemove: _removeImage),
+              // Image attachment preview (if any).
+              if (bytes != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: _ImagePreview(bytes: bytes, onRemove: _removeImage),
+                ),
+
+              const Divider(height: 1),
+
+              // Keyboard-aware attachment toolbar.
+              _AttachmentToolbar(
+                picking: _picking,
+                onPickGallery: () => _pickImage(ImageSource.gallery),
+                onPickCamera: () => _pickImage(ImageSource.camera),
               ),
-
-            const Divider(height: 1),
-
-            // Twitter-style attachment toolbar pinned above the keyboard.
-            _AttachmentToolbar(
-              picking: _picking,
-              onPickGallery: () => _pickImage(ImageSource.gallery),
-              onPickCamera: () => _pickImage(ImageSource.camera),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
