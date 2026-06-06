@@ -9,6 +9,7 @@ import '../../../core/utils/pattern_lock_util.dart';
 import '../../../domain/entities/message_entity.dart';
 import '../../../domain/entities/place_entity.dart';
 import '../../providers/providers.dart';
+import '../../widgets/map/static_note_mini_map.dart';
 import '../../widgets/note/manage_access_sheet.dart';
 import '../../widgets/note/message_bubble.dart';
 import '../../widgets/note/message_creation_overlay.dart';
@@ -686,6 +687,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                     if (widget.readOnly) const _ReadOnlyBanner(),
                     if (place != null && !place.canAcceptMessages)
                       _ThreadStatusBanner(place: place),
+                    if (place != null) StaticNoteMiniMap(place: place),
                     Expanded(
                       child: messagesAsync.when(
                         loading: () =>
