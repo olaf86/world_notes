@@ -33,7 +33,9 @@ import 'note_map_adapter_factory.dart';
 /// touch the map (permission denied, GPS spinner) live in their own widgets
 /// in `widgets/map/`.
 class MapScreen extends ConsumerStatefulWidget {
-  const MapScreen({super.key});
+  final VoidCallback? onShowList;
+
+  const MapScreen({super.key, this.onShowList});
 
   @override
   ConsumerState<MapScreen> createState() => _MapScreenState();
@@ -176,6 +178,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
         onPointerDown: _onUserPanned,
         onTrackingToggle: _toggleTracking,
         onAddNote: () => _onAddNote(anchor),
+        onShowList: widget.onShowList,
       );
     }
 
@@ -201,6 +204,7 @@ class _MapView extends ConsumerWidget {
   final VoidCallback onPointerDown;
   final VoidCallback onTrackingToggle;
   final VoidCallback onAddNote;
+  final VoidCallback? onShowList;
 
   const _MapView({
     required this.anchor,
@@ -209,6 +213,7 @@ class _MapView extends ConsumerWidget {
     required this.onPointerDown,
     required this.onTrackingToggle,
     required this.onAddNote,
+    required this.onShowList,
   });
 
   @override
@@ -228,9 +233,33 @@ class _MapView extends ConsumerWidget {
             styleUrl: styleUrl,
           ),
         ),
+        if (onShowList != null) _ListButton(onPressed: onShowList!),
         _TrackingButton(isTracking: isTracking, onPressed: onTrackingToggle),
         _AddNoteFab(onPressed: onAddNote),
       ],
+    );
+  }
+}
+
+class _ListButton extends StatelessWidget {
+  final VoidCallback onPressed;
+
+  const _ListButton({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Positioned(
+      bottom: 152,
+      right: 16,
+      child: FloatingActionButton.small(
+        heroTag: 'nearbyList',
+        tooltip: 'List',
+        onPressed: onPressed,
+        backgroundColor: colorScheme.surface,
+        elevation: 2,
+        child: Icon(Icons.list_alt_outlined, color: colorScheme.primary),
+      ),
     );
   }
 }

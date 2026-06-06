@@ -73,6 +73,11 @@ flutter analyze
 flutter test
 ```
 
+## Git Workflow
+
+- When addressing a GitHub Issue, create a dedicated working branch before editing. Use `codex/issue-<number>-<short-slug>` unless the user asks for a different branch name.
+- Keep Issue-related changes scoped to that branch and avoid mixing unrelated work into the same change set.
+
 ## Environment Variables (injected via --dart-define)
 
 | Key | Description | Default |

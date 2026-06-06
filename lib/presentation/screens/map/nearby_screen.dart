@@ -13,43 +13,62 @@ class NearbyScreen extends StatefulWidget {
 class _NearbyScreenState extends State<NearbyScreen> {
   var _showList = false;
 
+  void _showMap() => setState(() => _showList = false);
+
+  void _showNearbyList() => setState(() => _showList = true);
+
   @override
   Widget build(BuildContext context) {
-    if (_showList) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Nearby Notes'),
-          actions: [
-            IconButton(
-              tooltip: 'Map',
-              icon: const Icon(Icons.map_outlined),
-              onPressed: () => setState(() => _showList = false),
-            ),
-          ],
-        ),
-        body: const PlaceListScreen(embedded: true),
-      );
-    }
-
-    return Stack(
-      children: [
-        const MapScreen(),
-        Positioned(
-          top: MediaQuery.paddingOf(context).top + 12,
-          left: 12,
-          child: Material(
-            elevation: 2,
-            color: Theme.of(context).colorScheme.surface,
-            borderRadius: BorderRadius.circular(24),
-            child: IconButton(
-              tooltip: 'List',
-              icon: const Icon(Icons.list_alt_outlined),
-              color: Theme.of(context).colorScheme.primary,
-              onPressed: () => setState(() => _showList = true),
-            ),
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 260),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      transitionBuilder: (child, animation) {
+        final isList = child.key == const ValueKey('nearby-list');
+        final offset = isList ? const Offset(1, 0) : const Offset(-1, 0);
+        return SlideTransition(
+          position: Tween<Offset>(begin: offset, end: Offset.zero).animate(
+            CurvedAnimation(parent: animation, curve: Curves.easeInOutCubic),
           ),
+          child: child,
+        );
+      },
+      child: _showList
+          ? _NearbyList(onShowMap: _showMap)
+          : _MapEntry(onShowList: _showNearbyList),
+    );
+  }
+}
+
+class _MapEntry extends StatelessWidget {
+  final VoidCallback onShowList;
+
+  const _MapEntry({required this.onShowList});
+
+  @override
+  Widget build(BuildContext context) {
+    return MapScreen(key: const ValueKey('nearby-map'), onShowList: onShowList);
+  }
+}
+
+class _NearbyList extends StatelessWidget {
+  final VoidCallback onShowMap;
+
+  const _NearbyList({required this.onShowMap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      key: const ValueKey('nearby-list'),
+      appBar: AppBar(
+        leading: IconButton(
+          tooltip: 'Map',
+          icon: const Icon(Icons.map_outlined),
+          onPressed: onShowMap,
         ),
-      ],
+        title: const Text('Nearby Notes'),
+      ),
+      body: const PlaceListScreen(embedded: true),
     );
   }
 }
