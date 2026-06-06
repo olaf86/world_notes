@@ -11,31 +11,41 @@ class NearbyScreen extends StatefulWidget {
 }
 
 class _NearbyScreenState extends State<NearbyScreen> {
-  var _showList = false;
+  late final PageController _pageController;
 
-  void _showMap() => setState(() => _showList = false);
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
 
-  void _showNearbyList() => setState(() => _showList = true);
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _showMap() => _animateToPage(0);
+
+  Future<void> _showNearbyList() => _animateToPage(1);
+
+  Future<void> _animateToPage(int page) {
+    return _pageController.animateToPage(
+      page,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 260),
-      switchInCurve: Curves.easeOutCubic,
-      switchOutCurve: Curves.easeInCubic,
-      transitionBuilder: (child, animation) {
-        final isList = child.key == const ValueKey('nearby-list');
-        final offset = isList ? const Offset(1, 0) : const Offset(-1, 0);
-        return SlideTransition(
-          position: Tween<Offset>(begin: offset, end: Offset.zero).animate(
-            CurvedAnimation(parent: animation, curve: Curves.easeInOutCubic),
-          ),
-          child: child,
-        );
-      },
-      child: _showList
-          ? _NearbyList(onShowMap: _showMap)
-          : _MapEntry(onShowList: _showNearbyList),
+    return PageView(
+      controller: _pageController,
+      physics: const NeverScrollableScrollPhysics(),
+      children: [
+        _MapEntry(onShowList: _showNearbyList),
+        _NearbyList(onShowMap: _showMap),
+      ],
     );
   }
 }
@@ -47,7 +57,7 @@ class _MapEntry extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MapScreen(key: const ValueKey('nearby-map'), onShowList: onShowList);
+    return MapScreen(onShowList: onShowList);
   }
 }
 
@@ -59,7 +69,6 @@ class _NearbyList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      key: const ValueKey('nearby-list'),
       appBar: AppBar(
         leading: IconButton(
           tooltip: 'Map',
