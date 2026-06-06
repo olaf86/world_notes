@@ -8,7 +8,7 @@ A location-based diary app built with Flutter. Drop notes on a map, revisit them
 - Drop notes at any location with a title, content, and color
 - Message board at each note — visible to anyone who visits the spot
 - Google Sign-In via Firebase Auth
-- Premium subscription (ad-free + unlimited notes) via RevenueCat
+- World Notes PRO subscription (ad-free + 200 active notes) via RevenueCat
 - Banner ads for free-tier users via Google Mobile Ads
 
 ## Tech Stack
@@ -92,6 +92,21 @@ lib/
 ```
 
 See [CLAUDE.md](CLAUDE.md) for full architecture details.
+
+## RevenueCat Products
+
+World Notes PRO uses the `pro` entitlement.
+
+| Product | ID | Price |
+|---------|----|-------|
+| Monthly | `world_notes_pro_monthly` | ¥300/month (about $2/month) |
+| Yearly | `world_notes_pro_yearly` | ¥2,980/year (about $20/year) |
+
+Launch offer:
+
+| Offer | Product | Price |
+|-------|---------|-------|
+| Introductory first year | `world_notes_pro_yearly` | ¥1,980 for the first year, then ¥2,980/year |
 
 ## License
 

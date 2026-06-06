@@ -591,7 +591,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                     if (!isPremium)
                       IconButton(
                         icon: const Icon(Icons.star_outline),
-                        tooltip: 'Go Premium',
+                        tooltip: 'Go PRO',
                         onPressed: () => context.push('/subscription'),
                       ),
                     // Owner-only thread controls.

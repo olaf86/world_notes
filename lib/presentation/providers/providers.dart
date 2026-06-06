@@ -184,7 +184,7 @@ final noteMembersProvider =
 /// premium status. Used to gate note creation client-side.
 final noteLimitProvider = Provider<int>((ref) {
   final isPremium = ref.watch(isPremiumProvider).valueOrNull ?? false;
-  return isPremium ? AppConfig.premiumNoteLimit : AppConfig.freeNoteLimit;
+  return isPremium ? AppConfig.proNoteLimit : AppConfig.freeNoteLimit;
 });
 
 // --- Messages ---
@@ -196,7 +196,7 @@ final messagesProvider = StreamProvider.family<List<MessageEntity>, String>((
   return ref.watch(messageRepositoryProvider).watchMessages(placeId);
 });
 
-// --- Premium ---
+// --- PRO subscription ---
 
 // StreamProvider so the UI reacts instantly after a purchase or restore,
 // without requiring an app restart.

@@ -68,7 +68,7 @@ service cloud.firestore {
       // `createNote` Cloud Function (Admin SDK, which bypasses these rules),
       // which enforces the per-user note cap in a transaction and computes the
       // geohash server-side. This closes the bypass where a direct write could
-      // exceed the free (3) / premium (10) cap.
+      // exceed the configured free / premium cap.
       allow create: if false;
 
       // Owner writability changes (close / re-open).

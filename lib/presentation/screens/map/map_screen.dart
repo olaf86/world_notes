@@ -93,7 +93,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     // form when the user is already at their cap, so they don't fill it out
     // just to be rejected. This is NOT the source of truth and is bypassable
     // by a direct Firestore write: rules can't aggregate a per-user count.
-    // Authoritative enforcement of the free (3) / premium (10) cap moves to a
+    // Authoritative enforcement of the free / premium cap lives in the
     // `createNote` Cloud Function in Phase 3, which counts and creates inside
     // a transaction (rules will then deny direct client place creation).
     final limit = ref.read(noteLimitProvider);
@@ -125,7 +125,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
               ? 'You\'ve reached the maximum of $limit active notes. '
                     'Archive or let an existing note expire to create a new one.'
               : 'Free accounts can keep $limit active notes. '
-                    'Upgrade to Premium for up to ${AppConfig.premiumNoteLimit}, '
+                    'Upgrade to PRO for up to ${AppConfig.proNoteLimit}, '
                     'or let an existing note expire to free up a slot.',
         ),
         actions: [
@@ -139,7 +139,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 Navigator.pop(ctx);
                 context.push('/subscription');
               },
-              child: const Text('Go Premium'),
+              child: const Text('Go PRO'),
             ),
         ],
       ),

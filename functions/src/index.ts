@@ -132,7 +132,7 @@ export const createNote = onCall<CreateNoteData>(
           isPremium ?
             `You've reached the maximum of ${limit} active notes.` :
             `Free accounts can keep ${limit} active notes. ` +
-              "Upgrade to Premium for more.",
+              "Upgrade to PRO for more.",
           {limit, isPremium},
         );
       }

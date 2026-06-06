@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 
+import '../../../config/app_config.dart';
 import '../../../services/subscription_service.dart';
 import '../../providers/providers.dart';
 
@@ -56,17 +57,15 @@ class ProfileScreen extends ConsumerWidget {
                     Text(
                       user.name,
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     if (user.email != null)
                       Text(
                         user.email!,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
-                            ),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     const SizedBox(height: 8),
                     isPremiumAsync.when(
@@ -76,11 +75,11 @@ class ProfileScreen extends ConsumerWidget {
                           ? Column(
                               children: [
                                 Chip(
-                                  label: const Text('Premium'),
+                                  label: const Text('PRO'),
                                   avatar: const Icon(Icons.star, size: 16),
-                                  backgroundColor: Theme.of(context)
-                                      .colorScheme
-                                      .primaryContainer,
+                                  backgroundColor: Theme.of(
+                                    context,
+                                  ).colorScheme.primaryContainer,
                                 ),
                                 if (SubscriptionService.isConfigured)
                                   TextButton(
@@ -93,7 +92,7 @@ class ProfileScreen extends ConsumerWidget {
                           : OutlinedButton.icon(
                               onPressed: () => context.push('/subscription'),
                               icon: const Icon(Icons.star_outline),
-                              label: const Text('Upgrade to Premium'),
+                              label: const Text('Upgrade to PRO'),
                             ),
                     ),
                   ],
@@ -103,8 +102,10 @@ class ProfileScreen extends ConsumerWidget {
               const Divider(),
               ListTile(
                 leading: const Icon(Icons.star_outline),
-                title: const Text('Premium Plan'),
-                subtitle: const Text('Remove ads & unlock features'),
+                title: const Text(AppConfig.proPlanName),
+                subtitle: const Text(
+                  'Remove ads, keep 200 notes, and unlock PRO features',
+                ),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => context.push('/subscription'),
               ),
@@ -130,9 +131,7 @@ class ProfileScreen extends ConsumerWidget {
                 ),
                 onTap: () async {
                   await ref.read(authRepositoryProvider).signOut();
-                  await ref
-                      .read(subscriptionServiceProvider)
-                      .logOut();
+                  await ref.read(subscriptionServiceProvider).logOut();
                 },
               ),
             ],

@@ -26,7 +26,7 @@ class SubscriptionService {
     if (!_configured) return false;
     try {
       final info = await Purchases.getCustomerInfo();
-      return info.entitlements.active.containsKey(AppConfig.premiumEntitlementId);
+      return info.entitlements.active.containsKey(AppConfig.proEntitlementId);
     } catch (_) {
       return false;
     }
@@ -43,7 +43,7 @@ class SubscriptionService {
     void listener(CustomerInfo info) {
       if (!controller.isClosed) {
         controller.add(
-          info.entitlements.active.containsKey(AppConfig.premiumEntitlementId),
+          info.entitlements.active.containsKey(AppConfig.proEntitlementId),
         );
       }
     }
@@ -81,11 +81,10 @@ class SubscriptionService {
   Future<bool> purchase(Package package) async {
     if (!_configured) return false;
     try {
-      final result = await Purchases.purchase(
-        PurchaseParams.package(package),
+      final result = await Purchases.purchase(PurchaseParams.package(package));
+      return result.customerInfo.entitlements.active.containsKey(
+        AppConfig.proEntitlementId,
       );
-      return result.customerInfo.entitlements.active
-          .containsKey(AppConfig.premiumEntitlementId);
     } catch (_) {
       return false;
     }
@@ -95,7 +94,7 @@ class SubscriptionService {
     if (!_configured) return false;
     try {
       final info = await Purchases.restorePurchases();
-      return info.entitlements.active.containsKey(AppConfig.premiumEntitlementId);
+      return info.entitlements.active.containsKey(AppConfig.proEntitlementId);
     } catch (_) {
       return false;
     }

@@ -2,8 +2,8 @@
  * Server-side mirror of the client's AppConfig constraints.
  * Keep these in sync with lib/config/app_config.dart.
  */
-export const FREE_NOTE_LIMIT = 3;
-export const PREMIUM_NOTE_LIMIT = 10;
+export const FREE_NOTE_LIMIT = 20;
+export const PREMIUM_NOTE_LIMIT = 200;
 
 /** Maximum messages per thread (must match AppConfig.maxMessagesPerThread). */
 export const MAX_MESSAGES_PER_THREAD = 1000;

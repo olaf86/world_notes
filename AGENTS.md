@@ -147,9 +147,11 @@ Add to `ios/Runner/Info.plist`:
 
 ## RevenueCat Product IDs
 
-- Monthly: `world_notes_premium_monthly`
-- Yearly: `world_notes_premium_yearly`
-- Entitlement ID: `premium`
+- Plan name: `World Notes PRO`
+- Monthly: `world_notes_pro_monthly` (¥300/month)
+- Yearly: `world_notes_pro_yearly` (¥2,980/year)
+- Launch introductory offer: yearly first year ¥1,980, then ¥2,980/year
+- Entitlement ID: `pro`
 
 ## Remaining Setup
 

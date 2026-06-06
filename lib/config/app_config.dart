@@ -39,10 +39,15 @@ class AppConfig {
     defaultValue: '',
   );
 
-  static const String premiumEntitlementId = 'WorldNotes Premium';
-  static const String premiumMonthlyProductId = 'monthly';
-  static const String premiumYearlyProductId = 'yearly';
-  static const String premiumLifetimeProductId = 'lifetime';
+  static const String proPlanName = 'World Notes PRO';
+  static const String proEntitlementId = 'pro';
+  static const String proMonthlyProductId = 'world_notes_pro_monthly';
+  static const String proYearlyProductId = 'world_notes_pro_yearly';
+  static const String proMonthlyPriceLabel = '¥300';
+  static const String proYearlyPriceLabel = '¥2,980';
+  static const String proYearlyLaunchPriceLabel = '¥1,980';
+  static const String proMonthlyUsdPriceLabel = '\$2';
+  static const String proYearlyUsdPriceLabel = '\$20';
 
   // Message pagination
   static const int messagesPageSize = 20;
@@ -57,10 +62,10 @@ class AppConfig {
   static const int maxMessageLength = 2000;
 
   /// Maximum active notes a free user may own simultaneously.
-  static const int freeNoteLimit = 3;
+  static const int freeNoteLimit = 20;
 
-  /// Maximum active notes a premium user may own simultaneously.
-  static const int premiumNoteLimit = 10;
+  /// Maximum active notes a PRO user may own simultaneously.
+  static const int proNoteLimit = 200;
 
   /// Maximum image size (bytes) accepted for upload.
   static const int maxImageBytes = 5 * 1024 * 1024; // 5 MB
