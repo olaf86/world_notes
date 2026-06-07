@@ -61,6 +61,7 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
     auth: ref.watch(firebaseAuthProvider),
     googleSignIn: GoogleSignIn(),
     firestore: ref.watch(firestoreProvider),
+    functions: ref.watch(firebaseFunctionsProvider),
     subscriptionService: ref.watch(subscriptionServiceProvider),
   );
 });

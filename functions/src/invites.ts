@@ -101,6 +101,7 @@ export const claimInvite = onCall<{token?: unknown}>(
     batch.set(
       memberRef,
       {
+        userId: uid,
         invited: true,
         grantedAt: FieldValue.serverTimestamp(),
         displayName: profile.displayName,

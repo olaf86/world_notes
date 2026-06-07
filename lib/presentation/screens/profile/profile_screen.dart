@@ -11,6 +11,78 @@ import '../../providers/providers.dart';
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
+  Future<void> _editNickname(
+    BuildContext context,
+    WidgetRef ref,
+    String currentName,
+  ) async {
+    final controller = TextEditingController(text: currentName);
+    var saving = false;
+
+    final nextName = await showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Edit nickname'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            enabled: !saving,
+            maxLength: 100,
+            textInputAction: TextInputAction.done,
+            decoration: const InputDecoration(labelText: 'Nickname'),
+            onSubmitted: (_) async {
+              final value = controller.text.trim();
+              if (value.isEmpty) return;
+              setDialogState(() => saving = true);
+              Navigator.pop(ctx, value);
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: saving ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: saving
+                  ? null
+                  : () {
+                      final value = controller.text.trim();
+                      if (value.isEmpty) return;
+                      setDialogState(() => saving = true);
+                      Navigator.pop(ctx, value);
+                    },
+              child: saving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+
+    if (nextName == null || nextName == currentName) return;
+
+    try {
+      await ref.read(authRepositoryProvider).updateDisplayName(nextName);
+      ref.invalidate(authStateProvider);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Nickname updated.')));
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to update nickname: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final userAsync = ref.watch(authStateProvider);
@@ -59,6 +131,11 @@ class ProfileScreen extends ConsumerWidget {
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
+                    ),
+                    TextButton.icon(
+                      onPressed: () => _editNickname(context, ref, user.name),
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      label: const Text('Edit nickname'),
                     ),
                     if (user.email != null)
                       Text(

@@ -36,6 +36,10 @@ export {
   revokeNoteAccess,
 } from "./invites";
 
+// User profile updates. Nickname changes keep future posts using the new name
+// and refresh note access-list member labels.
+export {updateDisplayName} from "./userProfile";
+
 // Short-lived write sessions required by Firestore Rules before direct
 // message creation. Region set in its own options.
 export {createWriteSession} from "./writeSessions";

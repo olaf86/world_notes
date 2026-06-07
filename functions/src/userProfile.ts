@@ -1,4 +1,8 @@
-import {getFirestore} from "firebase-admin/firestore";
+import {getAuth} from "firebase-admin/auth";
+import {getFirestore, FieldValue} from "firebase-admin/firestore";
+import {onCall, HttpsError} from "firebase-functions/v2/https";
+
+import {REGION} from "./constants";
 
 /**
  * Returns the app profile fields shown in a note's member list.
@@ -33,3 +37,73 @@ function stringOrNull(value: unknown): string | null {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
 }
+
+/**
+ * Updates the caller's nickname and refreshes access-list display names.
+ */
+export const updateDisplayName = onCall<{displayName?: unknown}>(
+  {enforceAppCheck: true, region: REGION},
+  async (req) => {
+    const uid = req.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+
+    const rawDisplayName = req.data?.displayName;
+    if (typeof rawDisplayName !== "string") {
+      throw new HttpsError("invalid-argument", "displayName is required.");
+    }
+
+    const displayName = rawDisplayName.trim();
+    if (displayName.length === 0 || displayName.length > 100) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Nickname must be 1-100 characters.",
+      );
+    }
+
+    const db = getFirestore();
+    await Promise.all([
+      db.collection("users").doc(uid).set(
+        {
+          displayName,
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        {merge: true},
+      ),
+      getAuth().updateUser(uid, {displayName}),
+    ]);
+
+    const membersByUserId = await db
+      .collectionGroup("members")
+      .where("userId", "==", uid)
+      .get();
+    const memberDocs = [...membersByUserId.docs];
+    const email = stringOrNull(req.auth?.token.email);
+    if (email != null) {
+      const legacyMembersByEmail = await db
+        .collectionGroup("members")
+        .where("email", "==", email)
+        .get();
+      for (const doc of legacyMembersByEmail.docs) {
+        const alreadyKnown = memberDocs.some((known) =>
+          known.ref.isEqual(doc.ref),
+        );
+        if (doc.id === uid && !alreadyKnown) {
+          memberDocs.push(doc);
+        }
+      }
+    }
+
+    for (let i = 0; i < memberDocs.length; i += 450) {
+      const batch = db.batch();
+      for (const doc of memberDocs.slice(i, i + 450)) {
+        batch.update(doc.ref, {userId: uid, displayName});
+      }
+      await batch.commit();
+    }
+
+    return {
+      displayName,
+      updatedMemberCount: memberDocs.length,
+    };
+  },
+);

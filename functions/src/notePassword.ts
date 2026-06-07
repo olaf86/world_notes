@@ -221,6 +221,7 @@ export const unlockNote = onCall<{placeId?: unknown; password?: unknown}>(
 
     const batch = db.batch();
     batch.set(placeRef.collection("members").doc(uid), {
+      userId: uid,
       viaPasswordVersion: authSnap.get("passwordVersion") as number,
       grantedAt: FieldValue.serverTimestamp(),
       displayName: profile.displayName,
