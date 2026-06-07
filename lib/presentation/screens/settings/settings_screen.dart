@@ -10,7 +10,11 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentStyle = ref.watch(mapStyleProvider);
+    final usesAppleMaps = MapStyle.usesAppleMaps;
+    final styles = MapStyle.availableForCurrentPlatform;
+    final currentStyle = ref
+        .watch(mapStyleProvider)
+        .effectiveForCurrentPlatform;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -19,14 +23,15 @@ class SettingsScreen extends ConsumerWidget {
         children: [
           Text(
             'Map Style',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
-          ...MapStyle.values.map(
+          ...styles.map(
             (style) => _MapStyleTile(
               style: style,
+              usesAppleMaps: usesAppleMaps,
               isSelected: style == currentStyle,
               onTap: () => ref.read(mapStyleProvider.notifier).setStyle(style),
             ),
@@ -104,11 +109,13 @@ class _RegionSection extends ConsumerWidget {
 
 class _MapStyleTile extends StatelessWidget {
   final MapStyle style;
+  final bool usesAppleMaps;
   final bool isSelected;
   final VoidCallback onTap;
 
   const _MapStyleTile({
     required this.style,
+    required this.usesAppleMaps,
     required this.isSelected,
     required this.onTap,
   });
@@ -160,20 +167,18 @@ class _MapStyleTile extends StatelessWidget {
                         Icon(style.icon, size: 18, color: colorScheme.primary),
                         const SizedBox(width: 6),
                         Text(
-                          style.label,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleSmall
+                          style.label(usesAppleMaps: usesAppleMaps),
+                          style: Theme.of(context).textTheme.titleSmall
                               ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      style.description,
+                      style.description(usesAppleMaps: usesAppleMaps),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
+                        color: colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
@@ -182,8 +187,10 @@ class _MapStyleTile extends StatelessWidget {
                 padding: const EdgeInsets.only(right: 12),
                 child: isSelected
                     ? Icon(Icons.check_circle, color: colorScheme.primary)
-                    : Icon(Icons.circle_outlined,
-                        color: colorScheme.outlineVariant),
+                    : Icon(
+                        Icons.circle_outlined,
+                        color: colorScheme.outlineVariant,
+                      ),
               ),
             ],
           ),
@@ -200,9 +207,7 @@ class _StylePreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: _PreviewPainter(style),
-    );
+    return CustomPaint(painter: _PreviewPainter(style));
   }
 }
 
@@ -220,6 +225,7 @@ class _PreviewPainter extends CustomPainter {
 
     // Simulated road stripes
     final roadColor = switch (style) {
+      MapStyle.auto => const Color(0xFFFFFFFF),
       MapStyle.standard => const Color(0xFFFFFFFF),
       MapStyle.dark => const Color(0xFF4A4A5E),
       MapStyle.pop => const Color(0xFFFFFFFF),
@@ -242,6 +248,7 @@ class _PreviewPainter extends CustomPainter {
 
     // Simulated water patch
     final waterColor = switch (style) {
+      MapStyle.auto => const Color(0xFFA9D2EA),
       MapStyle.standard => const Color(0xFFBFD8E8),
       MapStyle.dark => const Color(0xFF1A3040),
       MapStyle.pop => const Color(0xFF90CAF9),
@@ -257,6 +264,7 @@ class _PreviewPainter extends CustomPainter {
 
     // Pin dot
     final pinColor = switch (style) {
+      MapStyle.auto => const Color(0xFFE53935),
       MapStyle.standard => const Color(0xFFE53935),
       MapStyle.dark => const Color(0xFFEF9A9A),
       MapStyle.pop => const Color(0xFFE53935),

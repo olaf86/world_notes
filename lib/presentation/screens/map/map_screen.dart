@@ -166,7 +166,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
     if (_mapAdapter.supportsMapStyle) {
       ref.listen<MapStyle>(mapStyleProvider, (_, next) {
-        _mapAdapter.changeStyle(next, AppConfig.stadiaApiKey);
+        _mapAdapter.changeStyle(
+          next.effectiveForCurrentPlatform,
+          AppConfig.stadiaApiKey,
+        );
       });
     }
 
@@ -218,7 +221,7 @@ class _MapView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final mapStyle = ref.watch(mapStyleProvider);
+    final mapStyle = ref.watch(mapStyleProvider).effectiveForCurrentPlatform;
     final styleUrl = mapStyle.styleUrl(AppConfig.stadiaApiKey);
     final colorScheme = Theme.of(context).colorScheme;
 

@@ -129,6 +129,7 @@ class AppleNoteMapController implements NoteMapAdapter {
 
   apple.MapAppearanceMode _appearanceModeFor(MapStyle style) {
     return switch (style) {
+      MapStyle.auto => apple.MapAppearanceMode.unspecified,
       MapStyle.dark => apple.MapAppearanceMode.dark,
       MapStyle.standard || MapStyle.pop => apple.MapAppearanceMode.light,
     };
