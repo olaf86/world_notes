@@ -2,9 +2,25 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../config/app_config.dart';
 import '../../providers/providers.dart';
+
+enum _PublicationPreset {
+  now('Now', null),
+  in15Minutes('15 minutes', Duration(minutes: 15)),
+  in30Minutes('30 minutes', Duration(minutes: 30)),
+  in1Hour('1 hour', Duration(hours: 1)),
+  in3Hours('3 hours', Duration(hours: 3)),
+  tomorrow('Tomorrow', Duration(hours: 24)),
+  custom('Custom', null);
+
+  final String label;
+  final Duration? delay;
+
+  const _PublicationPreset(this.label, this.delay);
+}
 
 class NoteCreationScreen extends ConsumerStatefulWidget {
   final double latitude;
@@ -31,17 +47,19 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
   // — a balanced lifetime that keeps the map from filling with stale notes
   // while not feeling aggressively short.
   int _expiryDays = AppConfig.defaultNoteExpiryDays;
+  _PublicationPreset _publicationPreset = _PublicationPreset.now;
+  DateTime? _customPublishAt;
   bool _loading = false;
 
   /// Human-readable label for an expiry preset (in days).
   static String _expiryLabel(int days) => switch (days) {
-        7 => '1 week',
-        30 => '1 month',
-        90 => '3 months',
-        180 => '6 months',
-        365 => '1 year',
-        _ => '$days days',
-      };
+    7 => '1 week',
+    30 => '1 month',
+    90 => '3 months',
+    180 => '6 months',
+    365 => '1 year',
+    _ => '$days days',
+  };
 
   static const _colors = [
     Colors.green,
@@ -64,6 +82,63 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
     ('music', Icons.music_note),
   ];
 
+  DateTime _defaultCustomPublishAt() {
+    final now = DateTime.now();
+    return DateTime(
+      now.year,
+      now.month,
+      now.day,
+      now.hour,
+      now.minute,
+    ).add(const Duration(hours: 1));
+  }
+
+  DateTime? _publishAtForCreate() {
+    if (_publicationPreset == _PublicationPreset.now) return null;
+    if (_publicationPreset == _PublicationPreset.custom) {
+      return _customPublishAt ?? _defaultCustomPublishAt();
+    }
+    final delay = _publicationPreset.delay;
+    return delay == null ? null : DateTime.now().add(delay);
+  }
+
+  String _publicationLabel(DateTime value) {
+    return DateFormat('MMM d, yyyy HH:mm').format(value.toLocal());
+  }
+
+  Future<void> _pickPublicationTime() async {
+    final initial = _customPublishAt ?? _defaultCustomPublishAt();
+    final now = DateTime.now();
+    final date = await showDatePicker(
+      context: context,
+      initialDate: initial.isBefore(now) ? now : initial,
+      firstDate: DateTime(now.year, now.month, now.day),
+      lastDate: now.add(const Duration(days: AppConfig.maxNoteLifetimeDays)),
+    );
+    if (date == null || !mounted) return;
+
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initial),
+    );
+    if (time == null || !mounted) return;
+
+    var selected = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      time.hour,
+      time.minute,
+    );
+    if (selected.isBefore(now)) {
+      selected = now.add(const Duration(minutes: 1));
+    }
+    setState(() {
+      _publicationPreset = _PublicationPreset.custom;
+      _customPublishAt = selected;
+    });
+  }
+
   @override
   void dispose() {
     _titleController.dispose();
@@ -80,13 +155,24 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
       if (user == null) throw Exception('Not signed in');
 
       // Flutter 3.27+: Color.r/g/b return double (0.0–1.0), multiply by 255.
-      final r = (_selectedColor.r * 255).round().toRadixString(16).padLeft(2, '0');
-      final g = (_selectedColor.g * 255).round().toRadixString(16).padLeft(2, '0');
-      final b = (_selectedColor.b * 255).round().toRadixString(16).padLeft(2, '0');
+      final r = (_selectedColor.r * 255)
+          .round()
+          .toRadixString(16)
+          .padLeft(2, '0');
+      final g = (_selectedColor.g * 255)
+          .round()
+          .toRadixString(16)
+          .padLeft(2, '0');
+      final b = (_selectedColor.b * 255)
+          .round()
+          .toRadixString(16)
+          .padLeft(2, '0');
       final colorHex = '#$r$g$b'.toUpperCase();
 
       final title = _titleController.text.trim();
-      final placeId = await ref.read(placeRepositoryProvider).createNote(
+      final placeId = await ref
+          .read(placeRepositoryProvider)
+          .createNote(
             latitude: widget.latitude,
             longitude: widget.longitude,
             title: title,
@@ -96,6 +182,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
             colorHex: colorHex,
             icon: _selectedIcon,
             expiryDays: _expiryDays,
+            publishAt: _publishAtForCreate(),
           );
 
       if (mounted) {
@@ -110,21 +197,20 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
       final message = switch (e.code) {
         'unavailable' || 'deadline-exceeded' =>
           'Couldn\'t reach the server. Check your internet connection and try again.',
-        'resource-exhausted' =>
-          e.message ?? 'You\'ve reached your note limit.',
+        'resource-exhausted' => e.message ?? 'You\'ve reached your note limit.',
         'unauthenticated' => 'Please sign in again to create a note.',
         _ => e.message ?? 'Could not create the note. Please try again.',
       };
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -159,10 +245,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
               maxLines: 3,
             ),
             const SizedBox(height: 24),
-            Text(
-              'Color',
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
+            Text('Color', style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 8),
             Wrap(
               spacing: 12,
@@ -192,10 +275,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
               }).toList(),
             ),
             const SizedBox(height: 24),
-            Text(
-              'Icon',
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
+            Text('Icon', style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 8),
             Wrap(
               spacing: 12,
@@ -211,7 +291,9 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
                     decoration: BoxDecoration(
                       color: isSelected
                           ? _selectedColor
-                          : Theme.of(context).colorScheme.surfaceContainerHighest,
+                          : Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
@@ -225,6 +307,39 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
               }).toList(),
             ),
             const SizedBox(height: 24),
+            Text('Publish', style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _PublicationPreset.values.map((preset) {
+                return ChoiceChip(
+                  label: Text(preset.label),
+                  selected: _publicationPreset == preset,
+                  onSelected: (_) {
+                    setState(() {
+                      _publicationPreset = preset;
+                      if (preset == _PublicationPreset.custom) {
+                        _customPublishAt ??= _defaultCustomPublishAt();
+                      }
+                    });
+                  },
+                );
+              }).toList(),
+            ),
+            if (_publicationPreset == _PublicationPreset.custom) ...[
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _pickPublicationTime,
+                icon: const Icon(Icons.event_outlined),
+                label: Text(
+                  _publicationLabel(
+                    _customPublishAt ?? _defaultCustomPublishAt(),
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 24),
             Text(
               'Auto-close after',
               style: Theme.of(context).textTheme.titleSmall,
@@ -232,10 +347,10 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
             const SizedBox(height: 4),
             Text(
               'The note stops accepting messages and is archived when this '
-              'period ends.',
+              'period after publication ends.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 8),
             Wrap(

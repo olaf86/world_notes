@@ -10,9 +10,7 @@ import '../../domain/entities/place_entity.dart'
 import '../../domain/repositories/place_repository.dart';
 import '../models/place_model.dart';
 
-// Required Firestore composite index:
-//   Collection: places
-//   Fields: geohash ASC, lastMessageAt DESC
+// Required Firestore composite indexes are declared in firestore.indexes.json.
 class PlaceRepositoryImpl implements PlaceRepository {
   final FirebaseFirestore _firestore;
   final FirebaseFunctions _functions;
@@ -25,21 +23,41 @@ class PlaceRepositoryImpl implements PlaceRepository {
 
   CollectionReference get _places => _firestore.collection('places');
 
-  /// Returns a query for one geohash cell ordered by most-recently-active.
+  /// Returns a query for one geohash cell.
   ///
-  /// At precision 6, stored geohashes are exactly 6 chars, so
-  /// `isEqualTo: prefix` is equivalent to the old range query — but allows
-  /// a secondary orderBy without the "first orderBy must match range field"
-  /// restriction. Required composite index: (geohash ASC, lastMessageAt DESC).
-  Query _cellQuery(String prefix) => _places
-      .where('geohash', isEqualTo: prefix)
-      .orderBy('lastMessageAt', descending: true)
-      .limit(AppConfig.placesPerCellLimit);
+  /// Public discovery is gated by:
+  ///   * a short-lived coarse discovery grant (discoveryGeohash),
+  ///   * publication window (publishAt/expiresAt),
+  ///   * archive state,
+  ///   * per-query result limit.
+  Query _cellQuery(String prefix, DateTime now) {
+    // Firestore Rules compare against request.time, which is a little later
+    // than the server time returned by the grant function. These buffers make
+    // the query provably narrower than the rule window instead of occasionally
+    // failing with permission-denied because of milliseconds of drift.
+    final publishCutoff = now.subtract(const Duration(seconds: 5));
+    final expiresCutoff = now.add(const Duration(seconds: 30));
+
+    return _places
+        .where('geohash', isEqualTo: prefix)
+        .where(
+          'discoveryGeohash',
+          isEqualTo: prefix.substring(0, AppConfig.discoveryGeohashPrecision),
+        )
+        .where('isArchived', isEqualTo: false)
+        .where(
+          'publishAt',
+          isLessThanOrEqualTo: Timestamp.fromDate(publishCutoff),
+        )
+        .where('expiresAt', isGreaterThan: Timestamp.fromDate(expiresCutoff))
+        .limit(AppConfig.placesPerCellLimit);
+  }
 
   @override
   Future<List<PlaceEntity>> getPlacesNearby({
     required double latitude,
     required double longitude,
+    required DateTime now,
   }) async {
     final prefixes = getGeohashPrefixes(
       latitude,
@@ -48,25 +66,29 @@ class PlaceRepositoryImpl implements PlaceRepository {
     );
 
     final results = await Future.wait(
-      prefixes.map((prefix) => _cellQuery(prefix).get()),
+      prefixes.map((prefix) => _cellQuery(prefix, now).get()),
     );
-    return _collectVisible(results);
+    return _collectVisible(results, now);
   }
 
   /// Dedups documents across overlapping geohash cells and drops notes that
-  /// should not appear in proximity search: archived (server-set) and expired
-  /// (client-side gate until the archive Cloud Function runs).
-  List<PlaceEntity> _collectVisible(List<QuerySnapshot> results) {
+  /// should not appear in proximity search.
+  List<PlaceEntity> _collectVisible(List<QuerySnapshot> results, DateTime now) {
     final seen = <String>{};
     final places = <PlaceEntity>[];
     for (final snap in results) {
       for (final doc in snap.docs) {
         if (!seen.add(doc.id)) continue;
         final place = PlaceModel.fromFirestore(doc).toEntity();
-        if (place.isArchived || place.isExpired) continue;
+        if (!place.isDiscoverableAt(now)) continue;
         places.add(place);
       }
     }
+    places.sort((a, b) {
+      final aTime = a.lastMessageAt ?? a.createdAt;
+      final bTime = b.lastMessageAt ?? b.createdAt;
+      return bTime.compareTo(aTime);
+    });
     return places;
   }
 
@@ -74,6 +96,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
   Stream<List<PlaceEntity>> watchPlacesNearby({
     required double latitude,
     required double longitude,
+    required DateTime now,
   }) {
     final prefixes = getGeohashPrefixes(
       latitude,
@@ -87,14 +110,14 @@ class PlaceRepositoryImpl implements PlaceRepository {
 
     void emitIfReady() {
       if (latest.any((snap) => snap == null)) return;
-      controller.add(_collectVisible(latest.cast<QuerySnapshot>()));
+      controller.add(_collectVisible(latest.cast<QuerySnapshot>(), now));
     }
 
     controller = StreamController<List<PlaceEntity>>(
       onListen: () {
         for (var i = 0; i < prefixes.length; i++) {
           subscriptions.add(
-            _cellQuery(prefixes[i]).snapshots().listen((snap) {
+            _cellQuery(prefixes[i], now).snapshots().listen((snap) {
               latest[i] = snap;
               emitIfReady();
             }, onError: controller.addError),
@@ -110,6 +133,28 @@ class PlaceRepositoryImpl implements PlaceRepository {
   }
 
   @override
+  Future<DiscoveryGrant> ensureDiscoveryGrant({
+    required double latitude,
+    required double longitude,
+  }) async {
+    final result = await _functions
+        .httpsCallable('ensureDiscoveryGrant')
+        .call<Map<String, dynamic>>({
+          'latitude': latitude,
+          'longitude': longitude,
+        });
+    final data = result.data;
+    final expiresAtMillis = data['expiresAtMillis'] as int;
+    return DiscoveryGrant(
+      discoveryGeohashes: (data['discoveryGeohashes'] as List<dynamic>)
+          .whereType<String>()
+          .toList(),
+      expiresAt: DateTime.fromMillisecondsSinceEpoch(expiresAtMillis),
+      serverNowMillis: data['serverNowMillis'] as int,
+    );
+  }
+
+  @override
   Future<String> createNote({
     required double latitude,
     required double longitude,
@@ -118,6 +163,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
     required String colorHex,
     required String icon,
     required int expiryDays,
+    DateTime? publishAt,
     PlaceVisibility visibility = PlaceVisibility.public,
   }) async {
     // All creation goes through the Cloud Function: it enforces the per-user
@@ -132,6 +178,8 @@ class PlaceRepositoryImpl implements PlaceRepository {
       'colorHex': colorHex,
       'icon': icon,
       'expiryDays': expiryDays,
+      if (publishAt != null)
+        'publishAtMillis': publishAt.millisecondsSinceEpoch,
       'visibility': visibility.toJson(),
     });
     return result.data['placeId'] as String;
@@ -156,8 +204,8 @@ class PlaceRepositoryImpl implements PlaceRepository {
 
   // ── Ownership queries ─────────────────────────────────────────────────────
 
-  Query _myPlacesQuery(String userId) => _places
-      .where('createdByUserId', isEqualTo: userId)
+  Query _ownedPlacesQuery(String userId) => _places
+      .where('ownerIds', arrayContains: userId)
       .where('isArchived', isEqualTo: false);
 
   List<PlaceEntity> _collectMyPlaces(QuerySnapshot snap) {
@@ -176,7 +224,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
   @override
   Future<int> countUserActivePlaces(String userId) async {
     final snap = await _places
-        .where('createdByUserId', isEqualTo: userId)
+        .where('ownerIds', arrayContains: userId)
         .where('isArchived', isEqualTo: false)
         .count()
         .get();
@@ -185,12 +233,12 @@ class PlaceRepositoryImpl implements PlaceRepository {
 
   @override
   Stream<List<PlaceEntity>> watchMyPlaces(String userId) {
-    return _myPlacesQuery(userId).snapshots().map(_collectMyPlaces);
+    return _ownedPlacesQuery(userId).snapshots().map(_collectMyPlaces);
   }
 
   @override
   Future<List<PlaceEntity>> getMyPlaces(String userId) async {
-    final snap = await _myPlacesQuery(userId).get();
+    final snap = await _ownedPlacesQuery(userId).get();
     return _collectMyPlaces(snap);
   }
 

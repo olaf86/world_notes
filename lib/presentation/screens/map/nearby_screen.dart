@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../providers/providers.dart';
 import '../place/place_list_screen.dart';
 import 'map_screen.dart';
 
@@ -61,13 +63,32 @@ class _MapEntry extends StatelessWidget {
   }
 }
 
-class _NearbyList extends StatelessWidget {
+class _NearbyList extends ConsumerWidget {
   final VoidCallback onShowMap;
 
   const _NearbyList({required this.onShowMap});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final anchor = ref.watch(anchorPositionProvider);
+
+    Future<void> refresh() async {
+      if (anchor == null) return;
+      final provider = placesNearbyProvider(
+        latLng(anchor.latitude, anchor.longitude),
+      );
+      ref.invalidate(provider);
+      try {
+        await ref.read(provider.future);
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not refresh nearby notes: $e')),
+          );
+        }
+      }
+    }
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -76,6 +97,13 @@ class _NearbyList extends StatelessWidget {
           onPressed: onShowMap,
         ),
         title: const Text('Nearby Notes'),
+        actions: [
+          IconButton(
+            tooltip: 'Refresh nearby notes',
+            icon: const Icon(Icons.refresh_outlined),
+            onPressed: anchor == null ? null : refresh,
+          ),
+        ],
       ),
       body: const PlaceListScreen(embedded: true),
     );

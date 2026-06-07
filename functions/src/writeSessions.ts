@@ -30,6 +30,8 @@ async function canAccessNote(
 ): Promise<boolean> {
   if (placeSnap.get("visibility") !== "private") return true;
   if (placeSnap.get("createdByUserId") === uid) return true;
+  const ownerIds = placeSnap.get("ownerIds") as string[] | undefined;
+  if (ownerIds?.includes(uid)) return true;
 
   const memberSnap = await getFirestore()
     .collection("places")
@@ -77,6 +79,13 @@ export const createWriteSession = onCall<{placeId?: unknown}>(
     }
     if (placeSnap.get("isArchived") === true) {
       throw new HttpsError("failed-precondition", "This note is archived.");
+    }
+    const publishAt = placeSnap.get("publishAt") as Timestamp | undefined;
+    if (publishAt && publishAt.toMillis() > Date.now()) {
+      throw new HttpsError(
+        "failed-precondition",
+        "This note is not published yet.",
+      );
     }
     const expiresAt = placeSnap.get("expiresAt") as Timestamp | undefined;
     if (expiresAt && expiresAt.toMillis() <= Date.now()) {

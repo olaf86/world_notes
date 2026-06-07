@@ -44,7 +44,9 @@ class PlaceEntity {
   final String colorHex;
   final String icon;
   final String createdByUserId;
+  final List<String> ownerIds;
   final DateTime createdAt;
+  final DateTime publishAt;
   final int messageCount;
   final DateTime? lastMessageAt;
 
@@ -74,6 +76,7 @@ class PlaceEntity {
   final DateTime? archivedAt;
 
   /// When the note auto-archives.  Required at creation, max 1 year out.
+  /// The lifetime starts at publishAt, not createdAt, for scheduled notes.
   final DateTime expiresAt;
 
   const PlaceEntity({
@@ -86,7 +89,9 @@ class PlaceEntity {
     required this.colorHex,
     required this.icon,
     required this.createdByUserId,
+    this.ownerIds = const [],
     required this.createdAt,
+    required this.publishAt,
     required this.expiresAt,
     this.messageCount = 0,
     this.lastMessageAt,
@@ -109,19 +114,35 @@ class PlaceEntity {
   /// Owner may re-open only notes they closed manually (never message-limit).
   bool get canReopen => isClosed && closedReason == ClosedReason.owner;
 
+  bool isOwnedBy(String? uid) {
+    if (uid == null) return false;
+    return uid == createdByUserId || ownerIds.contains(uid);
+  }
+
+  bool isPublishedAt(DateTime now) => !now.isBefore(publishAt);
+
   /// Past its expiry but not yet archived by the server — the client treats
   /// these as effectively archived (filtered from search, read-only).
-  bool get isExpired => DateTime.now().isAfter(expiresAt);
+  bool isExpiredAt(DateTime now) => !now.isBefore(expiresAt);
+
+  bool isDiscoverableAt(DateTime now) =>
+      isPublishedAt(now) && !isExpiredAt(now) && !isArchived;
+
+  /// Backward-compatible convenience for widgets that do not inject a clock.
+  bool get isPublished => isPublishedAt(DateTime.now());
+  bool get isExpired => isExpiredAt(DateTime.now());
 
   /// Whether new messages may be posted right now.
-  bool get canAcceptMessages =>
-      isOpen && !isArchived && !isExpired && !isAtMessageLimit;
+  bool canAcceptMessagesAt(DateTime now) =>
+      isOpen && isDiscoverableAt(now) && !isAtMessageLimit;
+
+  bool get canAcceptMessages => canAcceptMessagesAt(DateTime.now());
 
   /// Whether [uid] / [membership] may view this private note's content.
   /// Public notes are always accessible.
   bool isAccessibleBy(String? uid, NoteMembership? membership) {
     if (isPublic) return true;
-    if (uid != null && uid == createdByUserId) return true;
+    if (isOwnedBy(uid)) return true;
     if (membership == null) return false;
     return membership.invited ||
         membership.viaPasswordVersion == passwordVersion;
