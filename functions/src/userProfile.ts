@@ -4,6 +4,8 @@ import {onCall, HttpsError} from "firebase-functions/v2/https";
 
 import {REGION} from "./constants";
 
+const MAX_DISPLAY_NAME_LENGTH = 20;
+
 /**
  * Returns the app profile fields shown in a note's member list.
  *
@@ -53,10 +55,13 @@ export const updateDisplayName = onCall<{displayName?: unknown}>(
     }
 
     const displayName = rawDisplayName.trim();
-    if (displayName.length === 0 || displayName.length > 100) {
+    if (
+      displayName.length === 0 ||
+      displayName.length > MAX_DISPLAY_NAME_LENGTH
+    ) {
       throw new HttpsError(
         "invalid-argument",
-        "Nickname must be 1-100 characters.",
+        `Nickname must be 1-${MAX_DISPLAY_NAME_LENGTH} characters.`,
       );
     }
 
@@ -72,30 +77,14 @@ export const updateDisplayName = onCall<{displayName?: unknown}>(
       getAuth().updateUser(uid, {displayName}),
     ]);
 
-    const membersByUserId = await db
+    const members = await db
       .collectionGroup("members")
       .where("userId", "==", uid)
       .get();
-    const memberDocs = [...membersByUserId.docs];
-    const email = stringOrNull(req.auth?.token.email);
-    if (email != null) {
-      const legacyMembersByEmail = await db
-        .collectionGroup("members")
-        .where("email", "==", email)
-        .get();
-      for (const doc of legacyMembersByEmail.docs) {
-        const alreadyKnown = memberDocs.some((known) =>
-          known.ref.isEqual(doc.ref),
-        );
-        if (doc.id === uid && !alreadyKnown) {
-          memberDocs.push(doc);
-        }
-      }
-    }
 
-    for (let i = 0; i < memberDocs.length; i += 450) {
+    for (let i = 0; i < members.docs.length; i += 450) {
       const batch = db.batch();
-      for (const doc of memberDocs.slice(i, i + 450)) {
+      for (const doc of members.docs.slice(i, i + 450)) {
         batch.update(doc.ref, {userId: uid, displayName});
       }
       await batch.commit();
@@ -103,7 +92,7 @@ export const updateDisplayName = onCall<{displayName?: unknown}>(
 
     return {
       displayName,
-      updatedMemberCount: memberDocs.length,
+      updatedMemberCount: members.size,
     };
   },
 );

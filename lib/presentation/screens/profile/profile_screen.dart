@@ -28,7 +28,7 @@ class ProfileScreen extends ConsumerWidget {
             controller: controller,
             autofocus: true,
             enabled: !saving,
-            maxLength: 100,
+            maxLength: 20,
             textInputAction: TextInputAction.done,
             decoration: const InputDecoration(labelText: 'Nickname'),
             onSubmitted: (_) async {
