@@ -314,11 +314,10 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     await showDialog<void>(
       context: context,
       builder: (ctx) {
-        var method =
-            place?.lockType == NoteLockType.pattern ||
-                (place?.lockType == null && place?.isPrivate == true)
-            ? _LockSetupMethod.pattern
-            : _LockSetupMethod.password;
+        var method = switch (place?.lockType) {
+          NoteLockType.pattern => _LockSetupMethod.pattern,
+          _ => _LockSetupMethod.password,
+        };
         List<int> pattern = const [];
         String? error;
         var busy = false;
@@ -504,8 +503,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     await showDialog<void>(
       context: context,
       builder: (ctx) {
-        final canChooseMethod = place?.lockType == null;
-        var method = place?.lockType == NoteLockType.password
+        final method = place?.lockType == NoteLockType.password
             ? _LockSetupMethod.password
             : _LockSetupMethod.pattern;
         List<int> pattern = const [];
@@ -579,32 +577,6 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                       ),
                     ],
                     const SizedBox(height: 12),
-                    if (canChooseMethod) ...[
-                      SegmentedButton<_LockSetupMethod>(
-                        segments: const [
-                          ButtonSegment(
-                            value: _LockSetupMethod.password,
-                            icon: Icon(Icons.password_outlined),
-                            label: Text('Password'),
-                          ),
-                          ButtonSegment(
-                            value: _LockSetupMethod.pattern,
-                            icon: Icon(Icons.grid_3x3),
-                            label: Text('Pattern'),
-                          ),
-                        ],
-                        selected: {method},
-                        onSelectionChanged: busy
-                            ? null
-                            : (selected) {
-                                setLocal(() {
-                                  method = selected.single;
-                                  error = null;
-                                });
-                              },
-                      ),
-                      const SizedBox(height: 12),
-                    ],
                     if (method == _LockSetupMethod.password)
                       TextField(
                         controller: passwordController,

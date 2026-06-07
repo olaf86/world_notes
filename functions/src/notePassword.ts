@@ -27,7 +27,6 @@ const ATTEMPT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 const PATTERN_PREFIX = "pattern:v1:";
 const MAX_PATTERN_LENGTH = 30;
 const MAX_STRING_PASSWORD_LENGTH = 30;
-const MAX_LEGACY_UNLOCK_LENGTH = 1024;
 const MAX_LOCK_HINT_LENGTH = 140;
 type NoteLockType = "password" | "pattern";
 
@@ -50,18 +49,6 @@ function validateLockSecret(
     const max = MAX_STRING_PASSWORD_LENGTH;
     return `Password must be ${max} characters or fewer.`;
   }
-  return null;
-}
-
-/**
- * Server-side unlock check for legacy private notes that predate lockType.
- *
- * @param {string} pw The candidate password or encoded pattern.
- * @return {string | null} An error message, or null if the secret can be tried.
- */
-function validateLegacyUnlockSecret(pw: string): string | null {
-  if (pw.length === 0) return "Enter a password or pattern.";
-  if (pw.length > MAX_LEGACY_UNLOCK_LENGTH) return "Secret is too long.";
   return null;
 }
 
@@ -138,14 +125,10 @@ export const setNotePassword = onCall<{
       throw new HttpsError("invalid-argument", "password is required.");
     }
     const requestedLockType = parseLockType(lockType);
-    if (lockType != null && requestedLockType == null) {
+    if (requestedLockType == null) {
       throw new HttpsError("invalid-argument", "Invalid lock type.");
     }
-    const resolvedLockType =
-      requestedLockType ?? (isValidPatternPassword(password) ?
-        "pattern" :
-        "password");
-    const weakness = validateLockSecret(password, resolvedLockType);
+    const weakness = validateLockSecret(password, requestedLockType);
     if (weakness) throw new HttpsError("invalid-argument", weakness);
     if (
       lockHint != null &&
@@ -178,7 +161,7 @@ export const setNotePassword = onCall<{
     batch.update(placeRef, {
       visibility: "private",
       passwordVersion: newVersion,
-      lockType: resolvedLockType,
+      lockType: requestedLockType,
       lockHint:
         typeof lockHint === "string" && lockHint.trim().length > 0 ?
           lockHint.trim() :
@@ -220,9 +203,13 @@ export const unlockNote = onCall<{placeId?: unknown; password?: unknown}>(
       throw new HttpsError("not-found", "Note not found.");
     }
     const storedLockType = parseLockType(placeSnap.get("lockType"));
-    const validation = storedLockType == null ?
-      validateLegacyUnlockSecret(password) :
-      validateLockSecret(password, storedLockType);
+    if (storedLockType == null) {
+      throw new HttpsError(
+        "failed-precondition",
+        "This note does not have a valid lock type.",
+      );
+    }
+    const validation = validateLockSecret(password, storedLockType);
     if (validation) throw new HttpsError("invalid-argument", validation);
 
     const now = Date.now();
