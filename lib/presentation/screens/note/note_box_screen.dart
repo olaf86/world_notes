@@ -309,7 +309,6 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
   /// Owner: set or change the note lock (locks it as private).
   Future<void> _promptSetPassword({required bool isChange}) async {
     final place = ref.read(placeProvider(widget.placeId)).valueOrNull;
-    final passwordController = TextEditingController();
     final hintController = TextEditingController(text: place?.lockHint ?? '');
     await showDialog<void>(
       context: context,
@@ -318,6 +317,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
           NoteLockType.pattern => _LockSetupMethod.pattern,
           _ => _LockSetupMethod.password,
         };
+        var password = '';
         List<int> pattern = const [];
         String? error;
         var busy = false;
@@ -326,9 +326,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
             Future<void> submit() async {
               if (busy) return;
               final validation = switch (method) {
-                _LockSetupMethod.password => PasswordUtil.validate(
-                  passwordController.text,
-                ),
+                _LockSetupMethod.password => PasswordUtil.validate(password),
                 _LockSetupMethod.pattern => PatternLockUtil.validate(pattern),
               };
               if (validation != null) {
@@ -336,7 +334,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                 return;
               }
               final secret = switch (method) {
-                _LockSetupMethod.password => passwordController.text,
+                _LockSetupMethod.password => password,
                 _LockSetupMethod.pattern => PatternLockUtil.encode(pattern),
               };
               setLocal(() {
@@ -400,26 +398,22 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                           : (selected) {
                               setLocal(() {
                                 method = selected.single;
+                                password = '';
+                                pattern = const [];
                                 error = null;
                               });
                             },
                     ),
                     const SizedBox(height: 12),
                     if (method == _LockSetupMethod.password)
-                      TextField(
-                        controller: passwordController,
-                        autofocus: true,
-                        obscureText: true,
-                        enableSuggestions: false,
-                        autocorrect: false,
-                        maxLength: PasswordUtil.maxLength,
-                        textInputAction: TextInputAction.done,
-                        onChanged: (_) => setLocal(() => error = null),
-                        onSubmitted: (_) => submit(),
-                        decoration: const InputDecoration(
-                          labelText: 'Password',
-                          counterText: '',
-                        ),
+                      _PasswordLockInput(
+                        onChanged: (value) {
+                          setLocal(() {
+                            password = value;
+                            error = null;
+                          });
+                        },
+                        onSubmitted: submit,
                       )
                     else ...[
                       const Text(
@@ -491,7 +485,6 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
         );
       },
     );
-    passwordController.dispose();
     hintController.dispose();
   }
 
@@ -499,13 +492,13 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
   /// the membership stream updates and the screen rebuilds with access.
   Future<void> _promptUnlock() async {
     final place = ref.read(placeProvider(widget.placeId)).valueOrNull;
-    final passwordController = TextEditingController();
     await showDialog<void>(
       context: context,
       builder: (ctx) {
         final method = place?.lockType == NoteLockType.password
             ? _LockSetupMethod.password
             : _LockSetupMethod.pattern;
+        var password = '';
         List<int> pattern = const [];
         String? error;
         var busy = false;
@@ -514,9 +507,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
             Future<void> submit() async {
               if (busy) return;
               final validation = switch (method) {
-                _LockSetupMethod.password => PasswordUtil.validate(
-                  passwordController.text,
-                ),
+                _LockSetupMethod.password => PasswordUtil.validate(password),
                 _LockSetupMethod.pattern => PatternLockUtil.validate(pattern),
               };
               if (validation != null) {
@@ -524,7 +515,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                 return;
               }
               final secret = switch (method) {
-                _LockSetupMethod.password => passwordController.text,
+                _LockSetupMethod.password => password,
                 _LockSetupMethod.pattern => PatternLockUtil.encode(pattern),
               };
               setLocal(() {
@@ -578,20 +569,14 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                     ],
                     const SizedBox(height: 12),
                     if (method == _LockSetupMethod.password)
-                      TextField(
-                        controller: passwordController,
-                        autofocus: true,
-                        obscureText: true,
-                        enableSuggestions: false,
-                        autocorrect: false,
-                        maxLength: PasswordUtil.maxLength,
-                        textInputAction: TextInputAction.done,
-                        onChanged: (_) => setLocal(() => error = null),
-                        onSubmitted: (_) => submit(),
-                        decoration: const InputDecoration(
-                          labelText: 'Password',
-                          counterText: '',
-                        ),
+                      _PasswordLockInput(
+                        onChanged: (value) {
+                          setLocal(() {
+                            password = value;
+                            error = null;
+                          });
+                        },
+                        onSubmitted: submit,
                       )
                     else
                       PatternLockInput(
@@ -638,7 +623,6 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
         );
       },
     );
-    passwordController.dispose();
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -1075,6 +1059,45 @@ class _LockedNoteView extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _PasswordLockInput extends StatefulWidget {
+  final ValueChanged<String> onChanged;
+  final VoidCallback onSubmitted;
+
+  const _PasswordLockInput({
+    required this.onChanged,
+    required this.onSubmitted,
+  });
+
+  @override
+  State<_PasswordLockInput> createState() => _PasswordLockInputState();
+}
+
+class _PasswordLockInputState extends State<_PasswordLockInput> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: _controller,
+      autofocus: true,
+      obscureText: true,
+      enableSuggestions: false,
+      autocorrect: false,
+      maxLength: PasswordUtil.maxLength,
+      textInputAction: TextInputAction.done,
+      onChanged: widget.onChanged,
+      onSubmitted: (_) => widget.onSubmitted(),
+      decoration: const InputDecoration(labelText: 'Password', counterText: ''),
     );
   }
 }
