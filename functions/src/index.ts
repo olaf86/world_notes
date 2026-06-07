@@ -7,7 +7,9 @@ import {getFirestore, FieldValue, Timestamp} from "firebase-admin/firestore";
 
 import {encodeGeohash} from "./geohash";
 import {
+  DISCOVERY_GEOHASH_PRECISION,
   FREE_NOTE_LIMIT,
+  MAX_PUBLISH_DELAY_DAYS,
   PREMIUM_NOTE_LIMIT,
   NOTE_EXPIRY_PRESET_DAYS,
   MAX_TITLE_LENGTH,
@@ -44,6 +46,9 @@ export {updateDisplayName} from "./userProfile";
 // message creation. Region set in its own options.
 export {createWriteSession} from "./writeSessions";
 
+// Short-lived discovery grants for direct Firestore nearby streams.
+export {ensureDiscoveryGrant} from "./discoveryGrants";
+
 interface CreateNoteData {
   latitude?: unknown;
   longitude?: unknown;
@@ -53,6 +58,7 @@ interface CreateNoteData {
   icon?: unknown;
   expiryDays?: unknown;
   visibility?: unknown;
+  publishAtMillis?: unknown;
 }
 
 /**
@@ -77,8 +83,16 @@ export const createNote = onCall<CreateNoteData>(
     }
 
     // ── Validate input ──────────────────────────────────────────────────
-    const {latitude, longitude, title, subtitle, colorHex, icon, expiryDays} =
-      req.data ?? {};
+    const {
+      latitude,
+      longitude,
+      title,
+      subtitle,
+      colorHex,
+      icon,
+      expiryDays,
+      publishAtMillis,
+    } = req.data ?? {};
 
     if (
       typeof latitude !== "number" ||
@@ -119,9 +133,33 @@ export const createNote = onCall<CreateNoteData>(
       typeof subtitle === "string" && subtitle.trim().length > 0 ?
         subtitle.trim() :
         null;
+    const nowMillis = Date.now();
+    let publishAtMs = nowMillis;
+    if (publishAtMillis != null) {
+      if (typeof publishAtMillis !== "number" || !isFinite(publishAtMillis)) {
+        throw new HttpsError("invalid-argument", "Invalid publication time.");
+      }
+      const maxPublishAtMs =
+        nowMillis + MAX_PUBLISH_DELAY_DAYS * 24 * 60 * 60 * 1000;
+      if (publishAtMillis > maxPublishAtMs) {
+        throw new HttpsError(
+          "invalid-argument",
+          "Publication time is too far in the future.",
+        );
+      }
+      // Small grace window for clock skew and tap-to-create latency.
+      publishAtMs = Math.max(publishAtMillis, nowMillis);
+    }
+
     const geohash = encodeGeohash(latitude, longitude, 6);
+    const discoveryGeohash = encodeGeohash(
+      latitude,
+      longitude,
+      DISCOVERY_GEOHASH_PRECISION,
+    );
+    const publishAt = Timestamp.fromMillis(publishAtMs);
     const expiresAt = Timestamp.fromMillis(
-      Date.now() + expiryDays * 24 * 60 * 60 * 1000,
+      publishAtMs + expiryDays * 24 * 60 * 60 * 1000,
     );
 
     const db = getFirestore();
@@ -149,12 +187,15 @@ export const createNote = onCall<CreateNoteData>(
         latitude,
         longitude,
         geohash,
+        discoveryGeohash,
         title: (title as string).trim(),
         subtitle: trimmedSubtitle,
         colorHex: typeof colorHex === "string" ? colorHex : "#4CAF50",
         icon: typeof icon === "string" ? icon : "place",
         createdByUserId: uid,
+        ownerIds: [uid],
         createdAt: FieldValue.serverTimestamp(),
+        publishAt,
         messageCount: 0,
         lastMessageAt: FieldValue.serverTimestamp(),
         visibility,

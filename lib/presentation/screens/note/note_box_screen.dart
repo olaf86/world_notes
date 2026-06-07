@@ -640,12 +640,15 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
   Widget build(BuildContext context) {
     final isPremium = ref.watch(isPremiumProvider).valueOrNull ?? false;
     final currentUser = ref.watch(authStateProvider).valueOrNull;
-    final place = ref.watch(placeProvider(widget.placeId)).valueOrNull;
+    final placeAsync = ref.watch(placeProvider(widget.placeId));
+    final place = placeAsync.valueOrNull;
+    final now = widgetServerAlignedNow(ref);
 
-    final isOwner =
-        place != null &&
-        currentUser != null &&
-        place.createdByUserId == currentUser.id;
+    if (placeAsync.hasError && place == null) {
+      return _UnavailableNoteView(title: widget.placeTitle);
+    }
+
+    final isOwner = place != null && place.isOwnedBy(currentUser?.id);
     final displayTitle = place?.title ?? widget.placeTitle;
 
     // Private-note access gate. For a private note the viewer doesn't own,
@@ -670,7 +673,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     // Whether a new message may be posted right now — only once the place is
     // loaded and still accepting messages (open, not expired/archived/full).
     final canPostMessage =
-        !widget.readOnly && (place?.canAcceptMessages ?? false);
+        !widget.readOnly && (place?.canAcceptMessagesAt(now) ?? false);
 
     // Exclude this screen's semantics while a dialog, report sheet, or message
     // editor is shown on top — prevents parentDataDirty noise when two routes
@@ -774,8 +777,8 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                 body: Column(
                   children: [
                     if (widget.readOnly) const _ReadOnlyBanner(),
-                    if (place != null && !place.canAcceptMessages)
-                      _ThreadStatusBanner(place: place),
+                    if (place != null && !place.canAcceptMessagesAt(now))
+                      _ThreadStatusBanner(place: place, now: now),
                     if (place != null) StaticNoteMiniMap(place: place),
                     Expanded(
                       child: messagesAsync.when(
@@ -907,7 +910,8 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
 
 class _ThreadStatusBanner extends StatelessWidget {
   final PlaceEntity place;
-  const _ThreadStatusBanner({required this.place});
+  final DateTime now;
+  const _ThreadStatusBanner({required this.place, required this.now});
 
   @override
   Widget build(BuildContext context) {
@@ -915,7 +919,11 @@ class _ThreadStatusBanner extends StatelessWidget {
 
     // Resolve the most relevant reason, in priority order.
     final (IconData icon, String text) = switch (place) {
-      _ when place.isArchived || place.isExpired => (
+      _ when !place.isPublishedAt(now) => (
+        Icons.event_outlined,
+        'This note is scheduled and is not accepting messages yet.',
+      ),
+      _ when place.isArchived || place.isExpiredAt(now) => (
         Icons.inventory_2_outlined,
         'This note has been archived. It is read-only.',
       ),
@@ -951,6 +959,49 @@ class _ThreadStatusBanner extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _UnavailableNoteView extends StatelessWidget {
+  final String title;
+
+  const _UnavailableNoteView({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(title: Text(title.isEmpty ? 'Note' : title)),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.lock_clock_outlined,
+                size: 48,
+                color: theme.colorScheme.outline,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'This note is not available.',
+                style: theme.textTheme.titleMedium,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'It may not be published yet, may have expired, or may no '
+                'longer be accessible from here.',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

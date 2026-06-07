@@ -11,7 +11,9 @@ class PlaceModel {
   final String colorHex;
   final String icon;
   final String createdByUserId;
+  final List<String> ownerIds;
   final DateTime createdAt;
+  final DateTime publishAt;
   final int messageCount;
   final DateTime? lastMessageAt;
   final PlaceVisibility visibility;
@@ -35,7 +37,9 @@ class PlaceModel {
     required this.colorHex,
     required this.icon,
     required this.createdByUserId,
+    this.ownerIds = const [],
     required this.createdAt,
+    required this.publishAt,
     required this.expiresAt,
     this.messageCount = 0,
     this.lastMessageAt,
@@ -62,7 +66,14 @@ class PlaceModel {
       colorHex: data['colorHex'] as String? ?? '#4CAF50',
       icon: data['icon'] as String? ?? 'place',
       createdByUserId: data['createdByUserId'] as String,
+      ownerIds:
+          (data['ownerIds'] as List<dynamic>?)?.whereType<String>().toList() ??
+          [data['createdByUserId'] as String],
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      publishAt:
+          (data['publishAt'] as Timestamp?)?.toDate() ??
+          (data['createdAt'] as Timestamp?)?.toDate() ??
+          DateTime.now(),
       messageCount: (data['messageCount'] as int?) ?? 0,
       lastMessageAt: (data['lastMessageAt'] as Timestamp?)?.toDate(),
       visibility: PlaceVisibility.fromJson(data['visibility'] as String?),
@@ -94,7 +105,9 @@ class PlaceModel {
       'colorHex': colorHex,
       'icon': icon,
       'createdByUserId': createdByUserId,
+      'ownerIds': ownerIds.isEmpty ? [createdByUserId] : ownerIds,
       'createdAt': FieldValue.serverTimestamp(),
+      'publishAt': Timestamp.fromDate(publishAt),
       'messageCount': messageCount,
       'lastMessageAt': lastMessageAt != null
           ? Timestamp.fromDate(lastMessageAt!)
@@ -122,7 +135,9 @@ class PlaceModel {
     colorHex: colorHex,
     icon: icon,
     createdByUserId: createdByUserId,
+    ownerIds: ownerIds,
     createdAt: createdAt,
+    publishAt: publishAt,
     messageCount: messageCount,
     lastMessageAt: lastMessageAt,
     visibility: visibility,

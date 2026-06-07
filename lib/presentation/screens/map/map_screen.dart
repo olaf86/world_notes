@@ -44,6 +44,7 @@ class MapScreen extends ConsumerStatefulWidget {
 class _MapScreenState extends ConsumerState<MapScreen>
     with SingleTickerProviderStateMixin {
   late final NoteMapAdapter _mapAdapter;
+  bool _refreshingNearby = false;
 
   @override
   void initState() {
@@ -114,6 +115,27 @@ class _MapScreenState extends ConsumerState<MapScreen>
     context.push('/note/create?lat=${pos.latitude}&lng=${pos.longitude}');
   }
 
+  Future<void> _refreshNearby() async {
+    final anchor = ref.read(anchorPositionProvider);
+    if (anchor == null || _refreshingNearby) return;
+    setState(() => _refreshingNearby = true);
+    final provider = placesNearbyProvider(
+      latLng(anchor.latitude, anchor.longitude),
+    );
+    ref.invalidate(provider);
+    try {
+      await ref.read(provider.future);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not refresh nearby notes: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _refreshingNearby = false);
+    }
+  }
+
   Future<void> _showLimitReachedDialog({
     required int limit,
     required bool isPremium,
@@ -180,6 +202,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
         isTracking: isTracking,
         onPointerDown: _onUserPanned,
         onTrackingToggle: _toggleTracking,
+        onRefresh: _refreshNearby,
+        refreshing: _refreshingNearby,
         onAddNote: () => _onAddNote(anchor),
         onShowList: widget.onShowList,
       );
@@ -206,6 +230,8 @@ class _MapView extends ConsumerWidget {
   final bool isTracking;
   final VoidCallback onPointerDown;
   final VoidCallback onTrackingToggle;
+  final VoidCallback onRefresh;
+  final bool refreshing;
   final VoidCallback onAddNote;
   final VoidCallback? onShowList;
 
@@ -215,6 +241,8 @@ class _MapView extends ConsumerWidget {
     required this.isTracking,
     required this.onPointerDown,
     required this.onTrackingToggle,
+    required this.onRefresh,
+    required this.refreshing,
     required this.onAddNote,
     required this.onShowList,
   });
@@ -237,9 +265,40 @@ class _MapView extends ConsumerWidget {
           ),
         ),
         if (onShowList != null) _ListButton(onPressed: onShowList!),
+        _RefreshButton(onPressed: onRefresh, refreshing: refreshing),
         _TrackingButton(isTracking: isTracking, onPressed: onTrackingToggle),
         _AddNoteFab(onPressed: onAddNote),
       ],
+    );
+  }
+}
+
+class _RefreshButton extends StatelessWidget {
+  final VoidCallback onPressed;
+  final bool refreshing;
+
+  const _RefreshButton({required this.onPressed, required this.refreshing});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Positioned(
+      bottom: 208,
+      right: 16,
+      child: FloatingActionButton.small(
+        heroTag: 'nearbyRefresh',
+        tooltip: 'Refresh nearby notes',
+        onPressed: refreshing ? null : onPressed,
+        backgroundColor: colorScheme.surface,
+        elevation: 2,
+        child: refreshing
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Icon(Icons.refresh_outlined, color: colorScheme.primary),
+      ),
     );
   }
 }

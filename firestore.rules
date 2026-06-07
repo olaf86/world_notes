@@ -12,6 +12,13 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == uid;
     }
 
+    function isPlaceOwner(place) {
+      return isSignedIn()
+             && (place.createdByUserId == request.auth.uid
+                 || (place.keys().hasAny(['ownerIds'])
+                     && request.auth.uid in place.ownerIds));
+    }
+
     // Returns the data map of a place document.
     function getPlace(placeId) {
       return get(/databases/$(database)/documents/places/$(placeId)).data;
@@ -34,9 +41,49 @@ service cloud.firestore {
     function canAccessNote(placeId) {
       let place = getPlace(placeId);
       return isSignedIn()
-             && (place.visibility == 'public'
-                 || request.auth.uid == place.createdByUserId
-                 || hasNoteMembership(placeId, place));
+             && (isPlaceOwner(place)
+                 || (isPubliclyReadablePlace(place)
+                     && (place.visibility == 'public'
+                         || hasNoteMembership(placeId, place))));
+    }
+
+    function isPubliclyReadablePlace(place) {
+      return place.isArchived == false
+             && place.publishAt <= request.time
+             && place.expiresAt > request.time;
+    }
+
+    function hasDiscoveryGrant(discoveryGeohash) {
+      let path = /databases/$(database)/documents/users/$(request.auth.uid)/discoveryGrants/current;
+      return discoveryGeohash is string
+             && exists(path)
+             && get(path).data.expiresAt > request.time
+             && discoveryGeohash in get(path).data.discoveryGeohashes;
+    }
+
+    function canListPublicPlace(place) {
+      return request.query.limit <= 20
+             && isPubliclyReadablePlace(place)
+             && hasDiscoveryGrant(place.discoveryGeohash);
+    }
+
+    function canListOwnedPlace(place) {
+      return isPlaceOwner(place);
+    }
+
+    function canGetPlace(place) {
+      return isPlaceOwner(place) || isPubliclyReadablePlace(place);
+    }
+
+    function canCreateMessage(placeId) {
+      let place = getPlace(placeId);
+      return canAccessNote(placeId)
+             && hasWriteSession(placeId)
+             && place.isOpen == true
+             && place.isArchived == false
+             && place.publishAt <= request.time
+             && place.expiresAt > request.time
+             && place.messageCount < 1000;
     }
 
     function hasWriteSession(placeId) {
@@ -66,11 +113,27 @@ service cloud.firestore {
                           .hasAny(['photoUrl'])
                         || request.resource.data.photoUrl.size() <= 2000);
       allow delete: if false;
+
+      // Discovery grants are written only by the ensureDiscoveryGrant Cloud
+      // Function. The signed-in owner may read their current grant for
+      // debugging/client recovery, but cannot write it directly.
+      match /discoveryGrants/{grantId} {
+        allow read: if isOwner(uid);
+        allow write: if false;
+      }
+
+      // Rate-limit state for discovery grant issuance. Server-only.
+      match /limits/{doc} {
+        allow read, write: if false;
+      }
     }
 
     // ── places ────────────────────────────────────────────────────────────────
     match /places/{placeId} {
-      allow read: if isSignedIn();
+      allow get: if isSignedIn() && canGetPlace(resource.data);
+      allow list: if isSignedIn()
+                  && (canListOwnedPlace(resource.data)
+                      || canListPublicPlace(resource.data));
 
       // Direct client creation is DENIED. Notes are created exclusively by the
       // `createNote` Cloud Function (Admin SDK, which bypasses these rules),
@@ -82,7 +145,7 @@ service cloud.firestore {
       // Owner writability changes (close / re-open).
       //   • Re-opening (isOpen → true) is allowed ONLY when the thread was
       //     closed manually by the owner; message-limit closes are permanent.
-      allow update: if isOwner(resource.data.createdByUserId)
+      allow update: if isPlaceOwner(resource.data)
                     && request.resource.data.diff(resource.data).affectedKeys()
                         .hasOnly(['isOpen', 'closedReason', 'closedAt'])
                     && (request.resource.data.isOpen == false
@@ -116,7 +179,7 @@ service cloud.firestore {
       match /members/{memberUid} {
         allow read: if isSignedIn()
                     && (request.auth.uid == memberUid
-                        || getPlace(placeId).createdByUserId == request.auth.uid);
+                        || isPlaceOwner(getPlace(placeId)));
         allow write: if false;
       }
 
@@ -135,7 +198,7 @@ service cloud.firestore {
         allow read: if canAccessNote(placeId);
 
         allow create: if canAccessNote(placeId)
-                      && hasWriteSession(placeId)
+                      && canCreateMessage(placeId)
                       && request.resource.data.userId == request.auth.uid
                       && request.resource.data.placeId == placeId
                       && request.resource.data.content is string
@@ -147,11 +210,9 @@ service cloud.firestore {
                       // at least one of content or imageUrl must be present
                       && (request.resource.data.content.size() > 0
                           || request.resource.data.keys().hasAny(['imageUrl']))
-                      // thread must be open, not archived, not expired, < cap
-                      && getPlace(placeId).isOpen == true
-                      && getPlace(placeId).isArchived == false
-                      && getPlace(placeId).expiresAt > request.time
-                      && getPlace(placeId).messageCount < 1000;
+                      // thread must be open, published, not archived, not
+                      // expired, and below the cap (checked in canCreateMessage)
+                      ;
 
         // Author soft-deletes own message (isDeleted + deletedAt only).
         allow update: if isOwner(resource.data.userId)
