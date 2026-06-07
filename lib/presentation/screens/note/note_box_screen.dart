@@ -421,7 +421,8 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                         'are easy to guess; longer paths are better.',
                       ),
                       const SizedBox(height: 12),
-                      PatternLockInput(
+                      _PatternLockInputWithClear(
+                        enabled: !busy,
                         size: 248,
                         onChanged: (path) {
                           setLocal(() {
@@ -579,7 +580,8 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                         onSubmitted: submit,
                       )
                     else
-                      PatternLockInput(
+                      _PatternLockInputWithClear(
+                        enabled: !busy,
                         size: 248,
                         onChanged: (path) {
                           setLocal(() {
@@ -1098,6 +1100,71 @@ class _PasswordLockInputState extends State<_PasswordLockInput> {
       onChanged: widget.onChanged,
       onSubmitted: (_) => widget.onSubmitted(),
       decoration: const InputDecoration(labelText: 'Password', counterText: ''),
+    );
+  }
+}
+
+class _PatternLockInputWithClear extends StatefulWidget {
+  final ValueChanged<List<int>> onChanged;
+  final ValueChanged<List<int>>? onCompleted;
+  final VoidCallback? onTooLong;
+  final bool enabled;
+  final double size;
+
+  const _PatternLockInputWithClear({
+    required this.onChanged,
+    this.onCompleted,
+    this.onTooLong,
+    this.enabled = true,
+    this.size = 280,
+  });
+
+  @override
+  State<_PatternLockInputWithClear> createState() =>
+      _PatternLockInputWithClearState();
+}
+
+class _PatternLockInputWithClearState
+    extends State<_PatternLockInputWithClear> {
+  var _inputKey = UniqueKey();
+  var _hasPattern = false;
+
+  void _handleChanged(List<int> path) {
+    setState(() => _hasPattern = path.isNotEmpty);
+    widget.onChanged(path);
+  }
+
+  void _clear() {
+    setState(() {
+      _inputKey = UniqueKey();
+      _hasPattern = false;
+    });
+    widget.onChanged(const []);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        IgnorePointer(
+          ignoring: !widget.enabled,
+          child: PatternLockInput(
+            key: _inputKey,
+            size: widget.size,
+            onChanged: _handleChanged,
+            onCompleted: widget.onCompleted,
+            onTooLong: widget.onTooLong,
+          ),
+        ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            onPressed: widget.enabled && _hasPattern ? _clear : null,
+            icon: const Icon(Icons.backspace_outlined),
+            label: const Text('Clear'),
+          ),
+        ),
+      ],
     );
   }
 }
