@@ -60,6 +60,9 @@ service cloud.firestore {
                           .hasAny(['name'])
                         || request.resource.data.name.size() <= 100)
                     && (!request.resource.data.diff(resource.data).affectedKeys()
+                          .hasAny(['displayName'])
+                        || request.resource.data.displayName.size() <= 100)
+                    && (!request.resource.data.diff(resource.data).affectedKeys()
                           .hasAny(['photoUrl'])
                         || request.resource.data.photoUrl.size() <= 2000);
       allow delete: if false;

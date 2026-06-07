@@ -8,6 +8,7 @@ import {
 import * as argon2 from "argon2";
 
 import {REGION} from "./constants";
+import {profileForMember} from "./userProfile";
 
 // Server-only secret (pepper). Stored in Secret Manager, never in the repo.
 // Set with: firebase functions:secrets:set NOTE_PW_PEPPER
@@ -212,10 +213,18 @@ export const unlockNote = onCall<{placeId?: unknown; password?: unknown}>(
       throw new HttpsError("permission-denied", "Incorrect password.");
     }
 
+    const profile = await profileForMember(
+      uid,
+      req.auth?.token.name,
+      req.auth?.token.email,
+    );
+
     const batch = db.batch();
     batch.set(placeRef.collection("members").doc(uid), {
       viaPasswordVersion: authSnap.get("passwordVersion") as number,
       grantedAt: FieldValue.serverTimestamp(),
+      displayName: profile.displayName,
+      email: profile.email,
     });
     batch.delete(attemptRef);
     await batch.commit();
