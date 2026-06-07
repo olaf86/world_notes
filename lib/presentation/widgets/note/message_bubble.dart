@@ -7,6 +7,8 @@ import '../../../domain/entities/message_entity.dart';
 class MessageBubble extends StatefulWidget {
   final MessageEntity message;
   final bool isOwn;
+  final bool isAuthorHighlighted;
+  final ValueChanged<String>? onAuthorTap;
   final VoidCallback? onDelete;
   final VoidCallback? onReport;
 
@@ -14,6 +16,8 @@ class MessageBubble extends StatefulWidget {
     super.key,
     required this.message,
     required this.isOwn,
+    this.isAuthorHighlighted = false,
+    this.onAuthorTap,
     this.onDelete,
     this.onReport,
   });
@@ -78,7 +82,8 @@ class _MessageBubbleState extends State<MessageBubble> {
   }
 
   void _showActionSheet() {
-    final hasActions = (widget.isOwn && widget.onDelete != null) ||
+    final hasActions =
+        (widget.isOwn && widget.onDelete != null) ||
         (!widget.isOwn && widget.onReport != null);
     if (!hasActions) return;
 
@@ -212,19 +217,36 @@ class _MessageBubbleState extends State<MessageBubble> {
     //   • Author name rendered in primary colour
     //   • A small "You" badge next to the name
     final timeStr = DateFormat('HH:mm').format(message.createdAt.toLocal());
-    final hasActions = (widget.isOwn && widget.onDelete != null) ||
+    final hasActions =
+        (widget.isOwn && widget.onDelete != null) ||
         (!widget.isOwn && widget.onReport != null);
 
     return GestureDetector(
       onLongPress: hasActions ? _showActionSheet : null,
       child: Container(
         padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        decoration: widget.isAuthorHighlighted
+            ? BoxDecoration(
+                color: theme.colorScheme.secondaryContainer,
+                border: Border(
+                  left: BorderSide(
+                    color: theme.colorScheme.secondary,
+                    width: 3,
+                  ),
+                ),
+              )
+            : null,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _Avatar(
-              photoUrl: message.author.photoUrl,
-              name: message.author.name,
+            GestureDetector(
+              onTap: widget.onAuthorTap == null
+                  ? null
+                  : () => widget.onAuthorTap!(message.author.id),
+              child: _Avatar(
+                photoUrl: message.author.photoUrl,
+                name: message.author.name,
+              ),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -235,15 +257,20 @@ class _MessageBubbleState extends State<MessageBubble> {
                   Row(
                     children: [
                       Expanded(
-                        child: Text(
-                          message.author.name,
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: widget.isOwn
-                                ? theme.colorScheme.primary
-                                : theme.colorScheme.onSurface,
+                        child: GestureDetector(
+                          onTap: widget.onAuthorTap == null
+                              ? null
+                              : () => widget.onAuthorTap!(message.author.id),
+                          child: Text(
+                            message.author.name,
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: widget.isOwn
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.onSurface,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       if (widget.isOwn) ...[
@@ -317,13 +344,15 @@ class _MessageBubbleState extends State<MessageBubble> {
                               imageUrl: message.imageUrl!,
                               fit: BoxFit.cover,
                               placeholder: (context, url) => Container(
-                                color: theme.colorScheme.surfaceContainerHighest,
+                                color:
+                                    theme.colorScheme.surfaceContainerHighest,
                                 child: const Center(
                                   child: CircularProgressIndicator(),
                                 ),
                               ),
                               errorWidget: (context, url, error) => Container(
-                                color: theme.colorScheme.surfaceContainerHighest,
+                                color:
+                                    theme.colorScheme.surfaceContainerHighest,
                                 child: Icon(
                                   Icons.broken_image_outlined,
                                   color: theme.colorScheme.onSurfaceVariant,

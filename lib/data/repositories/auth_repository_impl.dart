@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -11,17 +12,20 @@ class AuthRepositoryImpl implements AuthRepository {
   final FirebaseAuth _auth;
   final GoogleSignIn _googleSignIn;
   final FirebaseFirestore _firestore;
+  final FirebaseFunctions _functions;
   final SubscriptionService _subscriptionService;
 
   AuthRepositoryImpl({
     required FirebaseAuth auth,
     required GoogleSignIn googleSignIn,
     required FirebaseFirestore firestore,
+    required FirebaseFunctions functions,
     required SubscriptionService subscriptionService,
-  })  : _auth = auth,
-        _googleSignIn = googleSignIn,
-        _firestore = firestore,
-        _subscriptionService = subscriptionService;
+  }) : _auth = auth,
+       _googleSignIn = googleSignIn,
+       _firestore = firestore,
+       _functions = functions,
+       _subscriptionService = subscriptionService;
 
   @override
   Stream<UserEntity?> get authStateChanges {
@@ -79,6 +83,20 @@ class AuthRepositoryImpl implements AuthRepository {
     );
     await result.user!.updateDisplayName(name);
     return _fetchOrCreateUser(result.user!);
+  }
+
+  @override
+  Future<UserEntity> updateDisplayName(String displayName) async {
+    final firebaseUser = _auth.currentUser;
+    if (firebaseUser == null) {
+      throw StateError('No signed-in user.');
+    }
+
+    await _functions
+        .httpsCallable('updateDisplayName')
+        .call<Map<String, dynamic>>({'displayName': displayName});
+    await firebaseUser.reload();
+    return _fetchOrCreateUser(_auth.currentUser ?? firebaseUser);
   }
 
   @override

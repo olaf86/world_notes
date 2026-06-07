@@ -18,9 +18,15 @@ class UserModel {
 
   factory UserModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    return UserModel.fromFirestoreData(doc.id, data);
+  }
+
+  factory UserModel.fromFirestoreData(String id, Map<String, dynamic> data) {
+    final displayName = data['displayName'] as String?;
+    final legacyName = data['name'] as String?;
     return UserModel(
-      id: doc.id,
-      name: data['name'] as String? ?? 'User',
+      id: id,
+      name: displayName ?? legacyName ?? 'User',
       email: data['email'] as String?,
       photoUrl: data['photoUrl'] as String?,
       isPremium: data['isPremium'] as bool? ?? false,
@@ -29,7 +35,7 @@ class UserModel {
 
   Map<String, dynamic> toFirestore() {
     return {
-      'name': name,
+      'displayName': name,
       'email': email,
       'photoUrl': photoUrl,
       'isPremium': isPremium,
@@ -37,18 +43,18 @@ class UserModel {
   }
 
   UserEntity toEntity() => UserEntity(
-        id: id,
-        name: name,
-        email: email,
-        photoUrl: photoUrl,
-        isPremium: isPremium,
-      );
+    id: id,
+    name: name,
+    email: email,
+    photoUrl: photoUrl,
+    isPremium: isPremium,
+  );
 
   factory UserModel.fromEntity(UserEntity entity) => UserModel(
-        id: entity.id,
-        name: entity.name,
-        email: entity.email,
-        photoUrl: entity.photoUrl,
-        isPremium: entity.isPremium,
-      );
+    id: entity.id,
+    name: entity.name,
+    email: entity.email,
+    photoUrl: entity.photoUrl,
+    isPremium: entity.isPremium,
+  );
 }

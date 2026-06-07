@@ -3,6 +3,7 @@ import {getFirestore, FieldValue} from "firebase-admin/firestore";
 import {randomBytes} from "crypto";
 
 import {REGION} from "./constants";
+import {profileForMember} from "./userProfile";
 
 /**
  * Loads a place and asserts the caller owns it. Throws otherwise.
@@ -90,15 +91,21 @@ export const claimInvite = onCall<{token?: unknown}>(
       .doc(placeId)
       .collection("members")
       .doc(uid);
+    const profile = await profileForMember(
+      uid,
+      req.auth?.token.name,
+      req.auth?.token.email,
+    );
 
     const batch = db.batch();
     batch.set(
       memberRef,
       {
+        userId: uid,
         invited: true,
         grantedAt: FieldValue.serverTimestamp(),
-        displayName: req.auth?.token.name ?? null,
-        email: req.auth?.token.email ?? null,
+        displayName: profile.displayName,
+        email: profile.email,
       },
       {merge: true},
     );

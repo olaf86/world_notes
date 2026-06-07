@@ -68,6 +68,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
   late final AnimationController _messageEditorController;
   bool _isMessageEditorOpen = false;
   bool _preparingMessageEditor = false;
+  String? _highlightedAuthorId;
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -140,6 +141,12 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     if (!_isMessageEditorOpen) return;
     await _messageEditorController.reverse();
     if (mounted) setState(() => _isMessageEditorOpen = false);
+  }
+
+  void _toggleAuthorHighlight(String authorId) {
+    setState(() {
+      _highlightedAuthorId = _highlightedAuthorId == authorId ? null : authorId;
+    });
   }
 
   // ── Delete ────────────────────────────────────────────────────────────────
@@ -793,6 +800,10 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                                   return MessageBubble(
                                     message: message,
                                     isOwn: isOwn,
+                                    isAuthorHighlighted:
+                                        _highlightedAuthorId ==
+                                        message.author.id,
+                                    onAuthorTap: _toggleAuthorHighlight,
                                     onDelete: isOwn
                                         ? () => _confirmDeleteMessage(message)
                                         : null,

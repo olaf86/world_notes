@@ -58,7 +58,10 @@ service cloud.firestore {
                     // Defensive string-length caps (avoid storage abuse).
                     && (!request.resource.data.diff(resource.data).affectedKeys()
                           .hasAny(['name'])
-                        || request.resource.data.name.size() <= 100)
+                        || request.resource.data.name.size() <= 20)
+                    && (!request.resource.data.diff(resource.data).affectedKeys()
+                          .hasAny(['displayName'])
+                        || request.resource.data.displayName.size() <= 20)
                     && (!request.resource.data.diff(resource.data).affectedKeys()
                           .hasAny(['photoUrl'])
                         || request.resource.data.photoUrl.size() <= 2000);
