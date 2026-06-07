@@ -1,4 +1,4 @@
-/// Password strength validation for note locks.
+/// String password validation for note locks.
 ///
 /// NOTE on hashing: password *verification* is performed server-side by a
 /// Cloud Function (Phase 3), which keeps the hash out of reach of clients —
@@ -6,30 +6,21 @@
 /// it and forge an access grant.  The client only ever sends the plaintext
 /// password to the Cloud Function over HTTPS; it never hashes locally.
 ///
-/// This utility therefore covers only client-side strength checking before
-/// the password is submitted.
+/// This utility therefore covers only client-side shape checking before the
+/// password is submitted.
 abstract class PasswordUtil {
   PasswordUtil._();
 
-  static const int minLength = 8;
+  static const int maxLength = 30;
 
-  /// Returns null if [password] meets strength requirements, or a
+  /// Returns null if [password] meets configuration requirements, or a
   /// human-readable error string if it does not.
   static String? validate(String password) {
-    if (password.length < minLength) {
-      return 'Password must be at least $minLength characters.';
+    if (password.isEmpty) {
+      return 'Enter a password.';
     }
-    if (!password.contains(RegExp(r'[A-Z]'))) {
-      return 'Password must contain at least one uppercase letter.';
-    }
-    if (!password.contains(RegExp(r'[a-z]'))) {
-      return 'Password must contain at least one lowercase letter.';
-    }
-    if (!password.contains(RegExp(r'[0-9]'))) {
-      return 'Password must contain at least one digit.';
-    }
-    if (!password.contains(RegExp(r'[^A-Za-z0-9]'))) {
-      return 'Password must contain at least one special character.';
+    if (password.length > maxLength) {
+      return 'Password must be $maxLength characters or fewer.';
     }
     return null; // valid
   }

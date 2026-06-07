@@ -17,7 +17,7 @@ Instead of adding a distance rule now, this design uses a simpler write-session 
 ## Product Rules
 
 - Nearby access: Notes opened from nearby Map/List can write as before when a write session exists and `canAcceptMessages` is true.
-- Invite/private access: Notes opened through invite links or pattern unlocks can also write as before when a write session exists.
+- Invite/private access: Notes opened through invite links, password unlocks, or pattern unlocks can also write as before when a write session exists.
 - My Notes access: The user can view their own notes from anywhere, but My Notes does not request a write session and does not show writing UI.
 - My Notes scope: The first version focuses on reading messages. It does not add owner management actions or remote editing.
 - Archived notes: The first version shows only active owned notes. Archived history is deferred.

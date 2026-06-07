@@ -3,9 +3,10 @@ import '../../config/app_config.dart';
 /// Axis 1 — Visibility (access control).
 ///
 /// public  — any proximity user can read & write.
-/// private — locked; access via password (verified server-side by a Cloud
-///           Function) or by owner invitation.  Once granted, access persists
-///           until the owner changes the password (tracked by passwordVersion).
+/// private — locked; access via password/pattern (verified server-side by a
+///           Cloud Function) or by owner invitation.  Once granted, access
+///           persists until the owner changes the secret (tracked by
+///           passwordVersion).
 enum PlaceVisibility {
   public,
   private;
@@ -14,6 +15,19 @@ enum PlaceVisibility {
 
   static PlaceVisibility fromJson(String? value) =>
       value == 'private' ? private : public;
+}
+
+enum NoteLockType {
+  password,
+  pattern;
+
+  String toJson() => name;
+
+  static NoteLockType? fromJson(String? value) => switch (value) {
+    'password' => password,
+    'pattern' => pattern,
+    _ => null,
+  };
 }
 
 /// Why a note thread was closed (read-only).
@@ -51,14 +65,18 @@ class PlaceEntity {
   // ── Axis 1: Visibility ──────────────────────────────────────────────────
   final PlaceVisibility visibility;
 
-  /// Increments each time the owner changes the password.  A remembered
+  /// Increments each time the owner changes the lock secret.  A remembered
   /// access grant is valid only while it matches the current version.
   /// The password hash itself is NOT stored here — it lives in a Cloud
   /// Function-protected location so clients can never read it.
   final int passwordVersion;
 
+  /// Public metadata for choosing the right unlock UI. Null means a legacy
+  /// private note created before this field existed.
+  final NoteLockType? lockType;
+
   /// Optional public hint shown on the locked view. The hint itself must not
-  /// contain the full pattern.
+  /// contain the full secret.
   final String? lockHint;
 
   // ── Axis 2: Writability ─────────────────────────────────────────────────
@@ -92,6 +110,7 @@ class PlaceEntity {
     this.lastMessageAt,
     this.visibility = PlaceVisibility.public,
     this.passwordVersion = 0,
+    this.lockType,
     this.lockHint,
     this.isOpen = true,
     this.closedReason,

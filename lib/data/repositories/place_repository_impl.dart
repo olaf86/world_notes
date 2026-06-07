@@ -6,7 +6,13 @@ import 'package:cloud_functions/cloud_functions.dart';
 import '../../config/app_config.dart';
 import '../../core/utils/geohash_util.dart';
 import '../../domain/entities/place_entity.dart'
-    show PlaceEntity, PlaceVisibility, ClosedReason, NoteMembership, NoteMember;
+    show
+        ClosedReason,
+        NoteLockType,
+        NoteMember,
+        NoteMembership,
+        PlaceEntity,
+        PlaceVisibility;
 import '../../domain/repositories/place_repository.dart';
 import '../models/place_model.dart';
 
@@ -230,6 +236,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
   Future<void> setNotePassword({
     required String placeId,
     required String password,
+    required NoteLockType lockType,
     String? lockHint,
   }) async {
     await _functions
@@ -237,6 +244,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
         .call<Map<String, dynamic>>({
           'placeId': placeId,
           'password': password,
+          'lockType': lockType.toJson(),
           'lockHint': lockHint,
         });
   }

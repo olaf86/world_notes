@@ -16,6 +16,7 @@ class PlaceModel {
   final DateTime? lastMessageAt;
   final PlaceVisibility visibility;
   final int passwordVersion;
+  final NoteLockType? lockType;
   final String? lockHint;
   final bool isOpen;
   final ClosedReason? closedReason;
@@ -40,6 +41,7 @@ class PlaceModel {
     this.lastMessageAt,
     this.visibility = PlaceVisibility.public,
     this.passwordVersion = 0,
+    this.lockType,
     this.lockHint,
     this.isOpen = true,
     this.closedReason,
@@ -65,6 +67,7 @@ class PlaceModel {
       lastMessageAt: (data['lastMessageAt'] as Timestamp?)?.toDate(),
       visibility: PlaceVisibility.fromJson(data['visibility'] as String?),
       passwordVersion: (data['passwordVersion'] as int?) ?? 0,
+      lockType: NoteLockType.fromJson(data['lockType'] as String?),
       lockHint: data['lockHint'] as String?,
       isOpen: data['isOpen'] as bool? ?? true,
       closedReason: ClosedReason.fromJson(data['closedReason'] as String?),
@@ -98,6 +101,7 @@ class PlaceModel {
           : FieldValue.serverTimestamp(),
       'visibility': visibility.toJson(),
       'passwordVersion': passwordVersion,
+      if (lockType != null) 'lockType': lockType!.toJson(),
       if (lockHint != null) 'lockHint': lockHint,
       'isOpen': isOpen,
       if (closedReason != null) 'closedReason': closedReason!.toJson(),
@@ -123,6 +127,7 @@ class PlaceModel {
     lastMessageAt: lastMessageAt,
     visibility: visibility,
     passwordVersion: passwordVersion,
+    lockType: lockType,
     lockHint: lockHint,
     isOpen: isOpen,
     closedReason: closedReason,

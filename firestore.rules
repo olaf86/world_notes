@@ -90,8 +90,9 @@ service cloud.firestore {
       // write them directly, which let anyone tamper with any note's counter
       // (block posting, reset the cap, reorder the list) — now denied.
       //
-      // Lifecycle (isArchived/archivedAt), visibility, and passwordVersion are
-      // likewise written ONLY by Cloud Functions. Clients can never set them.
+      // Lifecycle (isArchived/archivedAt), visibility, passwordVersion, and
+      // lockType are likewise written ONLY by Cloud Functions. Clients can
+      // never set them.
 
       allow delete: if false;
 

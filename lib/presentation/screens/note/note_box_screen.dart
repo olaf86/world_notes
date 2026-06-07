@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../../../config/app_config.dart';
+import '../../../core/utils/password_util.dart';
 import '../../../core/utils/pattern_lock_util.dart';
 import '../../../domain/entities/message_entity.dart';
 import '../../../domain/entities/place_entity.dart';
@@ -18,6 +19,15 @@ import '../../widgets/pattern_lock/pattern_lock_input.dart';
 // ---------------------------------------------------------------------------
 // Screen
 // ---------------------------------------------------------------------------
+
+enum _LockSetupMethod { password, pattern }
+
+extension _LockSetupMethodLabel on _LockSetupMethod {
+  NoteLockType get noteLockType => switch (this) {
+    _LockSetupMethod.password => NoteLockType.password,
+    _LockSetupMethod.pattern => NoteLockType.pattern,
+  };
+}
 
 class NoteBoxScreen extends ConsumerStatefulWidget {
   final String placeId;
@@ -286,7 +296,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     );
   }
 
-  // ── Private access (set pattern lock / unlock) ───────────────────────────
+  // ── Private access (set lock / unlock) ───────────────────────────────────
 
   void _showPatternTooLongSnack() {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -296,13 +306,19 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     );
   }
 
-  /// Owner: set or change the note pattern lock (locks it as private).
+  /// Owner: set or change the note lock (locks it as private).
   Future<void> _promptSetPassword({required bool isChange}) async {
     final place = ref.read(placeProvider(widget.placeId)).valueOrNull;
+    final passwordController = TextEditingController();
     final hintController = TextEditingController(text: place?.lockHint ?? '');
     await showDialog<void>(
       context: context,
       builder: (ctx) {
+        var method =
+            place?.lockType == NoteLockType.pattern ||
+                (place?.lockType == null && place?.isPrivate == true)
+            ? _LockSetupMethod.pattern
+            : _LockSetupMethod.password;
         List<int> pattern = const [];
         String? error;
         var busy = false;
@@ -310,11 +326,20 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
           builder: (ctx, setLocal) {
             Future<void> submit() async {
               if (busy) return;
-              final validation = PatternLockUtil.validate(pattern);
+              final validation = switch (method) {
+                _LockSetupMethod.password => PasswordUtil.validate(
+                  passwordController.text,
+                ),
+                _LockSetupMethod.pattern => PatternLockUtil.validate(pattern),
+              };
               if (validation != null) {
                 setLocal(() => error = validation);
                 return;
               }
+              final secret = switch (method) {
+                _LockSetupMethod.password => passwordController.text,
+                _LockSetupMethod.pattern => PatternLockUtil.encode(pattern),
+              };
               setLocal(() {
                 busy = true;
                 error = null;
@@ -324,7 +349,8 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                     .read(placeRepositoryProvider)
                     .setNotePassword(
                       placeId: widget.placeId,
-                      password: PatternLockUtil.encode(pattern),
+                      password: secret,
+                      lockType: method.noteLockType,
                       lockHint: hintController.text.trim().isEmpty
                           ? null
                           : hintController.text.trim(),
@@ -333,48 +359,86 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text(
-                        'Pattern lock saved. This note is private.',
-                      ),
+                      content: Text('Lock saved. This note is private.'),
                     ),
                   );
                 }
               } on FirebaseFunctionsException catch (e) {
                 setLocal(() {
                   busy = false;
-                  error = e.message ?? 'Failed to save the pattern lock.';
+                  error = e.message ?? 'Failed to save the lock.';
                 });
               } catch (_) {
                 setLocal(() {
                   busy = false;
-                  error = 'Failed to save the pattern lock.';
+                  error = 'Failed to save the lock.';
                 });
               }
             }
 
             return AlertDialog(
-              title: Text(
-                isChange ? 'Change pattern lock' : 'Set pattern lock',
-              ),
+              title: Text(isChange ? 'Change lock' : 'Set lock'),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
-                      'Draw a path between neighboring dots. Short patterns are '
-                      'easy to guess; longer paths are better for private notes.',
+                    SegmentedButton<_LockSetupMethod>(
+                      segments: const [
+                        ButtonSegment(
+                          value: _LockSetupMethod.password,
+                          icon: Icon(Icons.password_outlined),
+                          label: Text('Password'),
+                        ),
+                        ButtonSegment(
+                          value: _LockSetupMethod.pattern,
+                          icon: Icon(Icons.grid_3x3),
+                          label: Text('Pattern'),
+                        ),
+                      ],
+                      selected: {method},
+                      onSelectionChanged: busy
+                          ? null
+                          : (selected) {
+                              setLocal(() {
+                                method = selected.single;
+                                error = null;
+                              });
+                            },
                     ),
                     const SizedBox(height: 12),
-                    PatternLockInput(
-                      size: 248,
-                      onChanged: (path) {
-                        setLocal(() {
-                          pattern = path;
-                          error = null;
-                        });
-                      },
-                      onTooLong: _showPatternTooLongSnack,
-                    ),
+                    if (method == _LockSetupMethod.password)
+                      TextField(
+                        controller: passwordController,
+                        autofocus: true,
+                        obscureText: true,
+                        enableSuggestions: false,
+                        autocorrect: false,
+                        maxLength: PasswordUtil.maxLength,
+                        textInputAction: TextInputAction.done,
+                        onChanged: (_) => setLocal(() => error = null),
+                        onSubmitted: (_) => submit(),
+                        decoration: const InputDecoration(
+                          labelText: 'Password',
+                          counterText: '',
+                        ),
+                      )
+                    else ...[
+                      const Text(
+                        'Draw a path between neighboring dots. Short patterns '
+                        'are easy to guess; longer paths are better.',
+                      ),
+                      const SizedBox(height: 12),
+                      PatternLockInput(
+                        size: 248,
+                        onChanged: (path) {
+                          setLocal(() {
+                            pattern = path;
+                            error = null;
+                          });
+                        },
+                        onTooLong: _showPatternTooLongSnack,
+                      ),
+                    ],
                     if (error != null) ...[
                       const SizedBox(height: 8),
                       Text(
@@ -384,7 +448,9 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                         ),
                       ),
                     ],
-                    if (pattern.isNotEmpty && pattern.length < 4) ...[
+                    if (method == _LockSetupMethod.pattern &&
+                        pattern.isNotEmpty &&
+                        pattern.length < 4) ...[
                       const SizedBox(height: 8),
                       Text(
                         'This is a very short pattern.',
@@ -397,7 +463,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                     TextField(
                       controller: hintController,
                       maxLength: 140,
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         labelText: 'Hint (optional)',
                         counterText: '',
                       ),
@@ -426,16 +492,22 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
         );
       },
     );
+    passwordController.dispose();
     hintController.dispose();
   }
 
-  /// Visitor: draw a pattern to unlock a private note. On success the
-  /// membership stream updates and the screen rebuilds with access.
+  /// Visitor: enter the configured secret to unlock a private note. On success
+  /// the membership stream updates and the screen rebuilds with access.
   Future<void> _promptUnlock() async {
     final place = ref.read(placeProvider(widget.placeId)).valueOrNull;
+    final passwordController = TextEditingController();
     await showDialog<void>(
       context: context,
       builder: (ctx) {
+        final canChooseMethod = place?.lockType == null;
+        var method = place?.lockType == NoteLockType.password
+            ? _LockSetupMethod.password
+            : _LockSetupMethod.pattern;
         List<int> pattern = const [];
         String? error;
         var busy = false;
@@ -443,11 +515,20 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
           builder: (ctx, setLocal) {
             Future<void> submit() async {
               if (busy) return;
-              final validation = PatternLockUtil.validate(pattern);
+              final validation = switch (method) {
+                _LockSetupMethod.password => PasswordUtil.validate(
+                  passwordController.text,
+                ),
+                _LockSetupMethod.pattern => PatternLockUtil.validate(pattern),
+              };
               if (validation != null) {
                 setLocal(() => error = validation);
                 return;
               }
+              final secret = switch (method) {
+                _LockSetupMethod.password => passwordController.text,
+                _LockSetupMethod.pattern => PatternLockUtil.encode(pattern),
+              };
               setLocal(() {
                 busy = true;
                 error = null;
@@ -455,16 +536,16 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
               try {
                 await ref
                     .read(placeRepositoryProvider)
-                    .unlockNote(
-                      placeId: widget.placeId,
-                      password: PatternLockUtil.encode(pattern),
-                    );
+                    .unlockNote(placeId: widget.placeId, password: secret);
                 if (ctx.mounted) Navigator.pop(ctx);
               } on FirebaseFunctionsException catch (e) {
                 setLocal(() {
                   busy = false;
                   error = switch (e.code) {
-                    'permission-denied' => 'Incorrect pattern.',
+                    'permission-denied' =>
+                      method == _LockSetupMethod.pattern
+                          ? 'Incorrect pattern.'
+                          : 'Incorrect password.',
                     'resource-exhausted' =>
                       'Too many attempts. Please try again later.',
                     'unavailable' || 'deadline-exceeded' =>
@@ -481,7 +562,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
             }
 
             return AlertDialog(
-              title: const Text('Draw pattern'),
+              title: const Text('Unlock note'),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -498,17 +579,60 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                       ),
                     ],
                     const SizedBox(height: 12),
-                    PatternLockInput(
-                      size: 248,
-                      onChanged: (path) {
-                        setLocal(() {
-                          pattern = path;
-                          error = null;
-                        });
-                      },
-                      onCompleted: (_) => submit(),
-                      onTooLong: _showPatternTooLongSnack,
-                    ),
+                    if (canChooseMethod) ...[
+                      SegmentedButton<_LockSetupMethod>(
+                        segments: const [
+                          ButtonSegment(
+                            value: _LockSetupMethod.password,
+                            icon: Icon(Icons.password_outlined),
+                            label: Text('Password'),
+                          ),
+                          ButtonSegment(
+                            value: _LockSetupMethod.pattern,
+                            icon: Icon(Icons.grid_3x3),
+                            label: Text('Pattern'),
+                          ),
+                        ],
+                        selected: {method},
+                        onSelectionChanged: busy
+                            ? null
+                            : (selected) {
+                                setLocal(() {
+                                  method = selected.single;
+                                  error = null;
+                                });
+                              },
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    if (method == _LockSetupMethod.password)
+                      TextField(
+                        controller: passwordController,
+                        autofocus: true,
+                        obscureText: true,
+                        enableSuggestions: false,
+                        autocorrect: false,
+                        maxLength: PasswordUtil.maxLength,
+                        textInputAction: TextInputAction.done,
+                        onChanged: (_) => setLocal(() => error = null),
+                        onSubmitted: (_) => submit(),
+                        decoration: const InputDecoration(
+                          labelText: 'Password',
+                          counterText: '',
+                        ),
+                      )
+                    else
+                      PatternLockInput(
+                        size: 248,
+                        onChanged: (path) {
+                          setLocal(() {
+                            pattern = path;
+                            error = null;
+                          });
+                        },
+                        onCompleted: (_) => submit(),
+                        onTooLong: _showPatternTooLongSnack,
+                      ),
                     if (error != null) ...[
                       const SizedBox(height: 8),
                       Text(
@@ -542,6 +666,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
         );
       },
     );
+    passwordController.dispose();
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -568,6 +693,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
       if (!place.isAccessibleBy(currentUser?.id, membership)) {
         return _LockedNoteView(
           title: displayTitle,
+          lockType: place.lockType,
           lockHint: place.lockHint,
           onUnlock: _promptUnlock,
         );
@@ -657,13 +783,11 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                             child: ListTile(
                               leading: Icon(
                                 place.isPrivate
-                                    ? Icons.grid_3x3
+                                    ? Icons.lock_reset
                                     : Icons.lock_person_outlined,
                               ),
                               title: Text(
-                                place.isPrivate
-                                    ? 'Change pattern lock'
-                                    : 'Set pattern lock',
+                                place.isPrivate ? 'Change lock' : 'Set lock',
                               ),
                               contentPadding: EdgeInsets.zero,
                             ),
@@ -907,11 +1031,13 @@ class _ReadOnlyBanner extends StatelessWidget {
 
 class _LockedNoteView extends StatelessWidget {
   final String title;
+  final NoteLockType? lockType;
   final String? lockHint;
   final VoidCallback onUnlock;
 
   const _LockedNoteView({
     required this.title,
+    this.lockType,
     this.lockHint,
     required this.onUnlock,
   });
@@ -919,6 +1045,21 @@ class _LockedNoteView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final bodyText = switch (lockType) {
+      NoteLockType.password => 'Enter the password to read and post messages.',
+      NoteLockType.pattern => 'Draw the pattern to read and post messages.',
+      null => 'Unlock this note to read and post messages.',
+    };
+    final buttonText = switch (lockType) {
+      NoteLockType.password => 'Enter password',
+      NoteLockType.pattern => 'Draw pattern',
+      null => 'Unlock',
+    };
+    final buttonIcon = switch (lockType) {
+      NoteLockType.pattern => Icons.grid_3x3,
+      _ => Icons.key_outlined,
+    };
+
     return Scaffold(
       appBar: AppBar(title: Text(title)),
       body: Center(
@@ -936,7 +1077,7 @@ class _LockedNoteView extends StatelessWidget {
               Text('This note is private', style: theme.textTheme.titleMedium),
               const SizedBox(height: 8),
               Text(
-                'Draw the pattern lock to read and post messages here.',
+                bodyText,
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
@@ -955,8 +1096,8 @@ class _LockedNoteView extends StatelessWidget {
               const SizedBox(height: 24),
               FilledButton.icon(
                 onPressed: onUnlock,
-                icon: const Icon(Icons.key_outlined),
-                label: const Text('Draw pattern'),
+                icon: Icon(buttonIcon),
+                label: Text(buttonText),
               ),
             ],
           ),

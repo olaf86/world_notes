@@ -26,22 +26,53 @@ const MAX_ATTEMPTS = 5;
 const ATTEMPT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 const PATTERN_PREFIX = "pattern:v1:";
 const MAX_PATTERN_LENGTH = 30;
+const MAX_STRING_PASSWORD_LENGTH = 30;
+const MAX_LEGACY_UNLOCK_LENGTH = 1024;
 const MAX_LOCK_HINT_LENGTH = 140;
+type NoteLockType = "password" | "pattern";
 
 /**
- * Server-side password strength check (mirror of PasswordUtil.validate).
+ * Server-side lock secret check (mirror of client-side validation).
  *
  * @param {string} pw The candidate password.
+ * @param {NoteLockType} lockType The selected lock method.
  * @return {string | null} An error message, or null if the password is valid.
  */
-function validatePassword(pw: string): string | null {
-  if (isValidPatternPassword(pw)) return null;
-  if (pw.length < 8) return "Password must be at least 8 characters.";
-  if (!/[A-Z]/.test(pw)) return "Password needs an uppercase letter.";
-  if (!/[a-z]/.test(pw)) return "Password needs a lowercase letter.";
-  if (!/[0-9]/.test(pw)) return "Password needs a digit.";
-  if (!/[^A-Za-z0-9]/.test(pw)) return "Password needs a special character.";
+function validateLockSecret(
+  pw: string,
+  lockType: NoteLockType,
+): string | null {
+  if (lockType === "pattern") {
+    return isValidPatternPassword(pw) ? null : "Invalid pattern.";
+  }
+  if (pw.length === 0) return "Enter a password.";
+  if (pw.length > MAX_STRING_PASSWORD_LENGTH) {
+    const max = MAX_STRING_PASSWORD_LENGTH;
+    return `Password must be ${max} characters or fewer.`;
+  }
   return null;
+}
+
+/**
+ * Server-side unlock check for legacy private notes that predate lockType.
+ *
+ * @param {string} pw The candidate password or encoded pattern.
+ * @return {string | null} An error message, or null if the secret can be tried.
+ */
+function validateLegacyUnlockSecret(pw: string): string | null {
+  if (pw.length === 0) return "Enter a password or pattern.";
+  if (pw.length > MAX_LEGACY_UNLOCK_LENGTH) return "Secret is too long.";
+  return null;
+}
+
+/**
+ * Parses a client-visible lock type value.
+ *
+ * @param {unknown} value The raw Firestore or callable value.
+ * @return {NoteLockType | null} The lock type, or null when absent/invalid.
+ */
+function parseLockType(value: unknown): NoteLockType | null {
+  return value === "password" || value === "pattern" ? value : null;
 }
 
 /**
@@ -81,16 +112,17 @@ function areAdjacentPatternNodes(a: string, b: string): boolean {
 }
 
 /**
- * Owner-only: set or change a note's password (locks it as private).
+ * Owner-only: set or change a note's lock secret (locks it as private).
  *
  * The hash lives in places/{id}/secret/auth, which clients can never read,
  * and is keyed by a server pepper so a Firestore leak alone can't crack it.
  * Bumping passwordVersion invalidates every remembered unlock from the old
- * password (members carry the version they unlocked with).
+ * secret (members carry the version they unlocked with).
  */
 export const setNotePassword = onCall<{
   placeId?: unknown;
   password?: unknown;
+  lockType?: unknown;
   lockHint?: unknown;
 }>(
   {secrets: [PEPPER], enforceAppCheck: true, region: REGION},
@@ -98,14 +130,22 @@ export const setNotePassword = onCall<{
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
 
-    const {placeId, password, lockHint} = req.data ?? {};
+    const {placeId, password, lockType, lockHint} = req.data ?? {};
     if (typeof placeId !== "string" || placeId.length === 0) {
       throw new HttpsError("invalid-argument", "placeId is required.");
     }
     if (typeof password !== "string") {
       throw new HttpsError("invalid-argument", "password is required.");
     }
-    const weakness = validatePassword(password);
+    const requestedLockType = parseLockType(lockType);
+    if (lockType != null && requestedLockType == null) {
+      throw new HttpsError("invalid-argument", "Invalid lock type.");
+    }
+    const resolvedLockType =
+      requestedLockType ?? (isValidPatternPassword(password) ?
+        "pattern" :
+        "password");
+    const weakness = validateLockSecret(password, resolvedLockType);
     if (weakness) throw new HttpsError("invalid-argument", weakness);
     if (
       lockHint != null &&
@@ -138,6 +178,7 @@ export const setNotePassword = onCall<{
     batch.update(placeRef, {
       visibility: "private",
       passwordVersion: newVersion,
+      lockType: resolvedLockType,
       lockHint:
         typeof lockHint === "string" && lockHint.trim().length > 0 ?
           lockHint.trim() :
@@ -150,11 +191,11 @@ export const setNotePassword = onCall<{
 );
 
 /**
- * Verify a password and, on success, grant the caller remembered access.
+ * Verify a password or pattern and, on success, grant remembered access.
  *
  * Rate-limited per user+note to blunt online brute force. On success a
  * members/{uid} doc records the passwordVersion unlocked with, so the user
- * is not prompted again until the owner changes the password.
+ * is not prompted again until the owner changes the secret.
  */
 export const unlockNote = onCall<{placeId?: unknown; password?: unknown}>(
   {secrets: [PEPPER], enforceAppCheck: true, region: REGION},
@@ -174,6 +215,15 @@ export const unlockNote = onCall<{placeId?: unknown; password?: unknown}>(
     const db = getFirestore();
     const placeRef = db.collection("places").doc(placeId);
     const attemptRef = placeRef.collection("attempts").doc(uid);
+    const placeSnap = await placeRef.get();
+    if (!placeSnap.exists) {
+      throw new HttpsError("not-found", "Note not found.");
+    }
+    const storedLockType = parseLockType(placeSnap.get("lockType"));
+    const validation = storedLockType == null ?
+      validateLegacyUnlockSecret(password) :
+      validateLockSecret(password, storedLockType);
+    if (validation) throw new HttpsError("invalid-argument", validation);
 
     const now = Date.now();
     const attemptSnap = await attemptRef.get();

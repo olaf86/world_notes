@@ -61,11 +61,12 @@ abstract class PlaceRepository {
 
   // ── Private access (Cloud Functions) ──────────────────────────────────────
 
-  /// Owner-only: sets or changes the note's password (locks it as private)
+  /// Owner-only: sets or changes the note's lock secret (locks it as private)
   /// via the `setNotePassword` function. Throws [FirebaseFunctionsException].
   Future<void> setNotePassword({
     required String placeId,
     required String password,
+    required NoteLockType lockType,
     String? lockHint,
   });
 
