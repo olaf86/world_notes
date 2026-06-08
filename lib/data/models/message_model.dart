@@ -11,9 +11,11 @@ class MessageModel {
   final String content;
   final String? imageUrl;
   final DateTime createdAt;
+  final DateTime publishAt;
   final bool isDeleted;
   final DateTime? deletedAt;
   final bool isVisible;
+  final bool isPubliclyVisible;
 
   MessageModel({
     required this.id,
@@ -24,9 +26,11 @@ class MessageModel {
     required this.content,
     this.imageUrl,
     required this.createdAt,
+    required this.publishAt,
     this.isDeleted = false,
     this.deletedAt,
     this.isVisible = true,
+    this.isPubliclyVisible = false,
   });
 
   factory MessageModel.fromFirestore(DocumentSnapshot doc) {
@@ -39,41 +43,25 @@ class MessageModel {
       userPhotoUrl: data['userPhotoUrl'] as String?,
       content: data['content'] as String,
       imageUrl: data['imageUrl'] as String?,
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      isDeleted: data['isDeleted'] as bool? ?? false,
+      createdAt: (data['createdAt'] as Timestamp).toDate(),
+      publishAt: (data['publishAt'] as Timestamp).toDate(),
+      isDeleted: data['isDeleted'] as bool,
       deletedAt: (data['deletedAt'] as Timestamp?)?.toDate(),
-      isVisible: data['isVisible'] as bool? ?? true,
+      isVisible: data['isVisible'] as bool,
+      isPubliclyVisible: data['isPubliclyVisible'] as bool,
     );
   }
 
-  Map<String, dynamic> toFirestore() {
-    return {
-      'placeId': placeId,
-      'userId': userId,
-      'userName': userName,
-      'userPhotoUrl': userPhotoUrl,
-      'content': content,
-      if (imageUrl != null) 'imageUrl': imageUrl,
-      'createdAt': FieldValue.serverTimestamp(),
-      'isDeleted': false,
-      'isVisible': true,
-      'reportCount': 0,
-    };
-  }
-
   MessageEntity toEntity() => MessageEntity(
-        id: id,
-        placeId: placeId,
-        author: UserEntity(
-          id: userId,
-          name: userName,
-          photoUrl: userPhotoUrl,
-        ),
-        content: content,
-        imageUrl: imageUrl,
-        createdAt: createdAt,
-        isDeleted: isDeleted,
-        deletedAt: deletedAt,
-        isVisible: isVisible,
-      );
+    id: id,
+    placeId: placeId,
+    author: UserEntity(id: userId, name: userName, photoUrl: userPhotoUrl),
+    content: content,
+    imageUrl: imageUrl,
+    createdAt: createdAt,
+    publishAt: publishAt,
+    isDeleted: isDeleted,
+    deletedAt: deletedAt,
+    isVisible: isVisible,
+  );
 }

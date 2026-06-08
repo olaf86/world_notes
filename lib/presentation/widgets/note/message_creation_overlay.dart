@@ -2,9 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 
+import '../../../config/app_config.dart';
 import '../../../core/utils/image_upload_util.dart';
 import '../../providers/providers.dart';
+
+enum _MessagePublishPreset {
+  now('Now', null),
+  in15Minutes('15 minutes', Duration(minutes: 15)),
+  in30Minutes('30 minutes', Duration(minutes: 30)),
+  in1Hour('1 hour', Duration(hours: 1)),
+  in3Hours('3 hours', Duration(hours: 3)),
+  custom('Custom', null);
+
+  final String label;
+  final Duration? delay;
+
+  const _MessagePublishPreset(this.label, this.delay);
+}
 
 /// Full-screen "new message" editor rendered as an **overlay inside
 /// NoteBoxScreen**, not as a separate Navigator route.
@@ -34,13 +50,11 @@ import '../../providers/providers.dart';
 class MessageCreationOverlay extends ConsumerStatefulWidget {
   final String placeId;
   final VoidCallback onClose;
-  final Future<void> Function()? onBeforeSend;
 
   const MessageCreationOverlay({
     super.key,
     required this.placeId,
     required this.onClose,
-    this.onBeforeSend,
   });
 
   @override
@@ -60,6 +74,9 @@ class _MessageCreationOverlayState
   // it as a different image and re-decode it, causing a white-flash flicker.
   Uint8List? _imageBytes;
   String? _imageName;
+  _MessagePublishPreset _publishPreset = _MessagePublishPreset.now;
+  DateTime? _customPublishAt;
+  bool _showScheduleOptions = false;
   bool _isSending = false;
   bool _picking = false;
 
@@ -139,6 +156,76 @@ class _MessageCreationOverlayState
 
   static const _maxChars = 2000;
 
+  DateTime _defaultCustomPublishAt() {
+    final now = DateTime.now();
+    return DateTime(
+      now.year,
+      now.month,
+      now.day,
+      now.hour,
+      now.minute,
+    ).add(const Duration(hours: 1));
+  }
+
+  DateTime? _publishAtForSend() {
+    if (_publishPreset == _MessagePublishPreset.now) return null;
+    if (_publishPreset == _MessagePublishPreset.custom) {
+      return _customPublishAt ?? _defaultCustomPublishAt();
+    }
+    final delay = _publishPreset.delay;
+    return delay == null ? null : DateTime.now().add(delay);
+  }
+
+  bool get _isScheduled => _publishPreset != _MessagePublishPreset.now;
+
+  String _publishLabel() {
+    if (_publishPreset == _MessagePublishPreset.now) return 'Now';
+    if (_publishPreset != _MessagePublishPreset.custom) {
+      return _publishPreset.label;
+    }
+    final value = _customPublishAt ?? _defaultCustomPublishAt();
+    return DateFormat('MMM d, HH:mm').format(value.toLocal());
+  }
+
+  Future<void> _pickCustomPublishTime() async {
+    final initial = _customPublishAt ?? _defaultCustomPublishAt();
+    final now = DateTime.now();
+    final latest = now.add(
+      const Duration(days: AppConfig.maxMessagePublishDelayDays),
+    );
+    final date = await showDatePicker(
+      context: context,
+      initialDate: initial.isBefore(now) ? now : initial,
+      firstDate: DateTime(now.year, now.month, now.day),
+      lastDate: latest,
+    );
+    if (date == null || !mounted) return;
+
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initial),
+    );
+    if (time == null || !mounted) return;
+
+    var selected = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      time.hour,
+      time.minute,
+    );
+    if (selected.isBefore(now)) {
+      selected = now.add(const Duration(minutes: 1));
+    }
+    if (selected.isAfter(latest)) {
+      selected = latest;
+    }
+    setState(() {
+      _publishPreset = _MessagePublishPreset.custom;
+      _customPublishAt = selected;
+    });
+  }
+
   // ── Submit ────────────────────────────────────────────────────────────────
 
   Future<void> _submit() async {
@@ -148,7 +235,6 @@ class _MessageCreationOverlayState
 
     setState(() => _isSending = true);
     try {
-      await widget.onBeforeSend?.call();
       await ref
           .read(messageRepositoryProvider)
           .sendMessage(
@@ -159,6 +245,7 @@ class _MessageCreationOverlayState
             userPhotoUrl: user.photoUrl,
             imageBytes: _imageBytes,
             imageName: _imageName,
+            publishAt: _publishAtForSend(),
           );
       if (mounted) widget.onClose();
     } catch (e) {
@@ -254,11 +341,32 @@ class _MessageCreationOverlayState
 
               const Divider(height: 1),
 
+              if (_showScheduleOptions)
+                _ScheduleOptions(
+                  selected: _publishPreset,
+                  label: _publishLabel(),
+                  isSending: _isSending,
+                  onSelected: (preset) {
+                    setState(() {
+                      _publishPreset = preset;
+                      if (preset == _MessagePublishPreset.custom) {
+                        _customPublishAt ??= _defaultCustomPublishAt();
+                      }
+                    });
+                  },
+                  onPickCustom: _pickCustomPublishTime,
+                ),
+
               // Keyboard-aware attachment toolbar.
               _AttachmentToolbar(
                 picking: _picking,
+                scheduleLabel: _publishLabel(),
+                scheduled: _isScheduled,
                 onPickGallery: () => _pickImage(ImageSource.gallery),
                 onPickCamera: () => _pickImage(ImageSource.camera),
+                onToggleSchedule: () {
+                  setState(() => _showScheduleOptions = !_showScheduleOptions);
+                },
               ),
             ],
           ),
@@ -395,13 +503,19 @@ class _ImagePreview extends StatelessWidget {
 
 class _AttachmentToolbar extends StatelessWidget {
   final bool picking;
+  final String scheduleLabel;
+  final bool scheduled;
   final VoidCallback onPickGallery;
   final VoidCallback onPickCamera;
+  final VoidCallback onToggleSchedule;
 
   const _AttachmentToolbar({
     required this.picking,
+    required this.scheduleLabel,
+    required this.scheduled,
     required this.onPickGallery,
     required this.onPickCamera,
+    required this.onToggleSchedule,
   });
 
   @override
@@ -423,6 +537,15 @@ class _AttachmentToolbar extends StatelessWidget {
             color: theme.colorScheme.primary,
             onPressed: picking ? null : onPickCamera,
           ),
+          const Spacer(),
+          TextButton.icon(
+            onPressed: onToggleSchedule,
+            icon: Icon(
+              scheduled ? Icons.schedule_send_outlined : Icons.schedule,
+              size: 18,
+            ),
+            label: Text(scheduleLabel),
+          ),
           if (picking) ...[
             const SizedBox(width: 4),
             SizedBox(
@@ -435,6 +558,84 @@ class _AttachmentToolbar extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _ScheduleOptions extends StatelessWidget {
+  final _MessagePublishPreset selected;
+  final String label;
+  final bool isSending;
+  final ValueChanged<_MessagePublishPreset> onSelected;
+  final VoidCallback onPickCustom;
+
+  const _ScheduleOptions({
+    required this.selected,
+    required this.label,
+    required this.isSending,
+    required this.onSelected,
+    required this.onPickCustom,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: theme.colorScheme.surfaceContainerHighest,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.schedule_send_outlined,
+                  size: 18,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('Post time', style: theme.textTheme.titleSmall),
+                ),
+                Text(
+                  label,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _MessagePublishPreset.values.map((preset) {
+                return ChoiceChip(
+                  label: Text(preset.label),
+                  selected: selected == preset,
+                  onSelected: isSending
+                      ? null
+                      : (_) {
+                          onSelected(preset);
+                          if (preset == _MessagePublishPreset.custom) {
+                            onPickCustom();
+                          }
+                        },
+                );
+              }).toList(),
+            ),
+            if (selected == _MessagePublishPreset.custom) ...[
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: isSending ? null : onPickCustom,
+                icon: const Icon(Icons.event_outlined),
+                label: Text(label),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

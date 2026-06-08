@@ -17,6 +17,9 @@ export const NOTE_EXPIRY_PRESET_DAYS = [7, 30, 90, 180, 365];
 /** Maximum delay before a scheduled note may be published. */
 export const MAX_PUBLISH_DELAY_DAYS = 365;
 
+/** Maximum delay before a scheduled message may be published. */
+export const MAX_MESSAGE_PUBLISH_DELAY_DAYS = 7;
+
 export const MAX_TITLE_LENGTH = 100;
 export const MAX_SUBTITLE_LENGTH = 200;
 

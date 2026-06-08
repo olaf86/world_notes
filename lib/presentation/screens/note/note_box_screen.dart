@@ -117,7 +117,6 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     }
     setState(() => _preparingMessageEditor = true);
     try {
-      await _ensureWriteSession();
       if (!mounted) return;
       setState(() => _isMessageEditorOpen = true);
       _messageEditorController.forward();
@@ -130,11 +129,6 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     } finally {
       if (mounted) setState(() => _preparingMessageEditor = false);
     }
-  }
-
-  Future<void> _ensureWriteSession() async {
-    if (widget.readOnly) return;
-    await ref.read(placeRepositoryProvider).createWriteSession(widget.placeId);
   }
 
   Future<void> _closeMessageEditor() async {
@@ -152,13 +146,18 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
   // ── Delete ────────────────────────────────────────────────────────────────
 
   Future<void> _confirmDeleteMessage(MessageEntity message) async {
+    final isScheduled = !message.isPublished;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete message'),
-        content: const Text(
-          'Are you sure you want to delete this message? '
-          'It will appear as deleted to all users.',
+        title: Text(
+          isScheduled ? 'Cancel scheduled message' : 'Delete message',
+        ),
+        content: Text(
+          isScheduled
+              ? 'Cancel this scheduled message? Its reserved slot will be freed.'
+              : 'Are you sure you want to delete this message? '
+                    'It will appear as deleted to all users.',
         ),
         actions: [
           TextButton(
@@ -170,16 +169,25 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
             style: TextButton.styleFrom(
               foregroundColor: Theme.of(context).colorScheme.error,
             ),
-            child: const Text('Delete'),
+            child: Text(isScheduled ? 'Cancel message' : 'Delete'),
           ),
         ],
       ),
     );
     if (confirmed != true || !mounted) return;
     try {
-      await ref
-          .read(messageRepositoryProvider)
-          .deleteMessage(placeId: widget.placeId, messageId: message.id);
+      final repository = ref.read(messageRepositoryProvider);
+      if (isScheduled) {
+        await repository.cancelScheduledMessage(
+          placeId: widget.placeId,
+          messageId: message.id,
+        );
+      } else {
+        await repository.deleteMessage(
+          placeId: widget.placeId,
+          messageId: message.id,
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -892,7 +900,6 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                     child: MessageCreationOverlay(
                       placeId: widget.placeId,
                       onClose: _closeMessageEditor,
-                      onBeforeSend: _ensureWriteSession,
                     ),
                   ),
                 ),

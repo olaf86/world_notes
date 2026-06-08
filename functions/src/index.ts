@@ -25,9 +25,10 @@ setGlobalOptions({maxInstances: 10, region: REGION});
 // setGlobalOptions runs), the global region would not otherwise apply.
 export {setNotePassword, unlockNote} from "./notePassword";
 
-// Firestore trigger that maintains place.messageCount / lastMessageAt and
-// performs the message-limit auto-close. Sets region in its own options.
-export {onMessageCreated} from "./messageTriggers";
+// Authoritative message writes plus the schedule that makes delayed messages
+// public at publishAt. Region set in their own options.
+export {sendMessage, cancelScheduledMessage} from "./messages";
+export {aggregatePublishedMessages} from "./messageTriggers";
 
 // Invite-link functions (share-link access to private notes). Region set in
 // their own options.
@@ -41,10 +42,6 @@ export {
 // User profile updates. Nickname changes keep future posts using the new name
 // and refresh note access-list member labels.
 export {updateDisplayName} from "./userProfile";
-
-// Short-lived write sessions required by Firestore Rules before direct
-// message creation. Region set in its own options.
-export {createWriteSession} from "./writeSessions";
 
 // Short-lived discovery grants for direct Firestore nearby streams.
 export {ensureDiscoveryGrant} from "./discoveryGrants";
@@ -197,7 +194,7 @@ export const createNote = onCall<CreateNoteData>(
         createdAt: FieldValue.serverTimestamp(),
         publishAt,
         messageCount: 0,
-        lastMessageAt: FieldValue.serverTimestamp(),
+        lastMessageAt: publishAt,
         visibility,
         passwordVersion: 0,
         isOpen: true,
@@ -205,8 +202,8 @@ export const createNote = onCall<CreateNoteData>(
         expiresAt,
       });
 
-      // Counter is the source of truth for the cap. set(merge) handles users
-      // whose doc predates this field (treated as 0 above).
+      // Counter is the source of truth for the cap. New user docs do not need
+      // to store activeNoteCount until their first note is created.
       tx.set(
         userRef,
         {activeNoteCount: FieldValue.increment(1)},
