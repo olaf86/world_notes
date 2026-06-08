@@ -75,20 +75,22 @@ service cloud.firestore {
       return isPlaceOwner(place) || isPubliclyReadablePlace(place);
     }
 
-    function canCreateMessage(placeId) {
-      let place = getPlace(placeId);
-      return canAccessNote(placeId)
-             && hasWriteSession(placeId)
-             && place.isOpen == true
-             && place.isArchived == false
-             && place.publishAt <= request.time
-             && place.expiresAt > request.time
-             && place.messageCount < 1000;
+    function isPublishedMessage(message) {
+      return !message.keys().hasAny(['publishAt'])
+             || message.publishAt <= request.time;
     }
 
-    function hasWriteSession(placeId) {
-      let path = /databases/$(database)/documents/places/$(placeId)/writeSessions/$(request.auth.uid);
-      return exists(path) && get(path).data.expiresAt > request.time;
+    function isPubliclyVisibleMessage(message) {
+      return isPublishedMessage(message)
+             && message.isVisible == true
+             && (!message.keys().hasAny(['isPubliclyVisible'])
+                 || message.isPubliclyVisible == true);
+    }
+
+    function canReadMessage(placeId, message) {
+      return canAccessNote(placeId)
+             && (isPubliclyVisibleMessage(message)
+                 || message.userId == request.auth.uid);
     }
 
     // ── users ─────────────────────────────────────────────────────────────────
@@ -151,10 +153,10 @@ service cloud.firestore {
                     && (request.resource.data.isOpen == false
                         || resource.data.closedReason == 'owner');
 
-      // messageCount / lastMessageAt are maintained ONLY by the onMessageCreated
-      // Cloud Function trigger (Admin SDK, bypasses these rules). Clients used to
-      // write them directly, which let anyone tamper with any note's counter
-      // (block posting, reset the cap, reorder the list) — now denied.
+      // messageCount / lastMessageAt are maintained ONLY by Cloud Functions
+      // (Admin SDK, bypasses these rules). Clients used to write them directly,
+      // which let anyone tamper with any note's counter (block posting, reset
+      // the cap, reorder the list) — now denied.
       //
       // Lifecycle (isArchived/archivedAt), visibility, passwordVersion, and
       // lockType are likewise written ONLY by Cloud Functions. Clients can
@@ -183,11 +185,18 @@ service cloud.firestore {
         allow write: if false;
       }
 
-      // Short-lived write sessions. Created only by the createWriteSession
-      // Cloud Function; message creation requires an unexpired session.
+      // Legacy write-session docs from the former direct-message-write flow.
+      // New message writes go through callable Cloud Functions.
       match /writeSessions/{sessionUid} {
         allow read: if isSignedIn() && request.auth.uid == sessionUid;
         allow write: if false;
+      }
+
+      // Server-only counters used by Cloud Functions. In particular,
+      // counters/messageSlots includes unpublished scheduled messages and must
+      // not be readable because that would leak future activity.
+      match /counters/{counterId} {
+        allow read, write: if false;
       }
 
       // ── messages (subcollection) ──────────────────────────────────────
@@ -195,33 +204,24 @@ service cloud.firestore {
       // visibility + membership. For private notes, only the owner and
       // unlocked/invited members can read or post.
       match /messages/{messageId} {
-        allow read: if canAccessNote(placeId);
+        allow read: if canReadMessage(placeId, resource.data);
 
-        allow create: if canAccessNote(placeId)
-                      && canCreateMessage(placeId)
-                      && request.resource.data.userId == request.auth.uid
-                      && request.resource.data.placeId == placeId
-                      && request.resource.data.content is string
-                      && request.resource.data.content.size() <= 2000
-                      // imageUrl, when present, must be a bounded string
-                      && (!request.resource.data.keys().hasAny(['imageUrl'])
-                          || (request.resource.data.imageUrl is string
-                              && request.resource.data.imageUrl.size() <= 2000))
-                      // at least one of content or imageUrl must be present
-                      && (request.resource.data.content.size() > 0
-                          || request.resource.data.keys().hasAny(['imageUrl']))
-                      // thread must be open, published, not archived, not
-                      // expired, and below the cap (checked in canCreateMessage)
-                      ;
+        // Message creation and scheduled-message cancellation are handled by
+        // callable Cloud Functions so the message document and cap counter
+        // update happen in one transaction.
+        allow create: if false;
 
-        // Author soft-deletes own message (isDeleted + deletedAt only).
+        // Author soft-deletes an already-public own message. Unpublished
+        // scheduled messages must be canceled via cancelScheduledMessage so the
+        // reserved slot is returned atomically.
         allow update: if isOwner(resource.data.userId)
+                      && resource.data.isPubliclyVisible == true
                       && request.resource.data.diff(resource.data).affectedKeys()
                           .hasOnly(['isDeleted', 'deletedAt']);
 
         // Any member can report — but only a monotonic +1 to reportCount, so a
         // user can't reset their own count to evade moderation or inflate one.
-        allow update: if canAccessNote(placeId)
+        allow update: if canReadMessage(placeId, resource.data)
                       && request.resource.data.diff(resource.data).affectedKeys()
                           .hasOnly(['reportCount'])
                       && request.resource.data.reportCount is int

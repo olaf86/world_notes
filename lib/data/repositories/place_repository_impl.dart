@@ -251,13 +251,6 @@ class PlaceRepositoryImpl implements PlaceRepository {
   // ── Writability ───────────────────────────────────────────────────────────
 
   @override
-  Future<void> createWriteSession(String placeId) async {
-    await _functions
-        .httpsCallable('createWriteSession')
-        .call<Map<String, dynamic>>({'placeId': placeId});
-  }
-
-  @override
   Future<void> closePlace(
     String placeId, {
     required ClosedReason reason,

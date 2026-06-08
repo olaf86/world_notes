@@ -1,9 +1,14 @@
 import '../entities/message_entity.dart';
 
 abstract class MessageRepository {
-  Stream<List<MessageEntity>> watchMessages(String placeId);
+  Stream<List<MessageEntity>> watchMessages({
+    required String placeId,
+    required String currentUserId,
+    required DateTime now,
+  });
   Future<List<MessageEntity>> getOlderMessages({
     required String placeId,
+    required DateTime now,
     required String beforeMessageId,
     required int limit,
   });
@@ -16,10 +21,17 @@ abstract class MessageRepository {
     String? userPhotoUrl,
     List<int>? imageBytes,
     String? imageName,
+    DateTime? publishAt,
   });
 
   /// Soft-deletes a message. Only the author may call this.
   Future<void> deleteMessage({
+    required String placeId,
+    required String messageId,
+  });
+
+  /// Cancels an unpublished scheduled message and frees its reserved slot.
+  Future<void> cancelScheduledMessage({
     required String placeId,
     required String messageId,
   });

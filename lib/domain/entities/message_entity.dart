@@ -7,6 +7,7 @@ class MessageEntity {
   final String content;
   final String? imageUrl;
   final DateTime createdAt;
+  final DateTime publishAt;
 
   /// True for optimistic messages that haven't been confirmed by Firestore yet.
   final bool isPending;
@@ -26,9 +27,13 @@ class MessageEntity {
     required this.content,
     this.imageUrl,
     required this.createdAt,
+    required this.publishAt,
     this.isPending = false,
     this.isDeleted = false,
     this.deletedAt,
     this.isVisible = true,
   });
+
+  bool isPublishedAt(DateTime now) => !now.isBefore(publishAt);
+  bool get isPublished => isPublishedAt(DateTime.now());
 }

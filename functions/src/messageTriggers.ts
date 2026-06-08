@@ -1,43 +1,95 @@
-import {onDocumentCreated} from "firebase-functions/v2/firestore";
-import {getFirestore, FieldValue} from "firebase-admin/firestore";
+import {onSchedule} from "firebase-functions/v2/scheduler";
+import * as logger from "firebase-functions/logger";
+import {getFirestore, FieldValue, Timestamp} from "firebase-admin/firestore";
 
-import {REGION, MAX_MESSAGES_PER_THREAD} from "./constants";
+import {MAX_MESSAGES_PER_THREAD, REGION} from "./constants";
 
 /**
- * Maintains place.messageCount / lastMessageAt server-side.
+ * Publishes scheduled messages whose publishAt has arrived.
  *
- * The counter used to be incremented by the client, but that required a
- * client-writable place field — which let any signed-in user tamper with any
- * note's count (block posting, reset the cap, reorder the list). Now the only
- * writer is this trigger; security rules deny client writes to those fields.
- *
- * It also performs the message-limit auto-close (Phase 3 #2's deferred piece):
- * when the count reaches the cap, the thread flips to closed so the writability
- * state reflects reality (rules already block the over-cap message itself).
+ * The hidden messageSlots counter already reserved capacity at send time. This
+ * job increments the public messageCount only when the message becomes public.
  */
-export const onMessageCreated = onDocumentCreated(
-  {document: "places/{placeId}/messages/{messageId}", region: REGION},
-  async (event) => {
+export const aggregatePublishedMessages = onSchedule(
+  {schedule: "every 1 minutes", timeZone: "Asia/Tokyo", region: REGION},
+  async () => {
     const db = getFirestore();
-    const placeRef = db.collection("places").doc(event.params.placeId);
+    const now = Timestamp.now();
+    const batchSize = 100;
 
-    await db.runTransaction(async (tx) => {
-      const snap = await tx.get(placeRef);
-      if (!snap.exists) return;
+    const snap = await db
+      .collectionGroup("messages")
+      .where("placeAggregateAppliedAt", "==", null)
+      .where("publishAt", "<=", now)
+      .orderBy("publishAt")
+      .limit(batchSize)
+      .get();
 
-      const newCount = ((snap.get("messageCount") as number) ?? 0) + 1;
-      const update: Record<string, unknown> = {
-        messageCount: newCount,
-        lastMessageAt: FieldValue.serverTimestamp(),
-      };
+    if (snap.empty) return;
 
-      if (newCount >= MAX_MESSAGES_PER_THREAD && snap.get("isOpen") === true) {
-        update.isOpen = false;
-        update.closedReason = "messageLimit";
-        update.closedAt = FieldValue.serverTimestamp();
-      }
+    let applied = 0;
+    await Promise.all(
+      snap.docs.map(async (messageDoc) => {
+        const placeRef = messageDoc.ref.parent.parent;
+        if (!placeRef) return;
 
-      tx.update(placeRef, update);
-    });
+        await db.runTransaction(async (tx) => {
+          const message = await tx.get(messageDoc.ref);
+          if (!message.exists) return;
+          if (message.get("placeAggregateAppliedAt") != null) return;
+          if (
+            message.get("isDeleted") === true ||
+            message.get("isVisible") !== true
+          ) {
+            tx.update(messageDoc.ref, {
+              placeAggregateAppliedAt: FieldValue.serverTimestamp(),
+            });
+            return;
+          }
+
+          const publishAt =
+            (message.get("publishAt") as Timestamp | undefined) ?? now;
+          if (publishAt.toMillis() > Date.now()) return;
+
+          const place = await tx.get(placeRef);
+          if (!place.exists) return;
+
+          const currentCount =
+            (place.get("messageCount") as number | undefined) ?? 0;
+          const newCount = currentCount + 1;
+          const update: Record<string, unknown> = {
+            messageCount: newCount,
+          };
+          const lastMessageAt =
+            place.get("lastMessageAt") as Timestamp | undefined;
+          if (
+            !lastMessageAt ||
+            lastMessageAt.toMillis() < publishAt.toMillis()
+          ) {
+            update.lastMessageAt = publishAt;
+          }
+
+          if (
+            newCount >= MAX_MESSAGES_PER_THREAD &&
+            place.get("isOpen") === true
+          ) {
+            update.isOpen = false;
+            update.closedReason = "messageLimit";
+            update.closedAt = FieldValue.serverTimestamp();
+          }
+
+          tx.update(placeRef, update);
+          tx.update(messageDoc.ref, {
+            placeAggregateAppliedAt: FieldValue.serverTimestamp(),
+            isPubliclyVisible: true,
+          });
+          applied++;
+        });
+      }),
+    );
+
+    logger.info(
+      `aggregatePublishedMessages: applied ${applied}/${snap.size} messages.`,
+    );
   },
 );

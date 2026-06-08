@@ -66,6 +66,9 @@ class AppConfig {
   /// Maximum character length of a single message.
   static const int maxMessageLength = 2000;
 
+  /// Maximum delay before a scheduled message may be published.
+  static const int maxMessagePublishDelayDays = 7;
+
   /// Maximum active notes a free user may own simultaneously.
   static const int freeNoteLimit = 20;
 

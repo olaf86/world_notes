@@ -71,10 +71,6 @@ abstract class PlaceRepository {
 
   // ── Writability (owner only) ──────────────────────────────────────────────
 
-  /// Creates a short-lived server-side write session for direct message
-  /// creation. My Notes read-only screens intentionally never call this.
-  Future<void> createWriteSession(String placeId);
-
   /// Closes the thread (read-only).  [reason] records whether this was a
   /// manual owner close or an automatic message-limit close.
   Future<void> closePlace(String placeId, {required ClosedReason reason});

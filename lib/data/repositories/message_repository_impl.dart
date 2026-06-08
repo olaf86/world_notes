@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:uuid/uuid.dart';
@@ -12,14 +14,17 @@ import '../models/message_model.dart';
 
 class MessageRepositoryImpl implements MessageRepository {
   final FirebaseFirestore _firestore;
+  final FirebaseFunctions _functions;
   final FirebaseStorage _storage;
   final _uuid = const Uuid();
 
   MessageRepositoryImpl({
     required FirebaseFirestore firestore,
+    required FirebaseFunctions functions,
     required FirebaseStorage storage,
-  })  : _firestore = firestore,
-        _storage = storage;
+  }) : _firestore = firestore,
+       _functions = functions,
+       _storage = storage;
 
   // Messages live in a subcollection under their place:
   //   places/{placeId}/messages/{messageId}
@@ -30,18 +35,83 @@ class MessageRepositoryImpl implements MessageRepository {
       _firestore.collection('places').doc(placeId).collection('messages');
 
   @override
-  Stream<List<MessageEntity>> watchMessages(String placeId) {
-    return _messagesOf(placeId)
-        .orderBy('createdAt', descending: true)
+  Stream<List<MessageEntity>> watchMessages({
+    required String placeId,
+    required String currentUserId,
+    required DateTime now,
+  }) {
+    final publishCutoff = now.subtract(const Duration(seconds: 5));
+    final publishedStream = _messagesOf(placeId)
+        .where('isPubliclyVisible', isEqualTo: true)
+        .where('isVisible', isEqualTo: true)
+        .where(
+          'publishAt',
+          isLessThanOrEqualTo: Timestamp.fromDate(publishCutoff),
+        )
+        .orderBy('publishAt', descending: true)
         .limit(AppConfig.messagesPageSize)
-        .snapshots()
-        .map((snap) =>
-            snap.docs.map((doc) => MessageModel.fromFirestore(doc).toEntity()).toList());
+        .snapshots();
+    final ownScheduledStream = _messagesOf(placeId)
+        .where('userId', isEqualTo: currentUserId)
+        .where('isPubliclyVisible', isEqualTo: false)
+        .orderBy('publishAt')
+        .limit(AppConfig.messagesPageSize)
+        .snapshots();
+
+    late final StreamController<List<MessageEntity>> controller;
+    QuerySnapshot? publishedSnap;
+    QuerySnapshot? ownScheduledSnap;
+    StreamSubscription<QuerySnapshot>? publishedSub;
+    StreamSubscription<QuerySnapshot>? ownScheduledSub;
+
+    void emitIfReady() {
+      final published = publishedSnap;
+      final ownScheduled = ownScheduledSnap;
+      if (published == null || ownScheduled == null) return;
+
+      final byId = <String, MessageEntity>{};
+      for (final doc in [...published.docs, ...ownScheduled.docs]) {
+        final message = MessageModel.fromFirestore(doc).toEntity();
+        if (!message.isVisible) continue;
+        if (message.isDeleted && message.author.id != currentUserId) continue;
+        byId[message.id] = message;
+      }
+
+      final messages = byId.values.toList()
+        ..sort((a, b) {
+          final publishOrder = b.publishAt.compareTo(a.publishAt);
+          if (publishOrder != 0) return publishOrder;
+          return b.createdAt.compareTo(a.createdAt);
+        });
+      controller.add(messages);
+    }
+
+    controller = StreamController<List<MessageEntity>>(
+      onListen: () {
+        publishedSub = publishedStream.listen((snap) {
+          publishedSnap = snap;
+          emitIfReady();
+        }, onError: controller.addError);
+        ownScheduledSub = ownScheduledStream.listen((snap) {
+          ownScheduledSnap = snap;
+          emitIfReady();
+        }, onError: controller.addError);
+      },
+      onCancel: () async {
+        await Future.wait([
+          if (publishedSub != null) publishedSub!.cancel(),
+          if (ownScheduledSub != null) ownScheduledSub!.cancel(),
+        ]);
+      },
+    );
+
+    return controller.stream;
   }
 
   @override
   Future<List<MessageEntity>> getOlderMessages({
     required String placeId,
+    required DateTime now,
     required String beforeMessageId,
     required int limit,
   }) async {
@@ -49,7 +119,15 @@ class MessageRepositoryImpl implements MessageRepository {
     if (!pivotDoc.exists) return [];
 
     final snap = await _messagesOf(placeId)
-        .orderBy('createdAt', descending: true)
+        .where('isPubliclyVisible', isEqualTo: true)
+        .where('isVisible', isEqualTo: true)
+        .where(
+          'publishAt',
+          isLessThanOrEqualTo: Timestamp.fromDate(
+            now.subtract(const Duration(seconds: 5)),
+          ),
+        )
+        .orderBy('publishAt', descending: true)
         .startAfterDocument(pivotDoc)
         .limit(limit)
         .get();
@@ -85,6 +163,7 @@ class MessageRepositoryImpl implements MessageRepository {
     String? userPhotoUrl,
     List<int>? imageBytes,
     String? imageName,
+    DateTime? publishAt,
   }) async {
     String? imageUrl;
     if (imageBytes != null) {
@@ -95,7 +174,17 @@ class MessageRepositoryImpl implements MessageRepository {
       );
     }
 
-    final messageId = id ?? _uuid.v4();
+    final now = DateTime.now();
+    final result = await _functions
+        .httpsCallable('sendMessage')
+        .call<Map<String, dynamic>>({
+          'placeId': placeId,
+          'content': content,
+          'imageUrl': ?imageUrl,
+          if (publishAt != null)
+            'publishAtMillis': publishAt.millisecondsSinceEpoch,
+        });
+    final messageId = result.data['messageId'] as String? ?? id ?? _uuid.v4();
     final model = MessageModel(
       id: messageId,
       placeId: placeId,
@@ -104,15 +193,9 @@ class MessageRepositoryImpl implements MessageRepository {
       userPhotoUrl: userPhotoUrl,
       content: content,
       imageUrl: imageUrl,
-      createdAt: DateTime.now(),
+      createdAt: now,
+      publishAt: publishAt ?? now,
     );
-
-    await _messagesOf(placeId).doc(messageId).set(model.toFirestore());
-
-    // place.messageCount / lastMessageAt are updated by the onMessageCreated
-    // Cloud Function trigger, not the client (clients can no longer write
-    // those fields). The new message itself streams in immediately; the note's
-    // counter/sort updates a moment later when the trigger commits.
 
     return model.toEntity();
   }
@@ -126,6 +209,19 @@ class MessageRepositoryImpl implements MessageRepository {
       'isDeleted': true,
       'deletedAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  @override
+  Future<void> cancelScheduledMessage({
+    required String placeId,
+    required String messageId,
+  }) async {
+    await _functions
+        .httpsCallable('cancelScheduledMessage')
+        .call<Map<String, dynamic>>({
+          'placeId': placeId,
+          'messageId': messageId,
+        });
   }
 
   @override

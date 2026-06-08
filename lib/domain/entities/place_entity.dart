@@ -34,7 +34,7 @@ enum NoteLockType {
 ///
 /// owner        — the owner closed it manually; the owner may re-open it.
 /// messageLimit — the thread hit AppConfig.maxMessagesPerThread; it is full
-///                and CANNOT be re-opened.
+///                and CANNOT be manually re-opened.
 enum ClosedReason {
   owner,
   messageLimit;
@@ -61,6 +61,9 @@ class PlaceEntity {
   final List<String> ownerIds;
   final DateTime createdAt;
   final DateTime publishAt;
+
+  /// Publicly visible message count. Scheduled messages are counted only after
+  /// they are published.
   final int messageCount;
   final DateTime? lastMessageAt;
 

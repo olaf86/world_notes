@@ -96,7 +96,11 @@ class _MessageBubbleState extends State<MessageBubble> {
             if (widget.isOwn && widget.onDelete != null)
               ListTile(
                 leading: const Icon(Icons.delete_outline),
-                title: const Text('Delete message'),
+                title: Text(
+                  widget.message.isPublished
+                      ? 'Delete message'
+                      : 'Cancel scheduled message',
+                ),
                 textColor: Theme.of(context).colorScheme.error,
                 iconColor: Theme.of(context).colorScheme.error,
                 onTap: () {
@@ -216,7 +220,10 @@ class _MessageBubbleState extends State<MessageBubble> {
     //   • A subtle primaryContainer background tint
     //   • Author name rendered in primary colour
     //   • A small "You" badge next to the name
-    final timeStr = DateFormat('HH:mm').format(message.createdAt.toLocal());
+    final isScheduled = widget.isOwn && !message.isPublished;
+    final timeStr = isScheduled
+        ? DateFormat('MMM d, HH:mm').format(message.publishAt.toLocal())
+        : DateFormat('HH:mm').format(message.createdAt.toLocal());
     final hasActions =
         (widget.isOwn && widget.onDelete != null) ||
         (!widget.isOwn && widget.onReport != null);
@@ -306,10 +313,24 @@ class _MessageBubbleState extends State<MessageBubble> {
                         ),
                         const SizedBox(width: 4),
                       ],
+                      if (isScheduled) ...[
+                        Icon(
+                          Icons.schedule_send_outlined,
+                          size: 13,
+                          color: theme.colorScheme.tertiary,
+                        ),
+                        const SizedBox(width: 3),
+                      ],
                       Text(
-                        message.isPending ? 'Sending…' : timeStr,
+                        message.isPending
+                            ? 'Sending…'
+                            : isScheduled
+                            ? 'Scheduled $timeStr'
+                            : timeStr,
                         style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
+                          color: isScheduled
+                              ? theme.colorScheme.tertiary
+                              : theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
