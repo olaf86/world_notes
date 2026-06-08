@@ -347,13 +347,7 @@ export const cancelScheduledMessage = onCall<CancelScheduledMessageData>(
       if (Object.keys(placeUpdate).length > 0) {
         tx.update(placeRef, placeUpdate);
       }
-      tx.update(messageRef, {
-        isDeleted: true,
-        isVisible: false,
-        deletedAt: FieldValue.serverTimestamp(),
-        canceledAt: FieldValue.serverTimestamp(),
-        placeAggregateAppliedAt: FieldValue.serverTimestamp(),
-      });
+      tx.delete(messageRef);
     });
 
     return {ok: true};
