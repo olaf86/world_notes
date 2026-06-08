@@ -43,12 +43,12 @@ class MessageModel {
       userPhotoUrl: data['userPhotoUrl'] as String?,
       content: data['content'] as String,
       imageUrl: data['imageUrl'] as String?,
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      createdAt: (data['createdAt'] as Timestamp).toDate(),
       publishAt: (data['publishAt'] as Timestamp).toDate(),
-      isDeleted: data['isDeleted'] as bool? ?? false,
+      isDeleted: data['isDeleted'] as bool,
       deletedAt: (data['deletedAt'] as Timestamp?)?.toDate(),
-      isVisible: data['isVisible'] as bool? ?? true,
-      isPubliclyVisible: data['isPubliclyVisible'] as bool? ?? true,
+      isVisible: data['isVisible'] as bool,
+      isPubliclyVisible: data['isPubliclyVisible'] as bool,
     );
   }
 

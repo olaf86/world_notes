@@ -22,7 +22,6 @@ export async function profileForMember(
   const snap = await getFirestore().collection("users").doc(uid).get();
   const data = snap.data();
   const displayName = stringOrNull(data?.displayName) ??
-    stringOrNull(data?.name) ??
     stringOrNull(tokenName);
   const email = stringOrNull(data?.email) ?? stringOrNull(tokenEmail);
   return {displayName, email};

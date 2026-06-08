@@ -3,10 +3,9 @@ import 'package:world_notes/data/models/user_model.dart';
 
 void main() {
   group('UserModel', () {
-    test('prefers displayName over legacy name', () {
+    test('reads displayName', () {
       final model = UserModel.fromFirestoreData('uid-1', {
         'displayName': 'Nickname',
-        'name': 'Google Account Name',
         'email': 'user@example.com',
         'photoUrl': 'https://example.com/photo.png',
         'isPremium': true,
@@ -16,14 +15,6 @@ void main() {
       expect(model.email, 'user@example.com');
       expect(model.photoUrl, 'https://example.com/photo.png');
       expect(model.isPremium, isTrue);
-    });
-
-    test('falls back to legacy name', () {
-      final model = UserModel.fromFirestoreData('uid-1', {
-        'name': 'Legacy Name',
-      });
-
-      expect(model.name, 'Legacy Name');
     });
 
     test('writes displayName field', () {

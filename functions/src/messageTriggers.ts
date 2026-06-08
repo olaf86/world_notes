@@ -47,8 +47,7 @@ export const aggregatePublishedMessages = onSchedule(
             return;
           }
 
-          const publishAt =
-            (message.get("publishAt") as Timestamp | undefined) ?? now;
+          const publishAt = message.get("publishAt") as Timestamp;
           if (publishAt.toMillis() > Date.now()) return;
 
           const place = await tx.get(placeRef);

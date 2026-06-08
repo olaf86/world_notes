@@ -63,35 +63,26 @@ class PlaceModel {
       geohash: data['geohash'] as String,
       title: data['title'] as String,
       subtitle: data['subtitle'] as String?,
-      colorHex: data['colorHex'] as String? ?? '#4CAF50',
-      icon: data['icon'] as String? ?? 'place',
+      colorHex: data['colorHex'] as String,
+      icon: data['icon'] as String,
       createdByUserId: data['createdByUserId'] as String,
-      ownerIds:
-          (data['ownerIds'] as List<dynamic>?)?.whereType<String>().toList() ??
-          [data['createdByUserId'] as String],
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      publishAt:
-          (data['publishAt'] as Timestamp?)?.toDate() ??
-          (data['createdAt'] as Timestamp?)?.toDate() ??
-          DateTime.now(),
-      messageCount: (data['messageCount'] as int?) ?? 0,
+      ownerIds: (data['ownerIds'] as List<dynamic>)
+          .whereType<String>()
+          .toList(),
+      createdAt: (data['createdAt'] as Timestamp).toDate(),
+      publishAt: (data['publishAt'] as Timestamp).toDate(),
+      messageCount: data['messageCount'] as int,
       lastMessageAt: (data['lastMessageAt'] as Timestamp?)?.toDate(),
-      visibility: PlaceVisibility.fromJson(data['visibility'] as String?),
-      passwordVersion: (data['passwordVersion'] as int?) ?? 0,
+      visibility: PlaceVisibility.fromJson(data['visibility'] as String),
+      passwordVersion: data['passwordVersion'] as int,
       lockType: NoteLockType.fromJson(data['lockType'] as String?),
       lockHint: data['lockHint'] as String?,
-      isOpen: data['isOpen'] as bool? ?? true,
+      isOpen: data['isOpen'] as bool,
       closedReason: ClosedReason.fromJson(data['closedReason'] as String?),
       closedAt: (data['closedAt'] as Timestamp?)?.toDate(),
-      isArchived: data['isArchived'] as bool? ?? false,
+      isArchived: data['isArchived'] as bool,
       archivedAt: (data['archivedAt'] as Timestamp?)?.toDate(),
-      // expiresAt may be absent on legacy docs created before this field
-      // existed — default to createdAt + 1 year so they still resolve.
-      expiresAt:
-          (data['expiresAt'] as Timestamp?)?.toDate() ??
-          ((data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now()).add(
-            const Duration(days: 365),
-          ),
+      expiresAt: (data['expiresAt'] as Timestamp).toDate(),
     );
   }
 

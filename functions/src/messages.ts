@@ -70,11 +70,11 @@ function canAccessNote(
 
 function messageSlotCount(
   counterSnap: DocumentSnapshot,
-  fallbackPublicCount: number,
+  initialPublicCount: number,
 ): number {
   return counterSnap.exists ?
     ((counterSnap.get("count") as number | undefined) ?? 0) :
-    fallbackPublicCount;
+    initialPublicCount;
 }
 
 function validatePlaceCanAccept(placeSnap: DocumentSnapshot, nowMs: number) {

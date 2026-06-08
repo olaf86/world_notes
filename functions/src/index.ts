@@ -202,8 +202,8 @@ export const createNote = onCall<CreateNoteData>(
         expiresAt,
       });
 
-      // Counter is the source of truth for the cap. set(merge) handles users
-      // whose doc predates this field (treated as 0 above).
+      // Counter is the source of truth for the cap. New user docs do not need
+      // to store activeNoteCount until their first note is created.
       tx.set(
         userRef,
         {activeNoteCount: FieldValue.increment(1)},

@@ -22,11 +22,9 @@ class UserModel {
   }
 
   factory UserModel.fromFirestoreData(String id, Map<String, dynamic> data) {
-    final displayName = data['displayName'] as String?;
-    final legacyName = data['name'] as String?;
     return UserModel(
       id: id,
-      name: displayName ?? legacyName ?? 'User',
+      name: data['displayName'] as String,
       email: data['email'] as String?,
       photoUrl: data['photoUrl'] as String?,
       isPremium: data['isPremium'] as bool? ?? false,
