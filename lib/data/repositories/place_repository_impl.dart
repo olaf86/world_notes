@@ -36,6 +36,11 @@ class PlaceRepositoryImpl implements PlaceRepository {
   ///   * publication window (publishAt/expiresAt),
   ///   * archive state,
   ///   * per-query result limit.
+  ///
+  /// The publish/expires filters are range filters on different fields. That
+  /// is supported by Firestore only when the query can use the matching
+  /// composite index, so keep these orderBy fields in sync with
+  /// firestore.indexes.json.
   Query _cellQuery(String prefix, DateTime now) {
     // Firestore Rules compare against request.time, which is a little later
     // than the server time returned by the grant function. These buffers make
@@ -56,6 +61,8 @@ class PlaceRepositoryImpl implements PlaceRepository {
           isLessThanOrEqualTo: Timestamp.fromDate(publishCutoff),
         )
         .where('expiresAt', isGreaterThan: Timestamp.fromDate(expiresCutoff))
+        .orderBy('publishAt')
+        .orderBy('expiresAt')
         .limit(AppConfig.placesPerCellLimit);
   }
 
