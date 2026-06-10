@@ -55,6 +55,14 @@
     },
     {
       "collectionGroup": "messages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "publishAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "messages",
       "queryScope": "COLLECTION_GROUP",
       "fields": [
         { "fieldPath": "placeAggregateAppliedAt", "order": "ASCENDING" },

@@ -51,26 +51,29 @@ class MessageRepositoryImpl implements MessageRepository {
         .orderBy('publishAt', descending: true)
         .limit(AppConfig.messagesPageSize)
         .snapshots();
-    final ownScheduledStream = _messagesOf(placeId)
+    // Keep a separate own-message stream without a publishAt cutoff. The
+    // public stream's cutoff is fixed when the subscription is created, so a
+    // message posted after opening the screen can otherwise be excluded until
+    // the clock provider rebuilds this query.
+    final ownMessagesStream = _messagesOf(placeId)
         .where('userId', isEqualTo: currentUserId)
-        .where('isPubliclyVisible', isEqualTo: false)
-        .orderBy('publishAt')
+        .orderBy('publishAt', descending: true)
         .limit(AppConfig.messagesPageSize)
         .snapshots();
 
     late final StreamController<List<MessageEntity>> controller;
     QuerySnapshot? publishedSnap;
-    QuerySnapshot? ownScheduledSnap;
+    QuerySnapshot? ownMessagesSnap;
     StreamSubscription<QuerySnapshot>? publishedSub;
-    StreamSubscription<QuerySnapshot>? ownScheduledSub;
+    StreamSubscription<QuerySnapshot>? ownMessagesSub;
 
     void emitIfReady() {
       final published = publishedSnap;
-      final ownScheduled = ownScheduledSnap;
-      if (published == null || ownScheduled == null) return;
+      final ownMessages = ownMessagesSnap;
+      if (published == null || ownMessages == null) return;
 
       final byId = <String, MessageEntity>{};
-      for (final doc in [...published.docs, ...ownScheduled.docs]) {
+      for (final doc in [...published.docs, ...ownMessages.docs]) {
         final message = MessageModel.fromFirestore(doc).toEntity();
         if (!message.isVisible) continue;
         if (message.isDeleted && message.author.id != currentUserId) continue;
@@ -92,15 +95,15 @@ class MessageRepositoryImpl implements MessageRepository {
           publishedSnap = snap;
           emitIfReady();
         }, onError: controller.addError);
-        ownScheduledSub = ownScheduledStream.listen((snap) {
-          ownScheduledSnap = snap;
+        ownMessagesSub = ownMessagesStream.listen((snap) {
+          ownMessagesSnap = snap;
           emitIfReady();
         }, onError: controller.addError);
       },
       onCancel: () async {
         await Future.wait([
           if (publishedSub != null) publishedSub!.cancel(),
-          if (ownScheduledSub != null) ownScheduledSub!.cancel(),
+          if (ownMessagesSub != null) ownMessagesSub!.cancel(),
         ]);
       },
     );
