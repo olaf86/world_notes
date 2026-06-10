@@ -45,6 +45,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     with SingleTickerProviderStateMixin {
   late final NoteMapAdapter _mapAdapter;
   bool _refreshingNearby = false;
+  String? _activePinPreviewPlaceId;
 
   @override
   void initState() {
@@ -64,11 +65,19 @@ class _MapScreenState extends ConsumerState<MapScreen>
   // ── Pin tap → bottom sheet ────────────────────────────────────────────────
 
   Future<void> _showPinPreview(PlaceEntity place) async {
-    if (!mounted) return;
-    await showModalBottomSheet<void>(
-      context: context,
-      builder: (_) => NoteMarkerBottomSheet(place: place),
-    );
+    if (!mounted || _activePinPreviewPlaceId != null) return;
+
+    _activePinPreviewPlaceId = place.id;
+    try {
+      await showModalBottomSheet<void>(
+        context: context,
+        builder: (_) => NoteMarkerBottomSheet(place: place),
+      );
+    } finally {
+      if (_activePinPreviewPlaceId == place.id) {
+        _activePinPreviewPlaceId = null;
+      }
+    }
   }
 
   // ── Tracking toggle ──────────────────────────────────────────────────────

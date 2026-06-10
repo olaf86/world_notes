@@ -223,7 +223,7 @@ class _MessageBubbleState extends State<MessageBubble> {
     final isScheduled = widget.isOwn && !message.isPublished;
     final timeStr = isScheduled
         ? DateFormat('MMM d, HH:mm').format(message.publishAt.toLocal())
-        : DateFormat('HH:mm').format(message.createdAt.toLocal());
+        : DateFormat('HH:mm').format(message.publishAt.toLocal());
     final hasActions =
         (widget.isOwn && widget.onDelete != null) ||
         (!widget.isOwn && widget.onReport != null);
