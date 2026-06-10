@@ -121,9 +121,10 @@ class PlaceRepositoryImpl implements PlaceRepository {
     final latest = List<QuerySnapshot?>.filled(prefixes.length, null);
     final subscriptions = <StreamSubscription<QuerySnapshot>>[];
 
-    void emitIfReady() {
-      if (latest.any((snap) => snap == null)) return;
-      controller.add(_collectVisible(latest.cast<QuerySnapshot>(), now));
+    void emitLatest() {
+      final ready = latest.whereType<QuerySnapshot>().toList();
+      if (ready.isEmpty) return;
+      controller.add(_collectVisible(ready, now));
     }
 
     controller = StreamController<List<PlaceEntity>>(
@@ -132,7 +133,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
           subscriptions.add(
             _cellQuery(prefixes[i], now).snapshots().listen((snap) {
               latest[i] = snap;
-              emitIfReady();
+              emitLatest();
             }, onError: controller.addError),
           );
         }

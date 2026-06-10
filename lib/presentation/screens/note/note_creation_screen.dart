@@ -184,6 +184,10 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
             expiryDays: _expiryDays,
             publishAt: _publishAtForCreate(),
           );
+      ref.invalidate(
+        placesNearbyProvider(latLng(widget.latitude, widget.longitude)),
+      );
+      ref.invalidate(myPlacesProvider);
 
       if (mounted) {
         context.pushReplacement(
