@@ -38,42 +38,33 @@ class MessageRepositoryImpl implements MessageRepository {
   Stream<List<MessageEntity>> watchMessages({
     required String placeId,
     required String currentUserId,
-    required DateTime now,
   }) {
-    final publishCutoff = now.subtract(const Duration(seconds: 5));
     final publishedStream = _messagesOf(placeId)
         .where('isPubliclyVisible', isEqualTo: true)
         .where('isVisible', isEqualTo: true)
-        .where(
-          'publishAt',
-          isLessThanOrEqualTo: Timestamp.fromDate(publishCutoff),
-        )
         .orderBy('publishAt', descending: true)
         .limit(AppConfig.messagesPageSize)
         .snapshots();
-    // Keep a separate own-message stream without a publishAt cutoff. The
-    // public stream's cutoff is fixed when the subscription is created, so a
-    // message posted after opening the screen can otherwise be excluded until
-    // the clock provider rebuilds this query.
-    final ownMessagesStream = _messagesOf(placeId)
+    final ownScheduledStream = _messagesOf(placeId)
         .where('userId', isEqualTo: currentUserId)
-        .orderBy('publishAt', descending: true)
+        .where('isPubliclyVisible', isEqualTo: false)
+        .orderBy('publishAt')
         .limit(AppConfig.messagesPageSize)
         .snapshots();
 
     late final StreamController<List<MessageEntity>> controller;
     QuerySnapshot? publishedSnap;
-    QuerySnapshot? ownMessagesSnap;
+    QuerySnapshot? ownScheduledSnap;
     StreamSubscription<QuerySnapshot>? publishedSub;
-    StreamSubscription<QuerySnapshot>? ownMessagesSub;
+    StreamSubscription<QuerySnapshot>? ownScheduledSub;
 
     void emitIfReady() {
       final published = publishedSnap;
-      final ownMessages = ownMessagesSnap;
-      if (published == null || ownMessages == null) return;
+      final ownScheduled = ownScheduledSnap;
+      if (published == null || ownScheduled == null) return;
 
       final byId = <String, MessageEntity>{};
-      for (final doc in [...published.docs, ...ownMessages.docs]) {
+      for (final doc in [...published.docs, ...ownScheduled.docs]) {
         final message = MessageModel.fromFirestore(doc).toEntity();
         if (!message.isVisible) continue;
         if (message.isDeleted && message.author.id != currentUserId) continue;
@@ -95,15 +86,15 @@ class MessageRepositoryImpl implements MessageRepository {
           publishedSnap = snap;
           emitIfReady();
         }, onError: controller.addError);
-        ownMessagesSub = ownMessagesStream.listen((snap) {
-          ownMessagesSnap = snap;
+        ownScheduledSub = ownScheduledStream.listen((snap) {
+          ownScheduledSnap = snap;
           emitIfReady();
         }, onError: controller.addError);
       },
       onCancel: () async {
         await Future.wait([
           if (publishedSub != null) publishedSub!.cancel(),
-          if (ownMessagesSub != null) ownMessagesSub!.cancel(),
+          if (ownScheduledSub != null) ownScheduledSub!.cancel(),
         ]);
       },
     );
@@ -114,7 +105,6 @@ class MessageRepositoryImpl implements MessageRepository {
   @override
   Future<List<MessageEntity>> getOlderMessages({
     required String placeId,
-    required DateTime now,
     required String beforeMessageId,
     required int limit,
   }) async {
@@ -124,12 +114,6 @@ class MessageRepositoryImpl implements MessageRepository {
     final snap = await _messagesOf(placeId)
         .where('isPubliclyVisible', isEqualTo: true)
         .where('isVisible', isEqualTo: true)
-        .where(
-          'publishAt',
-          isLessThanOrEqualTo: Timestamp.fromDate(
-            now.subtract(const Duration(seconds: 5)),
-          ),
-        )
         .orderBy('publishAt', descending: true)
         .startAfterDocument(pivotDoc)
         .limit(limit)

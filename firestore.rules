@@ -74,13 +74,8 @@ service cloud.firestore {
       return isPlaceOwner(place) || isPubliclyReadablePlace(place);
     }
 
-    function isPublishedMessage(message) {
-      return message.publishAt <= request.time;
-    }
-
     function isPubliclyVisibleMessage(message) {
-      return isPublishedMessage(message)
-             && message.isVisible == true
+      return message.isVisible == true
              && message.isPubliclyVisible == true;
     }
 

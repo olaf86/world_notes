@@ -4,11 +4,9 @@ abstract class MessageRepository {
   Stream<List<MessageEntity>> watchMessages({
     required String placeId,
     required String currentUserId,
-    required DateTime now,
   });
   Future<List<MessageEntity>> getOlderMessages({
     required String placeId,
-    required DateTime now,
     required String beforeMessageId,
     required int limit,
   });

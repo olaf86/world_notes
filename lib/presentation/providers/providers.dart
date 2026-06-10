@@ -236,25 +236,15 @@ final noteLimitProvider = Provider<int>((ref) {
 
 // --- Messages ---
 
-/// Advances message visibility queries across publishAt boundaries. Firestore
-/// will not re-run a `publishAt <= now` query just because wall-clock time
-/// passed, so the provider is rebuilt once per minute with a fresh cutoff.
-final messageVisibilityClockProvider = StreamProvider<DateTime>((ref) async* {
-  yield DateTime.now();
-  yield* Stream.periodic(const Duration(minutes: 1), (_) => DateTime.now());
-});
-
 final messagesProvider = StreamProvider.family<List<MessageEntity>, String>((
   ref,
   placeId,
 ) {
   final user = ref.watch(authStateProvider).valueOrNull;
   if (user == null) return Stream.value(const []);
-  final now =
-      ref.watch(messageVisibilityClockProvider).valueOrNull ?? DateTime.now();
   return ref
       .watch(messageRepositoryProvider)
-      .watchMessages(placeId: placeId, currentUserId: user.id, now: now);
+      .watchMessages(placeId: placeId, currentUserId: user.id);
 });
 
 // --- PRO subscription ---
