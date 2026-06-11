@@ -39,6 +39,13 @@ export {
   revokeNoteAccess,
 } from "./invites";
 
+// Push notification preferences and FCM token registration.
+export {
+  registerFcmToken,
+  deleteFcmToken,
+  setMyNotesNotificationEnabled,
+} from "./notifications";
+
 // User profile updates. Nickname changes keep future posts using the new name
 // and refresh note access-list member labels.
 export {updateDisplayName} from "./userProfile";

@@ -1,10 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../domain/entities/user_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
+import '../../services/my_notes_notification_service.dart';
 import '../../services/subscription_service.dart';
 import '../models/user_model.dart';
 
@@ -13,6 +15,7 @@ class AuthRepositoryImpl implements AuthRepository {
   final GoogleSignIn _googleSignIn;
   final FirebaseFirestore _firestore;
   final FirebaseFunctions _functions;
+  final MyNotesNotificationService _myNotesNotificationService;
   final SubscriptionService _subscriptionService;
 
   AuthRepositoryImpl({
@@ -20,11 +23,13 @@ class AuthRepositoryImpl implements AuthRepository {
     required GoogleSignIn googleSignIn,
     required FirebaseFirestore firestore,
     required FirebaseFunctions functions,
+    required MyNotesNotificationService myNotesNotificationService,
     required SubscriptionService subscriptionService,
   }) : _auth = auth,
        _googleSignIn = googleSignIn,
        _firestore = firestore,
        _functions = functions,
+       _myNotesNotificationService = myNotesNotificationService,
        _subscriptionService = subscriptionService;
 
   @override
@@ -101,6 +106,12 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<void> signOut() async {
+    try {
+      await _myNotesNotificationService.deleteCurrentToken();
+    } catch (error, stack) {
+      debugPrint('FCM token cleanup during sign-out failed: $error\n$stack');
+      // Token cleanup is best-effort; never trap the user in a signed-in state.
+    }
     await Future.wait([_auth.signOut(), _googleSignIn.signOut()]);
   }
 

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
@@ -10,14 +12,13 @@ import 'config/router.dart';
 import 'core/theme/app_theme.dart';
 import 'firebase_options.dart';
 import 'l10n/app_localizations.dart';
+import 'presentation/providers/providers.dart';
 import 'services/subscription_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // App Check attests that requests come from a genuine, untampered build of
   // this app — the gate that makes the Phase 3 callable functions trustworthy.
@@ -30,10 +31,10 @@ void main() async {
   // NOTE: backend enforcement (enforceAppCheck) stays OFF until tokens are
   // confirmed flowing in the console's "unenforced" metrics, to avoid lockout.
   await FirebaseAppCheck.instance.activate(
-    appleProvider:
-        kDebugMode ? AppleProvider.debug : AppleProvider.appAttest,
-    androidProvider:
-        kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
+    appleProvider: kDebugMode ? AppleProvider.debug : AppleProvider.appAttest,
+    androidProvider: kDebugMode
+        ? AndroidProvider.debug
+        : AndroidProvider.playIntegrity,
   );
 
   await MobileAds.instance.initialize();
@@ -42,11 +43,42 @@ void main() async {
   runApp(const ProviderScope(child: WorldNotesApp()));
 }
 
-class WorldNotesApp extends ConsumerWidget {
+class WorldNotesApp extends ConsumerStatefulWidget {
   const WorldNotesApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<WorldNotesApp> createState() => _WorldNotesAppState();
+}
+
+class _WorldNotesAppState extends ConsumerState<WorldNotesApp> {
+  StreamSubscription<String>? _notificationOpenSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final service = ref.read(myNotesNotificationServiceProvider);
+      service.registerCurrentToken();
+      service.initialPlaceIdFromLaunch().then(_openPlaceFromNotification);
+      _notificationOpenSubscription = service.openedPlaceIds.listen(
+        _openPlaceFromNotification,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _notificationOpenSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _openPlaceFromNotification(String? placeId) {
+    if (!mounted || placeId == null || placeId.isEmpty) return;
+    ref.read(routerProvider).go(Uri(path: '/note/$placeId').toString());
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(
