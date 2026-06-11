@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -20,6 +21,7 @@ import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/message_repository.dart';
 import '../../domain/repositories/place_repository.dart';
 import '../../services/location_service.dart';
+import '../../services/my_notes_notification_service.dart';
 import '../../services/subscription_service.dart';
 
 // --- Infrastructure ---
@@ -34,6 +36,10 @@ final firebaseAuthProvider = Provider<FirebaseAuth>(
 
 final firebaseStorageProvider = Provider<FirebaseStorage>(
   (_) => FirebaseStorage.instance,
+);
+
+final firebaseMessagingProvider = Provider<FirebaseMessaging>(
+  (_) => FirebaseMessaging.instance,
 );
 
 // The client must target a region where the functions are actually deployed,
@@ -54,6 +60,30 @@ final subscriptionServiceProvider = Provider<SubscriptionService>(
   (_) => SubscriptionService(),
 );
 
+final myNotesNotificationServiceProvider = Provider<MyNotesNotificationService>(
+  (ref) {
+    final service = MyNotesNotificationService(
+      messaging: ref.watch(firebaseMessagingProvider),
+      functions: ref.watch(firebaseFunctionsProvider),
+      auth: ref.watch(firebaseAuthProvider),
+    );
+    service.startTokenRefreshHandling(() async {
+      final user = ref.read(firebaseAuthProvider).currentUser;
+      if (user == null) return false;
+      final snap = await ref
+          .read(firestoreProvider)
+          .collection('users')
+          .doc(user.uid)
+          .collection('notificationSettings')
+          .doc('main')
+          .get();
+      return snap.data()?['myNotesEnabled'] == true;
+    });
+    ref.onDispose(service.dispose);
+    return service;
+  },
+);
+
 // --- Repositories ---
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
@@ -62,6 +92,7 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
     googleSignIn: GoogleSignIn(),
     firestore: ref.watch(firestoreProvider),
     functions: ref.watch(firebaseFunctionsProvider),
+    myNotesNotificationService: ref.watch(myNotesNotificationServiceProvider),
     subscriptionService: ref.watch(subscriptionServiceProvider),
   );
 });
@@ -85,6 +116,21 @@ final messageRepositoryProvider = Provider<MessageRepository>((ref) {
 
 final authStateProvider = StreamProvider<UserEntity?>((ref) {
   return ref.watch(authRepositoryProvider).authStateChanges;
+});
+
+// --- Notifications ---
+
+final myNotesNotificationEnabledProvider = StreamProvider<bool>((ref) {
+  final user = ref.watch(authStateProvider).valueOrNull;
+  if (user == null) return Stream.value(false);
+  return ref
+      .watch(firestoreProvider)
+      .collection('users')
+      .doc(user.id)
+      .collection('notificationSettings')
+      .doc('main')
+      .snapshots()
+      .map((snap) => snap.data()?['myNotesEnabled'] == true);
 });
 
 // --- Location ---

@@ -117,6 +117,20 @@ service cloud.firestore {
       match /limits/{doc} {
         allow read, write: if false;
       }
+
+      // Notification preferences are readable by the signed-in owner, but only
+      // callable Cloud Functions may change them. The server remains the single
+      // source of truth for who can receive My Notes push notifications.
+      match /notificationSettings/{settingsId} {
+        allow read: if isOwner(uid);
+        allow write: if false;
+      }
+
+      // FCM registration tokens are sensitive delivery endpoints. Clients
+      // register/delete them via Cloud Functions; no direct Firestore access.
+      match /fcmTokens/{tokenId} {
+        allow read, write: if false;
+      }
     }
 
     // ── places ────────────────────────────────────────────────────────────────

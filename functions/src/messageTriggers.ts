@@ -3,6 +3,7 @@ import * as logger from "firebase-functions/logger";
 import {getFirestore, FieldValue, Timestamp} from "firebase-admin/firestore";
 
 import {MAX_MESSAGES_PER_THREAD, REGION} from "./constants";
+import {sendMyNotesMessageNotifications} from "./notifications";
 
 /**
  * Publishes scheduled messages whose publishAt has arrived.
@@ -28,6 +29,11 @@ export const aggregatePublishedMessages = onSchedule(
     if (snap.empty) return;
 
     let applied = 0;
+    const publishedMessages: Array<{
+      placeId: string;
+      messageId: string;
+      senderId: string;
+    }> = [];
     await Promise.all(
       snap.docs.map(async (messageDoc) => {
         const placeRef = messageDoc.ref.parent.parent;
@@ -82,9 +88,34 @@ export const aggregatePublishedMessages = onSchedule(
             placeAggregateAppliedAt: FieldValue.serverTimestamp(),
             isPubliclyVisible: true,
           });
+          publishedMessages.push({
+            placeId: placeRef.id,
+            messageId: messageDoc.id,
+            senderId: message.get("userId") as string,
+          });
           applied++;
         });
       }),
+    );
+
+    await Promise.all(
+      publishedMessages.map(async ({placeId, messageId, senderId}) => {
+        try {
+          await sendMyNotesMessageNotifications(
+            db,
+            placeId,
+            messageId,
+            senderId,
+          );
+        } catch (error) {
+          logger.error(
+            "aggregatePublishedMessages: failed to send My Notes " +
+              `notification for places/${placeId}/messages/${messageId}.`,
+            error,
+          );
+        }
+      },
+      ),
     );
 
     logger.info(

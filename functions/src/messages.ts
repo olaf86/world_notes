@@ -6,6 +6,7 @@ import {
   Timestamp,
   getFirestore,
 } from "firebase-admin/firestore";
+import * as logger from "firebase-functions/logger";
 
 import {
   MAX_MESSAGE_PUBLISH_DELAY_DAYS,
@@ -13,6 +14,7 @@ import {
   REGION,
 } from "./constants";
 import {profileForMember} from "./userProfile";
+import {sendMyNotesMessageNotifications} from "./notifications";
 
 interface SendMessageData {
   placeId?: unknown;
@@ -175,6 +177,7 @@ export const sendMessage = onCall<SendMessageData>(
       req.auth?.token.name,
       req.auth?.token.email,
     );
+    let publishedImmediately = false;
 
     await db.runTransaction(async (tx) => {
       const placeSnap = await tx.get(placeRef);
@@ -204,6 +207,7 @@ export const sendMessage = onCall<SendMessageData>(
 
       const publishAt = validatePublishAt(publishAtMillis, nowMs, placeSnap);
       const isImmediate = publishAt.toMillis() <= nowMs;
+      publishedImmediately = isImmediate;
       const nextSlots = currentSlots + 1;
 
       const placeUpdate: Record<string, unknown> = {};
@@ -256,6 +260,18 @@ export const sendMessage = onCall<SendMessageData>(
         reportCount: 0,
       });
     });
+
+    if (publishedImmediately) {
+      try {
+        await sendMyNotesMessageNotifications(db, placeId, messageRef.id, uid);
+      } catch (error) {
+        logger.error(
+          "sendMessage: failed to send My Notes notification for " +
+            `places/${placeId}/messages/${messageRef.id}.`,
+          error,
+        );
+      }
+    }
 
     return {
       messageId: messageRef.id,
