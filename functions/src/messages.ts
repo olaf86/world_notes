@@ -12,6 +12,7 @@ import {
   MAX_MESSAGES_PER_THREAD,
   REGION,
 } from "./constants";
+import {profileForMember} from "./userProfile";
 
 interface SendMessageData {
   placeId?: unknown;
@@ -29,10 +30,6 @@ function stringOrNull(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ?
     value.trim() :
     null;
-}
-
-function displayNameFor(tokenName: unknown): string {
-  return stringOrNull(tokenName) ?? "User";
 }
 
 function photoUrlFor(tokenPicture: unknown): string | null {
@@ -173,6 +170,11 @@ export const sendMessage = onCall<SendMessageData>(
     const counterRef = placeRef.collection("counters").doc("messageSlots");
     const messageRef = placeRef.collection("messages").doc();
     const nowMs = Date.now();
+    const profile = await profileForMember(
+      uid,
+      req.auth?.token.name,
+      req.auth?.token.email,
+    );
 
     await db.runTransaction(async (tx) => {
       const placeSnap = await tx.get(placeRef);
@@ -239,7 +241,7 @@ export const sendMessage = onCall<SendMessageData>(
       tx.set(messageRef, {
         placeId,
         userId: uid,
-        userName: displayNameFor(req.auth?.token.name),
+        userName: profile.displayName ?? "Unknown user",
         userPhotoUrl: photoUrlFor(req.auth?.token.picture),
         content: trimmedContent,
         ...(trimmedImageUrl ? {imageUrl: trimmedImageUrl} : {}),
