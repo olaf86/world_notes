@@ -186,14 +186,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final positionAsync = ref.watch(positionStreamProvider);
     final anchor = ref.watch(anchorPositionProvider);
     final isTracking = ref.watch(isTrackingProvider);
-
-    if (anchor != null) {
-      ref
-          .watch(
+    final placesAsync = anchor == null
+        ? null
+        : ref.watch(
             placesNearbyProvider(latLng(anchor.latitude, anchor.longitude)),
-          )
-          .whenData(_mapAdapter.updateMarkers);
-    }
+          );
+    final loadingNearbyNotes =
+        _refreshingNearby || (placesAsync?.isLoading ?? false);
+
+    placesAsync?.whenData(_mapAdapter.updateMarkers);
 
     if (_mapAdapter.supportsMapStyle) {
       ref.listen<MapStyle>(mapStyleProvider, (_, next) {
@@ -212,7 +213,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
         onPointerDown: _onUserPanned,
         onTrackingToggle: _toggleTracking,
         onRefresh: _refreshNearby,
-        refreshing: _refreshingNearby,
+        loadingNearbyNotes: loadingNearbyNotes,
         onAddNote: () => _onAddNote(anchor),
         onShowList: widget.onShowList,
       );
@@ -240,7 +241,7 @@ class _MapView extends ConsumerWidget {
   final VoidCallback onPointerDown;
   final VoidCallback onTrackingToggle;
   final VoidCallback onRefresh;
-  final bool refreshing;
+  final bool loadingNearbyNotes;
   final VoidCallback onAddNote;
   final VoidCallback? onShowList;
 
@@ -251,7 +252,7 @@ class _MapView extends ConsumerWidget {
     required this.onPointerDown,
     required this.onTrackingToggle,
     required this.onRefresh,
-    required this.refreshing,
+    required this.loadingNearbyNotes,
     required this.onAddNote,
     required this.onShowList,
   });
@@ -273,11 +274,83 @@ class _MapView extends ConsumerWidget {
             styleUrl: styleUrl,
           ),
         ),
+        _NearbyNotesLoadingStatus(visible: loadingNearbyNotes),
         if (onShowList != null) _ListButton(onPressed: onShowList!),
-        _RefreshButton(onPressed: onRefresh, refreshing: refreshing),
+        _RefreshButton(onPressed: onRefresh, refreshing: loadingNearbyNotes),
         _TrackingButton(isTracking: isTracking, onPressed: onTrackingToggle),
         _AddNoteFab(onPressed: onAddNote),
       ],
+    );
+  }
+}
+
+class _NearbyNotesLoadingStatus extends StatelessWidget {
+  final bool visible;
+
+  const _NearbyNotesLoadingStatus({required this.visible});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Positioned(
+      top: 12,
+      left: 16,
+      right: 16,
+      child: SafeArea(
+        child: IgnorePointer(
+          child: AnimatedSlide(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            offset: visible ? Offset.zero : const Offset(0, -0.18),
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              opacity: visible ? 1 : 0,
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: colorScheme.surface.withValues(alpha: 0.94),
+                    borderRadius: BorderRadius.circular(999),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.12),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: colorScheme.primary,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Loading nearby notes...',
+                          style: Theme.of(context).textTheme.labelLarge
+                              ?.copyWith(color: colorScheme.onSurface),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
