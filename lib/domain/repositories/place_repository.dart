@@ -1,4 +1,5 @@
 import '../entities/place_entity.dart';
+import '../entities/pin_summary_entity.dart';
 
 class DiscoveryGrant {
   final List<String> discoveryGeohashes;
@@ -13,6 +14,19 @@ class DiscoveryGrant {
 }
 
 abstract class PlaceRepository {
+  Future<List<PinSummary>> listMapPins({
+    required double centerLatitude,
+    required double centerLongitude,
+    required double userLatitude,
+    required double userLongitude,
+  });
+
+  Future<void> validateNoteAccess({
+    required String placeId,
+    required double latitude,
+    required double longitude,
+  });
+
   Future<List<PlaceEntity>> getPlacesNearby({
     required double latitude,
     required double longitude,

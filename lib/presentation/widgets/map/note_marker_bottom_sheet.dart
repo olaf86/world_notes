@@ -1,18 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/place_icon.dart';
 import '../../../core/utils/time_format.dart';
-import '../../../domain/entities/place_entity.dart';
+import '../../../domain/entities/pin_summary_entity.dart';
 
 class NoteMarkerBottomSheet extends StatelessWidget {
-  final PlaceEntity place;
-  const NoteMarkerBottomSheet({super.key, required this.place});
+  final PinSummary pin;
+  final Future<void> Function(PinSummary pin) onOpen;
+
+  const NoteMarkerBottomSheet({
+    super.key,
+    required this.pin,
+    required this.onOpen,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final color = parsePlaceColor(place.colorHex);
+    final color = parsePlaceColor(pin.colorHex);
 
     return Padding(
       padding: const EdgeInsets.all(24),
@@ -24,10 +29,7 @@ class NoteMarkerBottomSheet extends StatelessWidget {
             children: [
               CircleAvatar(
                 backgroundColor: color,
-                child: Icon(
-                  placeIconData(place.icon),
-                  color: Colors.white,
-                ),
+                child: Icon(placeIconData(pin.icon), color: Colors.white),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -35,14 +37,14 @@ class NoteMarkerBottomSheet extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      place.title,
+                      pin.title,
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    if (place.subtitle != null)
+                    if (pin.subtitle != null)
                       Text(
-                        place.subtitle!,
+                        pin.subtitle!,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -60,15 +62,15 @@ class NoteMarkerBottomSheet extends StatelessWidget {
             children: [
               _MetaChip(
                 icon: Icons.chat_bubble_outline,
-                label: '${place.messageCount} messages',
+                label: '${pin.messageCount} messages',
               ),
-              if (place.isPrivate)
+              if (pin.isPrivate)
                 _MetaChip(
                   icon: Icons.lock_outline,
                   label: 'Private',
                   color: theme.colorScheme.tertiary,
                 ),
-              if (place.isClosed)
+              if (pin.isClosed)
                 _MetaChip(
                   icon: Icons.do_not_disturb_on_outlined,
                   label: 'Closed',
@@ -76,20 +78,30 @@ class NoteMarkerBottomSheet extends StatelessWidget {
                 ),
               _MetaChip(
                 icon: Icons.schedule,
-                label: remainingLifetimeLabel(place.expiresAt),
+                label: remainingLifetimeLabel(pin.expiresAt),
               ),
+              if (!pin.canOpen)
+                _MetaChip(
+                  icon: Icons.near_me_disabled_outlined,
+                  label: 'Move closer to open',
+                  color: theme.colorScheme.secondary,
+                ),
             ],
           ),
           const SizedBox(height: 20),
           FilledButton.icon(
-            onPressed: () {
-              Navigator.of(context).pop();
-              context.push(
-                '/note/${place.id}?title=${Uri.encodeComponent(place.title)}',
-              );
-            },
-            icon: const Icon(Icons.open_in_new),
-            label: Text(place.isClosed ? 'View Note' : 'Open Note'),
+            onPressed: pin.canOpen
+                ? () async {
+                    Navigator.of(context).pop();
+                    await onOpen(pin);
+                  }
+                : null,
+            icon: Icon(pin.canOpen ? Icons.open_in_new : Icons.lock_outline),
+            label: Text(
+              pin.canOpen
+                  ? (pin.isClosed ? 'View Note' : 'Open Note')
+                  : 'Available nearby',
+            ),
           ),
         ],
       ),
@@ -116,10 +128,7 @@ class _MetaChip extends StatelessWidget {
       children: [
         Icon(icon, size: 16, color: c),
         const SizedBox(width: 4),
-        Text(
-          label,
-          style: theme.textTheme.bodySmall?.copyWith(color: c),
-        ),
+        Text(label, style: theme.textTheme.bodySmall?.copyWith(color: c)),
       ],
     );
   }

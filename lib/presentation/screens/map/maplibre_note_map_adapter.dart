@@ -4,7 +4,8 @@ import 'package:maplibre_gl/maplibre_gl.dart' as maplibre;
 
 import '../../../config/app_config.dart';
 import '../../../core/map_style.dart';
-import '../../../domain/entities/place_entity.dart';
+import '../../../domain/entities/pin_summary_entity.dart';
+import '../../providers/providers.dart';
 import 'note_map_adapter.dart';
 import 'note_map_controller.dart';
 
@@ -13,7 +14,7 @@ class MapLibreNoteMapAdapter implements NoteMapAdapter {
 
   MapLibreNoteMapAdapter({
     required TickerProvider vsync,
-    required Future<void> Function(PlaceEntity place) onPinSelected,
+    required Future<void> Function(PinSummary pin) onPinSelected,
   }) : _controller = NoteMapController(
          vsync: vsync,
          onPinSelected: onPinSelected,
@@ -28,6 +29,7 @@ class MapLibreNoteMapAdapter implements NoteMapAdapter {
     required ColorScheme colorScheme,
     required MapStyle mapStyle,
     required String styleUrl,
+    required ValueChanged<MapLatLng> onCameraIdle,
   }) {
     return maplibre.MapLibreMap(
       styleString: styleUrl,
@@ -41,12 +43,18 @@ class MapLibreNoteMapAdapter implements NoteMapAdapter {
       onStyleLoadedCallback: () => _controller.onStyleLoaded(colorScheme),
       featureTapsTriggersMapClick: true,
       onMapClick: (point, _) => _controller.onMapClick(point),
+      onCameraIdle: () {
+        final target = _controller.cameraTarget;
+        if (target != null) {
+          onCameraIdle(MapLatLng(target.latitude, target.longitude));
+        }
+      },
     );
   }
 
   @override
-  Future<void> updateMarkers(List<PlaceEntity> places) {
-    return _controller.updateMarkers(places);
+  Future<void> updateMarkers(List<PinSummary> pins) {
+    return _controller.updateMarkers(pins);
   }
 
   @override

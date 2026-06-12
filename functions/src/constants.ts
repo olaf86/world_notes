@@ -41,6 +41,15 @@ export const DISCOVERY_GRANT_WINDOW_MINUTES = 60;
 /** Maximum newly-issued grants per window. */
 export const DISCOVERY_GRANT_MAX_PER_WINDOW = 60;
 
+/** Fine geohash precision used for map pin discovery. */
+export const MAP_PIN_GEOHASH_PRECISION = 6;
+
+/** Maximum map pins returned by one exploration request. */
+export const MAP_PIN_RESULT_LIMIT = 120;
+
+/** Radius from the user's current location that unlocks note details. */
+export const NOTE_DETAIL_ACCESS_RADIUS_KM = 2;
+
 /**
  * Region the functions are DEPLOYED to (matches the default DB in Tokyo).
  * The client picks which deployed region to call via Regions/effectiveRegion

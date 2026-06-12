@@ -6,11 +6,11 @@ import 'package:maplibre_gl/maplibre_gl.dart';
 import '../../../config/app_config.dart';
 import '../../../core/utils/marker_image.dart';
 import '../../../core/utils/place_icon.dart';
-import '../../../domain/entities/place_entity.dart';
+import '../../../domain/entities/pin_summary_entity.dart';
 
 /// Adapter between the places domain and a [MapLibreMapController].
 ///
-/// Encapsulates everything that's specific to rendering [PlaceEntity]s on
+/// Encapsulates everything that's specific to rendering [PinSummary]s on
 /// a MapLibre map:
 ///   * the clustered GeoJSON source and its three style layers
 ///   * the per-(icon, color) marker image cache registered via `addImage`
@@ -56,7 +56,7 @@ class NoteMapController {
   /// should complete when whatever UI was opened (e.g. a bottom sheet) is
   /// dismissed — the highlight overlay reverse-animates and is removed once
   /// it resolves.
-  final Future<void> Function(PlaceEntity place) onPinSelected;
+  final Future<void> Function(PinSummary pin) onPinSelected;
 
   NoteMapController({required this.vsync, required this.onPinSelected}) {
     _pinScaleController = AnimationController(
@@ -72,7 +72,7 @@ class NoteMapController {
   // ── Internal state ────────────────────────────────────────────────────────
   MapLibreMapController? _map;
   bool _sourceReady = false;
-  final Map<String, PlaceEntity> _placeById = {};
+  final Map<String, PinSummary> _pinById = {};
   final Set<String> _registeredMarkerIds = {};
   Symbol? _selectedSymbol;
   Symbol? _animatingSymbol;
@@ -82,7 +82,7 @@ class NoteMapController {
   /// Last places snapshot we were asked to render. Data often arrives
   /// from the provider before the GeoJSON source/layers have finished being
   /// created, so we cache it here and replay it once [_sourceReady] flips.
-  List<PlaceEntity> _latestPlaces = const [];
+  List<PinSummary> _latestPins = const [];
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -104,6 +104,8 @@ class NoteMapController {
     await _map?.setStyle(styleUrl);
   }
 
+  LatLng? get cameraTarget => _map?.cameraPosition?.target;
+
   // ── Style / source / layer setup ──────────────────────────────────────────
 
   /// Called whenever the MapLibre style finishes loading. Re-registers the
@@ -118,7 +120,7 @@ class NoteMapController {
     await _clearSelection();
     await _setupSourcesAndLayers(colorScheme);
     _sourceReady = true;
-    await _pushMarkersToSource(_latestPlaces);
+    await _pushMarkersToSource(_latestPins);
   }
 
   Future<void> _setupSourcesAndLayers(ColorScheme colorScheme) async {
@@ -148,8 +150,10 @@ class NoteMapController {
           'step',
           ['get', 'point_count'],
           18,
-          10, 22,
-          30, 28,
+          10,
+          22,
+          30,
+          28,
         ],
         circleStrokeWidth: 2,
         circleStrokeColor: '#ffffff',
@@ -188,7 +192,10 @@ class NoteMapController {
         textAnchor: 'top',
         textOptional: true,
       ),
-      filter: ['!', ['has', 'point_count']],
+      filter: [
+        '!',
+        ['has', 'point_count'],
+      ],
     );
   }
 
@@ -199,42 +206,44 @@ class NoteMapController {
 
   // ── Marker rendering ──────────────────────────────────────────────────────
 
-  Future<void> updateMarkers(List<PlaceEntity> places) async {
-    _latestPlaces = places;
+  Future<void> updateMarkers(List<PinSummary> pins) async {
+    _latestPins = pins;
     if (_map == null || !_sourceReady) return;
-    await _pushMarkersToSource(places);
+    await _pushMarkersToSource(pins);
   }
 
-  Future<void> _pushMarkersToSource(List<PlaceEntity> places) async {
+  Future<void> _pushMarkersToSource(List<PinSummary> pins) async {
     final map = _map;
     if (map == null) return;
 
-    _placeById
+    _pinById
       ..clear()
-      ..addEntries(places.map((p) => MapEntry(p.id, p)));
+      ..addEntries(pins.map((p) => MapEntry(p.placeId, p)));
 
     // Register any (icon, color) combinations we haven't seen yet — must
     // happen before pushing features that reference them.
-    for (final place in places) {
-      await _ensureMarkerImage(place.icon, place.colorHex);
+    for (final pin in pins) {
+      await _ensureMarkerImage(pin.icon, pin.colorHex);
     }
 
     // Underlying features changed; any selection overlay is stale.
     await _clearSelection();
 
-    final features = places
-        .map((place) => {
-              'type': 'Feature',
-              'id': place.id,
-              'geometry': {
-                'type': 'Point',
-                'coordinates': [place.longitude, place.latitude],
-              },
-              'properties': {
-                'iconImageId': _markerImageId(place.icon, place.colorHex),
-                'title': place.title,
-              },
-            })
+    final features = pins
+        .map(
+          (pin) => {
+            'type': 'Feature',
+            'id': pin.placeId,
+            'geometry': {
+              'type': 'Point',
+              'coordinates': [pin.longitude, pin.latitude],
+            },
+            'properties': {
+              'iconImageId': _markerImageId(pin.icon, pin.colorHex),
+              'title': pin.title,
+            },
+          },
+        )
         .toList();
 
     await map.setGeoJsonSource(_sourceId, {
@@ -266,11 +275,10 @@ class NoteMapController {
     final map = _map;
     if (map == null || !_sourceReady) return;
 
-    final features = await map.queryRenderedFeatures(
-      point,
-      [_clusterLayerId, _unclusteredLayerId],
-      null,
-    );
+    final features = await map.queryRenderedFeatures(point, [
+      _clusterLayerId,
+      _unclusteredLayerId,
+    ], null);
     if (features.isEmpty) return;
 
     final feature = features.first;
@@ -294,9 +302,7 @@ class NoteMapController {
     final currentZoom = map.cameraPosition?.zoom ?? AppConfig.defaultZoom;
     final targetZoom = (currentZoom + _clusterTapZoomStep).clamp(0.0, 22.0);
 
-    await map.animateCamera(
-      CameraUpdate.newLatLngZoom(coords, targetZoom),
-    );
+    await map.animateCamera(CameraUpdate.newLatLngZoom(coords, targetZoom));
   }
 
   Future<void> _handlePinTap(Map feature) async {
@@ -304,29 +310,31 @@ class NoteMapController {
     if (map == null) return;
     final placeId = feature['id']?.toString();
     if (placeId == null) return;
-    final place = _placeById[placeId];
-    if (place == null) return;
+    final pin = _pinById[placeId];
+    if (pin == null) return;
     final coords = _coordsOf(feature);
     if (coords == null) return;
 
-    await _ensureMarkerImage(place.icon, place.colorHex);
-    final imageId = _markerImageId(place.icon, place.colorHex);
+    await _ensureMarkerImage(pin.icon, pin.colorHex);
+    final imageId = _markerImageId(pin.icon, pin.colorHex);
 
     // Overlay a managed Symbol on top of the layer-rendered pin so its size
     // can be tweened. Pixel-identical to the layer pin at iconSize 0.5, so
     // adding/removing the overlay is visually invisible.
-    final overlay = await map.addSymbol(SymbolOptions(
-      geometry: coords,
-      iconImage: imageId,
-      iconSize: _iconSizeNormal,
-      iconAnchor: 'bottom',
-    ));
+    final overlay = await map.addSymbol(
+      SymbolOptions(
+        geometry: coords,
+        iconImage: imageId,
+        iconSize: _iconSizeNormal,
+        iconAnchor: 'bottom',
+      ),
+    );
 
     _selectedSymbol = overlay;
     _animatePin(overlay, toSelected: true);
 
     try {
-      await onPinSelected(place);
+      await onPinSelected(pin);
     } finally {
       // Only unwind if this selection is still current — a marker refresh
       // or another tap may have replaced it.
@@ -351,9 +359,10 @@ class NoteMapController {
 
     final t = _pinScaleAnimation.value;
     final size = _iconSizeNormal + (_iconSizeSelected - _iconSizeNormal) * t;
-    map
-        .updateSymbol(symbol, SymbolOptions(iconSize: size))
-        .catchError((Object error, StackTrace stack) {
+    map.updateSymbol(symbol, SymbolOptions(iconSize: size)).catchError((
+      Object error,
+      StackTrace stack,
+    ) {
       debugPrint('Pin scale updateSymbol failed: $error\n$stack');
     });
   }

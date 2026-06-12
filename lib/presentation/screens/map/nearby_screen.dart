@@ -29,7 +29,7 @@ class _NearbyScreenState extends State<NearbyScreen> {
 
   Future<void> _showMap() => _animateToPage(0);
 
-  Future<void> _showNearbyList() => _animateToPage(1);
+  Future<void> _showMapNotes() => _animateToPage(1);
 
   Future<void> _animateToPage(int page) {
     return _pageController.animateToPage(
@@ -45,8 +45,8 @@ class _NearbyScreenState extends State<NearbyScreen> {
       controller: _pageController,
       physics: const NeverScrollableScrollPhysics(),
       children: [
-        _MapEntry(onShowList: _showNearbyList),
-        _NearbyList(onShowMap: _showMap),
+        _MapEntry(onShowList: _showMapNotes),
+        _MapNotesList(onShowMap: _showMap),
       ],
     );
   }
@@ -63,10 +63,10 @@ class _MapEntry extends StatelessWidget {
   }
 }
 
-class _NearbyList extends ConsumerWidget {
+class _MapNotesList extends ConsumerWidget {
   final VoidCallback onShowMap;
 
-  const _NearbyList({required this.onShowMap});
+  const _MapNotesList({required this.onShowMap});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -74,8 +74,14 @@ class _NearbyList extends ConsumerWidget {
 
     Future<void> refresh() async {
       if (anchor == null) return;
-      final provider = placesNearbyProvider(
-        latLng(anchor.latitude, anchor.longitude),
+      final center =
+          ref.read(mapSearchCenterProvider) ??
+          latLng(anchor.latitude, anchor.longitude);
+      final provider = mapPinsProvider(
+        MapPinsRequest(
+          center: center,
+          user: latLng(anchor.latitude, anchor.longitude),
+        ),
       );
       ref.invalidate(provider);
       try {
@@ -83,7 +89,7 @@ class _NearbyList extends ConsumerWidget {
       } catch (e) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Could not refresh nearby notes: $e')),
+            SnackBar(content: Text('Could not refresh map notes: $e')),
           );
         }
       }
@@ -96,10 +102,10 @@ class _NearbyList extends ConsumerWidget {
           icon: const Icon(Icons.map_outlined),
           onPressed: onShowMap,
         ),
-        title: const Text('Nearby Notes'),
+        title: const Text('Map Notes'),
         actions: [
           IconButton(
-            tooltip: 'Refresh nearby notes',
+            tooltip: 'Refresh map notes',
             icon: const Icon(Icons.refresh_outlined),
             onPressed: anchor == null ? null : refresh,
           ),

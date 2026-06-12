@@ -187,6 +187,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
       ref.invalidate(
         placesNearbyProvider(latLng(widget.latitude, widget.longitude)),
       );
+      ref.invalidate(mapPinsProvider);
       ref.invalidate(myPlacesProvider);
 
       if (mounted) {

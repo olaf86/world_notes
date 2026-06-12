@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../../../core/map_style.dart';
-import '../../../domain/entities/place_entity.dart';
+import '../../../domain/entities/pin_summary_entity.dart';
+import '../../providers/providers.dart';
 
 abstract class NoteMapAdapter {
   bool get supportsMapStyle;
@@ -12,9 +13,10 @@ abstract class NoteMapAdapter {
     required ColorScheme colorScheme,
     required MapStyle mapStyle,
     required String styleUrl,
+    required ValueChanged<MapLatLng> onCameraIdle,
   });
 
-  Future<void> updateMarkers(List<PlaceEntity> places);
+  Future<void> updateMarkers(List<PinSummary> pins);
 
   Future<void> setTrackingEnabled(bool enabled);
 

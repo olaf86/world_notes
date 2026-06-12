@@ -13,7 +13,9 @@ import '../../domain/entities/place_entity.dart'
         NoteMembership,
         PlaceEntity,
         PlaceVisibility;
+import '../../domain/entities/pin_summary_entity.dart';
 import '../../domain/repositories/place_repository.dart';
+import '../models/pin_summary_model.dart';
 import '../models/place_model.dart';
 
 // Required Firestore composite indexes are declared in firestore.indexes.json.
@@ -28,6 +30,45 @@ class PlaceRepositoryImpl implements PlaceRepository {
        _functions = functions;
 
   CollectionReference get _places => _firestore.collection('places');
+
+  @override
+  Future<List<PinSummary>> listMapPins({
+    required double centerLatitude,
+    required double centerLongitude,
+    required double userLatitude,
+    required double userLongitude,
+  }) async {
+    final result = await _functions
+        .httpsCallable('listMapPins')
+        .call<Map<String, dynamic>>({
+          'centerLatitude': centerLatitude,
+          'centerLongitude': centerLongitude,
+          'userLatitude': userLatitude,
+          'userLongitude': userLongitude,
+        });
+    final pins = result.data['pins'] as List<dynamic>? ?? const [];
+    return pins
+        .whereType<Map>()
+        .map(
+          (json) => PinSummaryModel.fromJson(
+            Map<String, dynamic>.from(json),
+          ).toEntity(),
+        )
+        .toList();
+  }
+
+  @override
+  Future<void> validateNoteAccess({
+    required String placeId,
+    required double latitude,
+    required double longitude,
+  }) async {
+    await _functions.httpsCallable('validateNoteAccess').call<void>({
+      'placeId': placeId,
+      'latitude': latitude,
+      'longitude': longitude,
+    });
+  }
 
   /// Returns a query for one geohash cell.
   ///

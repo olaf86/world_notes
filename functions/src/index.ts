@@ -53,6 +53,9 @@ export {updateDisplayName} from "./userProfile";
 // Short-lived discovery grants for direct Firestore nearby streams.
 export {ensureDiscoveryGrant} from "./discoveryGrants";
 
+// Map exploration pin summaries and detail-entry proximity checks.
+export {listMapPins, validateNoteAccess} from "./mapPins";
+
 interface CreateNoteData {
   latitude?: unknown;
   longitude?: unknown;

@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../config/app_config.dart';
 import '../../../core/map_style.dart';
-import '../../../domain/entities/place_entity.dart';
+import '../../../domain/entities/pin_summary_entity.dart';
 import '../../../services/location_service.dart';
 import '../../providers/providers.dart';
 import '../../widgets/map/location_checking_view.dart';
@@ -43,6 +43,8 @@ class MapScreen extends ConsumerStatefulWidget {
 
 class _MapScreenState extends ConsumerState<MapScreen>
     with SingleTickerProviderStateMixin {
+  static const double _mapSearchRefreshThresholdMeters = 200;
+
   late final NoteMapAdapter _mapAdapter;
   bool _refreshingNearby = false;
   String? _activePinPreviewPlaceId;
@@ -64,20 +66,46 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   // ── Pin tap → bottom sheet ────────────────────────────────────────────────
 
-  Future<void> _showPinPreview(PlaceEntity place) async {
+  Future<void> _showPinPreview(PinSummary pin) async {
     if (!mounted || _activePinPreviewPlaceId != null) return;
 
-    _activePinPreviewPlaceId = place.id;
+    _activePinPreviewPlaceId = pin.placeId;
     try {
       await showModalBottomSheet<void>(
         context: context,
-        builder: (_) => NoteMarkerBottomSheet(place: place),
+        builder: (_) => NoteMarkerBottomSheet(pin: pin, onOpen: _openPin),
       );
     } finally {
-      if (_activePinPreviewPlaceId == place.id) {
+      if (_activePinPreviewPlaceId == pin.placeId) {
         _activePinPreviewPlaceId = null;
       }
     }
+  }
+
+  Future<void> _openPin(PinSummary pin) async {
+    final anchor = ref.read(anchorPositionProvider);
+    if (!mounted || anchor == null) return;
+
+    try {
+      await ref
+          .read(placeRepositoryProvider)
+          .validateNoteAccess(
+            placeId: pin.placeId,
+            latitude: anchor.latitude,
+            longitude: anchor.longitude,
+          );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Move closer to open this note: $e')),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    context.push(
+      '/note/${pin.placeId}?title=${Uri.encodeComponent(pin.title)}',
+    );
   }
 
   // ── Tracking toggle ──────────────────────────────────────────────────────
@@ -86,6 +114,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final notifier = ref.read(isTrackingProvider.notifier);
     final next = !notifier.state;
     notifier.state = next;
+    final anchor = ref.read(anchorPositionProvider);
+    if (next && anchor != null) {
+      ref.read(mapSearchCenterProvider.notifier).state = latLng(
+        anchor.latitude,
+        anchor.longitude,
+      );
+    }
     await _mapAdapter.setTrackingEnabled(next);
   }
 
@@ -128,8 +163,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final anchor = ref.read(anchorPositionProvider);
     if (anchor == null || _refreshingNearby) return;
     setState(() => _refreshingNearby = true);
-    final provider = placesNearbyProvider(
-      latLng(anchor.latitude, anchor.longitude),
+    final center =
+        ref.read(mapSearchCenterProvider) ??
+        latLng(anchor.latitude, anchor.longitude);
+    final provider = mapPinsProvider(
+      MapPinsRequest(
+        center: center,
+        user: latLng(anchor.latitude, anchor.longitude),
+      ),
     );
     ref.invalidate(provider);
     try {
@@ -137,12 +178,29 @@ class _MapScreenState extends ConsumerState<MapScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not refresh nearby notes: $e')),
+          SnackBar(content: Text('Could not refresh map notes: $e')),
         );
       }
     } finally {
       if (mounted) setState(() => _refreshingNearby = false);
     }
+  }
+
+  void _onCameraIdle(MapLatLng center) {
+    final current = ref.read(mapSearchCenterProvider);
+    if (current != null) {
+      final distance = Geolocator.distanceBetween(
+        current.lat,
+        current.lng,
+        center.lat,
+        center.lng,
+      );
+      // Camera idle can fire for tiny movements and platform-level camera
+      // settling. Keep exploration requests coarse so panning feels smooth and
+      // the map-pins API is not refreshed for sub-cell jitter.
+      if (distance < _mapSearchRefreshThresholdMeters) return;
+    }
+    ref.read(mapSearchCenterProvider.notifier).state = center;
   }
 
   Future<void> _showLimitReachedDialog({
@@ -186,15 +244,24 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final positionAsync = ref.watch(positionStreamProvider);
     final anchor = ref.watch(anchorPositionProvider);
     final isTracking = ref.watch(isTrackingProvider);
-    final placesAsync = anchor == null
+    final searchCenter = ref.watch(mapSearchCenterProvider);
+    final effectiveCenter = anchor == null
+        ? null
+        : searchCenter ?? latLng(anchor.latitude, anchor.longitude);
+    final pinsAsync = anchor == null || effectiveCenter == null
         ? null
         : ref.watch(
-            placesNearbyProvider(latLng(anchor.latitude, anchor.longitude)),
+            mapPinsProvider(
+              MapPinsRequest(
+                center: effectiveCenter,
+                user: latLng(anchor.latitude, anchor.longitude),
+              ),
+            ),
           );
     final loadingNearbyNotes =
-        _refreshingNearby || (placesAsync?.isLoading ?? false);
+        _refreshingNearby || (pinsAsync?.isLoading ?? false);
 
-    placesAsync?.whenData(_mapAdapter.updateMarkers);
+    pinsAsync?.whenData(_mapAdapter.updateMarkers);
 
     if (_mapAdapter.supportsMapStyle) {
       ref.listen<MapStyle>(mapStyleProvider, (_, next) {
@@ -216,6 +283,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
         loadingNearbyNotes: loadingNearbyNotes,
         onAddNote: () => _onAddNote(anchor),
         onShowList: widget.onShowList,
+        onCameraIdle: _onCameraIdle,
       );
     }
 
@@ -244,6 +312,7 @@ class _MapView extends ConsumerWidget {
   final bool loadingNearbyNotes;
   final VoidCallback onAddNote;
   final VoidCallback? onShowList;
+  final ValueChanged<MapLatLng> onCameraIdle;
 
   const _MapView({
     required this.anchor,
@@ -255,6 +324,7 @@ class _MapView extends ConsumerWidget {
     required this.loadingNearbyNotes,
     required this.onAddNote,
     required this.onShowList,
+    required this.onCameraIdle,
   });
 
   @override
@@ -272,6 +342,7 @@ class _MapView extends ConsumerWidget {
             colorScheme: colorScheme,
             mapStyle: mapStyle,
             styleUrl: styleUrl,
+            onCameraIdle: onCameraIdle,
           ),
         ),
         _NearbyNotesLoadingStatus(visible: loadingNearbyNotes),
@@ -338,7 +409,7 @@ class _NearbyNotesLoadingStatus extends StatelessWidget {
                         ),
                         const SizedBox(width: 10),
                         Text(
-                          'Loading nearby notes...',
+                          'Loading map notes...',
                           style: Theme.of(context).textTheme.labelLarge
                               ?.copyWith(color: colorScheme.onSurface),
                         ),
@@ -369,7 +440,7 @@ class _RefreshButton extends StatelessWidget {
       right: 16,
       child: FloatingActionButton.small(
         heroTag: 'nearbyRefresh',
-        tooltip: 'Refresh nearby notes',
+        tooltip: 'Refresh map notes',
         onPressed: refreshing ? null : onPressed,
         backgroundColor: colorScheme.surface,
         elevation: 2,

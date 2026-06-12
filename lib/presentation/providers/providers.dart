@@ -15,6 +15,7 @@ import '../../data/repositories/auth_repository_impl.dart';
 import '../../data/repositories/message_repository_impl.dart';
 import '../../data/repositories/place_repository_impl.dart';
 import '../../domain/entities/message_entity.dart';
+import '../../domain/entities/pin_summary_entity.dart';
 import '../../domain/entities/place_entity.dart';
 import '../../domain/entities/user_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
@@ -190,6 +191,11 @@ final anchorPositionProvider =
 /// Whether the map is following the user's live GPS position.
 final isTrackingProvider = StateProvider<bool>((ref) => false);
 
+/// Centre coordinate used by the exploration layer. Unlike
+/// [anchorPositionProvider], this follows the map camera when the user pans
+/// away from their current location.
+final mapSearchCenterProvider = StateProvider<MapLatLng?>((ref) => null);
+
 // --- Server-aligned clock ---
 
 /// Offset between this device clock and the server clock returned by
@@ -215,6 +221,33 @@ DateTime serverAlignedNowFromOffset(Duration offset) {
 }
 
 // --- Places nearby ---
+
+class MapPinsRequest {
+  final MapLatLng center;
+  final MapLatLng user;
+
+  const MapPinsRequest({required this.center, required this.user});
+
+  @override
+  bool operator ==(Object other) =>
+      other is MapPinsRequest && other.center == center && other.user == user;
+
+  @override
+  int get hashCode => Object.hash(center, user);
+}
+
+final mapPinsProvider = FutureProvider.family<List<PinSummary>, MapPinsRequest>(
+  (ref, request) {
+    return ref
+        .watch(placeRepositoryProvider)
+        .listMapPins(
+          centerLatitude: request.center.lat,
+          centerLongitude: request.center.lng,
+          userLatitude: request.user.lat,
+          userLongitude: request.user.lng,
+        );
+  },
+);
 
 final placesNearbyProvider =
     StreamProvider.family<List<PlaceEntity>, MapLatLng>((ref, latLng) async* {

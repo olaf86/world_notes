@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../../../core/utils/place_icon.dart';
-import '../../../domain/entities/place_entity.dart';
+import '../../../domain/entities/pin_summary_entity.dart';
 import '../../../services/location_service.dart';
 import '../../providers/providers.dart';
 
@@ -16,14 +16,22 @@ class PlaceListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final anchor = ref.watch(anchorPositionProvider);
+    final searchCenter = ref.watch(mapSearchCenterProvider);
+    final effectiveCenter = anchor == null
+        ? null
+        : searchCenter ?? latLng(anchor.latitude, anchor.longitude);
 
-    final body = anchor != null
-        ? _PlaceList(
-            latitude: anchor.latitude,
-            longitude: anchor.longitude,
+    final body = anchor != null && effectiveCenter != null
+        ? _PinList(
+            userLatitude: anchor.latitude,
+            userLongitude: anchor.longitude,
+            center: effectiveCenter,
             onRefresh: () async {
-              final provider = placesNearbyProvider(
-                latLng(anchor.latitude, anchor.longitude),
+              final provider = mapPinsProvider(
+                MapPinsRequest(
+                  center: effectiveCenter,
+                  user: latLng(anchor.latitude, anchor.longitude),
+                ),
               );
               ref.invalidate(provider);
               await ref.read(provider.future);
@@ -41,39 +49,46 @@ class PlaceListScreen extends ConsumerWidget {
 
     if (embedded) return body;
     return Scaffold(
-      appBar: AppBar(title: const Text('Nearby Notes')),
+      appBar: AppBar(title: const Text('Map Notes')),
       body: body,
     );
   }
 }
 
-class _PlaceList extends ConsumerWidget {
-  final double latitude;
-  final double longitude;
+class _PinList extends ConsumerWidget {
+  final double userLatitude;
+  final double userLongitude;
+  final MapLatLng center;
   final Future<void> Function() onRefresh;
 
-  const _PlaceList({
-    required this.latitude,
-    required this.longitude,
+  const _PinList({
+    required this.userLatitude,
+    required this.userLongitude,
+    required this.center,
     required this.onRefresh,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final placesAsync = ref.watch(
-      placesNearbyProvider(latLng(latitude, longitude)),
+    final pinsAsync = ref.watch(
+      mapPinsProvider(
+        MapPinsRequest(
+          center: center,
+          user: latLng(userLatitude, userLongitude),
+        ),
+      ),
     );
 
     return RefreshIndicator(
       onRefresh: onRefresh,
-      child: placesAsync.when(
+      child: pinsAsync.when(
         loading: () => const _ScrollableStatusView(
           child: Center(child: CircularProgressIndicator()),
         ),
         error: (e, _) =>
             _ScrollableStatusView(child: Center(child: Text('Error: $e'))),
-        data: (places) {
-          if (places.isEmpty) {
+        data: (pins) {
+          if (pins.isEmpty) {
             return _ScrollableStatusView(
               child: Center(
                 child: Column(
@@ -86,7 +101,7 @@ class _PlaceList extends ConsumerWidget {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'No notes nearby.\nDrop the first one on the map!',
+                      'No notes in this area.\nMove the map or drop one here!',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -98,17 +113,17 @@ class _PlaceList extends ConsumerWidget {
             );
           }
 
-          final sorted = [...places]
+          final sorted = [...pins]
             ..sort((a, b) {
               final da = Geolocator.distanceBetween(
-                latitude,
-                longitude,
+                userLatitude,
+                userLongitude,
                 a.latitude,
                 a.longitude,
               );
               final db = Geolocator.distanceBetween(
-                latitude,
-                longitude,
+                userLatitude,
+                userLongitude,
                 b.latitude,
                 b.longitude,
               );
@@ -121,9 +136,9 @@ class _PlaceList extends ConsumerWidget {
             separatorBuilder: (context, index) => const Divider(height: 1),
             itemBuilder: (context, index) {
               return _PlaceListTile(
-                place: sorted[index],
-                userLatitude: latitude,
-                userLongitude: longitude,
+                pin: sorted[index],
+                userLatitude: userLatitude,
+                userLongitude: userLongitude,
               );
             },
           );
@@ -150,24 +165,24 @@ class _ScrollableStatusView extends StatelessWidget {
 }
 
 class _PlaceListTile extends StatelessWidget {
-  final PlaceEntity place;
+  final PinSummary pin;
   final double userLatitude;
   final double userLongitude;
 
   const _PlaceListTile({
-    required this.place,
+    required this.pin,
     required this.userLatitude,
     required this.userLongitude,
   });
 
   @override
   Widget build(BuildContext context) {
-    final color = parsePlaceColor(place.colorHex);
+    final color = parsePlaceColor(pin.colorHex);
     final distanceM = Geolocator.distanceBetween(
       userLatitude,
       userLongitude,
-      place.latitude,
-      place.longitude,
+      pin.latitude,
+      pin.longitude,
     );
     final distanceLabel = distanceM < 1000
         ? '${distanceM.round()} m'
@@ -176,18 +191,18 @@ class _PlaceListTile extends StatelessWidget {
     return ListTile(
       leading: CircleAvatar(
         backgroundColor: color,
-        child: Icon(placeIconData(place.icon), color: Colors.white, size: 20),
+        child: Icon(placeIconData(pin.icon), color: Colors.white, size: 20),
       ),
       title: Row(
         children: [
-          if (place.isClosed) ...[
+          if (pin.isClosed) ...[
             Icon(
               Icons.do_not_disturb_on_outlined,
               size: 14,
               color: Theme.of(context).colorScheme.error,
             ),
             const SizedBox(width: 4),
-          ] else if (place.isPrivate) ...[
+          ] else if (pin.isPrivate) ...[
             Icon(
               Icons.lock_outline,
               size: 14,
@@ -197,15 +212,15 @@ class _PlaceListTile extends StatelessWidget {
           ],
           Expanded(
             child: Text(
-              place.title,
+              pin.title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
       ),
-      subtitle: place.subtitle != null
-          ? Text(place.subtitle!, maxLines: 1, overflow: TextOverflow.ellipsis)
+      subtitle: pin.subtitle != null
+          ? Text(pin.subtitle!, maxLines: 1, overflow: TextOverflow.ellipsis)
           : null,
       trailing: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -229,7 +244,7 @@ class _PlaceListTile extends StatelessWidget {
               ),
               const SizedBox(width: 2),
               Text(
-                '${place.messageCount}',
+                '${pin.messageCount}',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
@@ -238,9 +253,36 @@ class _PlaceListTile extends StatelessWidget {
           ),
         ],
       ),
-      onTap: () => context.push(
-        '/note/${place.id}?title=${Uri.encodeComponent(place.title)}',
-      ),
+      onTap: () => _openPin(context),
+    );
+  }
+
+  Future<void> _openPin(BuildContext context) async {
+    if (!pin.canOpen) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Move closer to open this note.')),
+      );
+      return;
+    }
+    final container = ProviderScope.containerOf(context, listen: false);
+    try {
+      await container
+          .read(placeRepositoryProvider)
+          .validateNoteAccess(
+            placeId: pin.placeId,
+            latitude: userLatitude,
+            longitude: userLongitude,
+          );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Move closer to open this note: $e')),
+      );
+      return;
+    }
+    if (!context.mounted) return;
+    context.push(
+      '/note/${pin.placeId}?title=${Uri.encodeComponent(pin.title)}',
     );
   }
 }

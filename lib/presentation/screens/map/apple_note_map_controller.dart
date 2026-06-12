@@ -8,7 +8,8 @@ import '../../../config/app_config.dart';
 import '../../../core/map_style.dart';
 import '../../../core/utils/marker_image.dart';
 import '../../../core/utils/place_icon.dart';
-import '../../../domain/entities/place_entity.dart';
+import '../../../domain/entities/pin_summary_entity.dart';
+import '../../providers/providers.dart';
 import 'note_map_adapter.dart';
 
 /// Adapter between the places domain and Apple's native MapKit view.
@@ -21,7 +22,7 @@ class AppleNoteMapController implements NoteMapAdapter {
   static const double _clusterMaxZoom = 14;
   static const double _selectedMarkerScale = 1.35;
 
-  final Future<void> Function(PlaceEntity place) onPinSelected;
+  final Future<void> Function(PinSummary pin) onPinSelected;
 
   AppleNoteMapController({
     required TickerProvider vsync,
@@ -46,9 +47,11 @@ class AppleNoteMapController implements NoteMapAdapter {
   );
 
   final Map<String, apple.BitmapDescriptor> _iconsByMarkerId = {};
-  List<PlaceEntity> _latestPlaces = const [];
+  List<PinSummary> _latestPins = const [];
   apple.AppleMapController? _map;
   apple.MapAppearanceMode _appearanceMode = apple.MapAppearanceMode.light;
+  ValueChanged<MapLatLng>? _onCameraIdleChanged;
+  apple.LatLng? _lastCameraTarget;
   bool _clusteringEnabled = AppConfig.defaultZoom < _clusterMaxZoom;
   String? _selectedPlaceId;
   int _markerRevision = 0;
@@ -70,8 +73,10 @@ class AppleNoteMapController implements NoteMapAdapter {
     required ColorScheme colorScheme,
     required MapStyle mapStyle,
     required String styleUrl,
+    required ValueChanged<MapLatLng> onCameraIdle,
   }) {
     _appearanceMode = _appearanceModeFor(mapStyle);
+    _onCameraIdleChanged = onCameraIdle;
     return ValueListenableBuilder<Set<apple.Annotation>>(
       valueListenable: annotations,
       builder: (context, currentAnnotations, _) {
@@ -136,10 +141,10 @@ class AppleNoteMapController implements NoteMapAdapter {
   }
 
   @override
-  Future<void> updateMarkers(List<PlaceEntity> places) async {
-    _latestPlaces = places;
+  Future<void> updateMarkers(List<PinSummary> pins) async {
+    _latestPins = pins;
     if (_selectedPlaceId != null &&
-        !places.any((place) => place.id == _selectedPlaceId)) {
+        !pins.any((pin) => pin.placeId == _selectedPlaceId)) {
       _selectedPlaceId = null;
       _pinScaleController.value = 0;
     }
@@ -147,10 +152,15 @@ class AppleNoteMapController implements NoteMapAdapter {
   }
 
   void _onCameraMove(apple.CameraPosition position) {
+    _lastCameraTarget = position.target;
     _setClusteringEnabled(position.zoom < _clusterMaxZoom);
   }
 
   void _onCameraIdle() {
+    final target = _lastCameraTarget;
+    if (target != null) {
+      _onCameraIdleChanged?.call(MapLatLng(target.latitude, target.longitude));
+    }
     unawaited(_syncClusteringWithMapZoom());
   }
 
@@ -166,13 +176,13 @@ class AppleNoteMapController implements NoteMapAdapter {
     unawaited(_rebuildAnnotations());
   }
 
-  Future<void> _showSelectedPin(PlaceEntity place) async {
+  Future<void> _showSelectedPin(PinSummary pin) async {
     final revision = ++_selectionRevision;
-    _selectedPlaceId = place.id;
+    _selectedPlaceId = pin.placeId;
     await _pinScaleController.forward(from: 0);
     if (revision != _selectionRevision) return;
 
-    await onPinSelected(place);
+    await onPinSelected(pin);
     if (revision != _selectionRevision) return;
 
     await _pinScaleController.reverse();
@@ -193,11 +203,11 @@ class AppleNoteMapController implements NoteMapAdapter {
     final selectedScale =
         1 + ((_selectedMarkerScale - 1) * _pinScaleAnimation.value);
 
-    for (final place in _latestPlaces) {
-      final isSelected = selectedPlaceId == place.id;
+    for (final pin in _latestPins) {
+      final isSelected = selectedPlaceId == pin.placeId;
       final icon = await _markerIcon(
-        place.icon,
-        place.colorHex,
+        pin.icon,
+        pin.colorHex,
         scale: isSelected ? selectedScale : 1,
       );
       if (revision != _markerRevision) return;
@@ -205,16 +215,16 @@ class AppleNoteMapController implements NoteMapAdapter {
       next.add(
         apple.Annotation(
           annotationId: apple.AnnotationId(
-            _annotationIdFor(place.id, isSelected: isSelected),
+            _annotationIdFor(pin.placeId, isSelected: isSelected),
           ),
-          position: apple.LatLng(place.latitude, place.longitude),
+          position: apple.LatLng(pin.latitude, pin.longitude),
           icon: icon,
           infoWindow: apple.InfoWindow.noText,
           clusteringIdentifier: isSelected || !_clusteringEnabled
               ? null
               : _noteClusterId,
           zIndex: isSelected ? 1 : 0,
-          onTap: () => unawaited(_showSelectedPin(place)),
+          onTap: () => unawaited(_showSelectedPin(pin)),
         ),
       );
     }
