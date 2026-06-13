@@ -43,6 +43,9 @@
                     android:pathPrefix="/i/"/>
             </intent-filter>
         </activity>
+        <receiver
+            android:name=".GeofenceBroadcastReceiver"
+            android:exported="false" />
         <!-- Route incoming deep links through Flutter's router (GoRouter). -->
         <meta-data
             android:name="flutter_deeplinking_enabled"
