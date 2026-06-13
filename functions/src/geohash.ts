@@ -1,10 +1,8 @@
 /**
  * Standard base-32 geohash encoder.
  *
- * This is a direct port of the Dart `encodeGeohash` in
- * lib/core/utils/geohash_util.dart. It MUST stay byte-for-byte compatible:
- * places are created here (server) but queried on the client by geohash
- * prefix, so a divergent algorithm would break proximity search.
+ * Places are created and queried server-side by geohash prefix, so encoding
+ * and neighbor traversal must stay internally consistent.
  */
 const BASE32 = "0123456789bcdefghjkmnpqrstuvwxyz";
 

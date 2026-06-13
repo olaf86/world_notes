@@ -650,7 +650,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     final currentUser = ref.watch(authStateProvider).valueOrNull;
     final placeAsync = ref.watch(placeProvider(widget.placeId));
     final place = placeAsync.valueOrNull;
-    final now = widgetServerAlignedNow(ref);
+    final now = DateTime.now();
 
     if (placeAsync.hasError && place == null) {
       return _UnavailableNoteView(title: widget.placeTitle);

@@ -196,31 +196,7 @@ final isTrackingProvider = StateProvider<bool>((ref) => false);
 /// away from their current location.
 final mapSearchCenterProvider = StateProvider<MapLatLng?>((ref) => null);
 
-// --- Server-aligned clock ---
-
-/// Offset between this device clock and the server clock returned by
-/// ensureDiscoveryGrant. Nearby queries use this to stay aligned with
-/// Firestore Rules' request.time without polling every minute.
-///
-/// The function returns `serverNowMillis` from the backend. The client stores
-/// `serverNowMillis - localNowMillis`, then adds that offset whenever it builds
-/// publishAt/expiresAt query bounds. This does not change Firestore's server
-/// clock; it only keeps the client query narrow enough to satisfy Rules.
-final serverClockOffsetProvider = StateProvider<Duration>((_) => Duration.zero);
-
-DateTime serverAlignedNow(Ref ref) {
-  return serverAlignedNowFromOffset(ref.read(serverClockOffsetProvider));
-}
-
-DateTime widgetServerAlignedNow(WidgetRef ref) {
-  return serverAlignedNowFromOffset(ref.read(serverClockOffsetProvider));
-}
-
-DateTime serverAlignedNowFromOffset(Duration offset) {
-  return DateTime.now().add(offset);
-}
-
-// --- Places nearby ---
+// --- Map notes ---
 
 class MapPinsRequest {
   final MapLatLng center;
@@ -248,24 +224,6 @@ final mapPinsProvider = FutureProvider.family<List<PinSummary>, MapPinsRequest>(
         );
   },
 );
-
-final placesNearbyProvider =
-    StreamProvider.family<List<PlaceEntity>, MapLatLng>((ref, latLng) async* {
-      final repository = ref.watch(placeRepositoryProvider);
-      final grant = await repository.ensureDiscoveryGrant(
-        latitude: latLng.lat,
-        longitude: latLng.lng,
-      );
-      ref.read(serverClockOffsetProvider.notifier).state = Duration(
-        milliseconds:
-            grant.serverNowMillis - DateTime.now().millisecondsSinceEpoch,
-      );
-      yield* repository.watchPlacesNearby(
-        latitude: latLng.lat,
-        longitude: latLng.lng,
-        now: serverAlignedNow(ref),
-      );
-    });
 
 /// Live stream of a single place by id (null if it doesn't exist).
 final placeProvider = StreamProvider.family<PlaceEntity?, String>((

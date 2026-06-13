@@ -8,10 +8,10 @@ import '../../../domain/entities/pin_summary_entity.dart';
 import '../../../services/location_service.dart';
 import '../../providers/providers.dart';
 
-class PlaceListScreen extends ConsumerWidget {
+class MapNotesListScreen extends ConsumerWidget {
   final bool embedded;
 
-  const PlaceListScreen({super.key, this.embedded = false});
+  const MapNotesListScreen({super.key, this.embedded = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -135,7 +135,7 @@ class _PinList extends ConsumerWidget {
             itemCount: sorted.length,
             separatorBuilder: (context, index) => const Divider(height: 1),
             itemBuilder: (context, index) {
-              return _PlaceListTile(
+              return _MapNoteTile(
                 pin: sorted[index],
                 userLatitude: userLatitude,
                 userLongitude: userLongitude,
@@ -164,12 +164,12 @@ class _ScrollableStatusView extends StatelessWidget {
   }
 }
 
-class _PlaceListTile extends StatelessWidget {
+class _MapNoteTile extends StatelessWidget {
   final PinSummary pin;
   final double userLatitude;
   final double userLongitude;
 
-  const _PlaceListTile({
+  const _MapNoteTile({
     required this.pin,
     required this.userLatitude,
     required this.userLongitude,

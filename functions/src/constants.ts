@@ -23,23 +23,8 @@ export const MAX_MESSAGE_PUBLISH_DELAY_DAYS = 7;
 export const MAX_TITLE_LENGTH = 100;
 export const MAX_SUBTITLE_LENGTH = 200;
 
-/** Coarse geohash precision used for discovery grants. */
+/** Coarse geohash precision stored on places for indexed map-pin queries. */
 export const DISCOVERY_GEOHASH_PRECISION = 3;
-
-/** Radius covered by a discovery grant, in kilometres. */
-export const DISCOVERY_GRANT_RADIUS_KM = 100;
-
-/** Discovery grant lifetime, in minutes. */
-export const DISCOVERY_GRANT_TTL_MINUTES = 10;
-
-/** Minimum interval between newly-issued grants for the same user. */
-export const DISCOVERY_GRANT_MIN_INTERVAL_SECONDS = 30;
-
-/** Rolling-ish fixed window used to cap grant creation. */
-export const DISCOVERY_GRANT_WINDOW_MINUTES = 60;
-
-/** Maximum newly-issued grants per window. */
-export const DISCOVERY_GRANT_MAX_PER_WINDOW = 60;
 
 /** Fine geohash precision used for map pin discovery. */
 export const MAP_PIN_GEOHASH_PRECISION = 6;

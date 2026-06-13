@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../presentation/providers/providers.dart';
 import '../presentation/screens/auth/sign_in_screen.dart';
 import '../presentation/screens/invite/invite_claim_screen.dart';
-import '../presentation/screens/map/nearby_screen.dart';
+import '../presentation/screens/map/map_notes_screen.dart';
 import '../presentation/screens/my_notes/my_notes_screen.dart';
 import '../presentation/screens/note/note_box_screen.dart';
 import '../presentation/screens/note/note_creation_screen.dart';
@@ -40,7 +40,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const SignInScreen(),
       ),
       // StatefulShellRoute keeps every branch mounted in an IndexedStack, so
-      // switching tabs no longer disposes the previous screen. NearbyScreen's
+      // switching tabs no longer disposes the previous screen. MapNotesScreen's
       // tracking toggle, anchor position, and MapLibre native camera state
       // (zoom / bearing / target) all survive a round-trip to other tabs.
       StatefulShellRoute.indexedStack(
@@ -51,7 +51,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/map',
-                builder: (context, state) => const NearbyScreen(),
+                builder: (context, state) => const MapNotesScreen(),
               ),
             ],
           ),
@@ -158,7 +158,7 @@ class _MainShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Pin the position stream for the entire shell lifetime so tab switches
-    // don't tear it down between MapScreen and PlaceListScreen.
+    // don't tear it down between MapScreen and MapNotesListScreen.
     ref.listen(positionStreamProvider, (_, _) {});
 
     // LAYER 1 — Constraint clamp.

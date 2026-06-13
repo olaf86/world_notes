@@ -2,17 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/providers.dart';
-import '../place/place_list_screen.dart';
+import 'map_notes_list_screen.dart';
 import 'map_screen.dart';
 
-class NearbyScreen extends StatefulWidget {
-  const NearbyScreen({super.key});
+class MapNotesScreen extends StatefulWidget {
+  const MapNotesScreen({super.key});
 
   @override
-  State<NearbyScreen> createState() => _NearbyScreenState();
+  State<MapNotesScreen> createState() => _MapNotesScreenState();
 }
 
-class _NearbyScreenState extends State<NearbyScreen> {
+class _MapNotesScreenState extends State<MapNotesScreen> {
   late final PageController _pageController;
 
   @override
@@ -111,7 +111,7 @@ class _MapNotesList extends ConsumerWidget {
           ),
         ],
       ),
-      body: const PlaceListScreen(embedded: true),
+      body: const MapNotesListScreen(embedded: true),
     );
   }
 }

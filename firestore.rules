@@ -52,20 +52,6 @@ service cloud.firestore {
              && place.expiresAt > request.time;
     }
 
-    function hasDiscoveryGrant(discoveryGeohash) {
-      let path = /databases/$(database)/documents/users/$(request.auth.uid)/discoveryGrants/current;
-      return discoveryGeohash is string
-             && exists(path)
-             && get(path).data.expiresAt > request.time
-             && discoveryGeohash in get(path).data.discoveryGeohashes;
-    }
-
-    function canListPublicPlace(place) {
-      return request.query.limit <= 20
-             && isPubliclyReadablePlace(place)
-             && hasDiscoveryGrant(place.discoveryGeohash);
-    }
-
     function canListOwnedPlace(place) {
       return isPlaceOwner(place);
     }
@@ -105,19 +91,6 @@ service cloud.firestore {
                         || request.resource.data.photoUrl.size() <= 2000);
       allow delete: if false;
 
-      // Discovery grants are written only by the ensureDiscoveryGrant Cloud
-      // Function. The signed-in owner may read their current grant for
-      // debugging/client recovery, but cannot write it directly.
-      match /discoveryGrants/{grantId} {
-        allow read: if isOwner(uid);
-        allow write: if false;
-      }
-
-      // Rate-limit state for discovery grant issuance. Server-only.
-      match /limits/{doc} {
-        allow read, write: if false;
-      }
-
       // Notification preferences are readable by the signed-in owner, but only
       // callable Cloud Functions may change them. The server remains the single
       // source of truth for who can receive My Notes push notifications.
@@ -136,9 +109,7 @@ service cloud.firestore {
     // ── places ────────────────────────────────────────────────────────────────
     match /places/{placeId} {
       allow get: if isSignedIn() && canGetPlace(resource.data);
-      allow list: if isSignedIn()
-                  && (canListOwnedPlace(resource.data)
-                      || canListPublicPlace(resource.data));
+      allow list: if isSignedIn() && canListOwnedPlace(resource.data);
 
       // Direct client creation is DENIED. Notes are created exclusively by the
       // `createNote` Cloud Function (Admin SDK, which bypasses these rules),

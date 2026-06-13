@@ -46,7 +46,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
   static const double _mapSearchRefreshThresholdMeters = 200;
 
   late final NoteMapAdapter _mapAdapter;
-  bool _refreshingNearby = false;
+  bool _refreshingMapNotes = false;
   String? _activePinPreviewPlaceId;
 
   @override
@@ -159,10 +159,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
     context.push('/note/create?lat=${pos.latitude}&lng=${pos.longitude}');
   }
 
-  Future<void> _refreshNearby() async {
+  Future<void> _refreshMapNotes() async {
     final anchor = ref.read(anchorPositionProvider);
-    if (anchor == null || _refreshingNearby) return;
-    setState(() => _refreshingNearby = true);
+    if (anchor == null || _refreshingMapNotes) return;
+    setState(() => _refreshingMapNotes = true);
     final center =
         ref.read(mapSearchCenterProvider) ??
         latLng(anchor.latitude, anchor.longitude);
@@ -182,7 +182,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
         );
       }
     } finally {
-      if (mounted) setState(() => _refreshingNearby = false);
+      if (mounted) setState(() => _refreshingMapNotes = false);
     }
   }
 
@@ -258,8 +258,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
               ),
             ),
           );
-    final loadingNearbyNotes =
-        _refreshingNearby || (pinsAsync?.isLoading ?? false);
+    final loadingMapNotes =
+        _refreshingMapNotes || (pinsAsync?.isLoading ?? false);
 
     pinsAsync?.whenData(_mapAdapter.updateMarkers);
 
@@ -279,8 +279,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
         isTracking: isTracking,
         onPointerDown: _onUserPanned,
         onTrackingToggle: _toggleTracking,
-        onRefresh: _refreshNearby,
-        loadingNearbyNotes: loadingNearbyNotes,
+        onRefresh: _refreshMapNotes,
+        loadingMapNotes: loadingMapNotes,
         onAddNote: () => _onAddNote(anchor),
         onShowList: widget.onShowList,
         onCameraIdle: _onCameraIdle,
@@ -309,7 +309,7 @@ class _MapView extends ConsumerWidget {
   final VoidCallback onPointerDown;
   final VoidCallback onTrackingToggle;
   final VoidCallback onRefresh;
-  final bool loadingNearbyNotes;
+  final bool loadingMapNotes;
   final VoidCallback onAddNote;
   final VoidCallback? onShowList;
   final ValueChanged<MapLatLng> onCameraIdle;
@@ -321,7 +321,7 @@ class _MapView extends ConsumerWidget {
     required this.onPointerDown,
     required this.onTrackingToggle,
     required this.onRefresh,
-    required this.loadingNearbyNotes,
+    required this.loadingMapNotes,
     required this.onAddNote,
     required this.onShowList,
     required this.onCameraIdle,
@@ -345,9 +345,9 @@ class _MapView extends ConsumerWidget {
             onCameraIdle: onCameraIdle,
           ),
         ),
-        _NearbyNotesLoadingStatus(visible: loadingNearbyNotes),
+        _MapNotesLoadingStatus(visible: loadingMapNotes),
         if (onShowList != null) _ListButton(onPressed: onShowList!),
-        _RefreshButton(onPressed: onRefresh, refreshing: loadingNearbyNotes),
+        _RefreshButton(onPressed: onRefresh, refreshing: loadingMapNotes),
         _TrackingButton(isTracking: isTracking, onPressed: onTrackingToggle),
         _AddNoteFab(onPressed: onAddNote),
       ],
@@ -355,10 +355,10 @@ class _MapView extends ConsumerWidget {
   }
 }
 
-class _NearbyNotesLoadingStatus extends StatelessWidget {
+class _MapNotesLoadingStatus extends StatelessWidget {
   final bool visible;
 
-  const _NearbyNotesLoadingStatus({required this.visible});
+  const _MapNotesLoadingStatus({required this.visible});
 
   @override
   Widget build(BuildContext context) {
@@ -439,7 +439,7 @@ class _RefreshButton extends StatelessWidget {
       bottom: 208,
       right: 16,
       child: FloatingActionButton.small(
-        heroTag: 'nearbyRefresh',
+        heroTag: 'mapNotesRefresh',
         tooltip: 'Refresh map notes',
         onPressed: refreshing ? null : onPressed,
         backgroundColor: colorScheme.surface,
@@ -468,7 +468,7 @@ class _ListButton extends StatelessWidget {
       bottom: 152,
       right: 16,
       child: FloatingActionButton.small(
-        heroTag: 'nearbyList',
+        heroTag: 'mapNotesList',
         tooltip: 'List',
         onPressed: onPressed,
         backgroundColor: colorScheme.surface,

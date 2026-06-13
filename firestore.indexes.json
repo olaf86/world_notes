@@ -5,14 +5,6 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "geohash", "order": "ASCENDING" },
-        { "fieldPath": "lastMessageAt", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "places",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "geohash", "order": "ASCENDING" },
         { "fieldPath": "discoveryGeohash", "order": "ASCENDING" },
         { "fieldPath": "isArchived", "order": "ASCENDING" },
         { "fieldPath": "publishAt", "order": "ASCENDING" },

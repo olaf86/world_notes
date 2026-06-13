@@ -1,18 +1,6 @@
 import '../entities/place_entity.dart';
 import '../entities/pin_summary_entity.dart';
 
-class DiscoveryGrant {
-  final List<String> discoveryGeohashes;
-  final DateTime expiresAt;
-  final int serverNowMillis;
-
-  const DiscoveryGrant({
-    required this.discoveryGeohashes,
-    required this.expiresAt,
-    required this.serverNowMillis,
-  });
-}
-
 abstract class PlaceRepository {
   Future<List<PinSummary>> listMapPins({
     required double centerLatitude,
@@ -23,27 +11,6 @@ abstract class PlaceRepository {
 
   Future<void> validateNoteAccess({
     required String placeId,
-    required double latitude,
-    required double longitude,
-  });
-
-  Future<List<PlaceEntity>> getPlacesNearby({
-    required double latitude,
-    required double longitude,
-    required DateTime now,
-  });
-
-  Stream<List<PlaceEntity>> watchPlacesNearby({
-    required double latitude,
-    required double longitude,
-    required DateTime now,
-  });
-
-  /// Ensures the caller has a short-lived server-side discovery grant for the
-  /// coarse area around [latitude]/[longitude]. The function also returns the
-  /// server clock so clients can build Firestore queries aligned with Rules'
-  /// request.time.
-  Future<DiscoveryGrant> ensureDiscoveryGrant({
     required double latitude,
     required double longitude,
   });

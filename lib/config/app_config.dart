@@ -17,17 +17,6 @@ class AppConfig {
   static const double defaultLongitude = 139.7671;
   static const double defaultZoom = 14.0;
 
-  // Geohash precision 6: cells ~1.2km × 0.6km, 9-cell grid covers ~3.6km × 1.8km
-  static const int geohashPrecision = 6;
-
-  // Coarse geohash used by discovery grants. Precision 3 cells are broad
-  // enough to cover a fast-moving user's short-term travel window without
-  // granting global query access.
-  static const int discoveryGeohashPrecision = 3;
-
-  // Max places returned per geohash cell. 9 cells × limit = max total before dedup.
-  static const int placesPerCellLimit = 20;
-
   // Ads
   static const String bannerAdUnitId = String.fromEnvironment(
     'BANNER_AD_UNIT_ID',
