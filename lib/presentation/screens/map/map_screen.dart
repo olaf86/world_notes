@@ -43,8 +43,6 @@ class MapScreen extends ConsumerStatefulWidget {
 
 class _MapScreenState extends ConsumerState<MapScreen>
     with SingleTickerProviderStateMixin {
-  static const double _mapSearchRefreshThresholdMeters = 200;
-
   late final NoteMapAdapter _mapAdapter;
   bool _refreshingMapNotes = false;
   String? _activePinPreviewPlaceId;
@@ -120,6 +118,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
         anchor.latitude,
         anchor.longitude,
       );
+      ref.read(mapSearchRadiusKmProvider.notifier).state =
+          MapPinSearchRadius.forZoom(AppConfig.defaultZoom);
     }
     await _mapAdapter.setTrackingEnabled(next);
   }
@@ -166,10 +166,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final center =
         ref.read(mapSearchCenterProvider) ??
         latLng(anchor.latitude, anchor.longitude);
+    final radiusKm = ref.read(mapSearchRadiusKmProvider);
     final provider = mapPinsProvider(
       MapPinsRequest(
         center: center,
         user: latLng(anchor.latitude, anchor.longitude),
+        radiusKm: radiusKm,
       ),
     );
     ref.invalidate(provider);
@@ -186,7 +188,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
     }
   }
 
-  void _onCameraIdle(MapLatLng center) {
+  void _onCameraIdle(MapCameraSnapshot camera) {
+    final center = camera.center;
+    final radiusKm = MapPinSearchRadius.forZoom(camera.zoom);
+    final currentRadiusKm = ref.read(mapSearchRadiusKmProvider);
     final current = ref.read(mapSearchCenterProvider);
     if (current != null) {
       final distance = Geolocator.distanceBetween(
@@ -196,11 +201,16 @@ class _MapScreenState extends ConsumerState<MapScreen>
         center.lng,
       );
       // Camera idle can fire for tiny movements and platform-level camera
-      // settling. Keep exploration requests coarse so panning feels smooth and
-      // the map-pins API is not refreshed for sub-cell jitter.
-      if (distance < _mapSearchRefreshThresholdMeters) return;
+      // settling. Keep exploration requests coarse relative to the loaded
+      // radius so panning feels smooth and the map-pins API is not refreshed
+      // for sub-cell jitter.
+      if (distance < MapPinSearchRadius.refreshThresholdMeters(radiusKm) &&
+          currentRadiusKm == radiusKm) {
+        return;
+      }
     }
     ref.read(mapSearchCenterProvider.notifier).state = center;
+    ref.read(mapSearchRadiusKmProvider.notifier).state = radiusKm;
   }
 
   Future<void> _showLimitReachedDialog({
@@ -245,6 +255,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final anchor = ref.watch(anchorPositionProvider);
     final isTracking = ref.watch(isTrackingProvider);
     final searchCenter = ref.watch(mapSearchCenterProvider);
+    final searchRadiusKm = ref.watch(mapSearchRadiusKmProvider);
     final effectiveCenter = anchor == null
         ? null
         : searchCenter ?? latLng(anchor.latitude, anchor.longitude);
@@ -255,6 +266,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
               MapPinsRequest(
                 center: effectiveCenter,
                 user: latLng(anchor.latitude, anchor.longitude),
+                radiusKm: searchRadiusKm,
               ),
             ),
           );
@@ -312,7 +324,7 @@ class _MapView extends ConsumerWidget {
   final bool loadingMapNotes;
   final VoidCallback onAddNote;
   final VoidCallback? onShowList;
-  final ValueChanged<MapLatLng> onCameraIdle;
+  final ValueChanged<MapCameraSnapshot> onCameraIdle;
 
   const _MapView({
     required this.anchor,

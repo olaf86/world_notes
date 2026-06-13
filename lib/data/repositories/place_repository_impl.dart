@@ -33,6 +33,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
     required double centerLongitude,
     required double userLatitude,
     required double userLongitude,
+    required double searchRadiusKm,
   }) async {
     final result = await _functions
         .httpsCallable('listMapPins')
@@ -41,6 +42,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
           'centerLongitude': centerLongitude,
           'userLatitude': userLatitude,
           'userLongitude': userLongitude,
+          'searchRadiusKm': searchRadiusKm,
         });
     final pins = result.data['pins'] as List<dynamic>? ?? const [];
     return pins

@@ -17,6 +17,7 @@ class MapNotesListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final anchor = ref.watch(anchorPositionProvider);
     final searchCenter = ref.watch(mapSearchCenterProvider);
+    final searchRadiusKm = ref.watch(mapSearchRadiusKmProvider);
     final effectiveCenter = anchor == null
         ? null
         : searchCenter ?? latLng(anchor.latitude, anchor.longitude);
@@ -26,11 +27,13 @@ class MapNotesListScreen extends ConsumerWidget {
             userLatitude: anchor.latitude,
             userLongitude: anchor.longitude,
             center: effectiveCenter,
+            radiusKm: searchRadiusKm,
             onRefresh: () async {
               final provider = mapPinsProvider(
                 MapPinsRequest(
                   center: effectiveCenter,
                   user: latLng(anchor.latitude, anchor.longitude),
+                  radiusKm: searchRadiusKm,
                 ),
               );
               ref.invalidate(provider);
@@ -59,12 +62,14 @@ class _PinList extends ConsumerWidget {
   final double userLatitude;
   final double userLongitude;
   final MapLatLng center;
+  final double radiusKm;
   final Future<void> Function() onRefresh;
 
   const _PinList({
     required this.userLatitude,
     required this.userLongitude,
     required this.center,
+    required this.radiusKm,
     required this.onRefresh,
   });
 
@@ -75,6 +80,7 @@ class _PinList extends ConsumerWidget {
         MapPinsRequest(
           center: center,
           user: latLng(userLatitude, userLongitude),
+          radiusKm: radiusKm,
         ),
       ),
     );

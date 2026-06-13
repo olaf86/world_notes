@@ -88,6 +88,46 @@ export function geohashPrefixes(
 }
 
 /**
+ * Returns geohashes that cover a circular search radius around a point.
+ *
+ * @param {number} lat Latitude in degrees.
+ * @param {number} lng Longitude in degrees.
+ * @param {number} precision Number of geohash characters to produce.
+ * @param {number} radiusKm Search radius in kilometres.
+ * @return {string[]} Geohash prefixes covering the bounding cells.
+ */
+export function geohashPrefixesInRadius(
+  lat: number,
+  lng: number,
+  precision: number,
+  radiusKm: number,
+): string[] {
+  const center = encodeGeohash(lat, lng, precision);
+  const bounds = decodeBounds(center);
+  if (bounds == null) return [center];
+
+  const cellLatDegrees = bounds.maxLat - bounds.minLat;
+  const cellLngDegrees = bounds.maxLng - bounds.minLng;
+  const latRadiusDegrees = radiusKm / 111.32;
+  const lngRadiusDegrees =
+    radiusKm / (111.32 * Math.max(Math.cos(lat * Math.PI / 180), 0.1));
+  const latCells = Math.ceil(latRadiusDegrees / cellLatDegrees) + 1;
+  const lngCells = Math.ceil(lngRadiusDegrees / cellLngDegrees) + 1;
+  const hashes = new Set<string>();
+
+  for (let y = -latCells; y <= latCells; y++) {
+    const sampleLat = Math.max(-90, Math.min(90, lat + y * cellLatDegrees));
+    for (let x = -lngCells; x <= lngCells; x++) {
+      const sampleLng = ((lng + x * cellLngDegrees + 180) % 360 + 360) %
+        360 - 180;
+      hashes.add(encodeGeohash(sampleLat, sampleLng, precision));
+    }
+  }
+
+  return [...hashes];
+}
+
+/**
  * Returns the geohash directly adjacent to another cell.
  *
  * @param {string} geohash Existing geohash.

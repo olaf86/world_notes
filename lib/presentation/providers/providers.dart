@@ -196,20 +196,35 @@ final isTrackingProvider = StateProvider<bool>((ref) => false);
 /// away from their current location.
 final mapSearchCenterProvider = StateProvider<MapLatLng?>((ref) => null);
 
+/// Radius (in km) used by the current map-pins query. Kept separately from
+/// [mapSearchCenterProvider] so list and manual refresh reuse the last map
+/// viewport instead of snapping back to the default zoom's range.
+final mapSearchRadiusKmProvider = StateProvider<double>(
+  (ref) => MapPinSearchRadius.forZoom(AppConfig.defaultZoom),
+);
+
 // --- Map notes ---
 
 class MapPinsRequest {
   final MapLatLng center;
   final MapLatLng user;
+  final double radiusKm;
 
-  const MapPinsRequest({required this.center, required this.user});
+  const MapPinsRequest({
+    required this.center,
+    required this.user,
+    required this.radiusKm,
+  });
 
   @override
   bool operator ==(Object other) =>
-      other is MapPinsRequest && other.center == center && other.user == user;
+      other is MapPinsRequest &&
+      other.center == center &&
+      other.user == user &&
+      other.radiusKm == radiusKm;
 
   @override
-  int get hashCode => Object.hash(center, user);
+  int get hashCode => Object.hash(center, user, radiusKm);
 }
 
 final mapPinsProvider = FutureProvider.family<List<PinSummary>, MapPinsRequest>(
@@ -221,6 +236,7 @@ final mapPinsProvider = FutureProvider.family<List<PinSummary>, MapPinsRequest>(
           centerLongitude: request.center.lng,
           userLatitude: request.user.lat,
           userLongitude: request.user.lng,
+          searchRadiusKm: request.radiusKm,
         );
   },
 );
@@ -393,3 +409,47 @@ class MapLatLng {
 }
 
 MapLatLng latLng(double lat, double lng) => MapLatLng(lat, lng);
+
+class MapCameraSnapshot {
+  final MapLatLng center;
+  final double zoom;
+
+  const MapCameraSnapshot({required this.center, required this.zoom});
+}
+
+class MapPinSearchRadius {
+  static const double _streetZoomThreshold = 15;
+  static const double _neighborhoodZoomThreshold = 14;
+  static const double _districtZoomThreshold = 13;
+  static const double _cityZoomThreshold = 12;
+  static const double _wideAreaZoomThreshold = 11;
+
+  static const double _streetRadiusKm = 2;
+  static const double _neighborhoodRadiusKm = 3;
+  static const double _districtRadiusKm = 5;
+  static const double _cityRadiusKm = 8;
+  static const double _wideAreaRadiusKm = 12;
+  static const double _regionRadiusKm = 20;
+
+  static const double _metersPerKm = 1000;
+  static const double _prefetchRefreshFraction = 0.35;
+  static const double _minRefreshThresholdMeters = 500;
+  static const double _maxRefreshThresholdMeters = 4000;
+
+  /// Coarse zoom buckets avoid a fresh network request for tiny pinch-zoom
+  /// differences while still loading a wider area as the user zooms out.
+  static double forZoom(double zoom) {
+    if (zoom >= _streetZoomThreshold) return _streetRadiusKm;
+    if (zoom >= _neighborhoodZoomThreshold) return _neighborhoodRadiusKm;
+    if (zoom >= _districtZoomThreshold) return _districtRadiusKm;
+    if (zoom >= _cityZoomThreshold) return _cityRadiusKm;
+    if (zoom >= _wideAreaZoomThreshold) return _wideAreaRadiusKm;
+    return _regionRadiusKm;
+  }
+
+  static double refreshThresholdMeters(double radiusKm) {
+    return (radiusKm * _metersPerKm * _prefetchRefreshFraction)
+        .clamp(_minRefreshThresholdMeters, _maxRefreshThresholdMeters)
+        .toDouble();
+  }
+}

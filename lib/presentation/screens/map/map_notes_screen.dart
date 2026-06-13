@@ -77,10 +77,12 @@ class _MapNotesList extends ConsumerWidget {
       final center =
           ref.read(mapSearchCenterProvider) ??
           latLng(anchor.latitude, anchor.longitude);
+      final radiusKm = ref.read(mapSearchRadiusKmProvider);
       final provider = mapPinsProvider(
         MapPinsRequest(
           center: center,
           user: latLng(anchor.latitude, anchor.longitude),
+          radiusKm: radiusKm,
         ),
       );
       ref.invalidate(provider);

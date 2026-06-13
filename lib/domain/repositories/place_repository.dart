@@ -7,6 +7,7 @@ abstract class PlaceRepository {
     required double centerLongitude,
     required double userLatitude,
     required double userLongitude,
+    required double searchRadiusKm,
   });
 
   Future<void> validateNoteAccess({

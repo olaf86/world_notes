@@ -50,8 +50,9 @@ class AppleNoteMapController implements NoteMapAdapter {
   List<PinSummary> _latestPins = const [];
   apple.AppleMapController? _map;
   apple.MapAppearanceMode _appearanceMode = apple.MapAppearanceMode.light;
-  ValueChanged<MapLatLng>? _onCameraIdleChanged;
+  ValueChanged<MapCameraSnapshot>? _onCameraIdleChanged;
   apple.LatLng? _lastCameraTarget;
+  double _lastCameraZoom = AppConfig.defaultZoom;
   bool _clusteringEnabled = AppConfig.defaultZoom < _clusterMaxZoom;
   String? _selectedPlaceId;
   int _markerRevision = 0;
@@ -73,7 +74,7 @@ class AppleNoteMapController implements NoteMapAdapter {
     required ColorScheme colorScheme,
     required MapStyle mapStyle,
     required String styleUrl,
-    required ValueChanged<MapLatLng> onCameraIdle,
+    required ValueChanged<MapCameraSnapshot> onCameraIdle,
   }) {
     _appearanceMode = _appearanceModeFor(mapStyle);
     _onCameraIdleChanged = onCameraIdle;
@@ -153,13 +154,19 @@ class AppleNoteMapController implements NoteMapAdapter {
 
   void _onCameraMove(apple.CameraPosition position) {
     _lastCameraTarget = position.target;
+    _lastCameraZoom = position.zoom;
     _setClusteringEnabled(position.zoom < _clusterMaxZoom);
   }
 
   void _onCameraIdle() {
     final target = _lastCameraTarget;
     if (target != null) {
-      _onCameraIdleChanged?.call(MapLatLng(target.latitude, target.longitude));
+      _onCameraIdleChanged?.call(
+        MapCameraSnapshot(
+          center: MapLatLng(target.latitude, target.longitude),
+          zoom: _lastCameraZoom,
+        ),
+      );
     }
     unawaited(_syncClusteringWithMapZoom());
   }

@@ -6,9 +6,11 @@ import {
   getFirestore,
 } from "firebase-admin/firestore";
 
-import {geohashPrefixes} from "./geohash";
+import {geohashPrefixes, geohashPrefixesInRadius} from "./geohash";
 import {
   MAP_PIN_GEOHASH_PRECISION,
+  MAP_PIN_FINE_SEARCH_MAX_RADIUS_KM,
+  MAP_PIN_MAX_SEARCH_RADIUS_KM,
   MAP_PIN_RESULT_LIMIT,
   NOTE_DETAIL_ACCESS_RADIUS_KM,
   DISCOVERY_GEOHASH_PRECISION,
@@ -25,6 +27,7 @@ interface ListMapPinsData {
   centerLongitude?: unknown;
   userLatitude?: unknown;
   userLongitude?: unknown;
+  searchRadiusKm?: unknown;
 }
 
 interface ValidateNoteAccessData {
@@ -38,8 +41,14 @@ interface Bucket {
   lastRefillAt: number;
 }
 
+interface FineQuery {
+  discoveryGeohash: string;
+  geohashes: string[];
+}
+
 const RATE_LIMIT_CAPACITY = 80;
 const RATE_LIMIT_REFILL_PER_SECOND = 2;
+const GEOHASH_IN_BATCH_SIZE = 10;
 const buckets = new Map<string, Bucket>();
 
 function assertCoordinatePair(
@@ -86,6 +95,13 @@ function consumeRateLimit(uid: string): void {
   buckets.set(uid, bucket);
 }
 
+function assertSearchRadiusKm(value: unknown): number {
+  if (typeof value !== "number" || !isFinite(value) || value <= 0) {
+    throw new HttpsError("invalid-argument", "Invalid search radius.");
+  }
+  return Math.min(value, MAP_PIN_MAX_SEARCH_RADIUS_KM);
+}
+
 function toRad(value: number): number {
   return value * Math.PI / 180;
 }
@@ -125,6 +141,34 @@ function canOpenFrom(user: Coordinates, place: Coordinates): boolean {
   return distanceKm(user, place) <= NOTE_DETAIL_ACCESS_RADIUS_KM;
 }
 
+function fineQueries(center: Coordinates, radiusKm: number): FineQuery[] {
+  const geohashes = geohashPrefixesInRadius(
+    center.latitude,
+    center.longitude,
+    MAP_PIN_GEOHASH_PRECISION,
+    radiusKm,
+  );
+  const byDiscovery = new Map<string, string[]>();
+  for (const geohash of geohashes) {
+    const discovery = geohash.substring(0, DISCOVERY_GEOHASH_PRECISION);
+    byDiscovery.set(
+      discovery,
+      [...(byDiscovery.get(discovery) ?? []), geohash],
+    );
+  }
+
+  const queries: FineQuery[] = [];
+  for (const [discoveryGeohash, group] of byDiscovery) {
+    for (let i = 0; i < group.length; i += GEOHASH_IN_BATCH_SIZE) {
+      queries.push({
+        discoveryGeohash,
+        geohashes: group.slice(i, i + GEOHASH_IN_BATCH_SIZE),
+      });
+    }
+  }
+  return queries;
+}
+
 export const listMapPins = onCall<ListMapPinsData>(
   {enforceAppCheck: true, region: REGION},
   async (req) => {
@@ -140,40 +184,65 @@ export const listMapPins = onCall<ListMapPinsData>(
       req.data?.userLatitude,
       req.data?.userLongitude,
     );
+    const searchRadiusKm = assertSearchRadiusKm(req.data?.searchRadiusKm);
 
     const db = getFirestore();
     const nowMillis = Date.now();
-    const prefixes = geohashPrefixes(
-      center.latitude,
-      center.longitude,
-      MAP_PIN_GEOHASH_PRECISION,
+    const publishedAt = Timestamp.fromMillis(nowMillis);
+    const expiresAfter = Timestamp.fromMillis(nowMillis);
+    const useFineSearch =
+      searchRadiusKm <= MAP_PIN_FINE_SEARCH_MAX_RADIUS_KM;
+    const fineQuerySpecs = useFineSearch ?
+      fineQueries(center, searchRadiusKm) :
+      [];
+    const coarsePrefixes = useFineSearch ?
+      [] :
+      geohashPrefixes(
+        center.latitude,
+        center.longitude,
+        DISCOVERY_GEOHASH_PRECISION,
+      );
+    const queryCount = useFineSearch ?
+      fineQuerySpecs.length :
+      coarsePrefixes.length;
+    const perQueryLimit = Math.max(
+      10,
+      Math.ceil(MAP_PIN_RESULT_LIMIT / Math.max(queryCount, 1)),
     );
-    const perCellLimit = Math.ceil(MAP_PIN_RESULT_LIMIT / prefixes.length);
-    const snapshots = await Promise.all(
-      prefixes.map((prefix) => db
-        .collection("places")
-        .where("geohash", "==", prefix)
-        .where(
-          "discoveryGeohash",
-          "==",
-          prefix.substring(0, DISCOVERY_GEOHASH_PRECISION),
-        )
-        .where("isArchived", "==", false)
-        .where("publishAt", "<=", Timestamp.fromMillis(nowMillis))
-        .where("expiresAt", ">", Timestamp.fromMillis(nowMillis))
-        .orderBy("publishAt")
-        .orderBy("expiresAt")
-        .limit(perCellLimit)
-        .get()),
-    );
+    const snapshots = useFineSearch ?
+      await Promise.all(
+        fineQuerySpecs.map((query) => db
+          .collection("places")
+          .where("geohash", "in", query.geohashes)
+          .where("discoveryGeohash", "==", query.discoveryGeohash)
+          .where("isArchived", "==", false)
+          .where("publishAt", "<=", publishedAt)
+          .where("expiresAt", ">", expiresAfter)
+          .orderBy("publishAt")
+          .orderBy("expiresAt")
+          .limit(perQueryLimit)
+          .get()),
+      ) :
+      await Promise.all(
+        coarsePrefixes.map((prefix) => db
+          .collection("places")
+          .where("discoveryGeohash", "==", prefix)
+          .where("isArchived", "==", false)
+          .where("publishAt", "<=", publishedAt)
+          .where("expiresAt", ">", expiresAfter)
+          .orderBy("publishAt")
+          .orderBy("expiresAt")
+          .limit(perQueryLimit)
+          .get()),
+      );
 
     const seen = new Set<string>();
     const pins = [];
     for (const snap of snapshots) {
       for (const doc of snap.docs) {
         if (seen.has(doc.id) || !isPublishedPlace(doc, nowMillis)) continue;
-        seen.add(doc.id);
         const coords = placeCoordinates(doc);
+        seen.add(doc.id);
         const lastMessageAt = doc.get("lastMessageAt") as Timestamp | undefined;
         const createdAt = doc.get("createdAt") as Timestamp | undefined;
         const expiresAt = doc.get("expiresAt") as Timestamp;

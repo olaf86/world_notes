@@ -104,7 +104,7 @@ class NoteMapController {
     await _map?.setStyle(styleUrl);
   }
 
-  LatLng? get cameraTarget => _map?.cameraPosition?.target;
+  CameraPosition? get cameraPosition => _map?.cameraPosition;
 
   // ── Style / source / layer setup ──────────────────────────────────────────
 

@@ -32,6 +32,12 @@ export const MAP_PIN_GEOHASH_PRECISION = 6;
 /** Maximum map pins returned by one exploration request. */
 export const MAP_PIN_RESULT_LIMIT = 120;
 
+/** Maximum server-accepted search radius for one map-pin request. */
+export const MAP_PIN_MAX_SEARCH_RADIUS_KM = 20;
+
+/** Above this radius, use the coarse discovery geohash field. */
+export const MAP_PIN_FINE_SEARCH_MAX_RADIUS_KM = 4;
+
 /** Radius from the user's current location that unlocks note details. */
 export const NOTE_DETAIL_ACCESS_RADIUS_KM = 2;
 

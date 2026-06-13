@@ -29,7 +29,7 @@ class MapLibreNoteMapAdapter implements NoteMapAdapter {
     required ColorScheme colorScheme,
     required MapStyle mapStyle,
     required String styleUrl,
-    required ValueChanged<MapLatLng> onCameraIdle,
+    required ValueChanged<MapCameraSnapshot> onCameraIdle,
   }) {
     return maplibre.MapLibreMap(
       styleString: styleUrl,
@@ -44,9 +44,15 @@ class MapLibreNoteMapAdapter implements NoteMapAdapter {
       featureTapsTriggersMapClick: true,
       onMapClick: (point, _) => _controller.onMapClick(point),
       onCameraIdle: () {
-        final target = _controller.cameraTarget;
-        if (target != null) {
-          onCameraIdle(MapLatLng(target.latitude, target.longitude));
+        final camera = _controller.cameraPosition;
+        final target = camera?.target;
+        if (camera != null && target != null) {
+          onCameraIdle(
+            MapCameraSnapshot(
+              center: MapLatLng(target.latitude, target.longitude),
+              zoom: camera.zoom,
+            ),
+          );
         }
       },
     );

@@ -13,7 +13,7 @@ abstract class NoteMapAdapter {
     required ColorScheme colorScheme,
     required MapStyle mapStyle,
     required String styleUrl,
-    required ValueChanged<MapLatLng> onCameraIdle,
+    required ValueChanged<MapCameraSnapshot> onCameraIdle,
   });
 
   Future<void> updateMarkers(List<PinSummary> pins);
