@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -80,9 +82,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
     }
   }
 
-  Future<void> _openPin(PinSummary pin) async {
+  Future<bool> _openPin(PinSummary pin) async {
     final anchor = ref.read(anchorPositionProvider);
-    if (!mounted || anchor == null) return;
+    if (!mounted) return false;
+    if (anchor == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not get your current location.')),
+      );
+      return false;
+    }
 
     try {
       await ref
@@ -93,17 +101,28 @@ class _MapScreenState extends ConsumerState<MapScreen>
             longitude: anchor.longitude,
           );
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Move closer to open this note: $e')),
       );
-      return;
+      return false;
     }
 
-    if (!mounted) return;
-    context.push(
-      '/note/${pin.placeId}?title=${Uri.encodeComponent(pin.title)}',
-    );
+    if (!mounted) return false;
+    try {
+      unawaited(
+        context.push(
+          '/note/${pin.placeId}?title=${Uri.encodeComponent(pin.title)}',
+        ),
+      );
+      return true;
+    } catch (e) {
+      if (!mounted) return false;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not open this note: $e')));
+      return false;
+    }
   }
 
   // ── Tracking toggle ──────────────────────────────────────────────────────

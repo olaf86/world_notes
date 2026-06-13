@@ -4,9 +4,9 @@ import '../../../core/utils/place_icon.dart';
 import '../../../core/utils/time_format.dart';
 import '../../../domain/entities/pin_summary_entity.dart';
 
-class NoteMarkerBottomSheet extends StatelessWidget {
+class NoteMarkerBottomSheet extends StatefulWidget {
   final PinSummary pin;
-  final Future<void> Function(PinSummary pin) onOpen;
+  final Future<bool> Function(PinSummary pin) onOpen;
 
   const NoteMarkerBottomSheet({
     super.key,
@@ -15,8 +15,31 @@ class NoteMarkerBottomSheet extends StatelessWidget {
   });
 
   @override
+  State<NoteMarkerBottomSheet> createState() => _NoteMarkerBottomSheetState();
+}
+
+class _NoteMarkerBottomSheetState extends State<NoteMarkerBottomSheet> {
+  bool _isOpening = false;
+
+  Future<void> _open() async {
+    if (_isOpening || !widget.pin.canOpen) return;
+
+    setState(() => _isOpening = true);
+    final opened = await widget.onOpen(widget.pin);
+    if (!mounted) return;
+
+    if (opened) {
+      Navigator.of(context).pop();
+      return;
+    }
+
+    setState(() => _isOpening = false);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final pin = widget.pin;
     final color = parsePlaceColor(pin.colorHex);
 
     return Padding(
@@ -90,15 +113,20 @@ class NoteMarkerBottomSheet extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           FilledButton.icon(
-            onPressed: pin.canOpen
-                ? () async {
-                    Navigator.of(context).pop();
-                    await onOpen(pin);
-                  }
-                : null,
-            icon: Icon(pin.canOpen ? Icons.open_in_new : Icons.lock_outline),
+            onPressed: pin.canOpen && !_isOpening ? _open : null,
+            icon: _isOpening
+                ? SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: theme.colorScheme.onPrimary,
+                    ),
+                  )
+                : Icon(pin.canOpen ? Icons.open_in_new : Icons.lock_outline),
             label: Text(
-              pin.canOpen
+              _isOpening
+                  ? 'Opening...'
+                  : pin.canOpen
                   ? (pin.isClosed ? 'View Note' : 'Open Note')
                   : 'Available nearby',
             ),
