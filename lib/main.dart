@@ -52,6 +52,7 @@ class WorldNotesApp extends ConsumerStatefulWidget {
 
 class _WorldNotesAppState extends ConsumerState<WorldNotesApp> {
   StreamSubscription<String>? _notificationOpenSubscription;
+  StreamSubscription<String>? _nearbyNotificationOpenSubscription;
 
   @override
   void initState() {
@@ -63,12 +64,20 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp> {
       _notificationOpenSubscription = service.openedPlaceIds.listen(
         _openPlaceFromNotification,
       );
+      final nearbyService = ref.read(nearbyNotificationServiceProvider);
+      nearbyService.initialize();
+      nearbyService.initialPlaceIdFromLaunch().then(_openPlaceFromNotification);
+      _nearbyNotificationOpenSubscription = nearbyService.openedPlaceIds.listen(
+        _openPlaceFromNotification,
+      );
+      ref.read(nearbyProximityMonitorProvider);
     });
   }
 
   @override
   void dispose() {
     _notificationOpenSubscription?.cancel();
+    _nearbyNotificationOpenSubscription?.cancel();
     super.dispose();
   }
 

@@ -1,6 +1,7 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
@@ -68,7 +69,9 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
   late final AnimationController _messageEditorController;
   bool _isMessageEditorOpen = false;
   bool _preparingMessageEditor = false;
+  bool _nearbyNotificationBusy = false;
   String? _highlightedAuthorId;
+  DateTime? _lastNearbyReadMarkedAt;
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -309,6 +312,100 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
       isScrollControlled: true,
       builder: (_) => ManageAccessSheet(placeId: widget.placeId),
     );
+  }
+
+  Future<void> _setNearbyNotification(bool enabled) async {
+    if (_nearbyNotificationBusy) return;
+    setState(() => _nearbyNotificationBusy = true);
+    try {
+      if (enabled) {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Notify when nearby'),
+            content: const Text(
+              'To notify you about new messages when you are near this note, '
+              'World Notes needs background location access.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Continue'),
+              ),
+            ],
+          ),
+        );
+        if (confirmed != true) return;
+        final notificationGranted = await ref
+            .read(nearbyNotificationServiceProvider)
+            .requestPermission();
+        if (!notificationGranted) {
+          throw StateError(
+            'Notifications are not allowed. Enable notifications in system '
+            'settings to receive nearby message alerts.',
+          );
+        }
+        await ref
+            .read(myNotesNotificationServiceProvider)
+            .registerCurrentToken();
+        final permission = await ref
+            .read(locationServiceProvider)
+            .ensurePermission();
+        if (permission != LocationPermission.always) {
+          throw StateError(
+            'Allow location access Always in system settings to receive '
+            'nearby message alerts in the background.',
+          );
+        }
+      }
+      await ref
+          .read(placeRepositoryProvider)
+          .setNearbyNotification(placeId: widget.placeId, enabled: enabled);
+    } on FirebaseFunctionsException catch (e) {
+      if (!mounted) return;
+      final message = switch (e.code) {
+        'resource-exhausted' =>
+          'Nearby alerts are limited to '
+              '${AppConfig.nearbyNotificationLimit} notes. '
+              'Turn one off first.',
+        'failed-precondition' =>
+          e.message ?? 'Nearby alerts are not available for this note.',
+        _ => e.message ?? 'Could not update nearby alerts.',
+      };
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
+    } finally {
+      if (mounted) setState(() => _nearbyNotificationBusy = false);
+    }
+  }
+
+  void _markNearbyNotificationReadIfNeeded({
+    required bool nearbyEnabled,
+    required List<MessageEntity> messages,
+  }) {
+    if (!nearbyEnabled || messages.isEmpty) return;
+    final latest = messages
+        .map((message) => message.publishAt)
+        .reduce((a, b) => a.isAfter(b) ? a : b);
+    final previous = _lastNearbyReadMarkedAt;
+    if (previous != null && !latest.isAfter(previous)) return;
+    _lastNearbyReadMarkedAt = latest;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref
+          .read(placeRepositoryProvider)
+          .markNearbyNotificationRead(widget.placeId);
+    });
   }
 
   // ── Private access (set lock / unlock) ───────────────────────────────────
@@ -658,6 +755,11 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
 
     final isOwner = place != null && place.isOwnedBy(currentUser?.id);
     final displayTitle = place?.title ?? widget.placeTitle;
+    final nearbyAlertAsync = ref.watch(
+      nearbyNotificationPlaceProvider(widget.placeId),
+    );
+    final nearbyAlert = nearbyAlertAsync.valueOrNull;
+    final nearbyAlertEnabled = nearbyAlert?.isActive ?? false;
 
     // Private-note access gate. For a private note the viewer doesn't own,
     // check their membership grant; if it's absent or stale, show the locked
@@ -788,42 +890,56 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                     if (place != null && !place.canAcceptMessagesAt(now))
                       _ThreadStatusBanner(place: place, now: now),
                     if (place != null) StaticNoteMiniMap(place: place),
+                    if (place != null && !isOwner && !widget.readOnly)
+                      _NearbyNotificationPanel(
+                        enabled: nearbyAlertEnabled,
+                        busy:
+                            _nearbyNotificationBusy ||
+                            nearbyAlertAsync.isLoading,
+                        onChanged: _setNearbyNotification,
+                      ),
                     Expanded(
                       child: messagesAsync.when(
                         loading: () =>
                             const Center(child: CircularProgressIndicator()),
                         error: (e, _) => Center(child: Text('Error: $e')),
-                        data: (messages) => messages.isEmpty
-                            ? const _EmptyState()
-                            : ListView.builder(
-                                controller: _scrollController,
-                                // Extra bottom padding so the FAB never obscures the
-                                // last message (FAB 56 + margin 16 + breathing 16).
-                                padding: const EdgeInsets.only(
-                                  top: 8,
-                                  bottom: 88,
-                                ),
-                                itemCount: messages.length,
-                                itemBuilder: (context, index) {
-                                  final message = messages[index];
-                                  final isOwn =
-                                      message.author.id == currentUser?.id;
-                                  return MessageBubble(
-                                    message: message,
-                                    isOwn: isOwn,
-                                    isAuthorHighlighted:
-                                        _highlightedAuthorId ==
-                                        message.author.id,
-                                    onAuthorTap: _toggleAuthorHighlight,
-                                    onDelete: isOwn
-                                        ? () => _confirmDeleteMessage(message)
-                                        : null,
-                                    onReport: !isOwn
-                                        ? () => _showReportDialog(message)
-                                        : null,
-                                  );
-                                },
-                              ),
+                        data: (messages) {
+                          _markNearbyNotificationReadIfNeeded(
+                            nearbyEnabled: nearbyAlertEnabled,
+                            messages: messages,
+                          );
+                          return messages.isEmpty
+                              ? const _EmptyState()
+                              : ListView.builder(
+                                  controller: _scrollController,
+                                  // Extra bottom padding so the FAB never
+                                  // obscures the last message.
+                                  padding: const EdgeInsets.only(
+                                    top: 8,
+                                    bottom: 88,
+                                  ),
+                                  itemCount: messages.length,
+                                  itemBuilder: (context, index) {
+                                    final message = messages[index];
+                                    final isOwn =
+                                        message.author.id == currentUser?.id;
+                                    return MessageBubble(
+                                      message: message,
+                                      isOwn: isOwn,
+                                      isAuthorHighlighted:
+                                          _highlightedAuthorId ==
+                                          message.author.id,
+                                      onAuthorTap: _toggleAuthorHighlight,
+                                      onDelete: isOwn
+                                          ? () => _confirmDeleteMessage(message)
+                                          : null,
+                                      onReport: !isOwn
+                                          ? () => _showReportDialog(message)
+                                          : null,
+                                    );
+                                  },
+                                );
+                        },
                       ),
                     ),
                   ],
@@ -906,6 +1022,36 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _NearbyNotificationPanel extends StatelessWidget {
+  final bool enabled;
+  final bool busy;
+  final ValueChanged<bool> onChanged;
+
+  const _NearbyNotificationPanel({
+    required this.enabled,
+    required this.busy,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: theme.colorScheme.surfaceContainerHighest,
+      child: SwitchListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+        secondary: const Icon(Icons.near_me_outlined),
+        title: const Text('Notify when nearby'),
+        subtitle: const Text(
+          'Receive alerts when this note has new messages and you are nearby.',
+        ),
+        value: enabled,
+        onChanged: busy ? null : onChanged,
       ),
     );
   }

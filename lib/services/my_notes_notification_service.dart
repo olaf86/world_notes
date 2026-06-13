@@ -98,7 +98,10 @@ class MyNotesNotificationService {
   }
 
   static String? placeIdFromMessage(RemoteMessage? message) {
-    if (message?.data['type'] != 'my_note_message') return null;
+    final type = message?.data['type'];
+    if (type != 'my_note_message' && type != 'nearby_note_message') {
+      return null;
+    }
     final placeId = message?.data['placeId'];
     return placeId is String && placeId.isNotEmpty ? placeId : null;
   }

@@ -5,41 +5,75 @@ import 'package:go_router/go_router.dart';
 import '../../../core/utils/place_icon.dart';
 import '../../../domain/entities/place_entity.dart';
 import '../../providers/providers.dart';
+import '../settings/nearby_notifications_screen.dart';
 
 class MyNotesScreen extends ConsumerWidget {
   const MyNotesScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    return const DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: _NotesAppBar(),
+        body: TabBarView(
+          children: [_MyNotesListView(), NearbyNotificationsView()],
+        ),
+      ),
+    );
+  }
+}
+
+class _NotesAppBar extends StatelessWidget implements PreferredSizeWidget {
+  const _NotesAppBar();
+
+  @override
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight + 48);
+
+  @override
+  Widget build(BuildContext context) {
+    return AppBar(
+      title: const Text('Notes'),
+      bottom: const TabBar(
+        tabs: [
+          Tab(text: 'My Notes'),
+          Tab(text: 'Nearby Alerts'),
+        ],
+      ),
+    );
+  }
+}
+
+class _MyNotesListView extends ConsumerWidget {
+  const _MyNotesListView();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     final placesAsync = ref.watch(myPlacesProvider);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('My Notes')),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(myPlacesProvider);
-          await ref.read(myPlacesProvider.future);
-        },
-        child: placesAsync.when(
-          loading: () => const _ScrollableStatusView(
-            child: Center(child: CircularProgressIndicator()),
-          ),
-          error: (e, _) =>
-              _ScrollableStatusView(child: Center(child: Text('Error: $e'))),
-          data: (places) {
-            if (places.isEmpty) {
-              return const _ScrollableStatusView(child: _EmptyMyNotesView());
-            }
-
-            return ListView.separated(
-              physics: const AlwaysScrollableScrollPhysics(),
-              itemCount: places.length,
-              separatorBuilder: (context, index) => const Divider(height: 1),
-              itemBuilder: (context, index) =>
-                  _MyNoteTile(place: places[index]),
-            );
-          },
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(myPlacesProvider);
+        await ref.read(myPlacesProvider.future);
+      },
+      child: placesAsync.when(
+        loading: () => const _ScrollableStatusView(
+          child: Center(child: CircularProgressIndicator()),
         ),
+        error: (e, _) =>
+            _ScrollableStatusView(child: Center(child: Text('Error: $e'))),
+        data: (places) {
+          if (places.isEmpty) {
+            return const _ScrollableStatusView(child: _EmptyMyNotesView());
+          }
+
+          return ListView.separated(
+            physics: const AlwaysScrollableScrollPhysics(),
+            itemCount: places.length,
+            separatorBuilder: (context, index) => const Divider(height: 1),
+            itemBuilder: (context, index) => _MyNoteTile(place: places[index]),
+          );
+        },
       ),
     );
   }

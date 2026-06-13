@@ -14,7 +14,10 @@ import {
   REGION,
 } from "./constants";
 import {profileForMember} from "./userProfile";
-import {sendMyNotesMessageNotifications} from "./notifications";
+import {
+  sendMyNotesMessageNotifications,
+  sendNearbyInRangeMessageNotifications,
+} from "./notifications";
 
 interface SendMessageData {
   placeId?: unknown;
@@ -267,6 +270,20 @@ export const sendMessage = onCall<SendMessageData>(
       } catch (error) {
         logger.error(
           "sendMessage: failed to send My Notes notification for " +
+            `places/${placeId}/messages/${messageRef.id}.`,
+          error,
+        );
+      }
+      try {
+        await sendNearbyInRangeMessageNotifications(
+          db,
+          placeId,
+          messageRef.id,
+          uid,
+        );
+      } catch (error) {
+        logger.error(
+          "sendMessage: failed to send nearby notification for " +
             `places/${placeId}/messages/${messageRef.id}.`,
           error,
         );

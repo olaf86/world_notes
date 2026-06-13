@@ -9,8 +9,10 @@ import '../../domain/entities/place_entity.dart'
         NoteMembership,
         PlaceEntity,
         PlaceVisibility;
+import '../../domain/entities/nearby_notification_entity.dart';
 import '../../domain/entities/pin_summary_entity.dart';
 import '../../domain/repositories/place_repository.dart';
+import '../models/nearby_notification_model.dart';
 import '../models/pin_summary_model.dart';
 import '../models/place_model.dart';
 
@@ -281,5 +283,88 @@ class PlaceRepositoryImpl implements PlaceRepository {
             );
           }).toList(),
         );
+  }
+
+  @override
+  Stream<List<NearbyNotificationPlace>> watchNearbyNotificationPlaces(
+    String userId,
+  ) {
+    return _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('nearbyNotificationPlaces')
+        .where('enabled', isEqualTo: true)
+        .where('state', isEqualTo: 'active')
+        .snapshots()
+        .map((snap) {
+          final now = DateTime.now();
+          final places = snap.docs
+              .map((doc) => NearbyNotificationModel.fromFirestore(doc))
+              .map((model) => model.toEntity())
+              .where((place) => place.isActive && place.expiresAt.isAfter(now))
+              .toList();
+          places.sort((a, b) => a.expiresAt.compareTo(b.expiresAt));
+          return places;
+        });
+  }
+
+  @override
+  Stream<NearbyNotificationPlace?> watchNearbyNotificationPlace({
+    required String userId,
+    required String placeId,
+  }) {
+    return _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('nearbyNotificationPlaces')
+        .doc(placeId)
+        .snapshots()
+        .map(
+          (doc) => doc.exists
+              ? NearbyNotificationModel.fromFirestore(doc).toEntity()
+              : null,
+        );
+  }
+
+  @override
+  Future<void> setNearbyNotification({
+    required String placeId,
+    required bool enabled,
+  }) async {
+    await _functions.httpsCallable('setNearbyNotification').call<void>({
+      'placeId': placeId,
+      'enabled': enabled,
+    });
+  }
+
+  @override
+  Future<void> markNearbyNotificationRead(String placeId) async {
+    await _functions.httpsCallable('markNearbyNotificationRead').call<void>({
+      'placeId': placeId,
+    });
+  }
+
+  @override
+  Future<void> markNearbyNotificationInRange({
+    required String placeId,
+    required bool inRange,
+  }) async {
+    await _functions.httpsCallable('markNearbyNotificationInRange').call<void>({
+      'placeId': placeId,
+      'inRange': inRange,
+    });
+  }
+
+  @override
+  Future<NearbyUnreadResult> checkNearbyUnread(String placeId) async {
+    final result = await _functions
+        .httpsCallable('checkNearbyUnread')
+        .call<Map<String, dynamic>>({'placeId': placeId});
+    return NearbyUnreadResult(
+      hasUnread: result.data['hasUnread'] == true,
+      placeId: result.data['placeId'] as String?,
+      messageId: result.data['messageId'] as String?,
+      title: result.data['title'] as String?,
+    );
   }
 }
