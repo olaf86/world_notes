@@ -12,6 +12,7 @@ import {
   MAP_PIN_FINE_SEARCH_MAX_RADIUS_KM,
   MAP_PIN_MAX_SEARCH_RADIUS_KM,
   MAP_PIN_RESULT_LIMIT,
+  MAP_PIN_ZOOMED_OUT_RESULT_LIMIT,
   NOTE_DETAIL_ACCESS_RADIUS_KM,
   DISCOVERY_GEOHASH_PRECISION,
   REGION,
@@ -205,9 +206,12 @@ export const listMapPins = onCall<ListMapPinsData>(
     const queryCount = useFineSearch ?
       fineQuerySpecs.length :
       coarsePrefixes.length;
+    const resultLimit = useFineSearch ?
+      MAP_PIN_RESULT_LIMIT :
+      MAP_PIN_ZOOMED_OUT_RESULT_LIMIT;
     const perQueryLimit = Math.max(
       10,
-      Math.ceil(MAP_PIN_RESULT_LIMIT / Math.max(queryCount, 1)),
+      Math.ceil(resultLimit / Math.max(queryCount, 1)),
     );
     const snapshots = useFineSearch ?
       await Promise.all(
@@ -266,7 +270,7 @@ export const listMapPins = onCall<ListMapPinsData>(
     }
 
     pins.sort((a, b) => b.lastActivityAtMillis - a.lastActivityAtMillis);
-    return {pins: pins.slice(0, MAP_PIN_RESULT_LIMIT)};
+    return {pins: pins.slice(0, resultLimit)};
   },
 );
 

@@ -32,6 +32,9 @@ export const MAP_PIN_GEOHASH_PRECISION = 6;
 /** Maximum map pins returned by one exploration request. */
 export const MAP_PIN_RESULT_LIMIT = 120;
 
+/** Maximum map pins returned when the map is zoomed out to coarse discovery. */
+export const MAP_PIN_ZOOMED_OUT_RESULT_LIMIT = 60;
+
 /** Maximum server-accepted search radius for one map-pin request. */
 export const MAP_PIN_MAX_SEARCH_RADIUS_KM = 20;
 
