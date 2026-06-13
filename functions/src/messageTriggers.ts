@@ -3,7 +3,10 @@ import * as logger from "firebase-functions/logger";
 import {getFirestore, FieldValue, Timestamp} from "firebase-admin/firestore";
 
 import {MAX_MESSAGES_PER_THREAD, REGION} from "./constants";
-import {sendMyNotesMessageNotifications} from "./notifications";
+import {
+  sendMyNotesMessageNotifications,
+  sendNearbyInRangeMessageNotifications,
+} from "./notifications";
 
 /**
  * Publishes scheduled messages whose publishAt has arrived.
@@ -110,6 +113,20 @@ export const aggregatePublishedMessages = onSchedule(
         } catch (error) {
           logger.error(
             "aggregatePublishedMessages: failed to send My Notes " +
+              `notification for places/${placeId}/messages/${messageId}.`,
+            error,
+          );
+        }
+        try {
+          await sendNearbyInRangeMessageNotifications(
+            db,
+            placeId,
+            messageId,
+            senderId,
+          );
+        } catch (error) {
+          logger.error(
+            "aggregatePublishedMessages: failed to send nearby " +
               `notification for places/${placeId}/messages/${messageId}.`,
             error,
           );

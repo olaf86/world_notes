@@ -224,7 +224,7 @@ class _BottomNav extends StatelessWidget {
         NavigationDestination(icon: Icon(Icons.map_outlined), label: 'Map'),
         NavigationDestination(
           icon: Icon(Icons.bookmark_border_outlined),
-          label: 'My Notes',
+          label: 'Notes',
         ),
         NavigationDestination(
           icon: Icon(Icons.person_outline),

@@ -1,3 +1,4 @@
+import '../entities/nearby_notification_entity.dart';
 import '../entities/place_entity.dart';
 import '../entities/pin_summary_entity.dart';
 
@@ -105,4 +106,29 @@ abstract class PlaceRepository {
 
   /// Owner view of the note's access list (invited + password-unlock members).
   Stream<List<NoteMember>> watchMembers(String placeId);
+
+  // ── Nearby notifications ─────────────────────────────────────────────────
+
+  Stream<List<NearbyNotificationPlace>> watchNearbyNotificationPlaces(
+    String userId,
+  );
+
+  Stream<NearbyNotificationPlace?> watchNearbyNotificationPlace({
+    required String userId,
+    required String placeId,
+  });
+
+  Future<void> setNearbyNotification({
+    required String placeId,
+    required bool enabled,
+  });
+
+  Future<void> markNearbyNotificationRead(String placeId);
+
+  Future<void> markNearbyNotificationInRange({
+    required String placeId,
+    required bool inRange,
+  });
+
+  Future<NearbyUnreadResult> checkNearbyUnread(String placeId);
 }

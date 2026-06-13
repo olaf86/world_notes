@@ -104,6 +104,14 @@ service cloud.firestore {
       match /fcmTokens/{tokenId} {
         allow read, write: if false;
       }
+
+      // User-facing mirror of nearby note alerts. Read-only for the account
+      // holder; all changes go through callable Cloud Functions so access,
+      // owner exclusion, and the 5-note cap stay server-enforced.
+      match /nearbyNotificationPlaces/{placeId} {
+        allow read: if isOwner(uid);
+        allow write: if false;
+      }
     }
 
     // ── places ────────────────────────────────────────────────────────────────
@@ -163,6 +171,12 @@ service cloud.firestore {
       // counters/messageSlots includes unpublished scheduled messages and must
       // not be readable because that would leak future activity.
       match /counters/{counterId} {
+        allow read, write: if false;
+      }
+
+      // Server-managed nearby-alert subscription state. Clients read their
+      // user mirror instead; Functions use this collection for message sends.
+      match /nearbyNotificationFollowers/{memberUid} {
         allow read, write: if false;
       }
 

@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -14,6 +17,7 @@ import '../../core/map_style.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../data/repositories/message_repository_impl.dart';
 import '../../data/repositories/place_repository_impl.dart';
+import '../../domain/entities/nearby_notification_entity.dart';
 import '../../domain/entities/message_entity.dart';
 import '../../domain/entities/pin_summary_entity.dart';
 import '../../domain/entities/place_entity.dart';
@@ -23,6 +27,7 @@ import '../../domain/repositories/message_repository.dart';
 import '../../domain/repositories/place_repository.dart';
 import '../../services/location_service.dart';
 import '../../services/my_notes_notification_service.dart';
+import '../../services/nearby_notification_service.dart';
 import '../../services/subscription_service.dart';
 
 // --- Infrastructure ---
@@ -41,6 +46,10 @@ final firebaseStorageProvider = Provider<FirebaseStorage>(
 
 final firebaseMessagingProvider = Provider<FirebaseMessaging>(
   (_) => FirebaseMessaging.instance,
+);
+
+final localNotificationsProvider = Provider<FlutterLocalNotificationsPlugin>(
+  (_) => FlutterLocalNotificationsPlugin(),
 );
 
 // The client must target a region where the functions are actually deployed,
@@ -84,6 +93,16 @@ final myNotesNotificationServiceProvider = Provider<MyNotesNotificationService>(
     return service;
   },
 );
+
+final nearbyNotificationServiceProvider = Provider<NearbyNotificationService>((
+  ref,
+) {
+  final service = NearbyNotificationService(
+    notifications: ref.watch(localNotificationsProvider),
+  );
+  ref.onDispose(service.dispose);
+  return service;
+});
 
 // --- Repositories ---
 
@@ -132,6 +151,116 @@ final myNotesNotificationEnabledProvider = StreamProvider<bool>((ref) {
       .doc('main')
       .snapshots()
       .map((snap) => snap.data()?['myNotesEnabled'] == true);
+});
+
+final nearbyNotificationPlacesProvider =
+    StreamProvider<List<NearbyNotificationPlace>>((ref) {
+      final user = ref.watch(authStateProvider).valueOrNull;
+      if (user == null) return Stream.value(const []);
+      return ref
+          .watch(placeRepositoryProvider)
+          .watchNearbyNotificationPlaces(user.id);
+    });
+
+final nearbyNotificationPlaceProvider =
+    StreamProvider.family<NearbyNotificationPlace?, String>((ref, placeId) {
+      final user = ref.watch(authStateProvider).valueOrNull;
+      if (user == null) return Stream.value(null);
+      return ref
+          .watch(placeRepositoryProvider)
+          .watchNearbyNotificationPlace(userId: user.id, placeId: placeId);
+    });
+
+final nearbyProximityMonitorProvider = Provider<void>((ref) {
+  ref.keepAlive();
+  final inRangePlaceIds = <String>{};
+  final lastCheckedAt = <String, DateTime>{};
+  Position? latestPosition;
+  List<NearbyNotificationPlace> latestPlaces = const [];
+  StreamSubscription<Position>? positionSubscription;
+
+  Future<void> syncNearbyAlertsForCurrentPosition() async {
+    final position = latestPosition;
+    if (position == null || latestPlaces.isEmpty) return;
+
+    final repository = ref.read(placeRepositoryProvider);
+    final notifications = ref.read(nearbyNotificationServiceProvider);
+    for (final place in latestPlaces.where((p) => p.isActive)) {
+      final distanceMeters = Geolocator.distanceBetween(
+        position.latitude,
+        position.longitude,
+        place.latitude,
+        place.longitude,
+      );
+      final isInRange = distanceMeters <= place.radiusMeters;
+      final wasInRange = inRangePlaceIds.contains(place.placeId);
+      if (isInRange && !wasInRange) {
+        inRangePlaceIds.add(place.placeId);
+        await repository.markNearbyNotificationInRange(
+          placeId: place.placeId,
+          inRange: true,
+        );
+      } else if (!isInRange && wasInRange) {
+        inRangePlaceIds.remove(place.placeId);
+        await repository.markNearbyNotificationInRange(
+          placeId: place.placeId,
+          inRange: false,
+        );
+        continue;
+      }
+
+      if (!isInRange) continue;
+      final last = lastCheckedAt[place.placeId];
+      if (last != null &&
+          DateTime.now().difference(last).inMinutes <
+              AppConfig.nearbyNotificationCheckCooldownMinutes) {
+        continue;
+      }
+      lastCheckedAt[place.placeId] = DateTime.now();
+      final result = await repository.checkNearbyUnread(place.placeId);
+      await notifications.showNearbyUnread(result);
+    }
+  }
+
+  Future<void> ensurePositionMonitoring() async {
+    if (positionSubscription != null || latestPlaces.isEmpty) return;
+    final permission = await Geolocator.checkPermission();
+    if (permission != LocationPermission.always) return;
+    positionSubscription = ref
+        .read(locationServiceProvider)
+        .watchPosition()
+        .listen((position) {
+          latestPosition = position;
+          syncNearbyAlertsForCurrentPosition();
+        }, onError: (_) {});
+  }
+
+  Future<void> stopPositionMonitoringIfUnused() async {
+    if (latestPlaces.isNotEmpty) return;
+    await positionSubscription?.cancel();
+    positionSubscription = null;
+    latestPosition = null;
+    inRangePlaceIds.clear();
+    lastCheckedAt.clear();
+  }
+
+  ref.listen<AsyncValue<List<NearbyNotificationPlace>>>(
+    nearbyNotificationPlacesProvider,
+    (_, next) {
+      next.whenData((places) {
+        latestPlaces = places;
+        if (places.isEmpty) {
+          stopPositionMonitoringIfUnused();
+        } else {
+          ensurePositionMonitoring();
+          syncNearbyAlertsForCurrentPosition();
+        }
+      });
+    },
+  );
+  ref.onDispose(() {
+    positionSubscription?.cancel();
+  });
 });
 
 // --- Location ---
