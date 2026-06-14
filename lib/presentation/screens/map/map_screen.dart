@@ -210,7 +210,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
   void _onCameraIdle(MapCameraSnapshot camera) {
     final center = camera.center;
     final radiusKm = MapPinSearchRadius.forZoom(camera.zoom);
-    final currentRadiusKm = ref.read(mapSearchRadiusKmProvider);
     final current = ref.read(mapSearchCenterProvider);
     if (current != null) {
       final distance = Geolocator.distanceBetween(
@@ -223,8 +222,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
       // settling. Keep exploration requests coarse relative to the loaded
       // radius so panning feels smooth and the map-pins API is not refreshed
       // for sub-cell jitter.
-      if (distance < MapPinSearchRadius.refreshThresholdMeters(radiusKm) &&
-          currentRadiusKm == radiusKm) {
+      if (distance < MapPinSearchRadius.refreshThresholdMeters(radiusKm)) {
         return;
       }
     }

@@ -2,6 +2,7 @@
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {
   DocumentSnapshot,
+  QuerySnapshot,
   Timestamp,
   getFirestore,
 } from "firebase-admin/firestore";
@@ -58,9 +59,27 @@ interface PrefixQuery {
   geohashes: string[];
 }
 
+interface PinResult {
+  placeId: string;
+  latitude: number;
+  longitude: number;
+  title: string;
+  subtitle: string | null;
+  colorHex: string;
+  icon: string;
+  messageCount: number;
+  lastActivityAtMillis: number;
+  expiresAtMillis: number;
+  isPrivate: boolean;
+  isClosed: boolean;
+  access: "openable" | "distanceLocked";
+}
+
 const RATE_LIMIT_CAPACITY = 80;
 const RATE_LIMIT_REFILL_PER_SECOND = 2;
 const GEOHASH_IN_BATCH_SIZE = 10;
+// Keep the pins a user just saw around zoom 14 visible when they zoom out.
+const ZOOMED_OUT_LOCAL_RADIUS_KM = 3;
 const buckets = new Map<string, Bucket>();
 
 function assertCoordinatePair(
@@ -205,6 +224,51 @@ function prefixQuery(center: Coordinates, radiusKm: number): PrefixQuery {
   };
 }
 
+function pinFromDoc(
+  doc: DocumentSnapshot,
+  user: Coordinates,
+  nowMillis: number,
+): PinResult {
+  const coords = placeCoordinates(doc);
+  const lastMessageAt = doc.get("lastMessageAt") as Timestamp | undefined;
+  const createdAt = doc.get("createdAt") as Timestamp | undefined;
+  const expiresAt = doc.get("expiresAt") as Timestamp;
+  return {
+    placeId: doc.id,
+    latitude: coords.latitude,
+    longitude: coords.longitude,
+    title: doc.get("title") as string,
+    subtitle: (doc.get("subtitle") as string | undefined) ?? null,
+    colorHex: doc.get("colorHex") as string,
+    icon: doc.get("icon") as string,
+    messageCount: (doc.get("messageCount") as number | undefined) ?? 0,
+    lastActivityAtMillis:
+      (lastMessageAt ?? createdAt)?.toMillis() ?? nowMillis,
+    expiresAtMillis: expiresAt.toMillis(),
+    isPrivate: doc.get("visibility") === "private",
+    isClosed: doc.get("isOpen") !== true,
+    access: canOpenFrom(user, coords) ? "openable" : "distanceLocked",
+  };
+}
+
+function collectPins(
+  snapshots: QuerySnapshot[],
+  user: Coordinates,
+  nowMillis: number,
+  seen: Set<string>,
+): PinResult[] {
+  const pins: PinResult[] = [];
+  for (const snap of snapshots) {
+    for (const doc of snap.docs) {
+      if (seen.has(doc.id) || !isPublishedPlace(doc, nowMillis)) continue;
+      seen.add(doc.id);
+      pins.push(pinFromDoc(doc, user, nowMillis));
+    }
+  }
+  pins.sort((a, b) => b.lastActivityAtMillis - a.lastActivityAtMillis);
+  return pins;
+}
+
 export const listMapPins = onCall<ListMapPinsData>(
   {enforceAppCheck: true, region: REGION},
   async (req) => {
@@ -230,7 +294,7 @@ export const listMapPins = onCall<ListMapPinsData>(
       searchRadiusKm <= MAP_PIN_FINE_SEARCH_MAX_RADIUS_KM;
     const fineQuerySpecs = useFineSearch ?
       fineQueries(center, searchRadiusKm) :
-      [];
+      fineQueries(center, ZOOMED_OUT_LOCAL_RADIUS_KM);
     const prefixQuerySpec = useFineSearch ?
       null :
       prefixQuery(center, searchRadiusKm);
@@ -243,24 +307,34 @@ export const listMapPins = onCall<ListMapPinsData>(
     const resultLimit = useFineSearch ?
       MAP_PIN_RESULT_LIMIT :
       MAP_PIN_ZOOMED_OUT_RESULT_LIMIT;
-    const perQueryLimit = Math.max(
+    const localPerQueryLimit = useFineSearch ?
+      Math.max(
+        10,
+        Math.ceil(resultLimit / Math.max(queryCount, 1)),
+      ) :
+      Math.max(
+        1,
+        Math.ceil(resultLimit / Math.max(fineQuerySpecs.length, 1)),
+      );
+    const prefixPerQueryLimit = Math.max(
       10,
       Math.ceil(resultLimit / Math.max(queryCount, 1)),
     );
-    const snapshots = useFineSearch ?
-      await Promise.all(
-        fineQuerySpecs.map((query) => db
-          .collection("places")
-          .where("geohash", "in", query.geohashes)
-          .where("discoveryGeohash", "==", query.discoveryGeohash)
-          .where("isArchived", "==", false)
-          .where("publishAt", "<=", publishedAt)
-          .where("expiresAt", ">", expiresAfter)
-          .orderBy("publishAt")
-          .orderBy("expiresAt")
-          .limit(perQueryLimit)
-          .get()),
-      ) :
+    const localSnapshots = await Promise.all(
+      fineQuerySpecs.map((query) => db
+        .collection("places")
+        .where("geohash", "in", query.geohashes)
+        .where("discoveryGeohash", "==", query.discoveryGeohash)
+        .where("isArchived", "==", false)
+        .where("publishAt", "<=", publishedAt)
+        .where("expiresAt", ">", expiresAfter)
+        .orderBy("publishAt")
+        .orderBy("expiresAt")
+        .limit(localPerQueryLimit)
+        .get()),
+    );
+    const prefixSnapshots = useFineSearch ?
+      [] :
       await Promise.all(
         prefixQuerySpecs.map((query) => db
           .collection("places")
@@ -270,40 +344,15 @@ export const listMapPins = onCall<ListMapPinsData>(
           .where("expiresAt", ">", expiresAfter)
           .orderBy("publishAt")
           .orderBy("expiresAt")
-          .limit(perQueryLimit)
+          .limit(prefixPerQueryLimit)
           .get()),
       );
-
     const seen = new Set<string>();
-    const pins = [];
-    for (const snap of snapshots) {
-      for (const doc of snap.docs) {
-        if (seen.has(doc.id) || !isPublishedPlace(doc, nowMillis)) continue;
-        const coords = placeCoordinates(doc);
-        seen.add(doc.id);
-        const lastMessageAt = doc.get("lastMessageAt") as Timestamp | undefined;
-        const createdAt = doc.get("createdAt") as Timestamp | undefined;
-        const expiresAt = doc.get("expiresAt") as Timestamp;
-        pins.push({
-          placeId: doc.id,
-          latitude: coords.latitude,
-          longitude: coords.longitude,
-          title: doc.get("title") as string,
-          subtitle: (doc.get("subtitle") as string | undefined) ?? null,
-          colorHex: doc.get("colorHex") as string,
-          icon: doc.get("icon") as string,
-          messageCount: (doc.get("messageCount") as number | undefined) ?? 0,
-          lastActivityAtMillis:
-            (lastMessageAt ?? createdAt)?.toMillis() ?? nowMillis,
-          expiresAtMillis: expiresAt.toMillis(),
-          isPrivate: doc.get("visibility") === "private",
-          isClosed: doc.get("isOpen") !== true,
-          access: canOpenFrom(user, coords) ? "openable" : "distanceLocked",
-        });
-      }
-    }
-
-    pins.sort((a, b) => b.lastActivityAtMillis - a.lastActivityAtMillis);
+    // Preserve center-near pins first, then fill any remaining zoomed-out
+    // budget with wider-area results.
+    const localPins = collectPins(localSnapshots, user, nowMillis, seen);
+    const prefixPins = collectPins(prefixSnapshots, user, nowMillis, seen);
+    const pins = [...localPins, ...prefixPins];
     return {pins: pins.slice(0, resultLimit)};
   },
 );
