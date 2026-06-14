@@ -16,6 +16,8 @@ class MyNotesNotificationService {
   final FirebaseAuth _auth;
 
   StreamSubscription<String>? _tokenRefreshSub;
+  StreamSubscription<String>? _messageOpenSubscription;
+  final _openedPlaceIds = StreamController<String>.broadcast();
 
   MyNotesNotificationService({
     required FirebaseMessaging messaging,
@@ -23,7 +25,9 @@ class MyNotesNotificationService {
     required FirebaseAuth auth,
   }) : _messaging = messaging,
        _functions = functions,
-       _auth = auth;
+       _auth = auth {
+    _startNotificationOpenHandling();
+  }
 
   Future<bool> enableMyNotesNotifications() async {
     final settings = await _messaging.requestPermission(
@@ -88,14 +92,14 @@ class MyNotesNotificationService {
   }
 
   Stream<String> get openedPlaceIds {
-    return FirebaseMessaging.onMessageOpenedApp
-        .map(placeIdFromMessage)
-        .where((placeId) => placeId != null && placeId.isNotEmpty)
-        .cast<String>();
+    return _openedPlaceIds.stream;
   }
 
   Future<void> dispose() async {
     await _tokenRefreshSub?.cancel();
+    await _messageOpenSubscription?.cancel();
+    _nativeLaunchChannel.setMethodCallHandler(null);
+    await _openedPlaceIds.close();
   }
 
   Future<void> _registerToken(String token) async {
@@ -122,6 +126,25 @@ class MyNotesNotificationService {
     } on MissingPluginException {
       return null;
     }
+  }
+
+  void _startNotificationOpenHandling() {
+    _messageOpenSubscription ??= FirebaseMessaging.onMessageOpenedApp
+        .map(placeIdFromMessage)
+        .where((placeId) => placeId != null && placeId.isNotEmpty)
+        .cast<String>()
+        .listen(_openedPlaceIds.add);
+
+    if (defaultTargetPlatform != TargetPlatform.iOS) return;
+    _nativeLaunchChannel.setMethodCallHandler((call) async {
+      if (call.method != 'notificationLaunchPlaceId') return null;
+      final placeId = call.arguments;
+      if (placeId is String && placeId.isNotEmpty) {
+        debugPrint('Opened notification launch placeId from iOS: $placeId');
+        _openedPlaceIds.add(placeId);
+      }
+      return null;
+    });
   }
 
   static String? placeIdFromMessage(RemoteMessage? message) {
