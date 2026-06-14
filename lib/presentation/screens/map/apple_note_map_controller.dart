@@ -21,6 +21,7 @@ class AppleNoteMapController implements NoteMapAdapter {
   static const String _noteClusterId = 'world_notes_places';
   static const double _clusterMaxZoom = 14;
   static const double _selectedMarkerScale = 1.35;
+  static const double _markerZIndex = 0;
 
   final Future<void> Function(PinSummary pin) onPinSelected;
 
@@ -192,6 +193,7 @@ class AppleNoteMapController implements NoteMapAdapter {
     await onPinSelected(pin);
     if (revision != _selectionRevision) return;
 
+    await _deselectAnnotation(_annotationIdFor(pin.placeId, isSelected: true));
     await _pinScaleController.reverse();
     if (revision == _selectionRevision) {
       _selectedPlaceId = null;
@@ -230,7 +232,12 @@ class AppleNoteMapController implements NoteMapAdapter {
           clusteringIdentifier: isSelected || !_clusteringEnabled
               ? null
               : _noteClusterId,
-          zIndex: isSelected ? 1 : 0,
+          // Keep every marker at the same zIndex. The iOS plugin tracks the
+          // maximum zIndex monotonically, so briefly raising a selected pin can
+          // make later normal taps remove/re-add annotations while MapKit is
+          // handling touch state. That is the path that can leave the map
+          // unable to pan after repeated bottom-sheet interactions.
+          zIndex: _markerZIndex,
           onTap: () => unawaited(_showSelectedPin(pin)),
         ),
       );
@@ -247,6 +254,14 @@ class AppleNoteMapController implements NoteMapAdapter {
     // part of the id so zoom-threshold changes become remove/add updates.
     if (isSelected) return 'selected-$placeId';
     return '${_clusteringEnabled ? 'clustered' : 'single'}-$placeId';
+  }
+
+  Future<void> _deselectAnnotation(String annotationId) async {
+    try {
+      await _map?.hideMarkerInfoWindow(apple.AnnotationId(annotationId));
+    } catch (error, stack) {
+      debugPrint('Failed to deselect Apple map annotation: $error\n$stack');
+    }
   }
 
   Future<apple.BitmapDescriptor> _markerIcon(
