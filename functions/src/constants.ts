@@ -23,8 +23,11 @@ export const MAX_MESSAGE_PUBLISH_DELAY_DAYS = 7;
 export const MAX_TITLE_LENGTH = 100;
 export const MAX_SUBTITLE_LENGTH = 200;
 
-/** Coarse geohash precision stored on places for indexed map-pin queries. */
+/** Coarse geohash precision retained for broad discovery compatibility. */
 export const DISCOVERY_GEOHASH_PRECISION = 3;
+
+/** Mid-area geohash precision used before falling back to wide-area cells. */
+export const MAP_PIN_MID_GEOHASH_PRECISION = 5;
 
 /** Fine geohash precision used for map pin discovery. */
 export const MAP_PIN_GEOHASH_PRECISION = 6;
@@ -38,8 +41,11 @@ export const MAP_PIN_ZOOMED_OUT_RESULT_LIMIT = 60;
 /** Maximum server-accepted search radius for one map-pin request. */
 export const MAP_PIN_MAX_SEARCH_RADIUS_KM = 20;
 
-/** Above this radius, use the coarse discovery geohash field. */
+/** At or below this radius, use precision-6 cells for fine map pin search. */
 export const MAP_PIN_FINE_SEARCH_MAX_RADIUS_KM = 4;
+
+/** Above this radius, use the wider precision-4 map pin geohash field. */
+export const MAP_PIN_MID_SEARCH_MAX_RADIUS_KM = 12;
 
 /** Radius from the user's current location that unlocks note details. */
 export const NOTE_DETAIL_ACCESS_RADIUS_KM = 2;

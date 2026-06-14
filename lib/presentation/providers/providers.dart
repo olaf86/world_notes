@@ -690,7 +690,9 @@ class MapPinSearchRadius {
   static const double _regionRadiusKm = 20;
 
   static const double _metersPerKm = 1000;
-  static const double _prefetchRefreshFraction = 0.35;
+  // Refresh after the user pans about one loaded radius away from the current
+  // search center, so wide prefetches are reused instead of reloading eagerly.
+  static const double _prefetchRefreshFraction = 1;
   static const double _minRefreshThresholdMeters = 500;
   static const double _maxRefreshThresholdMeters = 4000;
 

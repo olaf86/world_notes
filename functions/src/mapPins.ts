@@ -6,10 +6,16 @@ import {
   getFirestore,
 } from "firebase-admin/firestore";
 
-import {geohashPrefixes, geohashPrefixesInRadius} from "./geohash";
+import {
+  encodeGeohash,
+  geohashPrefixes,
+  geohashPrefixesInRadius,
+} from "./geohash";
 import {
   MAP_PIN_GEOHASH_PRECISION,
   MAP_PIN_FINE_SEARCH_MAX_RADIUS_KM,
+  MAP_PIN_MID_GEOHASH_PRECISION,
+  MAP_PIN_MID_SEARCH_MAX_RADIUS_KM,
   MAP_PIN_MAX_SEARCH_RADIUS_KM,
   MAP_PIN_RESULT_LIMIT,
   MAP_PIN_ZOOMED_OUT_RESULT_LIMIT,
@@ -44,6 +50,11 @@ interface Bucket {
 
 interface FineQuery {
   discoveryGeohash: string;
+  geohashes: string[];
+}
+
+interface PrefixQuery {
+  fieldPath: string;
   geohashes: string[];
 }
 
@@ -170,6 +181,30 @@ function fineQueries(center: Coordinates, radiusKm: number): FineQuery[] {
   return queries;
 }
 
+function prefixQuery(center: Coordinates, radiusKm: number): PrefixQuery {
+  if (radiusKm > MAP_PIN_MID_SEARCH_MAX_RADIUS_KM) {
+    return {
+      fieldPath: "discoveryGeohash",
+      geohashes: [
+        encodeGeohash(
+          center.latitude,
+          center.longitude,
+          DISCOVERY_GEOHASH_PRECISION,
+        ),
+      ],
+    };
+  }
+
+  return {
+    fieldPath: "mapGeohashMid",
+    geohashes: geohashPrefixes(
+      center.latitude,
+      center.longitude,
+      MAP_PIN_MID_GEOHASH_PRECISION,
+    ),
+  };
+}
+
 export const listMapPins = onCall<ListMapPinsData>(
   {enforceAppCheck: true, region: REGION},
   async (req) => {
@@ -196,16 +231,15 @@ export const listMapPins = onCall<ListMapPinsData>(
     const fineQuerySpecs = useFineSearch ?
       fineQueries(center, searchRadiusKm) :
       [];
-    const coarsePrefixes = useFineSearch ?
+    const prefixQuerySpec = useFineSearch ?
+      null :
+      prefixQuery(center, searchRadiusKm);
+    const prefixQuerySpecs = prefixQuerySpec == null ?
       [] :
-      geohashPrefixes(
-        center.latitude,
-        center.longitude,
-        DISCOVERY_GEOHASH_PRECISION,
-      );
+      [prefixQuerySpec];
     const queryCount = useFineSearch ?
       fineQuerySpecs.length :
-      coarsePrefixes.length;
+      prefixQuerySpecs.length;
     const resultLimit = useFineSearch ?
       MAP_PIN_RESULT_LIMIT :
       MAP_PIN_ZOOMED_OUT_RESULT_LIMIT;
@@ -228,9 +262,9 @@ export const listMapPins = onCall<ListMapPinsData>(
           .get()),
       ) :
       await Promise.all(
-        coarsePrefixes.map((prefix) => db
+        prefixQuerySpecs.map((query) => db
           .collection("places")
-          .where("discoveryGeohash", "==", prefix)
+          .where(query.fieldPath, "in", query.geohashes)
           .where("isArchived", "==", false)
           .where("publishAt", "<=", publishedAt)
           .where("expiresAt", ">", expiresAfter)

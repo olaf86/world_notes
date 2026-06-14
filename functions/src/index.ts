@@ -9,6 +9,7 @@ import {encodeGeohash} from "./geohash";
 import {
   DISCOVERY_GEOHASH_PRECISION,
   FREE_NOTE_LIMIT,
+  MAP_PIN_MID_GEOHASH_PRECISION,
   MAX_PUBLISH_DELAY_DAYS,
   PREMIUM_NOTE_LIMIT,
   NOTE_EXPIRY_PRESET_DAYS,
@@ -160,6 +161,11 @@ export const createNote = onCall<CreateNoteData>(
     }
 
     const geohash = encodeGeohash(latitude, longitude, 6);
+    const mapGeohashMid = encodeGeohash(
+      latitude,
+      longitude,
+      MAP_PIN_MID_GEOHASH_PRECISION,
+    );
     const discoveryGeohash = encodeGeohash(
       latitude,
       longitude,
@@ -195,6 +201,7 @@ export const createNote = onCall<CreateNoteData>(
         latitude,
         longitude,
         geohash,
+        mapGeohashMid,
         discoveryGeohash,
         title: (title as string).trim(),
         subtitle: trimmedSubtitle,
