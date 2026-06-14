@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/utils/place_icon.dart';
 import '../../../domain/entities/place_entity.dart';
 import '../../providers/providers.dart';
+import '../../widgets/my_notes_notification_controls.dart';
 import '../settings/nearby_notifications_screen.dart';
 
 class MyNotesScreen extends ConsumerWidget {
@@ -34,6 +35,7 @@ class _NotesAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     return AppBar(
       title: const Text('Notes'),
+      actions: const [MyNotesNotificationIconButton()],
       bottom: const TabBar(
         tabs: [
           Tab(text: 'My Notes'),

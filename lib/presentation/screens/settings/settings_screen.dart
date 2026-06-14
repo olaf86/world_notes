@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../config/regions.dart';
 import '../../../core/map_style.dart';
 import '../../providers/providers.dart';
+import '../../widgets/my_notes_notification_controls.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -46,59 +47,12 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
-class _MyNotesNotificationsSection extends ConsumerStatefulWidget {
+class _MyNotesNotificationsSection extends StatelessWidget {
   const _MyNotesNotificationsSection();
-
-  @override
-  ConsumerState<_MyNotesNotificationsSection> createState() =>
-      _MyNotesNotificationsSectionState();
-}
-
-class _MyNotesNotificationsSectionState
-    extends ConsumerState<_MyNotesNotificationsSection> {
-  bool _updating = false;
-
-  Future<void> _setEnabled(bool enabled) async {
-    if (_updating) return;
-    setState(() => _updating = true);
-    try {
-      final service = ref.read(myNotesNotificationServiceProvider);
-      if (enabled) {
-        final granted = await service.enableMyNotesNotifications();
-        if (!granted && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Notifications are not allowed. Enable notifications in '
-                'system settings to receive new message alerts.',
-              ),
-            ),
-          );
-        }
-      } else {
-        await service.disableMyNotesNotifications();
-      }
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            enabled
-                ? 'Could not enable My Notes notifications.'
-                : 'Could not disable My Notes notifications.',
-          ),
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _updating = false);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final enabledAsync = ref.watch(myNotesNotificationEnabledProvider);
-    final enabled = enabledAsync.valueOrNull ?? false;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -110,15 +64,7 @@ class _MyNotesNotificationsSectionState
           ),
         ),
         const SizedBox(height: 8),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('My Notes'),
-          subtitle: const Text(
-            'Receive notifications when your notes get new messages.',
-          ),
-          value: enabled,
-          onChanged: _updating || enabledAsync.isLoading ? null : _setEnabled,
-        ),
+        const MyNotesNotificationSwitchTile(),
       ],
     );
   }
