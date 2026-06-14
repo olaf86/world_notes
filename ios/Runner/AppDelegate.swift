@@ -1,5 +1,6 @@
 import CoreLocation
 import Flutter
+import os
 import UIKit
 
 @main
@@ -24,7 +25,11 @@ final class NotificationLaunchManager {
   static let shared = NotificationLaunchManager()
 
   private static let channelName = "world_notes/notification_launch"
-  private static let pendingPlaceIdKey = "world_notes.pending_notification_place_id"
+  private static let launchPlaceIdKey = "world_notes.notification_launch_place_id"
+  private static let logger = Logger(
+    subsystem: "dev.asobo.worldnotes",
+    category: "NotificationLaunch"
+  )
   private static let supportedTypes: Set<String> = [
     "my_note_message",
     "nearby_note_message",
@@ -35,6 +40,9 @@ final class NotificationLaunchManager {
   private init() {}
 
   func configure(binaryMessenger: FlutterBinaryMessenger) {
+#if DEBUG
+    Self.logger.debug("Configuring notification launch channel.")
+#endif
     let channel = FlutterMethodChannel(
       name: Self.channelName,
       binaryMessenger: binaryMessenger
@@ -42,7 +50,7 @@ final class NotificationLaunchManager {
     channel.setMethodCallHandler { call, result in
       switch call.method {
       case "takeInitialPlaceId":
-        result(self.takePendingPlaceId())
+        result(self.takeLaunchPlaceId())
       default:
         result(FlutterMethodNotImplemented)
       }
@@ -57,15 +65,28 @@ final class NotificationLaunchManager {
       let placeId = userInfo["placeId"] as? String,
       !placeId.isEmpty
     else {
+#if DEBUG
+      Self.logger.debug("Ignoring notification launch payload without supported type/placeId.")
+#endif
       return
     }
-    UserDefaults.standard.set(placeId, forKey: Self.pendingPlaceIdKey)
+#if DEBUG
+    Self.logger.debug("Captured notification launch placeId: \(placeId, privacy: .public)")
+#endif
+    UserDefaults.standard.set(placeId, forKey: Self.launchPlaceIdKey)
   }
 
-  private func takePendingPlaceId() -> String? {
+  private func takeLaunchPlaceId() -> String? {
     let defaults = UserDefaults.standard
-    let placeId = defaults.string(forKey: Self.pendingPlaceIdKey)
-    defaults.removeObject(forKey: Self.pendingPlaceIdKey)
+    let placeId = defaults.string(forKey: Self.launchPlaceIdKey)
+    defaults.removeObject(forKey: Self.launchPlaceIdKey)
+#if DEBUG
+    if let placeId {
+      Self.logger.debug("Dart took notification launch placeId: \(placeId, privacy: .public)")
+    } else {
+      Self.logger.debug("No notification launch placeId to take.")
+    }
+#endif
     return placeId
   }
 }
