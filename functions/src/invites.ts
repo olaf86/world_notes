@@ -23,6 +23,40 @@ async function assertOwner(placeId: string, uid: string) {
 }
 
 /**
+ * Returns the active reusable invite token for a place, if one exists.
+ *
+ * @param {string} placeId The note's id.
+ */
+async function activeInviteToken(placeId: string): Promise<string | null> {
+  const existing = await getFirestore()
+    .collection("invites")
+    .where("placeId", "==", placeId)
+    .limit(10)
+    .get();
+  const active = existing.docs.find((d) => d.get("revoked") !== true);
+  return active?.id ?? null;
+}
+
+/**
+ * Owner-only: returns the note's active reusable invite token, if one exists.
+ * Unlike createInviteLink, this does not create a new invite.
+ */
+export const getInviteLink = onCall<{placeId?: unknown}>(
+  {enforceAppCheck: true, region: REGION},
+  async (req) => {
+    const uid = req.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+    const {placeId} = req.data ?? {};
+    if (typeof placeId !== "string" || placeId.length === 0) {
+      throw new HttpsError("invalid-argument", "placeId is required.");
+    }
+    await assertOwner(placeId, uid);
+
+    return {token: await activeInviteToken(placeId)};
+  },
+);
+
+/**
  * Owner-only: returns the note's reusable invite token, creating one if none
  * is active. The token is the secret (high-entropy doc id) and lives in the
  * server-only `invites` collection — never on the client-readable place doc.
@@ -40,13 +74,8 @@ export const createInviteLink = onCall<{placeId?: unknown}>(
 
     const db = getFirestore();
     // Reuse an existing active token (one reusable link per note).
-    const existing = await db
-      .collection("invites")
-      .where("placeId", "==", placeId)
-      .limit(10)
-      .get();
-    const active = existing.docs.find((d) => d.get("revoked") !== true);
-    if (active) return {token: active.id};
+    const active = await activeInviteToken(placeId);
+    if (active) return {token: active};
 
     const token = randomBytes(16).toString("base64url");
     await db.collection("invites").doc(token).set({

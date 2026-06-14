@@ -234,6 +234,14 @@ class PlaceRepositoryImpl implements PlaceRepository {
   // ── Invitations ───────────────────────────────────────────────────────────
 
   @override
+  Future<String?> getInviteLink(String placeId) async {
+    final result = await _functions
+        .httpsCallable('getInviteLink')
+        .call<Map<String, dynamic>>({'placeId': placeId});
+    return result.data['token'] as String?;
+  }
+
+  @override
   Future<String> createInviteLink(String placeId) async {
     final result = await _functions
         .httpsCallable('createInviteLink')

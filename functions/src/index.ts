@@ -34,6 +34,7 @@ export {aggregatePublishedMessages} from "./messageTriggers";
 // Invite-link functions (share-link access to private notes). Region set in
 // their own options.
 export {
+  getInviteLink,
   createInviteLink,
   claimInvite,
   revokeInvite,

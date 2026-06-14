@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -19,13 +21,50 @@ class ManageAccessSheet extends ConsumerStatefulWidget {
 class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
   String? _token;
   bool _busy = false;
+  bool _loadingInvite = true;
+  bool _linkCopied = false;
+  String? _inviteLoadError;
+  Timer? _copyFeedbackTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInviteLink();
+  }
+
+  Future<void> _loadInviteLink() async {
+    try {
+      final token = await ref
+          .read(placeRepositoryProvider)
+          .getInviteLink(widget.placeId);
+      if (!mounted) return;
+      setState(() {
+        _token = token;
+        _inviteLoadError = null;
+      });
+    } on FirebaseFunctionsException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _inviteLoadError = e.message ?? 'Could not check the invite link.';
+      });
+    } finally {
+      if (mounted) setState(() => _loadingInvite = false);
+    }
+  }
 
   Future<void> _createLink() async {
     setState(() => _busy = true);
     try {
-      final token =
-          await ref.read(placeRepositoryProvider).createInviteLink(widget.placeId);
-      if (mounted) setState(() => _token = token);
+      final token = await ref
+          .read(placeRepositoryProvider)
+          .createInviteLink(widget.placeId);
+      if (mounted) {
+        setState(() {
+          _token = token;
+          _linkCopied = false;
+          _inviteLoadError = null;
+        });
+      }
     } on FirebaseFunctionsException catch (e) {
       _snack(e.message ?? 'Could not create the link.');
     } finally {
@@ -37,7 +76,14 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
     setState(() => _busy = true);
     try {
       await ref.read(placeRepositoryProvider).revokeInvite(widget.placeId);
-      if (mounted) setState(() => _token = null);
+      _copyFeedbackTimer?.cancel();
+      if (mounted) {
+        setState(() {
+          _token = null;
+          _linkCopied = false;
+          _inviteLoadError = null;
+        });
+      }
       _snack('Invite link revoked.');
     } on FirebaseFunctionsException catch (e) {
       _snack(e.message ?? 'Could not revoke the link.');
@@ -48,24 +94,37 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
 
   Future<void> _removeMember(String userId) async {
     try {
-      await ref.read(placeRepositoryProvider).revokeNoteAccess(
-            placeId: widget.placeId,
-            userId: userId,
-          );
+      await ref
+          .read(placeRepositoryProvider)
+          .revokeNoteAccess(placeId: widget.placeId, userId: userId);
     } on FirebaseFunctionsException catch (e) {
       _snack(e.message ?? 'Could not remove this member.');
     }
   }
 
-  void _copyLink() {
+  Future<void> _copyLink() async {
     if (_token == null) return;
-    Clipboard.setData(ClipboardData(text: AppConfig.inviteLink(_token!)));
-    _snack('Invite link copied to clipboard.');
+    await Clipboard.setData(ClipboardData(text: AppConfig.inviteLink(_token!)));
+    if (!mounted) return;
+
+    _copyFeedbackTimer?.cancel();
+    setState(() => _linkCopied = true);
+    _copyFeedbackTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted) setState(() => _linkCopied = false);
+    });
   }
 
   void _snack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  @override
+  void dispose() {
+    _copyFeedbackTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -97,7 +156,26 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
             const SizedBox(height: 16),
 
             // ── Invite link ────────────────────────────────────────────
-            if (_token == null)
+            if (_loadingInvite)
+              FilledButton.icon(
+                onPressed: null,
+                icon: const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                label: const Text('Checking invite link'),
+              )
+            else if (_token == null) ...[
+              if (_inviteLoadError != null) ...[
+                Text(
+                  _inviteLoadError!,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.error,
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
               FilledButton.icon(
                 onPressed: _busy ? null : _createLink,
                 icon: _busy
@@ -108,8 +186,8 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
                       )
                     : const Icon(Icons.link),
                 label: const Text('Create invite link'),
-              )
-            else ...[
+              ),
+            ] else ...[
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -127,8 +205,11 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
                   Expanded(
                     child: FilledButton.icon(
                       onPressed: _copyLink,
-                      icon: const Icon(Icons.copy, size: 18),
-                      label: const Text('Copy link'),
+                      icon: Icon(
+                        _linkCopied ? Icons.check : Icons.copy,
+                        size: 18,
+                      ),
+                      label: Text(_linkCopied ? 'Copied' : 'Copy link'),
                     ),
                   ),
                   const SizedBox(width: 8),

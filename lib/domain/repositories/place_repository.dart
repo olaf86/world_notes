@@ -87,6 +87,10 @@ abstract class PlaceRepository {
 
   // ── Invitations (Cloud Functions) ─────────────────────────────────────────
 
+  /// Owner-only: returns the note's reusable invite token if one is already
+  /// active. Does not create a new invite link.
+  Future<String?> getInviteLink(String placeId);
+
   /// Owner-only: returns the note's reusable invite token (creating one if
   /// needed) via `createInviteLink`. Combine with [AppConfig.inviteLink].
   Future<String> createInviteLink(String placeId);
