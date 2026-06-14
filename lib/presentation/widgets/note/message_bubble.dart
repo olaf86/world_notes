@@ -325,45 +325,48 @@ class _MessageBubbleState extends State<MessageBubble> {
                       ),
                       const SizedBox(width: 8),
                       Flexible(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (message.isPending) ...[
-                              SizedBox(
-                                width: 10,
-                                height: 10,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 1.5,
-                                  color: theme.colorScheme.onSurfaceVariant,
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (message.isPending) ...[
+                                SizedBox(
+                                  width: 10,
+                                  height: 10,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 1.5,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                              ],
+                              if (isScheduled) ...[
+                                Icon(
+                                  Icons.schedule_send_outlined,
+                                  size: 13,
+                                  color: theme.colorScheme.tertiary,
+                                ),
+                                const SizedBox(width: 3),
+                              ],
+                              Flexible(
+                                child: Text(
+                                  message.isPending
+                                      ? 'Sending…'
+                                      : isScheduled
+                                      ? 'Scheduled $timeStr'
+                                      : timeStr,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: isScheduled
+                                        ? theme.colorScheme.tertiary
+                                        : theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.end,
                                 ),
                               ),
-                              const SizedBox(width: 4),
                             ],
-                            if (isScheduled) ...[
-                              Icon(
-                                Icons.schedule_send_outlined,
-                                size: 13,
-                                color: theme.colorScheme.tertiary,
-                              ),
-                              const SizedBox(width: 3),
-                            ],
-                            Flexible(
-                              child: Text(
-                                message.isPending
-                                    ? 'Sending…'
-                                    : isScheduled
-                                    ? 'Scheduled $timeStr'
-                                    : timeStr,
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: isScheduled
-                                      ? theme.colorScheme.tertiary
-                                      : theme.colorScheme.onSurfaceVariant,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.end,
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
                     ],

@@ -28,11 +28,11 @@ void main() {
       );
 
       expect(
-        find.text(DateFormat('HH:mm').format(publishAt.toLocal())),
+        find.text(DateFormat('MMM d, HH:mm').format(publishAt.toLocal())),
         findsOneWidget,
       );
       expect(
-        find.text(DateFormat('HH:mm').format(createdAt.toLocal())),
+        find.text(DateFormat('MMM d, HH:mm').format(createdAt.toLocal())),
         findsNothing,
       );
     });
