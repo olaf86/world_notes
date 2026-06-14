@@ -17,6 +17,7 @@ class PinSummary {
   final String colorHex;
   final String icon;
   final int messageCount;
+  final DateTime createdAt;
   final DateTime lastActivityAt;
   final DateTime expiresAt;
   final bool isPrivate;
@@ -32,6 +33,7 @@ class PinSummary {
     required this.colorHex,
     required this.icon,
     required this.messageCount,
+    required this.createdAt,
     required this.lastActivityAt,
     required this.expiresAt,
     required this.isPrivate,

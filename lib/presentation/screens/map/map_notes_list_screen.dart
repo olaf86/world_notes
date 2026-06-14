@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:geolocator/geolocator.dart';
 
+import '../../../core/utils/time_format.dart';
 import '../../../core/utils/place_icon.dart';
 import '../../../domain/entities/pin_summary_entity.dart';
 import '../../../services/location_service.dart';
@@ -191,8 +192,13 @@ class _MapNoteTile extends StatelessWidget {
       pin.longitude,
     );
     final distanceLabel = distanceM < 1000
-        ? '${distanceM.round()} m'
-        : '${(distanceM / 1000).toStringAsFixed(1)} km';
+        ? '${distanceM.round()} meters away'
+        : '${(distanceM / 1000).toStringAsFixed(1)} km away';
+    final metadataLines = [
+      if (pin.subtitle != null && pin.subtitle!.isNotEmpty) pin.subtitle!,
+      'Created at ${noteDateTimeLabel(pin.createdAt)}',
+      'Expires at ${noteDateTimeLabel(pin.expiresAt)}',
+    ];
 
     return ListTile(
       leading: CircleAvatar(
@@ -225,9 +231,12 @@ class _MapNoteTile extends StatelessWidget {
           ),
         ],
       ),
-      subtitle: pin.subtitle != null
-          ? Text(pin.subtitle!, maxLines: 1, overflow: TextOverflow.ellipsis)
-          : null,
+      subtitle: Text(
+        metadataLines.join('\n'),
+        maxLines: 3,
+        overflow: TextOverflow.ellipsis,
+      ),
+      isThreeLine: true,
       trailing: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,

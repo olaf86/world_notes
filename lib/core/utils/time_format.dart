@@ -1,3 +1,5 @@
+import 'package:intl/intl.dart';
+
 /// Human-readable "time until expiry" label for a note.
 ///
 /// Examples: "Expired", "Expires in 5 hours", "Expires in 3 days",
@@ -15,4 +17,9 @@ String remainingLifetimeLabel(DateTime expiresAt, {DateTime? now}) {
     return 'Expires in ${d.inHours} hour${d.inHours == 1 ? '' : 's'}';
   }
   return 'Expires soon';
+}
+
+/// Compact absolute timestamp for note metadata.
+String noteDateTimeLabel(DateTime value) {
+  return DateFormat('MMM d, yyyy HH:mm').format(value.toLocal());
 }
