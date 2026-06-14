@@ -477,6 +477,13 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                   );
                 }
               } on FirebaseFunctionsException catch (e) {
+                assert(() {
+                  debugPrint(
+                    'setNotePassword failed: code=${e.code}, '
+                    'message=${e.message}, details=${e.details}',
+                  );
+                  return true;
+                }());
                 final isSignedIn =
                     ref.read(firebaseAuthProvider).currentUser != null;
                 setLocal(() {
@@ -636,7 +643,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     return switch (error.code) {
       'unauthenticated' =>
         isSignedIn
-            ? 'App verification failed. On Simulator, register the Firebase App Check debug token.'
+            ? 'Could not verify this app. Please try again.'
             : 'Authentication failed. Please sign in again.',
       'permission-denied' => 'Only the note owner can change this lock.',
       'not-found' => 'Note not found.',
