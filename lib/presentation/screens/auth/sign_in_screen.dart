@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -13,6 +14,7 @@ class SignInScreen extends ConsumerStatefulWidget {
 class _SignInScreenState extends ConsumerState<SignInScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   final _nameController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
@@ -24,12 +26,18 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     _nameController.dispose();
     super.dispose();
   }
 
   Future<void> _submitEmail() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_isSignUp &&
+        _passwordController.text != _confirmPasswordController.text) {
+      setState(() => _error = 'Passwords do not match.');
+      return;
+    }
     setState(() {
       _loading = true;
       _error = null;
@@ -48,6 +56,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           _passwordController.text,
         );
       }
+    } on FirebaseAuthException catch (e) {
+      setState(() => _error = _authErrorMessage(e));
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {
@@ -62,11 +72,28 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     });
     try {
       await ref.read(authRepositoryProvider).signInWithGoogle();
+    } on FirebaseAuthException catch (e) {
+      setState(() => _error = _authErrorMessage(e));
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  String _authErrorMessage(FirebaseAuthException error) {
+    return switch (error.code) {
+      'email-already-in-use' => 'This email is already registered.',
+      'invalid-email' => 'Enter a valid email address.',
+      'invalid-credential' ||
+      'user-not-found' ||
+      'wrong-password' => 'Email or password is incorrect.',
+      'operation-not-allowed' =>
+        'Email/password sign-in is not enabled in Firebase Authentication.',
+      'weak-password' => 'Choose a stronger password.',
+      'network-request-failed' => 'Network error. Check your connection.',
+      _ => error.message ?? 'Authentication failed. Please try again.',
+    };
   }
 
   @override
@@ -139,6 +166,28 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                             ? 'Min 6 characters'
                             : null,
                       ),
+                      if (_isSignUp) ...[
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _confirmPasswordController,
+                          obscureText: true,
+                          enableSuggestions: false,
+                          autocorrect: false,
+                          decoration: const InputDecoration(
+                            labelText: 'Confirm password',
+                            prefixIcon: Icon(Icons.lock_reset_outlined),
+                          ),
+                          validator: (v) {
+                            if (v == null || v.isEmpty) {
+                              return 'Re-enter your password';
+                            }
+                            if (v != _passwordController.text) {
+                              return 'Passwords do not match';
+                            }
+                            return null;
+                          },
+                        ),
+                      ],
                       if (_error != null) ...[
                         const SizedBox(height: 12),
                         Text(
@@ -161,7 +210,11 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                       ),
                       const SizedBox(height: 12),
                       TextButton(
-                        onPressed: () => setState(() => _isSignUp = !_isSignUp),
+                        onPressed: () => setState(() {
+                          _isSignUp = !_isSignUp;
+                          _error = null;
+                          _confirmPasswordController.clear();
+                        }),
                         child: Text(
                           _isSignUp
                               ? 'Already have an account? Sign In'

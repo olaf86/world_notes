@@ -430,6 +430,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
           _ => _LockSetupMethod.password,
         };
         var password = '';
+        var passwordConfirmation = '';
         List<int> pattern = const [];
         String? error;
         var busy = false;
@@ -438,7 +439,10 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
             Future<void> submit() async {
               if (busy) return;
               final validation = switch (method) {
-                _LockSetupMethod.password => PasswordUtil.validate(password),
+                _LockSetupMethod.password => PasswordUtil.validateConfirmation(
+                  password: password,
+                  confirmation: passwordConfirmation,
+                ),
                 _LockSetupMethod.pattern => PatternLockUtil.validate(pattern),
               };
               if (validation != null) {
@@ -475,7 +479,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
               } on FirebaseFunctionsException catch (e) {
                 setLocal(() {
                   busy = false;
-                  error = e.message ?? 'Failed to save the lock.';
+                  error = _lockSaveErrorMessage(e);
                 });
               } catch (_) {
                 setLocal(() {
@@ -511,6 +515,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                               setLocal(() {
                                 method = selected.single;
                                 password = '';
+                                passwordConfirmation = '';
                                 pattern = const [];
                                 error = null;
                               });
@@ -518,14 +523,35 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                     ),
                     const SizedBox(height: 12),
                     if (method == _LockSetupMethod.password)
-                      _PasswordLockInput(
-                        onChanged: (value) {
-                          setLocal(() {
-                            password = value;
-                            error = null;
-                          });
-                        },
-                        onSubmitted: submit,
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _PasswordLockInput(
+                            enabled: !busy,
+                            labelText: 'Password',
+                            textInputAction: TextInputAction.next,
+                            onChanged: (value) {
+                              setLocal(() {
+                                password = value;
+                                error = null;
+                              });
+                            },
+                            onSubmitted: () => FocusScope.of(ctx).nextFocus(),
+                          ),
+                          const SizedBox(height: 12),
+                          _PasswordLockInput(
+                            enabled: !busy,
+                            labelText: 'Confirm password',
+                            autofocus: false,
+                            onChanged: (value) {
+                              setLocal(() {
+                                passwordConfirmation = value;
+                                error = null;
+                              });
+                            },
+                            onSubmitted: submit,
+                          ),
+                        ],
                       )
                     else ...[
                       const Text(
@@ -599,6 +625,19 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
       },
     );
     hintController.dispose();
+  }
+
+  String _lockSaveErrorMessage(FirebaseFunctionsException error) {
+    return switch (error.code) {
+      'unauthenticated' => 'Authentication failed. Please sign in again.',
+      'permission-denied' => 'Only the note owner can change this lock.',
+      'not-found' => 'Note not found.',
+      'invalid-argument' ||
+      'failed-precondition' => error.message ?? 'Failed to save the lock.',
+      'unavailable' ||
+      'deadline-exceeded' => 'Network error. Check your connection.',
+      _ => error.message ?? 'Failed to save the lock.',
+    };
   }
 
   /// Visitor: enter the configured secret to unlock a private note. On success
@@ -1283,10 +1322,18 @@ class _LockedNoteView extends StatelessWidget {
 class _PasswordLockInput extends StatefulWidget {
   final ValueChanged<String> onChanged;
   final VoidCallback onSubmitted;
+  final String labelText;
+  final TextInputAction textInputAction;
+  final bool enabled;
+  final bool autofocus;
 
   const _PasswordLockInput({
     required this.onChanged,
     required this.onSubmitted,
+    this.labelText = 'Password',
+    this.textInputAction = TextInputAction.done,
+    this.enabled = true,
+    this.autofocus = true,
   });
 
   @override
@@ -1306,15 +1353,16 @@ class _PasswordLockInputState extends State<_PasswordLockInput> {
   Widget build(BuildContext context) {
     return TextField(
       controller: _controller,
-      autofocus: true,
+      enabled: widget.enabled,
+      autofocus: widget.autofocus,
       obscureText: true,
       enableSuggestions: false,
       autocorrect: false,
       maxLength: PasswordUtil.maxLength,
-      textInputAction: TextInputAction.done,
+      textInputAction: widget.textInputAction,
       onChanged: widget.onChanged,
       onSubmitted: (_) => widget.onSubmitted(),
-      decoration: const InputDecoration(labelText: 'Password', counterText: ''),
+      decoration: InputDecoration(labelText: widget.labelText, counterText: ''),
     );
   }
 }
