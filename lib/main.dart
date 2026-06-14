@@ -28,8 +28,6 @@ void main() async {
   //     REAL device; the Simulator can't attest.
   //   • Debug builds use the debug provider — print the debug token from the
   //     console logs once and register it in Firebase Console → App Check.
-  // NOTE: backend enforcement (enforceAppCheck) stays OFF until tokens are
-  // confirmed flowing in the console's "unenforced" metrics, to avoid lockout.
   await FirebaseAppCheck.instance.activate(
     appleProvider: kDebugMode ? AppleProvider.debug : AppleProvider.appAttest,
     androidProvider: kDebugMode

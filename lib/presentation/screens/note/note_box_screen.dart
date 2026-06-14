@@ -477,9 +477,11 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                   );
                 }
               } on FirebaseFunctionsException catch (e) {
+                final isSignedIn =
+                    ref.read(firebaseAuthProvider).currentUser != null;
                 setLocal(() {
                   busy = false;
-                  error = _lockSaveErrorMessage(e);
+                  error = _lockSaveErrorMessage(e, isSignedIn: isSignedIn);
                 });
               } catch (_) {
                 setLocal(() {
@@ -627,9 +629,15 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     hintController.dispose();
   }
 
-  String _lockSaveErrorMessage(FirebaseFunctionsException error) {
+  String _lockSaveErrorMessage(
+    FirebaseFunctionsException error, {
+    required bool isSignedIn,
+  }) {
     return switch (error.code) {
-      'unauthenticated' => 'Authentication failed. Please sign in again.',
+      'unauthenticated' =>
+        isSignedIn
+            ? 'App verification failed. On Simulator, register the Firebase App Check debug token.'
+            : 'Authentication failed. Please sign in again.',
       'permission-denied' => 'Only the note owner can change this lock.',
       'not-found' => 'Note not found.',
       'invalid-argument' ||
