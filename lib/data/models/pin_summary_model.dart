@@ -9,6 +9,7 @@ class PinSummaryModel {
   final String colorHex;
   final String icon;
   final int messageCount;
+  final DateTime createdAt;
   final DateTime lastActivityAt;
   final DateTime expiresAt;
   final bool isPrivate;
@@ -24,6 +25,7 @@ class PinSummaryModel {
     required this.colorHex,
     required this.icon,
     required this.messageCount,
+    required this.createdAt,
     required this.lastActivityAt,
     required this.expiresAt,
     required this.isPrivate,
@@ -32,6 +34,10 @@ class PinSummaryModel {
   });
 
   factory PinSummaryModel.fromJson(Map<String, dynamic> json) {
+    final lastActivityAtMillis = json['lastActivityAtMillis'] as int;
+    final createdAtMillis =
+        (json['createdAtMillis'] as int?) ?? lastActivityAtMillis;
+
     return PinSummaryModel(
       placeId: json['placeId'] as String,
       latitude: (json['latitude'] as num).toDouble(),
@@ -41,9 +47,8 @@ class PinSummaryModel {
       colorHex: json['colorHex'] as String,
       icon: json['icon'] as String,
       messageCount: json['messageCount'] as int,
-      lastActivityAt: DateTime.fromMillisecondsSinceEpoch(
-        json['lastActivityAtMillis'] as int,
-      ),
+      createdAt: DateTime.fromMillisecondsSinceEpoch(createdAtMillis),
+      lastActivityAt: DateTime.fromMillisecondsSinceEpoch(lastActivityAtMillis),
       expiresAt: DateTime.fromMillisecondsSinceEpoch(
         json['expiresAtMillis'] as int,
       ),
@@ -62,6 +67,7 @@ class PinSummaryModel {
     colorHex: colorHex,
     icon: icon,
     messageCount: messageCount,
+    createdAt: createdAt,
     lastActivityAt: lastActivityAt,
     expiresAt: expiresAt,
     isPrivate: isPrivate,

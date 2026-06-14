@@ -293,6 +293,7 @@ export const listMapPins = onCall<ListMapPinsData>(
           colorHex: doc.get("colorHex") as string,
           icon: doc.get("icon") as string,
           messageCount: (doc.get("messageCount") as number | undefined) ?? 0,
+          createdAtMillis: createdAt?.toMillis() ?? nowMillis,
           lastActivityAtMillis:
             (lastMessageAt ?? createdAt)?.toMillis() ?? nowMillis,
           expiresAtMillis: expiresAt.toMillis(),
