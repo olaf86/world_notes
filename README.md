@@ -68,6 +68,28 @@ A location-based diary app built with Flutter. Drop notes on a map, revisit them
                --dart-define=REVENUECAT_API_KEY_ANDROID=your_key
    ```
 
+### Android CI
+
+GitHub Actions builds a debug APK on pull requests, pushes to `main` and manual workflow runs. The workflow runs:
+
+```bash
+flutter pub get
+flutter analyze
+flutter test
+flutter build apk --debug
+```
+
+The generated `world-notes-debug-apk` artifact can be downloaded from the
+workflow run and installed on a test device.
+
+Optional repository secrets:
+
+| Secret | Description |
+|--------|-------------|
+| `STADIA_API_KEY` | Stadia Maps API key |
+| `REVENUECAT_API_KEY_ANDROID` | RevenueCat Android public key |
+| `BANNER_AD_UNIT_ID` | AdMob banner unit ID |
+
 ### Environment Variables
 
 All secrets are injected at build time via `--dart-define`. No `.env` file is used.

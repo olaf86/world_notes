@@ -1,0 +1,68 @@
+name: Android
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  debug-apk:
+    name: Analyze, test, and build debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      STADIA_API_KEY: ${{ secrets.STADIA_API_KEY }}
+      REVENUECAT_API_KEY_ANDROID: ${{ secrets.REVENUECAT_API_KEY_ANDROID }}
+      BANNER_AD_UNIT_ID: ${{ secrets.BANNER_AD_UNIT_ID }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Restore Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install Flutter dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+      - name: Build debug APK
+        run: >-
+          flutter build apk --debug
+          --dart-define=STADIA_API_KEY=${STADIA_API_KEY}
+          --dart-define=REVENUECAT_API_KEY_ANDROID=${REVENUECAT_API_KEY_ANDROID}
+          --dart-define=BANNER_AD_UNIT_ID=${BANNER_AD_UNIT_ID}
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: world-notes-debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
