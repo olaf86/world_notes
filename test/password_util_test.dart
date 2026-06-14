@@ -16,5 +16,30 @@ void main() {
         'Password must be 30 characters or fewer.',
       );
     });
+
+    test('validates confirmation', () {
+      expect(
+        PasswordUtil.validateConfirmation(
+          password: 'secret',
+          confirmation: 'secret',
+        ),
+        isNull,
+      );
+      expect(
+        PasswordUtil.validateConfirmation(password: '', confirmation: ''),
+        'Enter a password.',
+      );
+      expect(
+        PasswordUtil.validateConfirmation(password: 'secret', confirmation: ''),
+        'Re-enter the password.',
+      );
+      expect(
+        PasswordUtil.validateConfirmation(
+          password: 'secret',
+          confirmation: 'different',
+        ),
+        'Passwords do not match.',
+      );
+    });
   });
 }

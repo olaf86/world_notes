@@ -53,14 +53,14 @@ class MyNotesNotificationService {
     final settings = await _messaging.getNotificationSettings();
     if (!_isGranted(settings.authorizationStatus)) return;
 
-    final token = await _messaging.getToken();
+    final token = await _currentFcmToken();
     if (token == null || token.isEmpty) return;
     await _registerToken(token);
   }
 
   Future<void> deleteCurrentToken() async {
     if (_auth.currentUser == null) return;
-    final token = await _messaging.getToken();
+    final token = await _currentFcmToken();
     if (token == null || token.isEmpty) return;
     await _functions.httpsCallable('deleteFcmToken').call<Map<String, dynamic>>(
       {'token': token},
@@ -97,6 +97,14 @@ class MyNotesNotificationService {
         .call<Map<String, dynamic>>({'token': token, 'platform': _platform});
   }
 
+  Future<String?> _currentFcmToken() async {
+    if (_requiresApnsToken) {
+      final apnsToken = await _messaging.getAPNSToken();
+      if (apnsToken == null || apnsToken.isEmpty) return null;
+    }
+    return _messaging.getToken();
+  }
+
   static String? placeIdFromMessage(RemoteMessage? message) {
     final type = message?.data['type'];
     if (type != 'my_note_message' && type != 'nearby_note_message') {
@@ -118,5 +126,10 @@ class MyNotesNotificationService {
       TargetPlatform.macOS => 'macos',
       _ => 'unknown',
     };
+  }
+
+  static bool get _requiresApnsToken {
+    return defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.macOS;
   }
 }

@@ -24,4 +24,19 @@ abstract class PasswordUtil {
     }
     return null; // valid
   }
+
+  static String? validateConfirmation({
+    required String password,
+    required String confirmation,
+  }) {
+    final passwordError = validate(password);
+    if (passwordError != null) return passwordError;
+    if (confirmation.isEmpty) {
+      return 'Re-enter the password.';
+    }
+    if (password != confirmation) {
+      return 'Passwords do not match.';
+    }
+    return null;
+  }
 }
