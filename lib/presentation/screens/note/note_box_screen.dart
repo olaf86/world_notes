@@ -1083,10 +1083,7 @@ class _SetLockDialogState extends ConsumerState<_SetLockDialog> {
                 ],
               )
             else ...[
-              const Text(
-                'Draw a path between neighboring dots. Short patterns '
-                'are easy to guess; longer paths are better.',
-              ),
+              const Text('Draw a path between neighboring dots.'),
               const SizedBox(height: 12),
               _PatternLockInputWithClear(
                 enabled: !_busy,
@@ -1106,17 +1103,6 @@ class _SetLockDialogState extends ConsumerState<_SetLockDialog> {
                 _error!,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Theme.of(context).colorScheme.error,
-                ),
-              ),
-            ],
-            if (_method == _LockSetupMethod.pattern &&
-                _pattern.isNotEmpty &&
-                _pattern.length < 4) ...[
-              const SizedBox(height: 8),
-              Text(
-                'This is a very short pattern.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.tertiary,
                 ),
               ),
             ],
