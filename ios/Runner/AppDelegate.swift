@@ -8,12 +8,65 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    if let userInfo = launchOptions?[.remoteNotification] as? [AnyHashable: Any] {
+      NotificationLaunchManager.shared.capture(userInfo: userInfo)
+    }
     NativeGeofenceManager.shared.start()
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+  }
+}
+
+final class NotificationLaunchManager {
+  static let shared = NotificationLaunchManager()
+
+  private static let channelName = "world_notes/notification_launch"
+  private static let pendingPlaceIdKey = "world_notes.pending_notification_place_id"
+  private static let supportedTypes: Set<String> = [
+    "my_note_message",
+    "nearby_note_message",
+  ]
+
+  private var channel: FlutterMethodChannel?
+
+  private init() {}
+
+  func configure(binaryMessenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(
+      name: Self.channelName,
+      binaryMessenger: binaryMessenger
+    )
+    channel.setMethodCallHandler { call, result in
+      switch call.method {
+      case "takeInitialPlaceId":
+        result(self.takePendingPlaceId())
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+    self.channel = channel
+  }
+
+  func capture(userInfo: [AnyHashable: Any]) {
+    guard
+      let type = userInfo["type"] as? String,
+      Self.supportedTypes.contains(type),
+      let placeId = userInfo["placeId"] as? String,
+      !placeId.isEmpty
+    else {
+      return
+    }
+    UserDefaults.standard.set(placeId, forKey: Self.pendingPlaceIdKey)
+  }
+
+  private func takePendingPlaceId() -> String? {
+    let defaults = UserDefaults.standard
+    let placeId = defaults.string(forKey: Self.pendingPlaceIdKey)
+    defaults.removeObject(forKey: Self.pendingPlaceIdKey)
+    return placeId
   }
 }
 

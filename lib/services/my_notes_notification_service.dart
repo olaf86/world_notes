@@ -4,8 +4,13 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 class MyNotesNotificationService {
+  static const _nativeLaunchChannel = MethodChannel(
+    'world_notes/notification_launch',
+  );
+
   final FirebaseMessaging _messaging;
   final FirebaseFunctions _functions;
   final FirebaseAuth _auth;
@@ -77,7 +82,9 @@ class MyNotesNotificationService {
 
   Future<String?> initialPlaceIdFromLaunch() async {
     final message = await _messaging.getInitialMessage();
-    return placeIdFromMessage(message);
+    final placeId = placeIdFromMessage(message);
+    if (placeId != null && placeId.isNotEmpty) return placeId;
+    return _initialPlaceIdFromNativeLaunch();
   }
 
   Stream<String> get openedPlaceIds {
@@ -103,6 +110,18 @@ class MyNotesNotificationService {
       if (apnsToken == null || apnsToken.isEmpty) return null;
     }
     return _messaging.getToken();
+  }
+
+  Future<String?> _initialPlaceIdFromNativeLaunch() async {
+    if (defaultTargetPlatform != TargetPlatform.iOS) return null;
+    try {
+      final placeId = await _nativeLaunchChannel.invokeMethod<String>(
+        'takeInitialPlaceId',
+      );
+      return placeId != null && placeId.isNotEmpty ? placeId : null;
+    } on MissingPluginException {
+      return null;
+    }
   }
 
   static String? placeIdFromMessage(RemoteMessage? message) {
