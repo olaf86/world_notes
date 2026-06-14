@@ -81,6 +81,22 @@ class _MessageBubbleState extends State<MessageBubble> {
     );
   }
 
+  String _messageTimeLabel(MessageEntity message, {required bool isScheduled}) {
+    final publishAt = message.publishAt.toLocal();
+
+    if (isScheduled) {
+      return DateFormat('MMM d, HH:mm').format(publishAt);
+    }
+
+    final elapsed = DateTime.now().difference(publishAt);
+    final isAtLeastOneDayOld =
+        !elapsed.isNegative && elapsed >= const Duration(days: 1);
+
+    return DateFormat(
+      isAtLeastOneDayOld ? 'MMM d, HH:mm' : 'HH:mm',
+    ).format(publishAt);
+  }
+
   void _showActionSheet() {
     final hasActions =
         (widget.isOwn && widget.onDelete != null) ||
@@ -221,9 +237,7 @@ class _MessageBubbleState extends State<MessageBubble> {
     //   • Author name rendered in primary colour
     //   • A small "You" badge next to the name
     final isScheduled = widget.isOwn && !message.isPublished;
-    final timeStr = isScheduled
-        ? DateFormat('MMM d, HH:mm').format(message.publishAt.toLocal())
-        : DateFormat('HH:mm').format(message.publishAt.toLocal());
+    final timeStr = _messageTimeLabel(message, isScheduled: isScheduled);
     final hasActions =
         (widget.isOwn && widget.onDelete != null) ||
         (!widget.isOwn && widget.onReport != null);
@@ -264,73 +278,92 @@ class _MessageBubbleState extends State<MessageBubble> {
                   Row(
                     children: [
                       Expanded(
-                        child: GestureDetector(
-                          onTap: widget.onAuthorTap == null
-                              ? null
-                              : () => widget.onAuthorTap!(message.author.id),
-                          child: Text(
-                            message.author.name,
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: widget.isOwn
-                                  ? theme.colorScheme.primary
-                                  : theme.colorScheme.onSurface,
+                        child: Row(
+                          children: [
+                            Flexible(
+                              child: GestureDetector(
+                                onTap: widget.onAuthorTap == null
+                                    ? null
+                                    : () => widget.onAuthorTap!(
+                                        message.author.id,
+                                      ),
+                                child: Text(
+                                  message.author.name,
+                                  style: theme.textTheme.labelMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: widget.isOwn
+                                        ? theme.colorScheme.primary
+                                        : theme.colorScheme.onSurface,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
                             ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                            if (widget.isOwn) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 1,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.primary,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  'You',
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: theme.colorScheme.onPrimary,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
-                      if (widget.isOwn) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 1,
-                          ),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.primary,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            'You',
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: theme.colorScheme.onPrimary,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 10,
-                            ),
-                          ),
-                        ),
-                      ],
                       const SizedBox(width: 8),
-                      if (message.isPending) ...[
-                        SizedBox(
-                          width: 10,
-                          height: 10,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 1.5,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                      ],
-                      if (isScheduled) ...[
-                        Icon(
-                          Icons.schedule_send_outlined,
-                          size: 13,
-                          color: theme.colorScheme.tertiary,
-                        ),
-                        const SizedBox(width: 3),
-                      ],
-                      Text(
-                        message.isPending
-                            ? 'Sending…'
-                            : isScheduled
-                            ? 'Scheduled $timeStr'
-                            : timeStr,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: isScheduled
-                              ? theme.colorScheme.tertiary
-                              : theme.colorScheme.onSurfaceVariant,
+                      Flexible(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (message.isPending) ...[
+                              SizedBox(
+                                width: 10,
+                                height: 10,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 1.5,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                            ],
+                            if (isScheduled) ...[
+                              Icon(
+                                Icons.schedule_send_outlined,
+                                size: 13,
+                                color: theme.colorScheme.tertiary,
+                              ),
+                              const SizedBox(width: 3),
+                            ],
+                            Flexible(
+                              child: Text(
+                                message.isPending
+                                    ? 'Sending…'
+                                    : isScheduled
+                                    ? 'Scheduled $timeStr'
+                                    : timeStr,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: isScheduled
+                                      ? theme.colorScheme.tertiary
+                                      : theme.colorScheme.onSurfaceVariant,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.end,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
