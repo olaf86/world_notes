@@ -11,7 +11,7 @@ NoteMapAdapter createNoteMapAdapter({
   required Future<void> Function(PinSummary pin) onPinSelected,
 }) {
   if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
-    return AppleNoteMapController(vsync: vsync, onPinSelected: onPinSelected);
+    return AppleNoteMapController(onPinSelected: onPinSelected);
   }
 
   return MapLibreNoteMapAdapter(vsync: vsync, onPinSelected: onPinSelected);

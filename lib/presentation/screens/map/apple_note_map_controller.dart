@@ -20,25 +20,12 @@ import 'note_map_adapter.dart';
 class AppleNoteMapController implements NoteMapAdapter {
   static const String _noteClusterId = 'world_notes_places';
   static const double _clusterMaxZoom = 14;
-  static const double _selectedMarkerScale = 1.35;
+  static const double _selectedMarkerScale = 1.65;
   static const double _markerZIndex = 0;
 
   final Future<void> Function(PinSummary pin) onPinSelected;
 
-  AppleNoteMapController({
-    required TickerProvider vsync,
-    required this.onPinSelected,
-  }) {
-    _pinScaleController = AnimationController(
-      vsync: vsync,
-      duration: const Duration(milliseconds: 220),
-    );
-    _pinScaleAnimation = CurvedAnimation(
-      parent: _pinScaleController,
-      curve: Curves.easeOutCubic,
-      reverseCurve: Curves.easeInCubic,
-    )..addListener(_onPinScaleTick);
-  }
+  AppleNoteMapController({required this.onPinSelected});
 
   final annotations = ValueNotifier<Set<apple.Annotation>>(
     <apple.Annotation>{},
@@ -58,8 +45,6 @@ class AppleNoteMapController implements NoteMapAdapter {
   String? _selectedPlaceId;
   int _markerRevision = 0;
   int _selectionRevision = 0;
-  late final AnimationController _pinScaleController;
-  late final Animation<double> _pinScaleAnimation;
 
   void attach(apple.AppleMapController map) {
     _map = map;
@@ -107,7 +92,6 @@ class AppleNoteMapController implements NoteMapAdapter {
 
   @override
   void dispose() {
-    _pinScaleController.dispose();
     annotations.dispose();
     trackingMode.dispose();
   }
@@ -148,7 +132,6 @@ class AppleNoteMapController implements NoteMapAdapter {
     if (_selectedPlaceId != null &&
         !pins.any((pin) => pin.placeId == _selectedPlaceId)) {
       _selectedPlaceId = null;
-      _pinScaleController.value = 0;
     }
     await _rebuildAnnotations();
   }
@@ -187,37 +170,29 @@ class AppleNoteMapController implements NoteMapAdapter {
   Future<void> _showSelectedPin(PinSummary pin) async {
     final revision = ++_selectionRevision;
     _selectedPlaceId = pin.placeId;
-    await _pinScaleController.forward(from: 0);
-    if (revision != _selectionRevision) return;
+    await _rebuildAnnotations();
 
     await onPinSelected(pin);
     if (revision != _selectionRevision) return;
 
     await _deselectAnnotation(_annotationIdFor(pin.placeId, isSelected: true));
-    await _pinScaleController.reverse();
     if (revision == _selectionRevision) {
       _selectedPlaceId = null;
       await _rebuildAnnotations();
     }
   }
 
-  void _onPinScaleTick() {
-    unawaited(_rebuildAnnotations());
-  }
-
   Future<void> _rebuildAnnotations() async {
     final revision = ++_markerRevision;
     final next = <apple.Annotation>{};
     final selectedPlaceId = _selectedPlaceId;
-    final selectedScale =
-        1 + ((_selectedMarkerScale - 1) * _pinScaleAnimation.value);
 
     for (final pin in _latestPins) {
       final isSelected = selectedPlaceId == pin.placeId;
       final icon = await _markerIcon(
         pin.icon,
         pin.colorHex,
-        scale: isSelected ? selectedScale : 1,
+        scale: isSelected ? _selectedMarkerScale : 1,
       );
       if (revision != _markerRevision) return;
 
