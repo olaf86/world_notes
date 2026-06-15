@@ -20,24 +20,13 @@ import 'note_map_adapter.dart';
 class AppleNoteMapController implements NoteMapAdapter {
   static const String _noteClusterId = 'world_notes_places';
   static const double _clusterMaxZoom = 14;
-  static const double _selectedMarkerScale = 1.35;
+  static const double _selectedMarkerScale = 1.65;
+  static const Duration _markerScaleDuration = Duration(milliseconds: 260);
+  static const double _markerZIndex = 0;
 
   final Future<void> Function(PinSummary pin) onPinSelected;
 
-  AppleNoteMapController({
-    required TickerProvider vsync,
-    required this.onPinSelected,
-  }) {
-    _pinScaleController = AnimationController(
-      vsync: vsync,
-      duration: const Duration(milliseconds: 220),
-    );
-    _pinScaleAnimation = CurvedAnimation(
-      parent: _pinScaleController,
-      curve: Curves.easeOutCubic,
-      reverseCurve: Curves.easeInCubic,
-    )..addListener(_onPinScaleTick);
-  }
+  AppleNoteMapController({required this.onPinSelected});
 
   final annotations = ValueNotifier<Set<apple.Annotation>>(
     <apple.Annotation>{},
@@ -57,8 +46,6 @@ class AppleNoteMapController implements NoteMapAdapter {
   String? _selectedPlaceId;
   int _markerRevision = 0;
   int _selectionRevision = 0;
-  late final AnimationController _pinScaleController;
-  late final Animation<double> _pinScaleAnimation;
 
   void attach(apple.AppleMapController map) {
     _map = map;
@@ -106,7 +93,6 @@ class AppleNoteMapController implements NoteMapAdapter {
 
   @override
   void dispose() {
-    _pinScaleController.dispose();
     annotations.dispose();
     trackingMode.dispose();
   }
@@ -147,7 +133,6 @@ class AppleNoteMapController implements NoteMapAdapter {
     if (_selectedPlaceId != null &&
         !pins.any((pin) => pin.placeId == _selectedPlaceId)) {
       _selectedPlaceId = null;
-      _pinScaleController.value = 0;
     }
     await _rebuildAnnotations();
   }
@@ -186,51 +171,40 @@ class AppleNoteMapController implements NoteMapAdapter {
   Future<void> _showSelectedPin(PinSummary pin) async {
     final revision = ++_selectionRevision;
     _selectedPlaceId = pin.placeId;
-    await _pinScaleController.forward(from: 0);
-    if (revision != _selectionRevision) return;
+    final annotationId = _annotationIdFor(pin.placeId);
+    await _animateAnnotationScale(annotationId, _selectedMarkerScale);
 
     await onPinSelected(pin);
     if (revision != _selectionRevision) return;
 
-    await _pinScaleController.reverse();
+    await _deselectAnnotation(annotationId);
+    await _animateAnnotationScale(annotationId, 1);
     if (revision == _selectionRevision) {
       _selectedPlaceId = null;
-      await _rebuildAnnotations();
     }
-  }
-
-  void _onPinScaleTick() {
-    unawaited(_rebuildAnnotations());
   }
 
   Future<void> _rebuildAnnotations() async {
     final revision = ++_markerRevision;
     final next = <apple.Annotation>{};
-    final selectedPlaceId = _selectedPlaceId;
-    final selectedScale =
-        1 + ((_selectedMarkerScale - 1) * _pinScaleAnimation.value);
 
     for (final pin in _latestPins) {
-      final isSelected = selectedPlaceId == pin.placeId;
-      final icon = await _markerIcon(
-        pin.icon,
-        pin.colorHex,
-        scale: isSelected ? selectedScale : 1,
-      );
+      final icon = await _markerIcon(pin.icon, pin.colorHex);
       if (revision != _markerRevision) return;
 
       next.add(
         apple.Annotation(
-          annotationId: apple.AnnotationId(
-            _annotationIdFor(pin.placeId, isSelected: isSelected),
-          ),
+          annotationId: apple.AnnotationId(_annotationIdFor(pin.placeId)),
           position: apple.LatLng(pin.latitude, pin.longitude),
           icon: icon,
           infoWindow: apple.InfoWindow.noText,
-          clusteringIdentifier: isSelected || !_clusteringEnabled
-              ? null
-              : _noteClusterId,
-          zIndex: isSelected ? 1 : 0,
+          clusteringIdentifier: !_clusteringEnabled ? null : _noteClusterId,
+          // Keep every marker at the same zIndex. The iOS plugin tracks the
+          // maximum zIndex monotonically, so briefly raising a selected pin can
+          // make later normal taps remove/re-add annotations while MapKit is
+          // handling touch state. That is the path that can leave the map
+          // unable to pan after repeated bottom-sheet interactions.
+          zIndex: _markerZIndex,
           onTap: () => unawaited(_showSelectedPin(pin)),
         ),
       );
@@ -241,28 +215,47 @@ class AppleNoteMapController implements NoteMapAdapter {
     }
   }
 
-  String _annotationIdFor(String placeId, {required bool isSelected}) {
+  String _annotationIdFor(String placeId) {
     // MapKit does not reliably re-cluster an existing annotation when only
     // its clusteringIdentifier changes. Make the clustered/unclustered state
     // part of the id so zoom-threshold changes become remove/add updates.
-    if (isSelected) return 'selected-$placeId';
     return '${_clusteringEnabled ? 'clustered' : 'single'}-$placeId';
+  }
+
+  Future<void> _deselectAnnotation(String annotationId) async {
+    try {
+      await _map?.hideMarkerInfoWindow(apple.AnnotationId(annotationId));
+    } catch (error, stack) {
+      debugPrint('Failed to deselect Apple map annotation: $error\n$stack');
+    }
+  }
+
+  Future<void> _animateAnnotationScale(
+    String annotationId,
+    double scale,
+  ) async {
+    try {
+      await _map?.animateMarkerScale(
+        apple.AnnotationId(annotationId),
+        scale: scale,
+        duration: _markerScaleDuration,
+      );
+    } catch (error, stack) {
+      debugPrint('Failed to animate Apple map annotation: $error\n$stack');
+    }
   }
 
   Future<apple.BitmapDescriptor> _markerIcon(
     String iconName,
-    String colorHex, {
-    double scale = 1,
-  }) async {
-    final scaleKey = (scale * 100).round();
-    final id = 'marker_${iconName}_${colorHex.replaceAll('#', '')}_$scaleKey';
+    String colorHex,
+  ) async {
+    final id = 'marker_${iconName}_${colorHex.replaceAll('#', '')}';
     final cached = _iconsByMarkerId[id];
     if (cached != null) return cached;
 
     final bytes = await MarkerImage.render(
       iconData: placeIconData(iconName),
       color: parsePlaceColor(colorHex),
-      scale: scale,
     );
     final descriptor = apple.BitmapDescriptor.fromBytes(bytes);
     _iconsByMarkerId[id] = descriptor;

@@ -13,8 +13,8 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: "458572969d8602da7ed2d8f5b19adf8a91143d0d"
-      resolved-ref: "458572969d8602da7ed2d8f5b19adf8a91143d0d"
+      ref: "2dcc9043cd056fcbf710afcf8d2907217ad1d08e"
+      resolved-ref: "2dcc9043cd056fcbf710afcf8d2907217ad1d08e"
       url: "https://github.com/olaf86/apple_maps_flutter.git"
     source: git
     version: "1.7.0"
