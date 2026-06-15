@@ -27,7 +27,7 @@ require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelpe
 flutter_ios_podfile_setup
 
 target 'Runner' do
-  use_frameworks!
+  use_frameworks! :linkage => :static
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 
@@ -39,5 +39,27 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+
+    target.shell_script_build_phases.each do |build_phase|
+      next unless build_phase.name == '[CP] Copy XCFrameworks'
+
+      build_phase.input_file_list_paths = []
+      build_phase.output_file_list_paths = []
+      build_phase.always_out_of_date = '1'
+    end
+
+    target.build_configurations.each do |config|
+      config.build_settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'
+
+      # Keep local `flutter run` builds lighter; release/archive settings are left alone.
+      if ['Debug', 'Profile'].include?(config.name)
+        config.build_settings['COMPILER_INDEX_STORE_ENABLE'] = 'NO'
+      end
+
+      if config.name == 'Debug'
+        config.build_settings['ONLY_ACTIVE_ARCH'] = 'YES'
+        config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf'
+      end
+    end
   end
 end
