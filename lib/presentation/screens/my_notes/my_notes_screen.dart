@@ -65,7 +65,6 @@ class _MyNotesListView extends ConsumerWidget {
           currentCount: placesAsync.valueOrNull?.length ?? 0,
           limit: noteLimit,
         ),
-        const Divider(height: 1),
         Expanded(
           child: RefreshIndicator(
             onRefresh: () async {
