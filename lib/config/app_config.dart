@@ -58,7 +58,7 @@ class AppConfig {
 
   /// Nearby alerts use the same radius as note detail read/post access.
   /// Must match NOTE_DETAIL_ACCESS_RADIUS_KM in functions/src/constants.ts.
-  static const int nearbyNotificationRadiusMeters = 1000;
+  static const int nearbyNotificationRadiusMeters = 500;
 
   /// Minimum interval between active in-range unread checks for a followed
   /// nearby note while the app is running.
