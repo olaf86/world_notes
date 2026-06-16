@@ -87,12 +87,13 @@ class _MyNotesListView extends ConsumerWidget {
                 }
 
                 return ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
                   physics: const AlwaysScrollableScrollPhysics(),
                   itemCount: places.length,
                   separatorBuilder: (context, index) =>
-                      const Divider(height: 1),
+                      const SizedBox(height: 10),
                   itemBuilder: (context, index) =>
-                      _MyNoteTile(place: places[index]),
+                      _MyNoteCard(place: places[index]),
                 );
               },
             ),
@@ -129,10 +130,11 @@ class _ArchivedNotesListView extends ConsumerWidget {
           }
 
           return ListView.separated(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
             physics: const AlwaysScrollableScrollPhysics(),
             itemCount: places.length,
-            separatorBuilder: (context, index) => const Divider(height: 1),
-            itemBuilder: (context, index) => _MyNoteTile(place: places[index]),
+            separatorBuilder: (context, index) => const SizedBox(height: 10),
+            itemBuilder: (context, index) => _MyNoteCard(place: places[index]),
           );
         },
       ),
@@ -178,90 +180,111 @@ class _NoteLimitSummary extends StatelessWidget {
   }
 }
 
-class _MyNoteTile extends StatelessWidget {
+class _MyNoteCard extends StatelessWidget {
   final PlaceEntity place;
 
-  const _MyNoteTile({required this.place});
+  const _MyNoteCard({required this.place});
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final color = parsePlaceColor(place.colorHex);
     final lastActivity = place.lastMessageAt ?? place.createdAt;
-    final subtitle = place.subtitle?.isNotEmpty == true
-        ? place.subtitle!
-        : place.isArchived
-        ? 'Archived ${_relativeTime(place.archivedAt ?? place.expiresAt)}'
-        : 'Last active ${_relativeTime(lastActivity)}';
 
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: color,
-        child: Icon(placeIconData(place.icon), color: Colors.white, size: 20),
-      ),
-      title: Row(
-        children: [
-          if (place.isArchived) ...[
-            Icon(
-              Icons.archive_outlined,
-              size: 14,
-              color: Theme.of(context).colorScheme.outline,
-            ),
-            const SizedBox(width: 4),
-          ] else if (place.isClosed) ...[
-            Icon(
-              Icons.do_not_disturb_on_outlined,
-              size: 14,
-              color: Theme.of(context).colorScheme.error,
-            ),
-            const SizedBox(width: 4),
-          ] else if (place.isPrivate) ...[
-            Icon(
-              Icons.lock_outline,
-              size: 14,
-              color: Theme.of(context).colorScheme.tertiary,
-            ),
-            const SizedBox(width: 4),
-          ],
-          Expanded(
-            child: Text(
-              place.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-      subtitle: Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
-      trailing: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Icon(
-            Icons.visibility_outlined,
-            size: 16,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-          const SizedBox(height: 2),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.chat_bubble_outline,
-                size: 12,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 2),
-              Text(
-                '${place.messageCount}',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+    return SizedBox(
+      height: 116,
+      child: Card(
+        margin: EdgeInsets.zero,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(color: colorScheme.outlineVariant),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () => context.push('/note/${place.id}?readOnly=true'),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 22,
+                  backgroundColor: color,
+                  child: Icon(
+                    placeIconData(place.icon),
+                    color: Colors.white,
+                    size: 22,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              place.title,
+                              style: theme.textTheme.titleSmall,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          _MessageCountBadge(count: place.messageCount),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      SizedBox(
+                        height: 22,
+                        child: place.subtitle?.isNotEmpty == true
+                            ? Text(
+                                place.subtitle!,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              )
+                            : null,
+                      ),
+                      const Spacer(),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          _NoteMetaChip(
+                            icon: Icons.schedule_outlined,
+                            label: 'Last active ${_relativeTime(lastActivity)}',
+                          ),
+                          if (place.isArchived)
+                            _NoteMetaChip(
+                              icon: Icons.archive_outlined,
+                              label:
+                                  'Archived ${_relativeTime(place.archivedAt ?? place.expiresAt)}',
+                            )
+                          else if (place.isClosed)
+                            const _NoteMetaChip(
+                              icon: Icons.do_not_disturb_on_outlined,
+                              label: 'Closed',
+                            ),
+                          if (place.isPrivate)
+                            const _NoteMetaChip(
+                              icon: Icons.lock_outline,
+                              label: 'Private',
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-        ],
+        ),
       ),
-      onTap: () => context.push('/note/${place.id}?readOnly=true'),
     );
   }
 
@@ -277,6 +300,63 @@ class _MyNoteTile extends StatelessWidget {
       return '${diff.inMinutes} min ago';
     }
     return 'just now';
+  }
+}
+
+class _MessageCountBadge extends StatelessWidget {
+  final int count;
+
+  const _MessageCountBadge({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.chat_bubble_outline,
+          size: 14,
+          color: colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(width: 3),
+        Text(
+          '$count',
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _NoteMetaChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _NoteMetaChip({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 13, color: colorScheme.onSurfaceVariant),
+        const SizedBox(width: 3),
+        Text(
+          label,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
   }
 }
 
