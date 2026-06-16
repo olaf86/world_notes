@@ -52,6 +52,9 @@ abstract class PlaceRepository {
   Stream<List<PlaceEntity>> watchMyPlaces(String userId);
   Future<List<PlaceEntity>> getMyPlaces(String userId);
 
+  /// Archived notes owned by [userId], used by the archived My Notes view.
+  Stream<List<PlaceEntity>> watchArchivedMyPlaces(String userId);
+
   // ── Writability (owner only) ──────────────────────────────────────────────
 
   /// Closes the thread (read-only).  [reason] records whether this was a

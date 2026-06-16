@@ -14,11 +14,15 @@ class MyNotesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return const DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: _NotesAppBar(),
         body: TabBarView(
-          children: [_MyNotesListView(), NearbyNotificationsView()],
+          children: [
+            _MyNotesListView(),
+            _ArchivedNotesListView(),
+            NearbyNotificationsView(),
+          ],
         ),
       ),
     );
@@ -39,6 +43,7 @@ class _NotesAppBar extends StatelessWidget implements PreferredSizeWidget {
       bottom: const TabBar(
         tabs: [
           Tab(text: 'My Notes'),
+          Tab(text: 'Archived'),
           Tab(text: 'Nearby Alerts'),
         ],
       ),
@@ -52,11 +57,63 @@ class _MyNotesListView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final placesAsync = ref.watch(myPlacesProvider);
+    final noteLimit = ref.watch(noteLimitProvider);
+
+    return Column(
+      children: [
+        _NoteLimitSummary(
+          currentCount: placesAsync.valueOrNull?.length ?? 0,
+          limit: noteLimit,
+        ),
+        const Divider(height: 1),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(myPlacesProvider);
+              await ref.read(myPlacesProvider.future);
+            },
+            child: placesAsync.when(
+              loading: () => const _ScrollableStatusView(
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              error: (e, _) => _ScrollableStatusView(
+                child: Center(child: Text('Error: $e')),
+              ),
+              data: (places) {
+                if (places.isEmpty) {
+                  return const _ScrollableStatusView(
+                    child: _EmptyMyNotesView(),
+                  );
+                }
+
+                return ListView.separated(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  itemCount: places.length,
+                  separatorBuilder: (context, index) =>
+                      const Divider(height: 1),
+                  itemBuilder: (context, index) =>
+                      _MyNoteTile(place: places[index]),
+                );
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ArchivedNotesListView extends ConsumerWidget {
+  const _ArchivedNotesListView();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final placesAsync = ref.watch(archivedMyPlacesProvider);
 
     return RefreshIndicator(
       onRefresh: () async {
-        ref.invalidate(myPlacesProvider);
-        await ref.read(myPlacesProvider.future);
+        ref.invalidate(archivedMyPlacesProvider);
+        await ref.read(archivedMyPlacesProvider.future);
       },
       child: placesAsync.when(
         loading: () => const _ScrollableStatusView(
@@ -66,7 +123,9 @@ class _MyNotesListView extends ConsumerWidget {
             _ScrollableStatusView(child: Center(child: Text('Error: $e'))),
         data: (places) {
           if (places.isEmpty) {
-            return const _ScrollableStatusView(child: _EmptyMyNotesView());
+            return const _ScrollableStatusView(
+              child: _EmptyArchivedNotesView(),
+            );
           }
 
           return ListView.separated(
@@ -76,6 +135,44 @@ class _MyNotesListView extends ConsumerWidget {
             itemBuilder: (context, index) => _MyNoteTile(place: places[index]),
           );
         },
+      ),
+    );
+  }
+}
+
+class _NoteLimitSummary extends StatelessWidget {
+  final int currentCount;
+  final int limit;
+
+  const _NoteLimitSummary({required this.currentCount, required this.limit});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          Icon(Icons.note_alt_outlined, size: 18, color: colorScheme.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Created notes',
+              style: theme.textTheme.bodyMedium,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Text(
+            '$currentCount / $limit',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: colorScheme.primary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -92,6 +189,8 @@ class _MyNoteTile extends StatelessWidget {
     final lastActivity = place.lastMessageAt ?? place.createdAt;
     final subtitle = place.subtitle?.isNotEmpty == true
         ? place.subtitle!
+        : place.isArchived
+        ? 'Archived ${_relativeTime(place.archivedAt ?? place.expiresAt)}'
         : 'Last active ${_relativeTime(lastActivity)}';
 
     return ListTile(
@@ -101,7 +200,14 @@ class _MyNoteTile extends StatelessWidget {
       ),
       title: Row(
         children: [
-          if (place.isClosed) ...[
+          if (place.isArchived) ...[
+            Icon(
+              Icons.archive_outlined,
+              size: 14,
+              color: Theme.of(context).colorScheme.outline,
+            ),
+            const SizedBox(width: 4),
+          ] else if (place.isClosed) ...[
             Icon(
               Icons.do_not_disturb_on_outlined,
               size: 14,
@@ -171,6 +277,38 @@ class _MyNoteTile extends StatelessWidget {
       return '${diff.inMinutes} min ago';
     }
     return 'just now';
+  }
+}
+
+class _EmptyArchivedNotesView extends StatelessWidget {
+  const _EmptyArchivedNotesView();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.archive_outlined,
+              size: 64,
+              color: theme.colorScheme.outlineVariant,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No archived notes yet.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

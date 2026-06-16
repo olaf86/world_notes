@@ -536,6 +536,14 @@ final myPlacesProvider = StreamProvider<List<PlaceEntity>>((ref) {
   return ref.watch(placeRepositoryProvider).watchMyPlaces(user.id);
 });
 
+/// Archived notes owned by the current user; returns an empty stream while
+/// signed out.
+final archivedMyPlacesProvider = StreamProvider<List<PlaceEntity>>((ref) {
+  final user = ref.watch(authStateProvider).valueOrNull;
+  if (user == null) return Stream.value(const []);
+  return ref.watch(placeRepositoryProvider).watchArchivedMyPlaces(user.id);
+});
+
 // --- Note creation limit ---
 
 /// The maximum number of active notes the current user may own, based on
