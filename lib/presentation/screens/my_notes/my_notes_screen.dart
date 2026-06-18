@@ -190,67 +190,68 @@ class _MyNoteCard extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final color = parsePlaceColor(place.colorHex);
     final lastActivity = place.lastMessageAt ?? place.createdAt;
+    final subtitle = place.subtitle?.trim();
+    final hasSubtitle = subtitle?.isNotEmpty == true;
 
-    return SizedBox(
-      height: 116,
-      child: Card(
-        margin: EdgeInsets.zero,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: BorderSide(color: colorScheme.outlineVariant),
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(8),
-          onTap: () => context.push('/note/${place.id}?readOnly=true'),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 22,
-                  backgroundColor: color,
-                  child: Icon(
-                    placeIconData(place.icon),
-                    color: Colors.white,
-                    size: 22,
-                  ),
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: colorScheme.outlineVariant),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: () => context.push('/note/${place.id}?readOnly=true'),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: color,
+                child: Icon(
+                  placeIconData(place.icon),
+                  color: Colors.white,
+                  size: 22,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              place.title,
-                              style: theme.textTheme.titleSmall,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            place.title,
+                            style: theme.textTheme.titleSmall,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(width: 8),
-                          _MessageCountBadge(count: place.messageCount),
-                        ],
+                        ),
+                        const SizedBox(width: 8),
+                        _MessageCountBadge(count: place.messageCount),
+                      ],
+                    ),
+                    if (hasSubtitle)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          subtitle!,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                      const SizedBox(height: 6),
-                      SizedBox(
-                        height: 22,
-                        child: place.subtitle?.isNotEmpty == true
-                            ? Text(
-                                place.subtitle!,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              )
-                            : null,
-                      ),
-                      const Spacer(),
-                      Wrap(
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Wrap(
                         spacing: 6,
                         runSpacing: 4,
                         children: [
@@ -276,11 +277,11 @@ class _MyNoteCard extends StatelessWidget {
                             ),
                         ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
