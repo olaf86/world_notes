@@ -14,11 +14,15 @@ class MyNotesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return const DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: _NotesAppBar(),
         body: TabBarView(
-          children: [_MyNotesListView(), NearbyNotificationsView()],
+          children: [
+            _MyNotesListView(),
+            _ArchivedNotesListView(),
+            NearbyNotificationsView(),
+          ],
         ),
       ),
     );
@@ -39,6 +43,7 @@ class _NotesAppBar extends StatelessWidget implements PreferredSizeWidget {
       bottom: const TabBar(
         tabs: [
           Tab(text: 'My Notes'),
+          Tab(text: 'Archived'),
           Tab(text: 'Nearby Alerts'),
         ],
       ),
@@ -52,11 +57,63 @@ class _MyNotesListView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final placesAsync = ref.watch(myPlacesProvider);
+    final noteLimit = ref.watch(noteLimitProvider);
+
+    return Column(
+      children: [
+        _NoteLimitSummary(
+          currentCount: placesAsync.valueOrNull?.length ?? 0,
+          limit: noteLimit,
+        ),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(myPlacesProvider);
+              await ref.read(myPlacesProvider.future);
+            },
+            child: placesAsync.when(
+              loading: () => const _ScrollableStatusView(
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              error: (e, _) => _ScrollableStatusView(
+                child: Center(child: Text('Error: $e')),
+              ),
+              data: (places) {
+                if (places.isEmpty) {
+                  return const _ScrollableStatusView(
+                    child: _EmptyMyNotesView(),
+                  );
+                }
+
+                return ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  itemCount: places.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 10),
+                  itemBuilder: (context, index) =>
+                      _MyNoteCard(place: places[index]),
+                );
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ArchivedNotesListView extends ConsumerWidget {
+  const _ArchivedNotesListView();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final placesAsync = ref.watch(archivedMyPlacesProvider);
 
     return RefreshIndicator(
       onRefresh: () async {
-        ref.invalidate(myPlacesProvider);
-        await ref.read(myPlacesProvider.future);
+        ref.invalidate(archivedMyPlacesProvider);
+        await ref.read(archivedMyPlacesProvider.future);
       },
       child: placesAsync.when(
         loading: () => const _ScrollableStatusView(
@@ -66,14 +123,17 @@ class _MyNotesListView extends ConsumerWidget {
             _ScrollableStatusView(child: Center(child: Text('Error: $e'))),
         data: (places) {
           if (places.isEmpty) {
-            return const _ScrollableStatusView(child: _EmptyMyNotesView());
+            return const _ScrollableStatusView(
+              child: _EmptyArchivedNotesView(),
+            );
           }
 
           return ListView.separated(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
             physics: const AlwaysScrollableScrollPhysics(),
             itemCount: places.length,
-            separatorBuilder: (context, index) => const Divider(height: 1),
-            itemBuilder: (context, index) => _MyNoteTile(place: places[index]),
+            separatorBuilder: (context, index) => const SizedBox(height: 10),
+            itemBuilder: (context, index) => _MyNoteCard(place: places[index]),
           );
         },
       ),
@@ -81,81 +141,150 @@ class _MyNotesListView extends ConsumerWidget {
   }
 }
 
-class _MyNoteTile extends StatelessWidget {
-  final PlaceEntity place;
+class _NoteLimitSummary extends StatelessWidget {
+  final int currentCount;
+  final int limit;
 
-  const _MyNoteTile({required this.place});
+  const _NoteLimitSummary({required this.currentCount, required this.limit});
 
   @override
   Widget build(BuildContext context) {
-    final color = parsePlaceColor(place.colorHex);
-    final lastActivity = place.lastMessageAt ?? place.createdAt;
-    final subtitle = place.subtitle?.isNotEmpty == true
-        ? place.subtitle!
-        : 'Last active ${_relativeTime(lastActivity)}';
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: color,
-        child: Icon(placeIconData(place.icon), color: Colors.white, size: 20),
-      ),
-      title: Row(
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
         children: [
-          if (place.isClosed) ...[
-            Icon(
-              Icons.do_not_disturb_on_outlined,
-              size: 14,
-              color: Theme.of(context).colorScheme.error,
-            ),
-            const SizedBox(width: 4),
-          ] else if (place.isPrivate) ...[
-            Icon(
-              Icons.lock_outline,
-              size: 14,
-              color: Theme.of(context).colorScheme.tertiary,
-            ),
-            const SizedBox(width: 4),
-          ],
+          Icon(Icons.note_alt_outlined, size: 18, color: colorScheme.primary),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
-              place.title,
+              'Created notes',
+              style: theme.textTheme.bodyMedium,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ),
+          Text(
+            '$currentCount / $limit',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: colorScheme.primary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
-      subtitle: Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
-      trailing: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Icon(
-            Icons.visibility_outlined,
-            size: 16,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-          const SizedBox(height: 2),
-          Row(
-            mainAxisSize: MainAxisSize.min,
+    );
+  }
+}
+
+class _MyNoteCard extends StatelessWidget {
+  final PlaceEntity place;
+
+  const _MyNoteCard({required this.place});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final color = parsePlaceColor(place.colorHex);
+    final lastActivity = place.lastMessageAt ?? place.createdAt;
+    final subtitle = place.subtitle?.trim();
+    final hasSubtitle = subtitle?.isNotEmpty == true;
+
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: colorScheme.outlineVariant),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: () => context.push('/note/${place.id}?readOnly=true'),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                Icons.chat_bubble_outline,
-                size: 12,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: color,
+                child: Icon(
+                  placeIconData(place.icon),
+                  color: Colors.white,
+                  size: 22,
+                ),
               ),
-              const SizedBox(width: 2),
-              Text(
-                '${place.messageCount}',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            place.title,
+                            style: theme.textTheme.titleSmall,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _MessageCountBadge(count: place.messageCount),
+                      ],
+                    ),
+                    if (hasSubtitle)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          subtitle!,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          _NoteMetaChip(
+                            icon: Icons.schedule_outlined,
+                            label: 'Last active ${_relativeTime(lastActivity)}',
+                          ),
+                          if (place.isArchived)
+                            _NoteMetaChip(
+                              icon: Icons.archive_outlined,
+                              label:
+                                  'Archived ${_relativeTime(place.archivedAt ?? place.expiresAt)}',
+                            )
+                          else if (place.isClosed)
+                            const _NoteMetaChip(
+                              icon: Icons.do_not_disturb_on_outlined,
+                              label: 'Closed',
+                            ),
+                          if (place.isPrivate)
+                            const _NoteMetaChip(
+                              icon: Icons.lock_outline,
+                              label: 'Private',
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-        ],
+        ),
       ),
-      onTap: () => context.push('/note/${place.id}?readOnly=true'),
     );
   }
 
@@ -171,6 +300,95 @@ class _MyNoteTile extends StatelessWidget {
       return '${diff.inMinutes} min ago';
     }
     return 'just now';
+  }
+}
+
+class _MessageCountBadge extends StatelessWidget {
+  final int count;
+
+  const _MessageCountBadge({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.chat_bubble_outline,
+          size: 14,
+          color: colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(width: 3),
+        Text(
+          '$count',
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _NoteMetaChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _NoteMetaChip({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 13, color: colorScheme.onSurfaceVariant),
+        const SizedBox(width: 3),
+        Text(
+          label,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _EmptyArchivedNotesView extends StatelessWidget {
+  const _EmptyArchivedNotesView();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.archive_outlined,
+              size: 64,
+              color: theme.colorScheme.outlineVariant,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No archived notes yet.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

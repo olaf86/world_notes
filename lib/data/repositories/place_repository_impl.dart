@@ -120,9 +120,9 @@ class PlaceRepositoryImpl implements PlaceRepository {
 
   // ── Ownership queries ─────────────────────────────────────────────────────
 
-  Query _ownedPlacesQuery(String userId) => _places
+  Query _ownedPlacesQuery(String userId, {required bool isArchived}) => _places
       .where('ownerIds', arrayContains: userId)
-      .where('isArchived', isEqualTo: false);
+      .where('isArchived', isEqualTo: isArchived);
 
   List<PlaceEntity> _collectMyPlaces(QuerySnapshot snap) {
     final places = snap.docs
@@ -132,6 +132,19 @@ class PlaceRepositoryImpl implements PlaceRepository {
     places.sort((a, b) {
       final aTime = a.lastMessageAt ?? a.createdAt;
       final bTime = b.lastMessageAt ?? b.createdAt;
+      return bTime.compareTo(aTime);
+    });
+    return places;
+  }
+
+  List<PlaceEntity> _collectArchivedMyPlaces(QuerySnapshot snap) {
+    final places = snap.docs
+        .map((doc) => PlaceModel.fromFirestore(doc).toEntity())
+        .where((place) => place.isArchived)
+        .toList();
+    places.sort((a, b) {
+      final aTime = a.archivedAt ?? a.expiresAt;
+      final bTime = b.archivedAt ?? b.expiresAt;
       return bTime.compareTo(aTime);
     });
     return places;
@@ -149,13 +162,24 @@ class PlaceRepositoryImpl implements PlaceRepository {
 
   @override
   Stream<List<PlaceEntity>> watchMyPlaces(String userId) {
-    return _ownedPlacesQuery(userId).snapshots().map(_collectMyPlaces);
+    return _ownedPlacesQuery(
+      userId,
+      isArchived: false,
+    ).snapshots().map(_collectMyPlaces);
   }
 
   @override
   Future<List<PlaceEntity>> getMyPlaces(String userId) async {
-    final snap = await _ownedPlacesQuery(userId).get();
+    final snap = await _ownedPlacesQuery(userId, isArchived: false).get();
     return _collectMyPlaces(snap);
+  }
+
+  @override
+  Stream<List<PlaceEntity>> watchArchivedMyPlaces(String userId) {
+    return _ownedPlacesQuery(
+      userId,
+      isArchived: true,
+    ).snapshots().map(_collectArchivedMyPlaces);
   }
 
   // ── Writability ───────────────────────────────────────────────────────────
