@@ -32,12 +32,7 @@ class UserModel {
   }
 
   Map<String, dynamic> toFirestore() {
-    return {
-      'displayName': name,
-      'email': email,
-      'photoUrl': photoUrl,
-      'isPremium': isPremium,
-    };
+    return {'displayName': name, 'email': email, 'photoUrl': photoUrl};
   }
 
   UserEntity toEntity() => UserEntity(

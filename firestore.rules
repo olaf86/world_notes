@@ -73,22 +73,21 @@ service cloud.firestore {
 
     // ── users ─────────────────────────────────────────────────────────────────
     match /users/{uid} {
-      allow read: if isSignedIn();
-      // only the account holder can write their own document
-      allow create: if isOwner(uid);
-      // isPremium and activeNoteCount are server-managed (Cloud Functions /
-      // RevenueCat sync). activeNoteCount is the source of truth for the note
-      // creation cap, so the owner must NOT be able to reset it and bypass it.
-      allow update: if isOwner(uid)
-                    && !request.resource.data.diff(resource.data).affectedKeys()
-                        .hasAny(['isPremium', 'activeNoteCount'])
-                    // Defensive string-length caps (avoid storage abuse).
-                    && (!request.resource.data.diff(resource.data)
-                          .affectedKeys().hasAny(['displayName'])
-                        || request.resource.data.displayName.size() <= 20)
-                    && (!request.resource.data.diff(resource.data)
-                          .affectedKeys().hasAny(['photoUrl'])
-                        || request.resource.data.photoUrl.size() <= 2000);
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid)
+                    && request.resource.data.keys()
+                        .hasOnly(['displayName', 'email', 'photoUrl'])
+                    && request.resource.data.displayName is string
+                    && request.resource.data.displayName.size() > 0
+                    && request.resource.data.displayName.size() <= 20
+                    && (request.resource.data.email == null
+                        || (request.resource.data.email is string
+                            && request.resource.data.email.size() <= 320))
+                    && (request.resource.data.photoUrl == null
+                        || (request.resource.data.photoUrl is string
+                            && request.resource.data.photoUrl.size() <= 2000));
+      // Profile changes and all entitlement/counter fields are server-managed.
+      allow update: if false;
       allow delete: if false;
 
       // Notification preferences are readable by the signed-in owner, but only

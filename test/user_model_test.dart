@@ -22,6 +22,7 @@ void main() {
 
       expect(model.toFirestore(), containsPair('displayName', 'Nickname'));
       expect(model.toFirestore(), isNot(contains('name')));
+      expect(model.toFirestore(), isNot(contains('isPremium')));
     });
   });
 }
