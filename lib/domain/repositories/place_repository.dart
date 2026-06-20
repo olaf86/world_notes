@@ -55,6 +55,9 @@ abstract class PlaceRepository {
   /// Archived notes owned by [userId], used by the archived My Notes view.
   Stream<List<PlaceEntity>> watchArchivedMyPlaces(String userId);
 
+  /// Permanently moves an active note to the archived lifecycle state.
+  Future<void> archivePlace(String placeId);
+
   // ── Writability (owner only) ──────────────────────────────────────────────
 
   /// Closes the thread (read-only).  [reason] records whether this was a

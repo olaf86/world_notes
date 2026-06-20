@@ -182,6 +182,13 @@ class PlaceRepositoryImpl implements PlaceRepository {
     ).snapshots().map(_collectArchivedMyPlaces);
   }
 
+  @override
+  Future<void> archivePlace(String placeId) async {
+    await _functions.httpsCallable('archiveNote').call<Map<String, dynamic>>({
+      'placeId': placeId,
+    });
+  }
+
   // ── Writability ───────────────────────────────────────────────────────────
 
   @override

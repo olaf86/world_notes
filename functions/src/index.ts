@@ -3,7 +3,12 @@ import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {onSchedule} from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
 import {initializeApp} from "firebase-admin/app";
-import {getFirestore, FieldValue, Timestamp} from "firebase-admin/firestore";
+import {
+  DocumentReference,
+  getFirestore,
+  FieldValue,
+  Timestamp,
+} from "firebase-admin/firestore";
 
 import {encodeGeohash} from "./geohash";
 import {
@@ -69,6 +74,10 @@ interface CreateNoteData {
   expiryDays?: unknown;
   visibility?: unknown;
   publishAtMillis?: unknown;
+}
+
+interface ArchiveNoteData {
+  placeId?: unknown;
 }
 
 /**
@@ -235,6 +244,82 @@ export const createNote = onCall<CreateNoteData>(
 );
 
 /**
+ * Owner-only terminal archive. The place update and active-note counter
+ * decrement share a transaction so retries cannot free the slot twice.
+ */
+export const archiveNote = onCall<ArchiveNoteData>(
+  {enforceAppCheck: true},
+  async (req) => {
+    const uid = req.auth?.uid;
+    if (!uid) {
+      throw new HttpsError("unauthenticated", "You must be signed in.");
+    }
+    const {placeId} = req.data ?? {};
+    if (typeof placeId !== "string" || placeId.length === 0) {
+      throw new HttpsError("invalid-argument", "placeId is required.");
+    }
+
+    const db = getFirestore();
+    const placeRef = db.collection("places").doc(placeId);
+    const archived = await db.runTransaction(async (tx) => {
+      const placeSnap = await tx.get(placeRef);
+      if (!placeSnap.exists) {
+        throw new HttpsError("not-found", "Note not found.");
+      }
+      if (placeSnap.get("createdByUserId") !== uid) {
+        throw new HttpsError(
+          "permission-denied",
+          "Only the note creator can archive it.",
+        );
+      }
+      if (placeSnap.get("isArchived") === true) return false;
+
+      const userRef = db.collection("users").doc(uid);
+      const userSnap = await tx.get(userRef);
+      const activeCount =
+        (userSnap.get("activeNoteCount") as number | undefined) ?? 0;
+
+      tx.update(placeRef, {
+        isArchived: true,
+        archivedAt: FieldValue.serverTimestamp(),
+        isOpen: false,
+      });
+      tx.set(
+        userRef,
+        {activeNoteCount: Math.max(0, activeCount - 1)},
+        {merge: true},
+      );
+      return true;
+    });
+
+    if (archived) {
+      try {
+        const invites = await db
+          .collection("invites")
+          .where("placeId", "==", placeId)
+          .get();
+        const batch = db.batch();
+        let revoked = 0;
+        for (const invite of invites.docs) {
+          if (invite.get("revoked") !== true) {
+            batch.update(invite.ref, {revoked: true});
+            revoked++;
+          }
+        }
+        if (revoked > 0) await batch.commit();
+      } catch (error) {
+        logger.warn(
+          `archiveNote: could not revoke invites for ${placeId}.`,
+          error,
+        );
+      }
+    }
+
+    return {archived};
+  },
+);
+
+/**
  * Scheduled auto-archive.
  *
  * Once per day, moves every note past its expiry into the archived state:
@@ -268,27 +353,57 @@ export const archiveExpiredNotes = onSchedule(
 
       if (snap.empty) break;
 
-      const batch = db.batch();
-      const decrements = new Map<string, number>();
-
+      const placesByOwner = new Map<string, DocumentReference[]>();
       for (const doc of snap.docs) {
-        batch.update(doc.ref, {
-          isArchived: true,
-          archivedAt: FieldValue.serverTimestamp(),
-        });
         const ownerId = doc.get("createdByUserId") as string;
-        decrements.set(ownerId, (decrements.get(ownerId) ?? 0) + 1);
-      }
-      for (const [ownerId, count] of decrements) {
-        batch.set(
-          db.collection("users").doc(ownerId),
-          {activeNoteCount: FieldValue.increment(-count)},
-          {merge: true},
-        );
+        const refs = placesByOwner.get(ownerId) ?? [];
+        refs.push(doc.ref);
+        placesByOwner.set(ownerId, refs);
       }
 
-      await batch.commit();
-      totalArchived += snap.size;
+      const archivedCounts = await Promise.all(
+        [...placesByOwner.entries()].map(async ([ownerId, placeRefs]) => {
+          return db.runTransaction(async (tx) => {
+            const userRef = db.collection("users").doc(ownerId);
+            const [userSnap, ...placeSnaps] = await Promise.all([
+              tx.get(userRef),
+              ...placeRefs.map((ref) => tx.get(ref)),
+            ]);
+            const eligible = placeSnaps.filter((placeSnap) => {
+              const expiresAt =
+                placeSnap.get("expiresAt") as Timestamp | undefined;
+              return placeSnap.exists &&
+                placeSnap.get("isArchived") !== true &&
+                placeSnap.get("createdByUserId") === ownerId &&
+                expiresAt != null &&
+                expiresAt.toMillis() <= now.toMillis();
+            });
+            if (eligible.length === 0) return 0;
+
+            for (const placeSnap of eligible) {
+              tx.update(placeSnap.ref, {
+                isArchived: true,
+                archivedAt: FieldValue.serverTimestamp(),
+                isOpen: false,
+              });
+            }
+            const activeCount =
+              (userSnap.get("activeNoteCount") as number | undefined) ?? 0;
+            tx.set(
+              userRef,
+              {
+                activeNoteCount: Math.max(
+                  0,
+                  activeCount - eligible.length,
+                ),
+              },
+              {merge: true},
+            );
+            return eligible.length;
+          });
+        }),
+      );
+      totalArchived += archivedCounts.reduce((sum, count) => sum + count, 0);
       if (snap.size < batchSize) break;
     }
 

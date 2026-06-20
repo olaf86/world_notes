@@ -54,10 +54,48 @@ class _NotesAppBar extends StatelessWidget implements PreferredSizeWidget {
 class _MyNotesListView extends ConsumerWidget {
   const _MyNotesListView();
 
+  Future<void> _archivePlace(
+    BuildContext context,
+    WidgetRef ref,
+    PlaceEntity place,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Archive this note?'),
+        content: const Text(
+          'It will disappear from the map, become read-only, and free one '
+          'note slot. Archived notes cannot be restored.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Archive'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    try {
+      await ref.read(placeRepositoryProvider).archivePlace(place.id);
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to archive note: $error')));
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final placesAsync = ref.watch(myPlacesProvider);
     final noteLimit = ref.watch(noteLimitProvider);
+    final currentUser = ref.watch(authStateProvider).valueOrNull;
 
     return Column(
       children: [
@@ -91,8 +129,15 @@ class _MyNotesListView extends ConsumerWidget {
                   itemCount: places.length,
                   separatorBuilder: (context, index) =>
                       const SizedBox(height: 10),
-                  itemBuilder: (context, index) =>
-                      _MyNoteCard(place: places[index]),
+                  itemBuilder: (context, index) {
+                    final place = places[index];
+                    return _MyNoteCard(
+                      place: place,
+                      onArchive: place.createdByUserId == currentUser?.id
+                          ? () => _archivePlace(context, ref, place)
+                          : null,
+                    );
+                  },
                 );
               },
             ),
@@ -181,8 +226,9 @@ class _NoteLimitSummary extends StatelessWidget {
 
 class _MyNoteCard extends StatelessWidget {
   final PlaceEntity place;
+  final VoidCallback? onArchive;
 
-  const _MyNoteCard({required this.place});
+  const _MyNoteCard({required this.place, this.onArchive});
 
   @override
   Widget build(BuildContext context) {
@@ -235,6 +281,15 @@ class _MyNoteCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
                         _MessageCountBadge(count: place.messageCount),
+                        if (onArchive != null) ...[
+                          const SizedBox(width: 4),
+                          IconButton(
+                            visualDensity: VisualDensity.compact,
+                            tooltip: 'Archive note',
+                            onPressed: onArchive,
+                            icon: const Icon(Icons.archive_outlined, size: 20),
+                          ),
+                        ],
                       ],
                     ),
                     if (hasSubtitle)

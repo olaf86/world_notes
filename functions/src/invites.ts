@@ -20,6 +20,9 @@ async function assertOwner(placeId: string, uid: string) {
   if (snap.get("createdByUserId") !== uid) {
     throw new HttpsError("permission-denied", "Only the owner can do this.");
   }
+  if (snap.get("isArchived") === true) {
+    throw new HttpsError("failed-precondition", "This note is archived.");
+  }
 }
 
 /**
@@ -105,41 +108,56 @@ export const claimInvite = onCall<{token?: unknown}>(
     }
 
     const db = getFirestore();
-    const inviteRef = db.collection("invites").doc(token);
-    const inviteSnap = await inviteRef.get();
-    if (!inviteSnap.exists || inviteSnap.get("revoked") === true) {
-      throw new HttpsError(
-        "not-found",
-        "This invite link is invalid or has been revoked.",
-      );
-    }
-
-    const placeId = inviteSnap.get("placeId") as string;
-    const memberRef = db
-      .collection("places")
-      .doc(placeId)
-      .collection("members")
-      .doc(uid);
     const profile = await profileForMember(
       uid,
       req.auth?.token.name,
       req.auth?.token.email,
     );
+    const inviteRef = db.collection("invites").doc(token);
+    const placeId = await db.runTransaction(async (tx) => {
+      const inviteSnap = await tx.get(inviteRef);
+      if (!inviteSnap.exists || inviteSnap.get("revoked") === true) {
+        throw new HttpsError(
+          "not-found",
+          "This invite link is invalid or has been revoked.",
+        );
+      }
 
-    const batch = db.batch();
-    batch.set(
-      memberRef,
-      {
-        userId: uid,
-        invited: true,
-        grantedAt: FieldValue.serverTimestamp(),
-        displayName: profile.displayName,
-        email: profile.email,
-      },
-      {merge: true},
-    );
-    batch.update(inviteRef, {useCount: FieldValue.increment(1)});
-    await batch.commit();
+      const resolvedPlaceId = inviteSnap.get("placeId") as string;
+      const placeRef = db.collection("places").doc(resolvedPlaceId);
+      const placeSnap = await tx.get(placeRef);
+      if (!placeSnap.exists) {
+        throw new HttpsError(
+          "not-found",
+          "This invite link is invalid or has been revoked.",
+        );
+      }
+      const expiresAt = placeSnap.get("expiresAt");
+      if (
+        placeSnap.get("isArchived") === true ||
+        !expiresAt ||
+        expiresAt.toMillis() <= Date.now()
+      ) {
+        throw new HttpsError(
+          "not-found",
+          "This invite link is invalid or has been revoked.",
+        );
+      }
+
+      tx.set(
+        placeRef.collection("members").doc(uid),
+        {
+          userId: uid,
+          invited: true,
+          grantedAt: FieldValue.serverTimestamp(),
+          displayName: profile.displayName,
+          email: profile.email,
+        },
+        {merge: true},
+      );
+      tx.update(inviteRef, {useCount: FieldValue.increment(1)});
+      return resolvedPlaceId;
+    });
 
     return {placeId};
   },
