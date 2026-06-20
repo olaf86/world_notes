@@ -3,31 +3,15 @@ import 'package:world_notes/core/utils/image_upload_util.dart';
 
 void main() {
   group('ImageUploadUtil', () {
-    test('normalizes supported extensions', () {
-      expect(ImageUploadUtil.extensionForFileName('photo.JPG'), 'jpg');
-      expect(ImageUploadUtil.extensionForFileName('image.jpeg'), 'jpeg');
-      expect(ImageUploadUtil.extensionForFileName('image.png'), 'png');
-      expect(ImageUploadUtil.extensionForFileName('image.webp'), 'webp');
-      expect(ImageUploadUtil.extensionForFileName('image.heic'), 'heic');
-    });
-
-    test('falls back to jpg for missing or unsupported extensions', () {
-      expect(ImageUploadUtil.extensionForFileName(null), 'jpg');
-      expect(ImageUploadUtil.extensionForFileName('photo'), 'jpg');
-      expect(ImageUploadUtil.extensionForFileName('photo.tiff'), 'jpg');
-      expect(ImageUploadUtil.extensionForFileName('photo.jp*g'), 'jpg');
-    });
-
-    test('returns standard image content types', () {
-      expect(ImageUploadUtil.contentTypeForFileName('photo.jpg'), 'image/jpeg');
-      expect(ImageUploadUtil.contentTypeForFileName('photo.png'), 'image/png');
+    test('builds a message-scoped WebP storage path', () {
       expect(
-        ImageUploadUtil.contentTypeForFileName('photo.webp'),
-        'image/webp',
-      );
-      expect(
-        ImageUploadUtil.contentTypeForFileName('photo.tiff'),
-        'image/jpeg',
+        ImageUploadUtil.messageStoragePath(
+          placeId: 'place-1',
+          userId: 'user-1',
+          messageId: '0197a5e7-9b54-7d31-89c4-d4f3671a8c02',
+        ),
+        'images/messages/place-1/user-1/'
+        '0197a5e7-9b54-7d31-89c4-d4f3671a8c02.webp',
       );
     });
 

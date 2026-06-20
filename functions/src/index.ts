@@ -28,7 +28,7 @@ export {setNotePassword, unlockNote} from "./notePassword";
 
 // Authoritative message writes plus the schedule that makes delayed messages
 // public at publishAt. Region set in their own options.
-export {sendMessage, cancelScheduledMessage} from "./messages";
+export {sendMessage, deleteMessage, cancelScheduledMessage} from "./messages";
 export {aggregatePublishedMessages} from "./messageTriggers";
 
 // Invite-link functions (share-link access to private notes). Region set in

@@ -126,18 +126,29 @@ class MessageRepositoryImpl implements MessageRepository {
 
   Future<String?> _uploadImage({
     required List<int> bytes,
-    required String? name,
+    required String placeId,
     required String userId,
+    required String messageId,
   }) async {
-    final ext = ImageUploadUtil.extensionForFileName(name);
-    final ref = _storage.ref().child('messages/$userId/${_uuid.v4()}.$ext');
-    await ref.putData(
-      Uint8List.fromList(bytes),
-      SettableMetadata(
-        contentType: ImageUploadUtil.contentTypeForExtension(ext),
-      ),
+    final path = ImageUploadUtil.messageStoragePath(
+      placeId: placeId,
+      userId: userId,
+      messageId: messageId,
     );
-    return ref.getDownloadURL();
+    final ref = _storage.ref(path);
+    try {
+      await ref.putData(
+        Uint8List.fromList(bytes),
+        SettableMetadata(contentType: 'image/webp'),
+      );
+    } on FirebaseException catch (error) {
+      // A callable retry may reuse an image that was uploaded successfully
+      // before the original response was lost.
+      if (error.code != 'unauthorized') rethrow;
+      final metadata = await ref.getMetadata();
+      if (metadata.contentType != 'image/webp') rethrow;
+    }
+    return path;
   }
 
   @override
@@ -149,15 +160,16 @@ class MessageRepositoryImpl implements MessageRepository {
     required String userName,
     String? userPhotoUrl,
     List<int>? imageBytes,
-    String? imageName,
     DateTime? publishAt,
   }) async {
-    String? imageUrl;
+    final messageId = id ?? _uuid.v7();
+    String? imageStoragePath;
     if (imageBytes != null) {
-      imageUrl = await _uploadImage(
+      imageStoragePath = await _uploadImage(
         bytes: imageBytes,
-        name: imageName,
+        placeId: placeId,
         userId: userId,
+        messageId: messageId,
       );
     }
 
@@ -165,21 +177,22 @@ class MessageRepositoryImpl implements MessageRepository {
     final result = await _functions
         .httpsCallable('sendMessage')
         .call<Map<String, dynamic>>({
+          'messageId': messageId,
           'placeId': placeId,
           'content': content,
-          'imageUrl': ?imageUrl,
+          'imageStoragePath': ?imageStoragePath,
           if (publishAt != null)
             'publishAtMillis': publishAt.millisecondsSinceEpoch,
         });
-    final messageId = result.data['messageId'] as String? ?? id ?? _uuid.v4();
+    final confirmedMessageId = result.data['messageId'] as String? ?? messageId;
     final model = MessageModel(
-      id: messageId,
+      id: confirmedMessageId,
       placeId: placeId,
       userId: userId,
       userName: userName,
       userPhotoUrl: userPhotoUrl,
       content: content,
-      imageUrl: imageUrl,
+      imageStoragePath: imageStoragePath,
       createdAt: now,
       publishAt: publishAt ?? now,
     );
@@ -192,9 +205,9 @@ class MessageRepositoryImpl implements MessageRepository {
     required String placeId,
     required String messageId,
   }) async {
-    await _messagesOf(placeId).doc(messageId).update({
-      'isDeleted': true,
-      'deletedAt': FieldValue.serverTimestamp(),
+    await _functions.httpsCallable('deleteMessage').call<Map<String, dynamic>>({
+      'placeId': placeId,
+      'messageId': messageId,
     });
   }
 

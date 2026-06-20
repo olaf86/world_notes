@@ -5,7 +5,7 @@ class MessageEntity {
   final String placeId;
   final UserEntity author;
   final String content;
-  final String? imageUrl;
+  final String? imageStoragePath;
   final DateTime createdAt;
   final DateTime publishAt;
 
@@ -25,7 +25,7 @@ class MessageEntity {
     required this.placeId,
     required this.author,
     required this.content,
-    this.imageUrl,
+    this.imageStoragePath,
     required this.createdAt,
     required this.publishAt,
     this.isPending = false,

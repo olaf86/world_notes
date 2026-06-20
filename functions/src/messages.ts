@@ -6,6 +6,7 @@ import {
   Timestamp,
   getFirestore,
 } from "firebase-admin/firestore";
+import {getStorage} from "firebase-admin/storage";
 import * as logger from "firebase-functions/logger";
 
 import {
@@ -20,10 +21,16 @@ import {
 } from "./notifications";
 
 interface SendMessageData {
+  messageId?: unknown;
   placeId?: unknown;
   content?: unknown;
-  imageUrl?: unknown;
+  imageStoragePath?: unknown;
   publishAtMillis?: unknown;
+}
+
+interface DeleteMessageData {
+  placeId?: unknown;
+  messageId?: unknown;
 }
 
 interface CancelScheduledMessageData {
@@ -35,6 +42,28 @@ function stringOrNull(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ?
     value.trim() :
     null;
+}
+
+const UUID_V7_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+function messageIdOf(value: unknown): string {
+  if (typeof value !== "string" || !UUID_V7_PATTERN.test(value)) {
+    throw new HttpsError("invalid-argument", "Invalid messageId.");
+  }
+  return value;
+}
+
+async function deleteStoredImage(storagePath: string | null): Promise<void> {
+  if (!storagePath) return;
+  try {
+    await getStorage()
+      .bucket()
+      .file(storagePath)
+      .delete({ignoreNotFound: true});
+  } catch (error) {
+    logger.warn(`Could not delete message image ${storagePath}.`, error);
+  }
 }
 
 function photoUrlFor(tokenPicture: unknown): string | null {
@@ -146,7 +175,14 @@ export const sendMessage = onCall<SendMessageData>(
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
 
-    const {placeId, content, imageUrl, publishAtMillis} = req.data ?? {};
+    const {
+      messageId: rawMessageId,
+      placeId,
+      content,
+      imageStoragePath,
+      publishAtMillis,
+    } = req.data ?? {};
+    const messageId = messageIdOf(rawMessageId);
     if (typeof placeId !== "string" || placeId.length === 0) {
       throw new HttpsError("invalid-argument", "placeId is required.");
     }
@@ -155,14 +191,17 @@ export const sendMessage = onCall<SendMessageData>(
     if (trimmedContent.length > 2000) {
       throw new HttpsError("invalid-argument", "Message is too long.");
     }
-    const trimmedImageUrl = imageUrl == null ? null : stringOrNull(imageUrl);
+    const trimmedImageStoragePath =
+      imageStoragePath == null ? null : stringOrNull(imageStoragePath);
+    const expectedImageStoragePath =
+      `images/messages/${placeId}/${uid}/${messageId}.webp`;
     if (
-      imageUrl != null &&
-      (!trimmedImageUrl || trimmedImageUrl.length > 2000)
+      imageStoragePath != null &&
+      trimmedImageStoragePath !== expectedImageStoragePath
     ) {
-      throw new HttpsError("invalid-argument", "Invalid image URL.");
+      throw new HttpsError("invalid-argument", "Invalid image storage path.");
     }
-    if (trimmedContent.length === 0 && !trimmedImageUrl) {
+    if (trimmedContent.length === 0 && !trimmedImageStoragePath) {
       throw new HttpsError(
         "invalid-argument",
         "Message content or image is required.",
@@ -173,7 +212,7 @@ export const sendMessage = onCall<SendMessageData>(
     const placeRef = db.collection("places").doc(placeId);
     const memberRef = placeRef.collection("members").doc(uid);
     const counterRef = placeRef.collection("counters").doc("messageSlots");
-    const messageRef = placeRef.collection("messages").doc();
+    const messageRef = placeRef.collection("messages").doc(messageId);
     const nowMs = Date.now();
     const profile = await profileForMember(
       uid,
@@ -181,11 +220,28 @@ export const sendMessage = onCall<SendMessageData>(
       req.auth?.token.email,
     );
     let publishedImmediately = false;
+    let created = false;
+    let resolvedPublishAtMs = nowMs;
 
     await db.runTransaction(async (tx) => {
-      const placeSnap = await tx.get(placeRef);
+      const [placeSnap, messageSnap] = await Promise.all([
+        tx.get(placeRef),
+        tx.get(messageRef),
+      ]);
       if (!placeSnap.exists) {
         throw new HttpsError("not-found", "Note not found.");
+      }
+      if (messageSnap.exists) {
+        if (messageSnap.get("userId") !== uid) {
+          throw new HttpsError(
+            "already-exists",
+            "This message id is already in use.",
+          );
+        }
+        const existingPublishAt =
+          messageSnap.get("publishAt") as Timestamp | undefined;
+        resolvedPublishAtMs = existingPublishAt?.toMillis() ?? nowMs;
+        return;
       }
       const memberSnap =
         placeSnap.get("visibility") === "private" && !isOwner(placeSnap, uid) ?
@@ -211,6 +267,8 @@ export const sendMessage = onCall<SendMessageData>(
       const publishAt = validatePublishAt(publishAtMillis, nowMs, placeSnap);
       const isImmediate = publishAt.toMillis() <= nowMs;
       publishedImmediately = isImmediate;
+      resolvedPublishAtMs = publishAt.toMillis();
+      created = true;
       const nextSlots = currentSlots + 1;
 
       const placeUpdate: Record<string, unknown> = {};
@@ -251,7 +309,9 @@ export const sendMessage = onCall<SendMessageData>(
         userName: profile.displayName ?? "Unknown user",
         userPhotoUrl: photoUrlFor(req.auth?.token.picture),
         content: trimmedContent,
-        ...(trimmedImageUrl ? {imageUrl: trimmedImageUrl} : {}),
+        ...(trimmedImageStoragePath ?
+          {imageStoragePath: trimmedImageStoragePath} :
+          {}),
         createdAt: FieldValue.serverTimestamp(),
         publishAt,
         placeAggregateAppliedAt: isImmediate ?
@@ -264,7 +324,7 @@ export const sendMessage = onCall<SendMessageData>(
       });
     });
 
-    if (publishedImmediately) {
+    if (created && publishedImmediately) {
       try {
         await sendMyNotesMessageNotifications(db, placeId, messageRef.id, uid);
       } catch (error) {
@@ -292,9 +352,64 @@ export const sendMessage = onCall<SendMessageData>(
 
     return {
       messageId: messageRef.id,
-      publishAtMillis:
-        typeof publishAtMillis === "number" ? publishAtMillis : nowMs,
+      publishAtMillis: resolvedPublishAtMs,
     };
+  },
+);
+
+/**
+ * Soft-deletes a published message and removes its stored image.
+ */
+export const deleteMessage = onCall<DeleteMessageData>(
+  {enforceAppCheck: true, region: REGION},
+  async (req) => {
+    const uid = req.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+
+    const {placeId, messageId} = req.data ?? {};
+    if (typeof placeId !== "string" || placeId.length === 0) {
+      throw new HttpsError("invalid-argument", "placeId is required.");
+    }
+    if (typeof messageId !== "string" || messageId.length === 0) {
+      throw new HttpsError("invalid-argument", "messageId is required.");
+    }
+
+    const messageRef = getFirestore()
+      .collection("places")
+      .doc(placeId)
+      .collection("messages")
+      .doc(messageId);
+    let imageStoragePath: string | null = null;
+
+    await getFirestore().runTransaction(async (tx) => {
+      const messageSnap = await tx.get(messageRef);
+      if (!messageSnap.exists) {
+        throw new HttpsError("not-found", "Message not found.");
+      }
+      if (messageSnap.get("userId") !== uid) {
+        throw new HttpsError(
+          "permission-denied",
+          "You can delete only your own message.",
+        );
+      }
+      if (messageSnap.get("isPubliclyVisible") !== true) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Scheduled messages must be canceled.",
+        );
+      }
+      imageStoragePath =
+        stringOrNull(messageSnap.get("imageStoragePath"));
+      if (messageSnap.get("isDeleted") === true) return;
+      tx.update(messageRef, {
+        isDeleted: true,
+        deletedAt: FieldValue.serverTimestamp(),
+        imageStoragePath: FieldValue.delete(),
+      });
+    });
+
+    await deleteStoredImage(imageStoragePath);
+    return {ok: true};
   },
 );
 
@@ -320,6 +435,7 @@ export const cancelScheduledMessage = onCall<CancelScheduledMessageData>(
     const counterRef = placeRef.collection("counters").doc("messageSlots");
     const messageRef = placeRef.collection("messages").doc(messageId);
     const nowMs = Date.now();
+    let imageStoragePath: string | null = null;
 
     await db.runTransaction(async (tx) => {
       const [placeSnap, messageSnap, counterSnap] = await Promise.all([
@@ -354,6 +470,8 @@ export const cancelScheduledMessage = onCall<CancelScheduledMessageData>(
 
       const publicCount =
         (placeSnap.get("messageCount") as number | undefined) ?? 0;
+      imageStoragePath =
+        stringOrNull(messageSnap.get("imageStoragePath"));
       const currentSlots = messageSlotCount(counterSnap, publicCount);
       const nextSlots = Math.max(0, currentSlots - 1);
       tx.set(
@@ -385,6 +503,7 @@ export const cancelScheduledMessage = onCall<CancelScheduledMessageData>(
       tx.delete(messageRef);
     });
 
+    await deleteStoredImage(imageStoragePath);
     return {ok: true};
   },
 );

@@ -192,14 +192,6 @@ service cloud.firestore {
         // update happen in one transaction.
         allow create: if false;
 
-        // Author soft-deletes an already-public own message. Unpublished
-        // scheduled messages must be canceled via cancelScheduledMessage so the
-        // reserved slot is returned atomically.
-        allow update: if isOwner(resource.data.userId)
-                      && resource.data.isPubliclyVisible == true
-                      && request.resource.data.diff(resource.data).affectedKeys()
-                          .hasOnly(['isDeleted', 'deletedAt']);
-
         // Any member can report — but only a monotonic +1 to reportCount, so a
         // user can't reset their own count to evade moderation or inflate one.
         allow update: if canReadMessage(placeId, resource.data)
