@@ -1,8 +1,10 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../domain/entities/message_entity.dart';
+import '../../providers/providers.dart';
 
 class MessageBubble extends StatefulWidget {
   final MessageEntity message;
@@ -33,7 +35,7 @@ class _MessageBubbleState extends State<MessageBubble> {
 
   // ── Full-screen image viewer ──────────────────────────────────────────────
 
-  void _openImageViewer(String imageUrl) {
+  void _openImageViewer(String imageStoragePath) {
     showDialog<void>(
       context: context,
       barrierColor: Colors.black87,
@@ -50,13 +52,13 @@ class _MessageBubbleState extends State<MessageBubble> {
                 minScale: 1.0,
                 maxScale: 4.0,
                 child: Center(
-                  child: CachedNetworkImage(
-                    imageUrl: imageUrl,
+                  child: _MessageStorageImage(
+                    storagePath: imageStoragePath,
                     fit: BoxFit.contain,
-                    placeholder: (context, url) => const Center(
+                    placeholder: const Center(
                       child: CircularProgressIndicator(color: Colors.white),
                     ),
-                    errorWidget: (context, url, error) => const Icon(
+                    errorWidget: const Icon(
                       Icons.broken_image_outlined,
                       color: Colors.white,
                       size: 48,
@@ -380,7 +382,8 @@ class _MessageBubbleState extends State<MessageBubble> {
                         color: theme.colorScheme.onSurface,
                       ),
                     ),
-                    if (message.imageUrl != null) const SizedBox(height: 8),
+                    if (message.imageStoragePath != null)
+                      const SizedBox(height: 8),
                   ],
                   // ── Image (optional) ────────────────────────────────
                   //
@@ -388,26 +391,27 @@ class _MessageBubbleState extends State<MessageBubble> {
                   // maxWidth (280 dp).  AspectRatio keeps it square (1:1)
                   // with BoxFit.cover so the crop never distorts the image.
                   // Tap opens a full-screen zoomable viewer.
-                  if (message.imageUrl != null)
+                  if (message.imageStoragePath != null)
                     ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 280),
                       child: GestureDetector(
-                        onTap: () => _openImageViewer(message.imageUrl!),
+                        onTap: () =>
+                            _openImageViewer(message.imageStoragePath!),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: AspectRatio(
                             aspectRatio: 1.0,
-                            child: CachedNetworkImage(
-                              imageUrl: message.imageUrl!,
+                            child: _MessageStorageImage(
+                              storagePath: message.imageStoragePath!,
                               fit: BoxFit.cover,
-                              placeholder: (context, url) => Container(
+                              placeholder: Container(
                                 color:
                                     theme.colorScheme.surfaceContainerHighest,
                                 child: const Center(
                                   child: CircularProgressIndicator(),
                                 ),
                               ),
-                              errorWidget: (context, url, error) => Container(
+                              errorWidget: Container(
                                 color:
                                     theme.colorScheme.surfaceContainerHighest,
                                 child: Icon(
@@ -425,6 +429,37 @@ class _MessageBubbleState extends State<MessageBubble> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _MessageStorageImage extends ConsumerWidget {
+  final String storagePath;
+  final BoxFit fit;
+  final Widget placeholder;
+  final Widget errorWidget;
+
+  const _MessageStorageImage({
+    required this.storagePath,
+    required this.fit,
+    required this.placeholder,
+    required this.errorWidget,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final imageUrl = ref.watch(messageImageUrlProvider(storagePath));
+    return imageUrl.when(
+      loading: () => placeholder,
+      error: (_, _) => errorWidget,
+      data: (url) => CachedNetworkImage(
+        imageUrl: url,
+        cacheKey: storagePath,
+        cacheManager: ref.watch(messageImageServiceProvider).cacheManager,
+        fit: fit,
+        placeholder: (_, _) => placeholder,
+        errorWidget: (_, _, _) => errorWidget,
       ),
     );
   }

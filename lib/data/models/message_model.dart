@@ -9,7 +9,7 @@ class MessageModel {
   final String userName;
   final String? userPhotoUrl;
   final String content;
-  final String? imageUrl;
+  final String? imageStoragePath;
   final DateTime createdAt;
   final DateTime publishAt;
   final bool isDeleted;
@@ -24,7 +24,7 @@ class MessageModel {
     required this.userName,
     this.userPhotoUrl,
     required this.content,
-    this.imageUrl,
+    this.imageStoragePath,
     required this.createdAt,
     required this.publishAt,
     this.isDeleted = false,
@@ -42,7 +42,7 @@ class MessageModel {
       userName: data['userName'] as String? ?? 'Unknown',
       userPhotoUrl: data['userPhotoUrl'] as String?,
       content: data['content'] as String,
-      imageUrl: data['imageUrl'] as String?,
+      imageStoragePath: data['imageStoragePath'] as String?,
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       publishAt: (data['publishAt'] as Timestamp).toDate(),
       isDeleted: data['isDeleted'] as bool,
@@ -57,7 +57,7 @@ class MessageModel {
     placeId: placeId,
     author: UserEntity(id: userId, name: userName, photoUrl: userPhotoUrl),
     content: content,
-    imageUrl: imageUrl,
+    imageStoragePath: imageStoragePath,
     createdAt: createdAt,
     publishAt: publishAt,
     isDeleted: isDeleted,

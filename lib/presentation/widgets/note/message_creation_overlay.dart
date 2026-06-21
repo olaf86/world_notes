@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../config/app_config.dart';
 import '../../../core/utils/image_upload_util.dart';
@@ -73,7 +74,7 @@ class _MessageCreationOverlayState
   // if we wrapped with Uint8List.fromList() every build, Flutter would treat
   // it as a different image and re-decode it, causing a white-flash flicker.
   Uint8List? _imageBytes;
-  String? _imageName;
+  String? _pendingMessageId;
   _MessagePublishPreset _publishPreset = _MessagePublishPreset.now;
   DateTime? _customPublishAt;
   bool _showScheduleOptions = false;
@@ -112,38 +113,37 @@ class _MessageCreationOverlayState
     if (_picking) return;
     setState(() => _picking = true);
     try {
-      // imageQuality + maxWidth/maxHeight compress the image on-device via
-      // the platform image_picker plugin before we ever read the bytes.
-      // This keeps memory usage low and avoids uploading unnecessarily large
-      // files without requiring a separate compression package.
       final file = await _picker.pickImage(
         source: source,
-        imageQuality: 80,
+        imageQuality: 100,
         maxWidth: 1920,
         maxHeight: 1920,
       );
       if (file == null || !mounted) return;
-      final bytes = await file.readAsBytes();
+      final bytes = await ImageUploadUtil.compressToWebP(
+        await file.readAsBytes(),
+      );
       if (!mounted) return;
 
-      // Safety check: reject if the image is still above the size limit
-      // (e.g. an unusual format that the picker doesn't compress well).
-      if (!ImageUploadUtil.isWithinSizeLimit(bytes.length)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Image is too large (max 5 MB). Please choose a smaller image.',
-            ),
-            duration: Duration(seconds: 4),
-          ),
-        );
-        return;
-      }
-
       setState(() {
-        _imageBytes = bytes; // Uint8List — no conversion needed
-        _imageName = file.name;
+        _imageBytes = bytes;
       });
+    } on FormatException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.message),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    } on UnsupportedError {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('WebP encoding is not supported on this device.'),
+          duration: Duration(seconds: 4),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _picking = false);
     }
@@ -151,7 +151,6 @@ class _MessageCreationOverlayState
 
   void _removeImage() => setState(() {
     _imageBytes = null;
-    _imageName = null;
   });
 
   static const _maxChars = 2000;
@@ -233,20 +232,23 @@ class _MessageCreationOverlayState
     final user = ref.read(authStateProvider).valueOrNull;
     if (user == null) return;
 
+    final messageId = _pendingMessageId ?? const Uuid().v7();
+    _pendingMessageId = messageId;
     setState(() => _isSending = true);
     try {
       await ref
           .read(messageRepositoryProvider)
           .sendMessage(
+            id: messageId,
             placeId: widget.placeId,
             content: _controller.text.trim(),
             userId: user.id,
             userName: user.name,
             userPhotoUrl: user.photoUrl,
             imageBytes: _imageBytes,
-            imageName: _imageName,
             publishAt: _publishAtForSend(),
           );
+      _pendingMessageId = null;
       if (mounted) widget.onClose();
     } catch (e) {
       if (!mounted) return;

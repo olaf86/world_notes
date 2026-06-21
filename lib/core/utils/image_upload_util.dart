@@ -1,50 +1,56 @@
-/// Shared limits and normalization for message image uploads.
+import 'dart:typed_data';
+
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+
+/// Shared encoding rules for message image uploads.
 abstract class ImageUploadUtil {
   ImageUploadUtil._();
 
-  static const int maxImageBytes = 5 * 1024 * 1024;
+  static const int maxImageBytes = 2 * 1024 * 1024;
+  static const int maxDimension = 1920;
+  static const int preferredQuality = 85;
+  static const int fallbackQuality = 80;
 
-  static const String defaultExtension = 'jpg';
-
-  static const Map<String, String> _contentTypes = {
-    'jpg': 'image/jpeg',
-    'jpeg': 'image/jpeg',
-    'png': 'image/png',
-    'gif': 'image/gif',
-    'webp': 'image/webp',
-    'heic': 'image/heic',
-    'heif': 'image/heif',
-  };
-
-  static String extensionForFileName(String? fileName) {
-    if (fileName == null) return defaultExtension;
-
-    final cleanName = fileName.split(RegExp(r'[?#]')).first.trim();
-    final dotIndex = cleanName.lastIndexOf('.');
-    if (dotIndex < 0 || dotIndex == cleanName.length - 1) {
-      return defaultExtension;
-    }
-
-    final rawExtension = cleanName.substring(dotIndex + 1).toLowerCase();
-    if (!RegExp(r'^[a-z0-9]+$').hasMatch(rawExtension)) {
-      return defaultExtension;
-    }
-
-    return _contentTypes.containsKey(rawExtension)
-        ? rawExtension
-        : defaultExtension;
-  }
-
-  static String contentTypeForExtension(String extension) {
-    return _contentTypes[extension.toLowerCase()] ??
-        _contentTypes[defaultExtension]!;
-  }
-
-  static String contentTypeForFileName(String? fileName) {
-    return contentTypeForExtension(extensionForFileName(fileName));
+  static String messageStoragePath({
+    required String placeId,
+    required String userId,
+    required String messageId,
+  }) {
+    return 'images/messages/$placeId/$userId/$messageId.webp';
   }
 
   static bool isWithinSizeLimit(int byteLength) {
     return byteLength <= maxImageBytes;
+  }
+
+  static Future<Uint8List> compressToWebP(Uint8List source) async {
+    var result = await _compress(source, quality: preferredQuality);
+    if (!isWithinSizeLimit(result.length)) {
+      result = await _compress(source, quality: fallbackQuality);
+    }
+    if (!isWithinSizeLimit(result.length)) {
+      throw const FormatException(
+        'Compressed image is larger than the 2 MB limit.',
+      );
+    }
+    return result;
+  }
+
+  static Future<Uint8List> _compress(
+    Uint8List source, {
+    required int quality,
+  }) async {
+    final result = await FlutterImageCompress.compressWithList(
+      source,
+      minWidth: maxDimension,
+      minHeight: maxDimension,
+      quality: quality,
+      format: CompressFormat.webp,
+      keepExif: false,
+    );
+    if (result.isEmpty) {
+      throw const FormatException('Could not encode image as WebP.');
+    }
+    return result;
   }
 }

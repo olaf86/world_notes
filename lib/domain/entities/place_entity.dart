@@ -190,7 +190,6 @@ class NoteMembership {
 class NoteMember {
   final String userId;
   final String? displayName;
-  final String? email;
 
   /// True for invite-link members; false for password-unlock members.
   final bool invited;
@@ -198,10 +197,9 @@ class NoteMember {
   const NoteMember({
     required this.userId,
     this.displayName,
-    this.email,
     this.invited = false,
   });
 
   /// Best label to show for this member.
-  String get label => displayName ?? email ?? userId;
+  String get label => displayName ?? userId;
 }

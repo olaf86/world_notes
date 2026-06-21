@@ -11,20 +11,17 @@ const MAX_DISPLAY_NAME_LENGTH = 20;
  *
  * @param {string} uid The signed-in user's uid.
  * @param {string | undefined} tokenName Display name from the auth token.
- * @param {string | undefined} tokenEmail Email from the auth token.
  * @return {Promise<object>} User-facing profile fields.
  */
 export async function profileForMember(
   uid: string,
   tokenName?: string,
-  tokenEmail?: string,
-): Promise<{displayName: string | null; email: string | null}> {
+): Promise<{displayName: string | null}> {
   const snap = await getFirestore().collection("users").doc(uid).get();
   const data = snap.data();
   const displayName = stringOrNull(data?.displayName) ??
     stringOrNull(tokenName);
-  const email = stringOrNull(data?.email) ?? stringOrNull(tokenEmail);
-  return {displayName, email};
+  return {displayName};
 }
 
 /**

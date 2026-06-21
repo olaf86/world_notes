@@ -18,7 +18,6 @@ abstract class MessageRepository {
     required String userName,
     String? userPhotoUrl,
     List<int>? imageBytes,
-    String? imageName,
     DateTime? publishAt,
   });
 

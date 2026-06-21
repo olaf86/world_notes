@@ -27,6 +27,7 @@ import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/message_repository.dart';
 import '../../domain/repositories/place_repository.dart';
 import '../../services/location_service.dart';
+import '../../services/message_image_service.dart';
 import '../../services/my_notes_notification_service.dart';
 import '../../services/native_geofence_service.dart';
 import '../../services/nearby_notification_service.dart';
@@ -71,6 +72,19 @@ final locationServiceProvider = Provider<LocationService>(
 final subscriptionServiceProvider = Provider<SubscriptionService>(
   (_) => SubscriptionService(),
 );
+
+final messageImageServiceProvider = Provider<MessageImageService>((ref) {
+  final service = MessageImageService(
+    storage: ref.watch(firebaseStorageProvider),
+  );
+  ref.onDispose(service.dispose);
+  return service;
+});
+
+final messageImageUrlProvider = FutureProvider.autoDispose
+    .family<String, String>((ref, storagePath) {
+      return ref.watch(messageImageServiceProvider).downloadUrl(storagePath);
+    });
 
 final myNotesNotificationServiceProvider = Provider<MyNotesNotificationService>(
   (ref) {
@@ -122,6 +136,7 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
     functions: ref.watch(firebaseFunctionsProvider),
     myNotesNotificationService: ref.watch(myNotesNotificationServiceProvider),
     subscriptionService: ref.watch(subscriptionServiceProvider),
+    messageImageService: ref.watch(messageImageServiceProvider),
   );
 });
 

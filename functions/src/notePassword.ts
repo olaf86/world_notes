@@ -253,7 +253,6 @@ export const unlockNote = onCall<{placeId?: unknown; password?: unknown}>(
     const profile = await profileForMember(
       uid,
       req.auth?.token.name,
-      req.auth?.token.email,
     );
 
     const batch = db.batch();
@@ -262,7 +261,6 @@ export const unlockNote = onCall<{placeId?: unknown; password?: unknown}>(
       viaPasswordVersion: authSnap.get("passwordVersion") as number,
       grantedAt: FieldValue.serverTimestamp(),
       displayName: profile.displayName,
-      email: profile.email,
     });
     batch.delete(attemptRef);
     await batch.commit();

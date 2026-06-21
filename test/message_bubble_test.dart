@@ -10,8 +10,8 @@ void main() {
     testWidgets('shows publish time for published scheduled messages', (
       tester,
     ) async {
-      final createdAt = DateTime.utc(2026, 6, 10, 1, 15);
-      final publishAt = DateTime.utc(2026, 6, 10, 3, 45);
+      final publishAt = DateTime.now().subtract(const Duration(hours: 1));
+      final createdAt = publishAt.subtract(const Duration(hours: 2));
       final message = MessageEntity(
         id: 'message-1',
         placeId: 'place-1',

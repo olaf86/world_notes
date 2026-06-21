@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../domain/entities/user_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
+import '../../services/message_image_service.dart';
 import '../../services/my_notes_notification_service.dart';
 import '../../services/subscription_service.dart';
 import '../models/user_model.dart';
@@ -17,6 +18,7 @@ class AuthRepositoryImpl implements AuthRepository {
   final FirebaseFunctions _functions;
   final MyNotesNotificationService _myNotesNotificationService;
   final SubscriptionService _subscriptionService;
+  final MessageImageService _messageImageService;
 
   AuthRepositoryImpl({
     required FirebaseAuth auth,
@@ -25,12 +27,14 @@ class AuthRepositoryImpl implements AuthRepository {
     required FirebaseFunctions functions,
     required MyNotesNotificationService myNotesNotificationService,
     required SubscriptionService subscriptionService,
+    required MessageImageService messageImageService,
   }) : _auth = auth,
        _googleSignIn = googleSignIn,
        _firestore = firestore,
        _functions = functions,
        _myNotesNotificationService = myNotesNotificationService,
-       _subscriptionService = subscriptionService;
+       _subscriptionService = subscriptionService,
+       _messageImageService = messageImageService;
 
   @override
   Stream<UserEntity?> get authStateChanges {
@@ -111,6 +115,11 @@ class AuthRepositoryImpl implements AuthRepository {
     } catch (error, stack) {
       debugPrint('FCM token cleanup during sign-out failed: $error\n$stack');
       // Token cleanup is best-effort; never trap the user in a signed-in state.
+    }
+    try {
+      await _messageImageService.clearCache();
+    } catch (error, stack) {
+      debugPrint('Image cache cleanup during sign-out failed: $error\n$stack');
     }
     await Future.wait([_auth.signOut(), _googleSignIn.signOut()]);
   }

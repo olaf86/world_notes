@@ -305,6 +305,40 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     }
   }
 
+  Future<void> _archiveNote() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Archive this note?'),
+        content: const Text(
+          'It will disappear from the map, become read-only, and free one '
+          'note slot. Archived notes cannot be restored.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Archive'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await ref.read(placeRepositoryProvider).archivePlace(widget.placeId);
+      if (mounted && context.canPop()) context.pop();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to archive note: $error')));
+    }
+  }
+
   /// Owner: open the access-management sheet (invite link + member list).
   void _showManageAccess() {
     showModalBottomSheet<void>(
@@ -610,6 +644,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     }
 
     final isOwner = place != null && place.isOwnedBy(currentUser?.id);
+    final isCreator = place != null && place.createdByUserId == currentUser?.id;
     final displayTitle = place?.title ?? widget.placeTitle;
     final nearbyAlertAsync = ref.watch(
       nearbyNotificationPlaceProvider(widget.placeId),
@@ -688,6 +723,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                         onSelected: (value) {
                           if (value == 'close') _closeThread();
                           if (value == 'reopen') _reopenThread();
+                          if (value == 'archive') _archiveNote();
                           if (value == 'password') {
                             _promptSetPassword(isChange: place.isPrivate);
                           }
@@ -735,6 +771,17 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                                 contentPadding: EdgeInsets.zero,
                               ),
                             ),
+                          if (isCreator) ...[
+                            const PopupMenuDivider(),
+                            const PopupMenuItem(
+                              value: 'archive',
+                              child: ListTile(
+                                leading: Icon(Icons.archive_outlined),
+                                title: Text('Archive note'),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                   ],
