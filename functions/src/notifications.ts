@@ -446,6 +446,10 @@ export const markNearbyNotificationInRange =
         followerRef.set(update, {merge: true}),
         userPlaceRef.set(update, {merge: true}),
       ]);
+      logger.info("markNearbyNotificationInRange: state updated.", {
+        placeId,
+        inRange,
+      });
       return {ok: true};
     },
   );
@@ -568,7 +572,10 @@ export const checkNearbyUnread = onCall<CheckNearbyUnreadData>(
     const cutoff =
       lastRead.toMillis() > lastNotified.toMillis() ? lastRead : lastNotified;
     const unread = await latestUnreadMessage(db, placeId, uid, cutoff);
-    if (!unread) return {hasUnread: false};
+    if (!unread) {
+      logger.info("checkNearbyUnread: no unread message.", {placeId});
+      return {hasUnread: false};
+    }
 
     const publishAt = unread.get("publishAt") as Timestamp;
     const update = {
@@ -580,6 +587,7 @@ export const checkNearbyUnread = onCall<CheckNearbyUnreadData>(
       userPlaceRef.set(update, {merge: true}),
     ]);
 
+    logger.info("checkNearbyUnread: unread message found.", {placeId});
     return {
       hasUnread: true,
       placeId,

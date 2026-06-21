@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.util.Log
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.Geofence
 import com.google.android.gms.location.GeofencingClient
@@ -26,6 +27,7 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         geofencingClient = LocationServices.getGeofencingClient(this)
+        Log.i(LOG_TAG, "Configuring Flutter geofence channel.")
         val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL_NAME)
         geofenceEventChannel = channel
         channel.setMethodCallHandler { call, result ->
@@ -62,7 +64,9 @@ class MainActivity : FlutterActivity() {
 
     @SuppressLint("MissingPermission")
     private fun syncGeofences(rawGeofences: List<*>, result: MethodChannel.Result) {
-        if (!hasFineLocationPermission()) {
+        Log.i(LOG_TAG, "Sync requested for ${rawGeofences.size} geofence(s).")
+        if (!hasRequiredLocationPermission()) {
+            Log.w(LOG_TAG, "Sync rejected: required location permission is unavailable.")
             clearGeofences {
                 result.error(
                     "permission_denied",
@@ -92,6 +96,7 @@ class MainActivity : FlutterActivity() {
 
         clearGeofences {
             if (geofences.isEmpty()) {
+                Log.i(LOG_TAG, "No valid geofences to register.")
                 result.success(null)
                 return@clearGeofences
             }
@@ -103,9 +108,11 @@ class MainActivity : FlutterActivity() {
                 .addOnSuccessListener {
                     val ids = geofences.map { it.requestId }.toSet()
                     getPreferences(this).edit().putStringSet(KEY_REGISTERED_IDS, ids).apply()
+                    Log.i(LOG_TAG, "Registered ${ids.size} geofence(s).")
                     result.success(null)
                 }
                 .addOnFailureListener { error ->
+                    Log.e(LOG_TAG, "Geofence registration failed.", error)
                     result.error("geofence_add_failed", error.localizedMessage, null)
                 }
         }
@@ -115,20 +122,29 @@ class MainActivity : FlutterActivity() {
         val ids = getPreferences(this).getStringSet(KEY_REGISTERED_IDS, emptySet())?.toSet()
             ?: emptySet()
         if (ids.isEmpty()) {
+            Log.i(LOG_TAG, "No registered geofences to clear.")
             onComplete()
             return
         }
         geofencingClient.removeGeofences(ids.toList()).addOnCompleteListener {
             getPreferences(this).edit().remove(KEY_REGISTERED_IDS).apply()
+            Log.i(LOG_TAG, "Cleared ${ids.size} geofence(s).")
             onComplete()
         }
     }
 
-    private fun hasFineLocationPermission(): Boolean {
-        return ContextCompat.checkSelfPermission(
+    private fun hasRequiredLocationPermission(): Boolean {
+        val hasFineLocation = ContextCompat.checkSelfPermission(
             this,
             Manifest.permission.ACCESS_FINE_LOCATION,
         ) == PackageManager.PERMISSION_GRANTED
+        val hasBackgroundLocation =
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.Q ||
+                ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.ACCESS_BACKGROUND_LOCATION,
+                ) == PackageManager.PERMISSION_GRANTED
+        return hasFineLocation && hasBackgroundLocation
     }
 
     companion object {
@@ -143,7 +159,10 @@ class MainActivity : FlutterActivity() {
 class GeofenceBroadcastReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val event = GeofencingEvent.fromIntent(intent) ?: return
-        if (event.hasError()) return
+        if (event.hasError()) {
+            Log.e(LOG_TAG, "Geofence broadcast failed with code ${event.errorCode}.")
+            return
+        }
 
         val transition = when (event.geofenceTransition) {
             Geofence.GEOFENCE_TRANSITION_ENTER -> "enter"
@@ -151,7 +170,12 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
             else -> return
         }
         val timestampMillis = System.currentTimeMillis()
-        event.triggeringGeofences?.forEach { geofence ->
+        val triggeringGeofences = event.triggeringGeofences.orEmpty()
+        Log.i(
+            LOG_TAG,
+            "Received $transition transition for ${triggeringGeofences.size} geofence(s).",
+        )
+        triggeringGeofences.forEach { geofence ->
             val payload = mapOf(
                 "placeId" to geofence.requestId,
                 "transition" to transition,
@@ -159,8 +183,10 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
             )
             val channel = MainActivity.geofenceEventChannel
             if (channel != null && MainActivity.isDartReady) {
+                Log.i(LOG_TAG, "Delivering $transition event to Dart.")
                 channel.invokeMethod("geofenceEvent", payload)
             } else {
+                Log.i(LOG_TAG, "Queueing $transition event until Dart is ready.")
                 appendPendingEvent(context, payload)
             }
         }
@@ -168,6 +194,7 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
 }
 
 private const val CHANNEL_NAME = "world_notes/geofence"
+private const val LOG_TAG = "NearbyGeofence"
 private const val PREFS_NAME = "world_notes_geofences"
 private const val KEY_REGISTERED_IDS = "registered_geofence_ids"
 private const val KEY_PENDING_EVENTS = "pending_geofence_events"
@@ -212,5 +239,6 @@ private fun takePendingEvents(context: Context): List<Map<String, Any>> {
         )
     }
     preferences.edit().remove(KEY_PENDING_EVENTS).apply()
+    Log.i(LOG_TAG, "Returning ${result.size} pending event(s) to Dart.")
     return result
 }

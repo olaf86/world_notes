@@ -125,9 +125,11 @@ final class NativeGeofenceManager: NSObject, CLLocationManagerDelegate {
 
   func start() {
     locationManager.delegate = self
+    log("Manager started (authorization=\(locationManager.authorizationStatus.rawValue)).")
   }
 
   func configure(binaryMessenger: FlutterBinaryMessenger) {
+    log("Configuring Flutter geofence channel.")
     let channel = FlutterMethodChannel(
       name: Self.channelName,
       binaryMessenger: binaryMessenger
@@ -161,17 +163,21 @@ final class NativeGeofenceManager: NSObject, CLLocationManagerDelegate {
   }
 
   private func syncGeofences(_ geofences: [[String: Any]], result: @escaping FlutterResult) {
+    log("Sync requested for \(geofences.count) geofence(s).")
     guard CLLocationManager.isMonitoringAvailable(for: CLCircularRegion.self) else {
+      log("Sync failed: region monitoring is unavailable.")
       result(FlutterError(code: "unavailable", message: "Geofencing is not available.", details: nil))
       return
     }
     guard locationManager.authorizationStatus == .authorizedAlways else {
+      log("Sync rejected: Always location permission is unavailable.")
       clearGeofences()
       result(FlutterError(code: "permission_denied", message: "Always location permission is required.", details: nil))
       return
     }
 
     clearGeofences()
+    var submitted = 0
     for geofence in geofences {
       guard
         let placeId = geofence["placeId"] as? String,
@@ -199,29 +205,53 @@ final class NativeGeofenceManager: NSObject, CLLocationManagerDelegate {
       region.notifyOnExit = true
       locationManager.startMonitoring(for: region)
       locationManager.requestState(for: region)
+      submitted += 1
     }
+    log("Submitted \(submitted) monitored region(s).")
     result(nil)
   }
 
   private func clearGeofences() {
+    var cleared = 0
     for region in locationManager.monitoredRegions {
       guard region.identifier.hasPrefix(Self.identifierPrefix) else { continue }
       locationManager.stopMonitoring(for: region)
+      cleared += 1
     }
+    log("Cleared \(cleared) monitored region(s).")
   }
 
   func locationManager(_ manager: CLLocationManager, didEnterRegion region: CLRegion) {
+    log("Received enter transition.")
     emit(region: region, transition: "enter")
   }
 
   func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
+    log("Received exit transition.")
     emit(region: region, transition: "exit")
   }
 
   func locationManager(_ manager: CLLocationManager, didDetermineState state: CLRegionState, for region: CLRegion) {
+    log("Determined region state \(state.rawValue).")
     if state == .inside {
       emit(region: region, transition: "enter")
     }
+  }
+
+  func locationManager(_ manager: CLLocationManager, didStartMonitoringFor region: CLRegion) {
+    log("Region monitoring started.")
+  }
+
+  func locationManager(
+    _ manager: CLLocationManager,
+    monitoringDidFailFor region: CLRegion?,
+    withError error: Error
+  ) {
+    log("Region monitoring failed: \(error.localizedDescription)")
+  }
+
+  func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+    log("Location manager failed: \(error.localizedDescription)")
   }
 
   private func emit(region: CLRegion, transition: String) {
@@ -233,8 +263,10 @@ final class NativeGeofenceManager: NSObject, CLLocationManagerDelegate {
       "timestampMillis": Int(Date().timeIntervalSince1970 * 1000),
     ]
     if let channel, isDartReady {
+      log("Delivering \(transition) event to Dart.")
       channel.invokeMethod("geofenceEvent", arguments: event)
     } else {
+      log("Queueing \(transition) event until Dart is ready.")
       appendPendingEvent(event)
     }
   }
@@ -243,6 +275,7 @@ final class NativeGeofenceManager: NSObject, CLLocationManagerDelegate {
     let defaults = UserDefaults.standard
     let events = defaults.array(forKey: Self.pendingEventsKey) as? [[String: Any]] ?? []
     defaults.removeObject(forKey: Self.pendingEventsKey)
+    log("Returning \(events.count) pending event(s) to Dart.")
     return events
   }
 
@@ -251,5 +284,9 @@ final class NativeGeofenceManager: NSObject, CLLocationManagerDelegate {
     var events = defaults.array(forKey: Self.pendingEventsKey) as? [[String: Any]] ?? []
     events.append(event)
     defaults.set(events, forKey: Self.pendingEventsKey)
+  }
+
+  private func log(_ message: @autoclosure () -> String) {
+    NSLog("[NearbyGeofence] %@", message())
   }
 }

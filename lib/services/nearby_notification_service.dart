@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/foundation.dart';
 
 import '../domain/entities/nearby_notification_entity.dart';
 
@@ -50,6 +51,7 @@ class NearbyNotificationService {
       },
     );
     _initialized = true;
+    debugPrint('[NearbyGeofence] Local notification service initialized.');
   }
 
   Future<bool> requestPermission() async {
@@ -75,12 +77,22 @@ class NearbyNotificationService {
             >()
             ?.requestPermissions(alert: true, badge: true, sound: true) ??
         true;
+    debugPrint(
+      '[NearbyGeofence] Notification permission result '
+      '(android=$androidGranted, ios=$iosGranted, macos=$macosGranted).',
+    );
     return androidGranted && iosGranted && macosGranted;
   }
 
   Future<void> showNearbyUnread(NearbyUnreadResult result) async {
     final placeId = result.placeId;
-    if (!result.hasUnread || placeId == null || placeId.isEmpty) return;
+    if (!result.hasUnread || placeId == null || placeId.isEmpty) {
+      debugPrint(
+        '[NearbyGeofence] Local notification skipped because there is '
+        'no unread message.',
+      );
+      return;
+    }
     await initialize();
     final title = result.title?.trim().isNotEmpty == true
         ? result.title!.trim()
@@ -104,6 +116,7 @@ class NearbyNotificationService {
       notificationDetails: details,
       payload: placeId,
     );
+    debugPrint('[NearbyGeofence] Local nearby notification displayed.');
   }
 
   Future<void> dispose() async {
