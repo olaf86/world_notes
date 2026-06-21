@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -14,6 +15,7 @@ class MyNotesNotificationService {
   final FirebaseMessaging _messaging;
   final FirebaseFunctions _functions;
   final FirebaseAuth _auth;
+  final FirebaseCrashlytics _crashlytics;
 
   StreamSubscription<String>? _tokenRefreshSubscription;
   StreamSubscription<User?>? _authStateSubscription;
@@ -24,9 +26,11 @@ class MyNotesNotificationService {
     required FirebaseMessaging messaging,
     required FirebaseFunctions functions,
     required FirebaseAuth auth,
+    required FirebaseCrashlytics crashlytics,
   }) : _messaging = messaging,
        _functions = functions,
-       _auth = auth {
+       _auth = auth,
+       _crashlytics = crashlytics {
     _startNotificationOpenHandling();
   }
 
@@ -110,7 +114,7 @@ class MyNotesNotificationService {
     try {
       await registerCurrentToken();
     } catch (error, stack) {
-      _reportRegistrationError(reason, error, stack);
+      await _reportRegistrationError(reason, error, stack);
     }
   }
 
@@ -121,22 +125,31 @@ class MyNotesNotificationService {
       if (!_isGranted(settings.authorizationStatus)) return;
       await _registerToken(token);
     } catch (error, stack) {
-      _reportRegistrationError('FCM token refresh', error, stack);
+      await _reportRegistrationError('FCM token refresh', error, stack);
     }
   }
 
-  void _reportRegistrationError(String reason, Object error, StackTrace stack) {
+  Future<void> _reportRegistrationError(
+    String reason,
+    Object error,
+    StackTrace stack,
+  ) async {
     debugPrint('FCM token registration failed after $reason: $error\n$stack');
-    FlutterError.reportError(
-      FlutterErrorDetails(
-        exception: error,
-        stack: stack,
-        library: 'My Notes notifications',
-        context: ErrorDescription(
-          'while registering an FCM token after $reason',
-        ),
-      ),
-    );
+    try {
+      await _crashlytics.setCustomKey('fcm_registration_trigger', reason);
+      await _crashlytics.setCustomKey('fcm_registration_platform', _platform);
+      await _crashlytics.recordError(
+        error,
+        stack,
+        reason: 'FCM token registration failed: $reason',
+        fatal: false,
+      );
+    } catch (crashlyticsError, crashlyticsStack) {
+      debugPrint(
+        'Could not report FCM registration failure to Crashlytics: '
+        '$crashlyticsError\n$crashlyticsStack',
+      );
+    }
   }
 
   Future<void> _registerToken(String token) async {

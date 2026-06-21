@@ -31,6 +31,13 @@
           "projectId": "world-notes-prod",
           "appId": "1:260600606826:android:9db9fd461f88cd57fe1a13",
           "fileOutput": "android/app/google-services.json"
+        },
+        "buildConfigurations": {
+          ".": {
+            "projectId": "world-notes-prod",
+            "appId": "1:260600606826:android:9db9fd461f88cd57fe1a13",
+            "fileOutput": "android/app/google-services.json"
+          }
         }
       },
       "ios": {
@@ -39,6 +46,14 @@
           "appId": "1:260600606826:ios:bac4b29736a3ef63fe1a13",
           "uploadDebugSymbols": false,
           "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        },
+        "targets": {
+          "Runner": {
+            "projectId": "world-notes-prod",
+            "appId": "1:260600606826:ios:bac4b29736a3ef63fe1a13",
+            "uploadDebugSymbols": true,
+            "fileOutput": "ios/Runner/GoogleService-Info.plist"
+          }
         }
       },
       "dart": {

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
@@ -51,6 +52,10 @@ final firebaseMessagingProvider = Provider<FirebaseMessaging>(
   (_) => FirebaseMessaging.instance,
 );
 
+final firebaseCrashlyticsProvider = Provider<FirebaseCrashlytics>(
+  (_) => FirebaseCrashlytics.instance,
+);
+
 final localNotificationsProvider = Provider<FlutterLocalNotificationsPlugin>(
   (_) => FlutterLocalNotificationsPlugin(),
 );
@@ -92,6 +97,7 @@ final myNotesNotificationServiceProvider = Provider<MyNotesNotificationService>(
       messaging: ref.watch(firebaseMessagingProvider),
       functions: ref.watch(firebaseFunctionsProvider),
       auth: ref.watch(firebaseAuthProvider),
+      crashlytics: ref.watch(firebaseCrashlyticsProvider),
     );
     service.startRegistrationSync();
     ref.onDispose(service.dispose);
