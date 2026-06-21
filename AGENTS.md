@@ -140,6 +140,11 @@ users/{uid}
 - **Geohash proximity search**: use `GeohashUtil.neighborHashes()` to get adjacent cells, then query Firestore with `where('geohash', whereIn: hashes)`
 - **Premium check**: read `isPremiumProvider` in UI; source of truth is `SubscriptionService`
 
+## Documentation Rules
+
+- Keep user-facing documents intended for publication in `docs/`.
+- Keep non-public design, development, and operational documents in `internal-docs/`.
+
 ## iOS Info.plist (not yet done)
 
 Add to `ios/Runner/Info.plist`:
