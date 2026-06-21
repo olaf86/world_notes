@@ -317,7 +317,6 @@ class PlaceRepositoryImpl implements PlaceRepository {
             return NoteMember(
               userId: doc.id,
               displayName: data['displayName'] as String?,
-              email: data['email'] as String?,
               invited: data['invited'] as bool? ?? false,
             );
           }).toList(),

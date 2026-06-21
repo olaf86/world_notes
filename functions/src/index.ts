@@ -369,7 +369,7 @@ export const archiveExpiredNotes = onSchedule(
               tx.get(userRef),
               ...placeRefs.map((ref) => tx.get(ref)),
             ]);
-            const eligible = placeSnaps.filter((placeSnap) => {
+            const expiredPlacesToArchive = placeSnaps.filter((placeSnap) => {
               const expiresAt =
                 placeSnap.get("expiresAt") as Timestamp | undefined;
               return placeSnap.exists &&
@@ -378,9 +378,9 @@ export const archiveExpiredNotes = onSchedule(
                 expiresAt != null &&
                 expiresAt.toMillis() <= now.toMillis();
             });
-            if (eligible.length === 0) return 0;
+            if (expiredPlacesToArchive.length === 0) return 0;
 
-            for (const placeSnap of eligible) {
+            for (const placeSnap of expiredPlacesToArchive) {
               tx.update(placeSnap.ref, {
                 isArchived: true,
                 archivedAt: FieldValue.serverTimestamp(),
@@ -394,12 +394,12 @@ export const archiveExpiredNotes = onSchedule(
               {
                 activeNoteCount: Math.max(
                   0,
-                  activeCount - eligible.length,
+                  activeCount - expiredPlacesToArchive.length,
                 ),
               },
               {merge: true},
             );
-            return eligible.length;
+            return expiredPlacesToArchive.length;
           });
         }),
       );

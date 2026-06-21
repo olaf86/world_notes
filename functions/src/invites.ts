@@ -111,7 +111,6 @@ export const claimInvite = onCall<{token?: unknown}>(
     const profile = await profileForMember(
       uid,
       req.auth?.token.name,
-      req.auth?.token.email,
     );
     const inviteRef = db.collection("invites").doc(token);
     const placeId = await db.runTransaction(async (tx) => {
@@ -151,7 +150,6 @@ export const claimInvite = onCall<{token?: unknown}>(
           invited: true,
           grantedAt: FieldValue.serverTimestamp(),
           displayName: profile.displayName,
-          email: profile.email,
         },
         {merge: true},
       );

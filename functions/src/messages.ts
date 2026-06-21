@@ -217,7 +217,6 @@ export const sendMessage = onCall<SendMessageData>(
     const profile = await profileForMember(
       uid,
       req.auth?.token.name,
-      req.auth?.token.email,
     );
     let publishedImmediately = false;
     let created = false;
