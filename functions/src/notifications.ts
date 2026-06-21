@@ -193,6 +193,11 @@ export const registerFcmToken = onCall<RegisterFcmTokenData>(
       {merge: true},
     );
 
+    logger.info("registerFcmToken: registered device token.", {
+      uid,
+      platform,
+      tokenDocumentId: ref.id,
+    });
     return {ok: true};
   },
 );
@@ -638,18 +643,32 @@ export async function sendMyNotesMessageNotifications(
         tokensRef.get(),
       ]);
       const enabled = settingsSnap.get("myNotesEnabled") === true;
-      if (!enabled) return [];
-      return tokensSnap.docs.flatMap((doc) => {
+      if (!enabled) return {enabled: false, tokens: []};
+      const tokens = tokensSnap.docs.flatMap((doc) => {
         const token = doc.get("token");
         return typeof token === "string" && token.length > 0 ?
           [{ref: doc.ref, token}] :
           [];
       });
+      return {enabled: true, tokens};
     }),
   );
 
-  const tokenEntries = ownerEntries.flat();
-  if (tokenEntries.length === 0) return;
+  const enabledOwnerCount = ownerEntries.filter((entry) => entry.enabled)
+    .length;
+  const tokenEntries = ownerEntries.flatMap((entry) => entry.tokens);
+  if (tokenEntries.length === 0) {
+    logger.info(
+      "sendMyNotesMessageNotifications: no registered recipient tokens.",
+      {
+        placeId,
+        messageId,
+        ownerCount: ownerIds.size,
+        enabledOwnerCount,
+      },
+    );
+    return;
+  }
 
   const body = compactBody(placeSnap.get("title"));
   let sent = 0;

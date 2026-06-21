@@ -57,7 +57,6 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final service = ref.read(myNotesNotificationServiceProvider);
-      service.registerCurrentToken();
       service.initialPlaceIdFromLaunch().then(_openPlaceFromNotification);
       _notificationOpenSubscription = service.openedPlaceIds.listen(
         _openPlaceFromNotification,

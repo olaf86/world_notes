@@ -15,7 +15,8 @@ class MyNotesNotificationService {
   final FirebaseFunctions _functions;
   final FirebaseAuth _auth;
 
-  StreamSubscription<String>? _tokenRefreshSub;
+  StreamSubscription<String>? _tokenRefreshSubscription;
+  StreamSubscription<User?>? _authStateSubscription;
   StreamSubscription<String>? _messageOpenSubscription;
   final _openedPlaceIds = StreamController<String>.broadcast();
 
@@ -76,11 +77,13 @@ class MyNotesNotificationService {
     );
   }
 
-  void startTokenRefreshHandling(Future<bool> Function() isEnabled) {
-    _tokenRefreshSub ??= _messaging.onTokenRefresh.listen((token) async {
-      if (_auth.currentUser == null) return;
-      if (!await isEnabled()) return;
-      await _registerToken(token);
+  void startRegistrationSync() {
+    _authStateSubscription ??= _auth.authStateChanges().listen((user) {
+      if (user == null) return;
+      unawaited(_registerCurrentTokenInBackground('authentication change'));
+    });
+    _tokenRefreshSubscription ??= _messaging.onTokenRefresh.listen((token) {
+      unawaited(_registerRefreshedToken(token));
     });
   }
 
@@ -96,10 +99,44 @@ class MyNotesNotificationService {
   }
 
   Future<void> dispose() async {
-    await _tokenRefreshSub?.cancel();
+    await _authStateSubscription?.cancel();
+    await _tokenRefreshSubscription?.cancel();
     await _messageOpenSubscription?.cancel();
     _nativeLaunchChannel.setMethodCallHandler(null);
     await _openedPlaceIds.close();
+  }
+
+  Future<void> _registerCurrentTokenInBackground(String reason) async {
+    try {
+      await registerCurrentToken();
+    } catch (error, stack) {
+      _reportRegistrationError(reason, error, stack);
+    }
+  }
+
+  Future<void> _registerRefreshedToken(String token) async {
+    if (_auth.currentUser == null) return;
+    try {
+      final settings = await _messaging.getNotificationSettings();
+      if (!_isGranted(settings.authorizationStatus)) return;
+      await _registerToken(token);
+    } catch (error, stack) {
+      _reportRegistrationError('FCM token refresh', error, stack);
+    }
+  }
+
+  void _reportRegistrationError(String reason, Object error, StackTrace stack) {
+    debugPrint('FCM token registration failed after $reason: $error\n$stack');
+    FlutterError.reportError(
+      FlutterErrorDetails(
+        exception: error,
+        stack: stack,
+        library: 'My Notes notifications',
+        context: ErrorDescription(
+          'while registering an FCM token after $reason',
+        ),
+      ),
+    );
   }
 
   Future<void> _registerToken(String token) async {

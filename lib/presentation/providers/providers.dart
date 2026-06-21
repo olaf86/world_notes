@@ -93,18 +93,7 @@ final myNotesNotificationServiceProvider = Provider<MyNotesNotificationService>(
       functions: ref.watch(firebaseFunctionsProvider),
       auth: ref.watch(firebaseAuthProvider),
     );
-    service.startTokenRefreshHandling(() async {
-      final user = ref.read(firebaseAuthProvider).currentUser;
-      if (user == null) return false;
-      final snap = await ref
-          .read(firestoreProvider)
-          .collection('users')
-          .doc(user.uid)
-          .collection('notificationSettings')
-          .doc('main')
-          .get();
-      return snap.data()?['myNotesEnabled'] == true;
-    });
+    service.startRegistrationSync();
     ref.onDispose(service.dispose);
     return service;
   },
