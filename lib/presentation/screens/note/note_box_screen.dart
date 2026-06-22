@@ -716,8 +716,10 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                         tooltip: 'Go PRO',
                         onPressed: () => context.push('/subscription'),
                       ),
-                    // Owner-only thread controls.
-                    if (isOwner && !widget.readOnly)
+                    // My Notes keeps message posting read-only, but owners
+                    // still need access to thread management. Archived notes
+                    // are terminal and remain fully read-only.
+                    if (place != null && isOwner && !place.isArchived)
                       PopupMenuButton<String>(
                         tooltip: 'Thread options',
                         onSelected: (value) {
