@@ -670,16 +670,14 @@ final noteLimitProvider = Provider<int>((ref) {
 
 // --- Messages ---
 
-final messagesProvider = StreamProvider.family<List<MessageEntity>, String>((
-  ref,
-  placeId,
-) {
-  final user = ref.watch(authStateProvider).valueOrNull;
-  if (user == null) return Stream.value(const []);
-  return ref
-      .watch(messageRepositoryProvider)
-      .watchMessages(placeId: placeId, currentUserId: user.id);
-});
+final messagesProvider = StreamProvider.autoDispose
+    .family<List<MessageEntity>, String>((ref, placeId) {
+      final user = ref.watch(authStateProvider).valueOrNull;
+      if (user == null) return Stream.value(const []);
+      return ref
+          .watch(messageRepositoryProvider)
+          .watchMessages(placeId: placeId, currentUserId: user.id);
+    });
 
 // --- PRO subscription ---
 

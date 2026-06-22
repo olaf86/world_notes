@@ -529,6 +529,10 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                 await ref
                     .read(placeRepositoryProvider)
                     .unlockNote(placeId: widget.placeId, password: secret);
+                // A message query may have failed before the private-note
+                // membership grant reached the client. Ensure the unlocked
+                // view always starts with a fresh Firestore subscription.
+                ref.invalidate(messagesProvider(widget.placeId));
                 if (ctx.mounted) Navigator.pop(ctx);
               } on FirebaseFunctionsException catch (e) {
                 setLocal(() {
@@ -642,10 +646,13 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     if (placeAsync.hasError && place == null) {
       return _UnavailableNoteView(title: widget.placeTitle);
     }
+    if (place == null) {
+      return _LoadingNoteView(title: widget.placeTitle);
+    }
 
-    final isOwner = place != null && place.isOwnedBy(currentUser?.id);
-    final isCreator = place != null && place.createdByUserId == currentUser?.id;
-    final displayTitle = place?.title ?? widget.placeTitle;
+    final isOwner = place.isOwnedBy(currentUser?.id);
+    final isCreator = place.createdByUserId == currentUser?.id;
+    final displayTitle = place.title;
     final nearbyAlertAsync = ref.watch(
       nearbyNotificationPlaceProvider(widget.placeId),
     );
@@ -655,7 +662,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     // Private-note access gate. For a private note the viewer doesn't own,
     // check their membership grant; if it's absent or stale, show the locked
     // view and DON'T subscribe to messages (the read would be denied anyway).
-    if (place != null && place.isPrivate && !isOwner) {
+    if (place.isPrivate && !isOwner) {
       final membership = ref
           .watch(noteMembershipProvider(widget.placeId))
           .valueOrNull;
@@ -673,8 +680,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     final messagesAsync = ref.watch(messagesProvider(widget.placeId));
     // Whether a new message may be posted right now — only once the place is
     // loaded and still accepting messages (open, not expired/archived/full).
-    final canPostMessage =
-        !widget.readOnly && (place?.canAcceptMessagesAt(now) ?? false);
+    final canPostMessage = !widget.readOnly && place.canAcceptMessagesAt(now);
 
     // Exclude this screen's semantics while a dialog, report sheet, or message
     // editor is shown on top — prevents parentDataDirty noise when two routes
@@ -719,7 +725,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                     // My Notes keeps message posting read-only, but owners
                     // still need access to thread management. Archived notes
                     // are terminal and remain fully read-only.
-                    if (place != null && isOwner && !place.isArchived)
+                    if (isOwner && !place.isArchived)
                       PopupMenuButton<String>(
                         tooltip: 'Thread options',
                         onSelected: (value) {
@@ -792,10 +798,10 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                 body: Column(
                   children: [
                     if (widget.readOnly) const _ReadOnlyBanner(),
-                    if (place != null && !place.canAcceptMessagesAt(now))
+                    if (!place.canAcceptMessagesAt(now))
                       _ThreadStatusBanner(place: place, now: now),
-                    if (place != null) StaticNoteMiniMap(place: place),
-                    if (place != null && !isOwner && !widget.readOnly)
+                    StaticNoteMiniMap(place: place),
+                    if (!isOwner && !widget.readOnly)
                       _NearbyNotificationPanel(
                         enabled: nearbyAlertEnabled,
                         busy:
@@ -1287,6 +1293,20 @@ class _UnavailableNoteView extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _LoadingNoteView extends StatelessWidget {
+  final String title;
+
+  const _LoadingNoteView({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(title.isEmpty ? 'Note' : title)),
+      body: const Center(child: CircularProgressIndicator()),
     );
   }
 }
