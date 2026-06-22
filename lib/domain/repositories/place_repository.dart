@@ -48,7 +48,7 @@ abstract class PlaceRepository {
   /// Used to enforce free / premium creation limits before writing.
   Future<int> countUserActivePlaces(String userId);
 
-  /// Active notes owned by [userId], used by the My Notes read-only view.
+  /// Active notes owned by [userId], used by the My Notes management view.
   Stream<List<PlaceEntity>> watchMyPlaces(String userId);
   Future<List<PlaceEntity>> getMyPlaces(String userId);
 
