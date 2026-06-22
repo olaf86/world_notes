@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../config/app_config.dart';
 import '../../../domain/entities/nearby_notification_entity.dart';
 import '../../providers/providers.dart';
+import '../../widgets/note/note_list_card.dart';
 
 class NearbyNotificationsView extends ConsumerWidget {
   const NearbyNotificationsView({super.key});
@@ -37,7 +38,10 @@ class NearbyNotificationsView extends ConsumerWidget {
           if (alerts.isEmpty)
             const _EmptyNearbyAlerts()
           else
-            ...alerts.map((alert) => _NearbyAlertTile(alert: alert)),
+            for (var index = 0; index < alerts.length; index++) ...[
+              _NearbyAlertCard(alert: alerts[index]),
+              if (index < alerts.length - 1) const SizedBox(height: 10),
+            ],
         ],
       ),
     );
@@ -77,16 +81,16 @@ class _EmptyNearbyAlerts extends StatelessWidget {
   }
 }
 
-class _NearbyAlertTile extends ConsumerStatefulWidget {
+class _NearbyAlertCard extends ConsumerStatefulWidget {
   final NearbyNotificationPlace alert;
 
-  const _NearbyAlertTile({required this.alert});
+  const _NearbyAlertCard({required this.alert});
 
   @override
-  ConsumerState<_NearbyAlertTile> createState() => _NearbyAlertTileState();
+  ConsumerState<_NearbyAlertCard> createState() => _NearbyAlertCardState();
 }
 
-class _NearbyAlertTileState extends ConsumerState<_NearbyAlertTile> {
+class _NearbyAlertCardState extends ConsumerState<_NearbyAlertCard> {
   bool _busy = false;
 
   Future<void> _disable() async {
@@ -114,15 +118,24 @@ class _NearbyAlertTileState extends ConsumerState<_NearbyAlertTile> {
         ? 'No notifications yet'
         : 'Last notified ${_dateLabel(alert.lastNotifiedMessageAt!)}';
 
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: const Icon(Icons.notifications_active_outlined),
-      title: Text(alert.title),
-      subtitle: Text(
-        'Within ${radiusKm.toStringAsFixed(radiusKm >= 10 ? 0 : 1)} km '
-        '/ expires $expires\n$lastNotified',
-      ),
-      isThreeLine: true,
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return NoteListCard(
+      avatarColor: colorScheme.primary,
+      avatarIcon: Icons.notifications_active_outlined,
+      title: alert.title,
+      metadata: [
+        NoteListMeta(
+          icon: Icons.near_me_outlined,
+          label:
+              'Within ${radiusKm.toStringAsFixed(radiusKm >= 10 ? 0 : 1)} km',
+        ),
+        NoteListMeta(icon: Icons.event_outlined, label: 'Expires $expires'),
+        NoteListMeta(
+          icon: Icons.notifications_none_outlined,
+          label: lastNotified,
+        ),
+      ],
       trailing: _busy
           ? const SizedBox(
               width: 20,

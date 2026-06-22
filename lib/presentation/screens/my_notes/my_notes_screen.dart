@@ -6,6 +6,7 @@ import '../../../core/utils/place_icon.dart';
 import '../../../domain/entities/place_entity.dart';
 import '../../providers/providers.dart';
 import '../../widgets/my_notes_notification_controls.dart';
+import '../../widgets/note/note_list_card.dart';
 import '../settings/nearby_notifications_screen.dart';
 
 class MyNotesScreen extends ConsumerWidget {
@@ -232,114 +233,49 @@ class _MyNoteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final color = parsePlaceColor(place.colorHex);
     final lastActivity = place.lastMessageAt ?? place.createdAt;
-    final subtitle = place.subtitle?.trim();
-    final hasSubtitle = subtitle?.isNotEmpty == true;
 
-    return Card(
-      margin: EdgeInsets.zero,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: colorScheme.outlineVariant),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: () => context.push('/note/${place.id}?readOnly=true'),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: color,
-                child: Icon(
-                  placeIconData(place.icon),
-                  color: Colors.white,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            place.title,
-                            style: theme.textTheme.titleSmall,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        _MessageCountBadge(count: place.messageCount),
-                        if (onArchive != null) ...[
-                          const SizedBox(width: 4),
-                          IconButton(
-                            visualDensity: VisualDensity.compact,
-                            tooltip: 'Archive note',
-                            onPressed: onArchive,
-                            icon: const Icon(Icons.archive_outlined, size: 20),
-                          ),
-                        ],
-                      ],
-                    ),
-                    if (hasSubtitle)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          subtitle!,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Wrap(
-                        spacing: 6,
-                        runSpacing: 4,
-                        children: [
-                          _NoteMetaChip(
-                            icon: Icons.schedule_outlined,
-                            label: 'Last active ${_relativeTime(lastActivity)}',
-                          ),
-                          if (place.isArchived)
-                            _NoteMetaChip(
-                              icon: Icons.archive_outlined,
-                              label:
-                                  'Archived ${_relativeTime(place.archivedAt ?? place.expiresAt)}',
-                            )
-                          else if (place.isClosed)
-                            const _NoteMetaChip(
-                              icon: Icons.do_not_disturb_on_outlined,
-                              label: 'Closed',
-                            ),
-                          if (place.isPrivate)
-                            const _NoteMetaChip(
-                              icon: Icons.lock_outline,
-                              label: 'Private',
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+    return NoteListCard(
+      avatarColor: color,
+      avatarIcon: placeIconData(place.icon),
+      title: place.title,
+      subtitle: place.subtitle,
+      metadata: [
+        NoteListMeta(
+          icon: Icons.schedule_outlined,
+          label: 'Last active ${_relativeTime(lastActivity)}',
         ),
+        if (place.isArchived)
+          NoteListMeta(
+            icon: Icons.archive_outlined,
+            label:
+                'Archived ${_relativeTime(place.archivedAt ?? place.expiresAt)}',
+          )
+        else if (place.isClosed)
+          const NoteListMeta(
+            icon: Icons.do_not_disturb_on_outlined,
+            label: 'Closed',
+          ),
+        if (place.isPrivate)
+          const NoteListMeta(icon: Icons.lock_outline, label: 'Private'),
+      ],
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _MessageCountBadge(count: place.messageCount),
+          if (onArchive != null) ...[
+            const SizedBox(width: 4),
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              tooltip: 'Archive note',
+              onPressed: onArchive,
+              icon: const Icon(Icons.archive_outlined, size: 20),
+            ),
+          ],
+        ],
       ),
+      onTap: () => context.push('/note/${place.id}?readOnly=true'),
     );
   }
 
@@ -380,33 +316,6 @@ class _MessageCountBadge extends StatelessWidget {
         Text(
           '$count',
           style: theme.textTheme.labelMedium?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _NoteMetaChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _NoteMetaChip({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 13, color: colorScheme.onSurfaceVariant),
-        const SizedBox(width: 3),
-        Text(
-          label,
-          style: theme.textTheme.labelSmall?.copyWith(
             color: colorScheme.onSurfaceVariant,
           ),
         ),

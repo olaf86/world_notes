@@ -8,6 +8,7 @@ import '../../../core/utils/place_icon.dart';
 import '../../../domain/entities/pin_summary_entity.dart';
 import '../../../services/location_service.dart';
 import '../../providers/providers.dart';
+import '../../widgets/note/note_list_card.dart';
 
 class MapNotesListScreen extends ConsumerWidget {
   final bool embedded;
@@ -138,9 +139,10 @@ class _PinList extends ConsumerWidget {
             });
 
           return ListView.separated(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
             physics: const AlwaysScrollableScrollPhysics(),
             itemCount: sorted.length,
-            separatorBuilder: (context, index) => const Divider(height: 1),
+            separatorBuilder: (context, index) => const SizedBox(height: 10),
             itemBuilder: (context, index) {
               return _MapNoteTile(
                 pin: sorted[index],
@@ -184,6 +186,8 @@ class _MapNoteTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final color = parsePlaceColor(pin.colorHex);
     final distanceM = Geolocator.distanceBetween(
       userLatitude,
@@ -194,77 +198,52 @@ class _MapNoteTile extends StatelessWidget {
     final distanceLabel = distanceM < 1000
         ? '${distanceM.round()} meters away'
         : '${(distanceM / 1000).toStringAsFixed(1)} km away';
-    final metadataLines = [
-      if (pin.subtitle != null && pin.subtitle!.isNotEmpty) pin.subtitle!,
-      'Created at ${noteDateTimeLabel(pin.createdAt)}',
-      'Expires at ${noteDateTimeLabel(pin.expiresAt)}',
-    ];
-
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: color,
-        child: Icon(placeIconData(pin.icon), color: Colors.white, size: 20),
-      ),
-      title: Row(
-        children: [
-          if (pin.isClosed) ...[
-            Icon(
-              Icons.do_not_disturb_on_outlined,
-              size: 14,
-              color: Theme.of(context).colorScheme.error,
-            ),
-            const SizedBox(width: 4),
-          ] else if (pin.isPrivate) ...[
-            Icon(
-              Icons.lock_outline,
-              size: 14,
-              color: Theme.of(context).colorScheme.tertiary,
-            ),
-            const SizedBox(width: 4),
-          ],
-          Expanded(
-            child: Text(
-              pin.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
+    return NoteListCard(
+      avatarColor: color,
+      avatarIcon: placeIconData(pin.icon),
+      title: pin.title,
+      subtitle: pin.subtitle,
+      metadata: [
+        NoteListMeta(
+          icon: Icons.near_me_outlined,
+          label: distanceLabel,
+          color: colorScheme.primary,
+        ),
+        NoteListMeta(
+          icon: Icons.schedule_outlined,
+          label: 'Created ${noteDateTimeLabel(pin.createdAt)}',
+        ),
+        NoteListMeta(
+          icon: Icons.event_outlined,
+          label: 'Expires ${noteDateTimeLabel(pin.expiresAt)}',
+        ),
+        if (pin.isClosed)
+          NoteListMeta(
+            icon: Icons.do_not_disturb_on_outlined,
+            label: 'Closed',
+            color: colorScheme.error,
+          )
+        else if (pin.isPrivate)
+          NoteListMeta(
+            icon: Icons.lock_outline,
+            label: 'Private',
+            color: colorScheme.tertiary,
           ),
-        ],
-      ),
-      subtitle: Text(
-        metadataLines.join('\n'),
-        maxLines: 3,
-        overflow: TextOverflow.ellipsis,
-      ),
-      isThreeLine: true,
+      ],
       trailing: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            distanceLabel,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
-              fontWeight: FontWeight.bold,
-            ),
+          Icon(
+            Icons.chat_bubble_outline,
+            size: 14,
+            color: colorScheme.onSurfaceVariant,
           ),
           const SizedBox(height: 2),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.chat_bubble_outline,
-                size: 12,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 2),
-              Text(
-                '${pin.messageCount}',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
+          Text(
+            '${pin.messageCount}',
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
