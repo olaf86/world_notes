@@ -5,6 +5,8 @@ import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {REGION} from "./constants";
 
 const MAX_DISPLAY_NAME_LENGTH = 20;
+// Stay below Firestore's 500-write batch limit to leave operational headroom.
+const BATCH_WRITE_LIMIT = 450;
 
 /**
  * Returns the app profile fields shown in a note's member list.
@@ -73,15 +75,30 @@ export const updateDisplayName = onCall<{displayName?: unknown}>(
       getAuth().updateUser(uid, {displayName}),
     ]);
 
-    const members = await db
-      .collectionGroup("members")
-      .where("userId", "==", uid)
-      .get();
+    const [members, activePlaces] = await Promise.all([
+      db
+        .collectionGroup("members")
+        .where("userId", "==", uid)
+        .get(),
+      db
+        .collection("places")
+        .where("createdByUserId", "==", uid)
+        .where("isArchived", "==", false)
+        .get(),
+    ]);
 
-    for (let i = 0; i < members.docs.length; i += 450) {
+    for (let i = 0; i < members.docs.length; i += BATCH_WRITE_LIMIT) {
       const batch = db.batch();
-      for (const doc of members.docs.slice(i, i + 450)) {
+      for (const doc of members.docs.slice(i, i + BATCH_WRITE_LIMIT)) {
         batch.update(doc.ref, {userId: uid, displayName});
+      }
+      await batch.commit();
+    }
+
+    for (let i = 0; i < activePlaces.docs.length; i += BATCH_WRITE_LIMIT) {
+      const batch = db.batch();
+      for (const doc of activePlaces.docs.slice(i, i + BATCH_WRITE_LIMIT)) {
+        batch.update(doc.ref, {creatorName: displayName});
       }
       await batch.commit();
     }
@@ -89,6 +106,7 @@ export const updateDisplayName = onCall<{displayName?: unknown}>(
     return {
       displayName,
       updatedMemberCount: members.size,
+      updatedPlaceCount: activePlaces.size,
     };
   },
 );

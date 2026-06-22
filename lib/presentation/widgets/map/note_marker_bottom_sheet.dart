@@ -72,6 +72,26 @@ class _NoteMarkerBottomSheetState extends State<NoteMarkerBottomSheet> {
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.person_outline,
+                          size: 14,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            pin.creatorName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                     Text(
                       'Created at ${noteDateTimeLabel(pin.createdAt)}',
                       style: theme.textTheme.bodySmall?.copyWith(

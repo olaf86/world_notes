@@ -195,6 +195,12 @@ export const createNote = onCall<CreateNoteData>(
       const isPremium = userSnap.get("isPremium") === true;
       const limit = isPremium ? PREMIUM_NOTE_LIMIT : FREE_NOTE_LIMIT;
       const activeCount = (userSnap.get("activeNoteCount") as number) ?? 0;
+      const storedDisplayName = userSnap.get("displayName");
+      const creatorName =
+        typeof storedDisplayName === "string" &&
+          storedDisplayName.trim().length > 0 ?
+          storedDisplayName.trim() :
+          "Unknown user";
 
       if (activeCount >= limit) {
         throw new HttpsError(
@@ -218,6 +224,7 @@ export const createNote = onCall<CreateNoteData>(
         colorHex: typeof colorHex === "string" ? colorHex : "#4CAF50",
         icon: typeof icon === "string" ? icon : "place",
         createdByUserId: uid,
+        creatorName,
         ownerIds: [uid],
         createdAt: FieldValue.serverTimestamp(),
         publishAt,

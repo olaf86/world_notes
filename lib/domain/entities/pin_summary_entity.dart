@@ -16,6 +16,7 @@ class PinSummary {
   final String? subtitle;
   final String colorHex;
   final String icon;
+  final String creatorName;
   final int messageCount;
   final DateTime createdAt;
   final DateTime lastActivityAt;
@@ -32,6 +33,7 @@ class PinSummary {
     this.subtitle,
     required this.colorHex,
     required this.icon,
+    required this.creatorName,
     required this.messageCount,
     required this.createdAt,
     required this.lastActivityAt,
