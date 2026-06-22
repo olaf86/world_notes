@@ -552,6 +552,11 @@ final anchorPositionProvider =
 /// Whether the map is following the user's live GPS position.
 final isTrackingProvider = StateProvider<bool>((ref) => false);
 
+/// Whether the map shows the note-detail access radius around the live GPS
+/// position. Kept outside the widget so switching between Map/List does not
+/// unexpectedly reset the user's choice.
+final isNoteAccessAreaVisibleProvider = StateProvider<bool>((ref) => false);
+
 /// Centre coordinate used by the exploration layer. Unlike
 /// [anchorPositionProvider], this follows the map camera when the user pans
 /// away from their current location.

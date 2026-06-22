@@ -64,6 +64,19 @@ class MapLibreNoteMapAdapter implements NoteMapAdapter {
   }
 
   @override
+  Future<void> updateAccessArea({
+    required Position center,
+    required bool visible,
+    required ColorScheme colorScheme,
+  }) {
+    return _controller.updateAccessArea(
+      center: center,
+      visible: visible,
+      colorScheme: colorScheme,
+    );
+  }
+
+  @override
   Future<void> setTrackingEnabled(bool enabled) {
     return _controller.setTrackingMode(
       enabled
