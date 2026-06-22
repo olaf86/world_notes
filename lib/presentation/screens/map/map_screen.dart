@@ -83,7 +83,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   Future<bool> _openPin(PinSummary pin) async {
-    final anchor = ref.read(anchorPositionProvider);
+    final anchor =
+        ref.read(positionStreamProvider).valueOrNull ??
+        ref.read(anchorPositionProvider);
     if (!mounted) return false;
     if (anchor == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -271,6 +273,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final positionAsync = ref.watch(positionStreamProvider);
     final anchor = ref.watch(anchorPositionProvider);
     final isTracking = ref.watch(isTrackingProvider);
+    final isAccessAreaVisible = ref.watch(isNoteAccessAreaVisibleProvider);
     final searchCenter = ref.watch(mapSearchCenterProvider);
     final searchRadiusKm = ref.watch(mapSearchRadiusKmProvider);
     final effectiveCenter = anchor == null
@@ -302,10 +305,17 @@ class _MapScreenState extends ConsumerState<MapScreen>
     }
 
     if (anchor != null) {
+      final currentPosition = positionAsync.valueOrNull ?? anchor;
       return _MapView(
         anchor: anchor,
+        currentPosition: currentPosition,
         mapAdapter: _mapAdapter,
         isTracking: isTracking,
+        isAccessAreaVisible: isAccessAreaVisible,
+        onAccessAreaToggle: () {
+          final notifier = ref.read(isNoteAccessAreaVisibleProvider.notifier);
+          notifier.state = !notifier.state;
+        },
         onPointerDown: _onUserPanned,
         onTrackingToggle: _toggleTracking,
         onRefresh: _refreshMapNotes,
@@ -333,10 +343,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
 class _MapView extends ConsumerWidget {
   final Position anchor;
+  final Position currentPosition;
   final NoteMapAdapter mapAdapter;
   final bool isTracking;
+  final bool isAccessAreaVisible;
   final VoidCallback onPointerDown;
   final VoidCallback onTrackingToggle;
+  final VoidCallback onAccessAreaToggle;
   final VoidCallback onRefresh;
   final bool loadingMapNotes;
   final VoidCallback onAddNote;
@@ -345,10 +358,13 @@ class _MapView extends ConsumerWidget {
 
   const _MapView({
     required this.anchor,
+    required this.currentPosition,
     required this.mapAdapter,
     required this.isTracking,
+    required this.isAccessAreaVisible,
     required this.onPointerDown,
     required this.onTrackingToggle,
+    required this.onAccessAreaToggle,
     required this.onRefresh,
     required this.loadingMapNotes,
     required this.onAddNote,
@@ -361,6 +377,13 @@ class _MapView extends ConsumerWidget {
     final mapStyle = ref.watch(mapStyleProvider).effectiveForCurrentPlatform;
     final styleUrl = mapStyle.styleUrl(AppConfig.stadiaApiKey);
     final colorScheme = Theme.of(context).colorScheme;
+    unawaited(
+      mapAdapter.updateAccessArea(
+        center: currentPosition,
+        visible: isAccessAreaVisible,
+        colorScheme: colorScheme,
+      ),
+    );
 
     return Stack(
       children: [
@@ -376,6 +399,10 @@ class _MapView extends ConsumerWidget {
         ),
         _MapNotesLoadingStatus(visible: loadingMapNotes),
         if (onShowList != null) _ListButton(onPressed: onShowList!),
+        _AccessAreaButton(
+          visible: isAccessAreaVisible,
+          onPressed: onAccessAreaToggle,
+        ),
         _RefreshButton(onPressed: onRefresh, refreshing: loadingMapNotes),
         _TrackingButton(isTracking: isTracking, onPressed: onTrackingToggle),
         _AddNoteFab(onPressed: onAddNote),
@@ -449,6 +476,33 @@ class _MapNotesLoadingStatus extends StatelessWidget {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AccessAreaButton extends StatelessWidget {
+  final bool visible;
+  final VoidCallback onPressed;
+
+  const _AccessAreaButton({required this.visible, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Positioned(
+      bottom: 264,
+      right: 16,
+      child: FloatingActionButton.small(
+        heroTag: 'noteAccessArea',
+        tooltip: visible ? 'Hide 500 m access area' : 'Show 500 m access area',
+        onPressed: onPressed,
+        backgroundColor: visible ? colorScheme.primary : colorScheme.surface,
+        elevation: 2,
+        child: Icon(
+          Icons.radar_outlined,
+          color: visible ? colorScheme.onPrimary : colorScheme.primary,
         ),
       ),
     );

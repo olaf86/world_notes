@@ -18,6 +18,12 @@ abstract class NoteMapAdapter {
 
   Future<void> updateMarkers(List<PinSummary> pins);
 
+  Future<void> updateAccessArea({
+    required Position center,
+    required bool visible,
+    required ColorScheme colorScheme,
+  });
+
   Future<void> setTrackingEnabled(bool enabled);
 
   Future<void> changeStyle(MapStyle style, String apiKey);

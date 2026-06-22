@@ -18,6 +18,9 @@ import 'note_map_adapter.dart';
 /// apple_maps_flutter API so the iOS path can remove third-party tile costs
 /// without changing the repository/query layer.
 class AppleNoteMapController implements NoteMapAdapter {
+  static final apple.CircleId _accessAreaCircleId = apple.CircleId(
+    'note_detail_access_area',
+  );
   static const String _noteClusterId = 'world_notes_places';
   static const double _clusterMaxZoom = 14;
   static const double _selectedMarkerScale = 1.65;
@@ -34,6 +37,7 @@ class AppleNoteMapController implements NoteMapAdapter {
   final trackingMode = ValueNotifier<apple.TrackingMode>(
     apple.TrackingMode.none,
   );
+  final accessAreaCircles = ValueNotifier<Set<apple.Circle>>(<apple.Circle>{});
 
   final Map<String, apple.BitmapDescriptor> _iconsByMarkerId = {};
   List<PinSummary> _latestPins = const [];
@@ -43,6 +47,9 @@ class AppleNoteMapController implements NoteMapAdapter {
   apple.LatLng? _lastCameraTarget;
   double _lastCameraZoom = AppConfig.defaultZoom;
   bool _clusteringEnabled = AppConfig.defaultZoom < _clusterMaxZoom;
+  Position? _accessAreaCenter;
+  bool _accessAreaVisible = false;
+  Color? _accessAreaColor;
   String? _selectedPlaceId;
   int _markerRevision = 0;
   int _selectionRevision = 0;
@@ -71,19 +78,25 @@ class AppleNoteMapController implements NoteMapAdapter {
         return ValueListenableBuilder<apple.TrackingMode>(
           valueListenable: trackingMode,
           builder: (context, currentTrackingMode, _) {
-            return apple.AppleMap(
-              initialCameraPosition: apple.CameraPosition(
-                target: apple.LatLng(anchor.latitude, anchor.longitude),
-                zoom: AppConfig.defaultZoom,
-              ),
-              myLocationEnabled: true,
-              myLocationButtonEnabled: false,
-              trackingMode: currentTrackingMode,
-              annotations: currentAnnotations,
-              appearanceMode: _appearanceMode,
-              onMapCreated: attach,
-              onCameraMove: _onCameraMove,
-              onCameraIdle: _onCameraIdle,
+            return ValueListenableBuilder<Set<apple.Circle>>(
+              valueListenable: accessAreaCircles,
+              builder: (context, currentCircles, _) {
+                return apple.AppleMap(
+                  initialCameraPosition: apple.CameraPosition(
+                    target: apple.LatLng(anchor.latitude, anchor.longitude),
+                    zoom: AppConfig.defaultZoom,
+                  ),
+                  myLocationEnabled: true,
+                  myLocationButtonEnabled: false,
+                  trackingMode: currentTrackingMode,
+                  annotations: currentAnnotations,
+                  circles: currentCircles,
+                  appearanceMode: _appearanceMode,
+                  onMapCreated: attach,
+                  onCameraMove: _onCameraMove,
+                  onCameraIdle: _onCameraIdle,
+                );
+              },
             );
           },
         );
@@ -95,6 +108,38 @@ class AppleNoteMapController implements NoteMapAdapter {
   void dispose() {
     annotations.dispose();
     trackingMode.dispose();
+    accessAreaCircles.dispose();
+  }
+
+  @override
+  Future<void> updateAccessArea({
+    required Position center,
+    required bool visible,
+    required ColorScheme colorScheme,
+  }) async {
+    final color = colorScheme.primary;
+    final previous = _accessAreaCenter;
+    if (_accessAreaVisible == visible &&
+        _accessAreaColor == color &&
+        previous?.latitude == center.latitude &&
+        previous?.longitude == center.longitude) {
+      return;
+    }
+    _accessAreaVisible = visible;
+    _accessAreaCenter = center;
+    _accessAreaColor = color;
+    accessAreaCircles.value = visible
+        ? {
+            apple.Circle(
+              circleId: _accessAreaCircleId,
+              center: apple.LatLng(center.latitude, center.longitude),
+              radius: AppConfig.noteDetailAccessRadiusMeters.toDouble(),
+              fillColor: color.withValues(alpha: 0.14),
+              strokeColor: color.withValues(alpha: 0.82),
+              strokeWidth: 2,
+            ),
+          }
+        : <apple.Circle>{};
   }
 
   @override

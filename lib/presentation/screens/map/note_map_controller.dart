@@ -1,6 +1,7 @@
-import 'dart:math' show Point;
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 
 import '../../../config/app_config.dart';
@@ -30,6 +31,9 @@ class NoteMapController {
   static const _clusterLayerId = 'clusters';
   static const _clusterCountLayerId = 'cluster-count';
   static const _unclusteredLayerId = 'unclustered-point';
+  static const _accessAreaSourceId = 'note_access_area';
+  static const _accessAreaFillLayerId = 'note_access_area_fill';
+  static const _accessAreaLineLayerId = 'note_access_area_line';
 
   // ── Cluster tuning ────────────────────────────────────────────────────────
   /// Pixel radius within which features are grouped into a cluster.
@@ -83,6 +87,9 @@ class NoteMapController {
   /// from the provider before the GeoJSON source/layers have finished being
   /// created, so we cache it here and replay it once [_sourceReady] flips.
   List<PinSummary> _latestPins = const [];
+  Position? _accessAreaCenter;
+  bool _accessAreaVisible = false;
+  Color? _accessAreaColor;
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -101,6 +108,7 @@ class NoteMapController {
   }
 
   Future<void> changeStyle(String styleUrl) async {
+    _sourceReady = false;
     await _map?.setStyle(styleUrl);
   }
 
@@ -121,6 +129,7 @@ class NoteMapController {
     await _setupSourcesAndLayers(colorScheme);
     _sourceReady = true;
     await _pushMarkersToSource(_latestPins);
+    await _pushAccessAreaToSource();
   }
 
   Future<void> _setupSourcesAndLayers(ColorScheme colorScheme) async {
@@ -129,6 +138,27 @@ class NoteMapController {
 
     final clusterColor = _toHex(colorScheme.primary);
     final clusterTextColor = _toHex(colorScheme.onPrimary);
+
+    await map.addSource(
+      _accessAreaSourceId,
+      GeojsonSourceProperties(data: _emptyFeatureCollection),
+    );
+    await map.addFillLayer(
+      _accessAreaSourceId,
+      _accessAreaFillLayerId,
+      FillLayerProperties(fillColor: clusterColor, fillOpacity: 0.14),
+      enableInteraction: false,
+    );
+    await map.addLineLayer(
+      _accessAreaSourceId,
+      _accessAreaLineLayerId,
+      LineLayerProperties(
+        lineColor: clusterColor,
+        lineOpacity: 0.82,
+        lineWidth: 2,
+      ),
+      enableInteraction: false,
+    );
 
     await map.addSource(
       _sourceId,
@@ -212,6 +242,116 @@ class NoteMapController {
     await _pushMarkersToSource(pins);
   }
 
+  Future<void> updateAccessArea({
+    required Position center,
+    required bool visible,
+    required ColorScheme colorScheme,
+  }) async {
+    final previous = _accessAreaCenter;
+    final colorChanged = _accessAreaColor != colorScheme.primary;
+    if (_accessAreaVisible == visible &&
+        !colorChanged &&
+        previous?.latitude == center.latitude &&
+        previous?.longitude == center.longitude) {
+      return;
+    }
+    _accessAreaCenter = center;
+    _accessAreaVisible = visible;
+    _accessAreaColor = colorScheme.primary;
+    if (_map == null || !_sourceReady) return;
+
+    if (colorChanged) {
+      await _map?.setLayerProperties(
+        _accessAreaFillLayerId,
+        FillLayerProperties(
+          fillColor: _toHex(colorScheme.primary),
+          fillOpacity: 0.14,
+        ),
+      );
+      await _map?.setLayerProperties(
+        _accessAreaLineLayerId,
+        LineLayerProperties(
+          lineColor: _toHex(colorScheme.primary),
+          lineOpacity: 0.82,
+          lineWidth: 2,
+        ),
+      );
+    }
+    await _pushAccessAreaToSource();
+  }
+
+  Future<void> _pushAccessAreaToSource() async {
+    final map = _map;
+    final center = _accessAreaCenter;
+    if (map == null) return;
+    if (!_accessAreaVisible || center == null) {
+      await map.setGeoJsonSource(_accessAreaSourceId, _emptyFeatureCollection);
+      return;
+    }
+
+    await map.setGeoJsonSource(_accessAreaSourceId, {
+      'type': 'FeatureCollection',
+      'features': [
+        {
+          'type': 'Feature',
+          'geometry': {
+            'type': 'Polygon',
+            'coordinates': [
+              _geodesicCircle(
+                latitude: center.latitude,
+                longitude: center.longitude,
+                radiusMeters: AppConfig.noteDetailAccessRadiusMeters.toDouble(),
+              ),
+            ],
+          },
+          'properties': const <String, dynamic>{},
+        },
+      ],
+    });
+  }
+
+  static const Map<String, dynamic> _emptyFeatureCollection = {
+    'type': 'FeatureCollection',
+    'features': <dynamic>[],
+  };
+
+  static List<List<double>> _geodesicCircle({
+    required double latitude,
+    required double longitude,
+    required double radiusMeters,
+    int points = 72,
+  }) {
+    const earthRadiusMeters = 6371008.8;
+    final angularDistance = radiusMeters / earthRadiusMeters;
+    final latitudeRadians = latitude * math.pi / 180;
+    final longitudeRadians = longitude * math.pi / 180;
+    final coordinates = <List<double>>[];
+
+    for (var index = 0; index <= points; index++) {
+      final bearing = 2 * math.pi * index / points;
+      final destinationLatitude = math.asin(
+        math.sin(latitudeRadians) * math.cos(angularDistance) +
+            math.cos(latitudeRadians) *
+                math.sin(angularDistance) *
+                math.cos(bearing),
+      );
+      final destinationLongitude =
+          longitudeRadians +
+          math.atan2(
+            math.sin(bearing) *
+                math.sin(angularDistance) *
+                math.cos(latitudeRadians),
+            math.cos(angularDistance) -
+                math.sin(latitudeRadians) * math.sin(destinationLatitude),
+          );
+      coordinates.add([
+        destinationLongitude * 180 / math.pi,
+        destinationLatitude * 180 / math.pi,
+      ]);
+    }
+    return coordinates;
+  }
+
   Future<void> _pushMarkersToSource(List<PinSummary> pins) async {
     final map = _map;
     if (map == null) return;
@@ -271,7 +411,7 @@ class NoteMapController {
 
   // ── Tap handling ──────────────────────────────────────────────────────────
 
-  Future<void> onMapClick(Point<double> point) async {
+  Future<void> onMapClick(math.Point<double> point) async {
     final map = _map;
     if (map == null || !_sourceReady) return;
 
