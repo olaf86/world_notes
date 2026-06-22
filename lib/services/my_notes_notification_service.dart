@@ -7,6 +7,20 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+enum ApnsRegistrationState { unknown, pending, succeeded, failed }
+
+class ApnsRegistrationDiagnostic {
+  final ApnsRegistrationState state;
+  final String? message;
+  final DateTime? updatedAt;
+
+  const ApnsRegistrationDiagnostic({
+    required this.state,
+    this.message,
+    this.updatedAt,
+  });
+}
+
 class MyNotesNotificationService {
   static const _nativeLaunchChannel = MethodChannel(
     'world_notes/notification_launch',
@@ -126,6 +140,36 @@ class MyNotesNotificationService {
 
   Stream<String> get openedPlaceIds {
     return _openedPlaceIds.stream;
+  }
+
+  Future<ApnsRegistrationDiagnostic> apnsRegistrationDiagnostic() async {
+    if (defaultTargetPlatform != TargetPlatform.iOS) {
+      return const ApnsRegistrationDiagnostic(
+        state: ApnsRegistrationState.unknown,
+      );
+    }
+    try {
+      final result = await _nativeLaunchChannel
+          .invokeMapMethod<String, dynamic>('apnsRegistrationStatus');
+      final status = result?['status'];
+      final updatedAtMillis = result?['updatedAtMillis'];
+      return ApnsRegistrationDiagnostic(
+        state: switch (status) {
+          'pending' => ApnsRegistrationState.pending,
+          'succeeded' => ApnsRegistrationState.succeeded,
+          'failed' => ApnsRegistrationState.failed,
+          _ => ApnsRegistrationState.unknown,
+        },
+        message: result?['message'] as String?,
+        updatedAt: updatedAtMillis is int
+            ? DateTime.fromMillisecondsSinceEpoch(updatedAtMillis)
+            : null,
+      );
+    } on MissingPluginException {
+      return const ApnsRegistrationDiagnostic(
+        state: ApnsRegistrationState.unknown,
+      );
+    }
   }
 
   Future<void> dispose() async {

@@ -105,6 +105,13 @@ final myNotesNotificationServiceProvider = Provider<MyNotesNotificationService>(
   },
 );
 
+final apnsRegistrationDiagnosticProvider =
+    FutureProvider.autoDispose<ApnsRegistrationDiagnostic>((ref) {
+      return ref
+          .watch(myNotesNotificationServiceProvider)
+          .apnsRegistrationDiagnostic();
+    });
+
 final nearbyNotificationServiceProvider = Provider<NearbyNotificationService>((
   ref,
 ) {

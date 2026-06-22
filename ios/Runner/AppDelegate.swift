@@ -8,6 +8,7 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    APNsRegistrationDiagnostics.shared.markPending()
     if let userInfo = launchOptions?[.remoteNotification] as? [AnyHashable: Any] {
       NotificationLaunchManager.shared.capture(userInfo: userInfo)
     }
@@ -30,8 +31,77 @@ import UIKit
     )
   }
 
+  override func application(
+    _ application: UIApplication,
+    didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+  ) {
+    APNsRegistrationDiagnostics.shared.markSucceeded()
+    super.application(
+      application,
+      didRegisterForRemoteNotificationsWithDeviceToken: deviceToken
+    )
+  }
+
+  override func application(
+    _ application: UIApplication,
+    didFailToRegisterForRemoteNotificationsWithError error: Error
+  ) {
+    APNsRegistrationDiagnostics.shared.markFailed(error: error)
+    super.application(
+      application,
+      didFailToRegisterForRemoteNotificationsWithError: error
+    )
+  }
+
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+  }
+}
+
+final class APNsRegistrationDiagnostics {
+  static let shared = APNsRegistrationDiagnostics()
+
+  private static let statusKey = "world_notes.apns_registration.status"
+  private static let messageKey = "world_notes.apns_registration.message"
+  private static let updatedAtKey = "world_notes.apns_registration.updated_at"
+
+  private init() {}
+
+  func markPending() {
+    save(status: "pending", message: nil)
+  }
+
+  func markSucceeded() {
+    save(status: "succeeded", message: nil)
+  }
+
+  func markFailed(error: Error) {
+    save(status: "failed", message: error.localizedDescription)
+  }
+
+  func currentStatus() -> [String: Any] {
+    let defaults = UserDefaults.standard
+    var result: [String: Any] = [
+      "status": defaults.string(forKey: Self.statusKey) ?? "unknown"
+    ]
+    if let message = defaults.string(forKey: Self.messageKey) {
+      result["message"] = message
+    }
+    if let updatedAt = defaults.object(forKey: Self.updatedAtKey) as? Date {
+      result["updatedAtMillis"] = Int(updatedAt.timeIntervalSince1970 * 1000)
+    }
+    return result
+  }
+
+  private func save(status: String, message: String?) {
+    let defaults = UserDefaults.standard
+    defaults.set(status, forKey: Self.statusKey)
+    defaults.set(Date(), forKey: Self.updatedAtKey)
+    if let message {
+      defaults.set(message, forKey: Self.messageKey)
+    } else {
+      defaults.removeObject(forKey: Self.messageKey)
+    }
   }
 }
 
@@ -60,6 +130,8 @@ final class NotificationLaunchManager {
       switch call.method {
       case "takeInitialPlaceId":
         result(self.takeLaunchPlaceId())
+      case "apnsRegistrationStatus":
+        result(APNsRegistrationDiagnostics.shared.currentStatus())
       default:
         result(FlutterMethodNotImplemented)
       }
