@@ -33,6 +33,9 @@ class NearbyProximityMonitor {
   StreamSubscription<Position>? _positionSubscription;
   StreamSubscription<NativeGeofenceEvent>? _nativeGeofenceSubscription;
   AppLifecycleListener? _lifecycleListener;
+  String? _appliedGeofenceSignature;
+  bool _geofenceSyncRunning = false;
+  bool _geofenceSyncRequested = false;
 
   NearbyProximityMonitor({
     required this.crashlytics,
@@ -67,7 +70,7 @@ class NearbyProximityMonitor {
       unawaited(_ensurePositionMonitoring());
       unawaited(_syncNearbyAlertsForCurrentPosition());
     }
-    unawaited(_syncOsGeofenceRegistrations());
+    unawaited(_requestOsGeofenceSync());
   }
 
   Future<void> _writeDiagnostic(String message) async {
@@ -198,23 +201,63 @@ class NearbyProximityMonitor {
     }
   }
 
-  Future<void> _syncOsGeofenceRegistrations() async {
+  String _geofenceSignature(
+    List<NearbyNotificationPlace> places,
+    LocationPermission permission,
+  ) {
+    if (permission != LocationPermission.always) {
+      return 'cleared:${permission.name}';
+    }
+    final activePlaces = places.where((place) => place.isActive).toList()
+      ..sort((a, b) => a.placeId.compareTo(b.placeId));
+    return activePlaces
+        .map(
+          (place) =>
+              '${place.placeId}|${place.latitude}|${place.longitude}|'
+              '${place.radiusMeters}',
+        )
+        .join(';');
+  }
+
+  Future<void> _requestOsGeofenceSync() async {
+    _geofenceSyncRequested = true;
+    if (_geofenceSyncRunning) return;
+
+    _geofenceSyncRunning = true;
     try {
-      if (_latestPlaces.isEmpty) {
-        await nativeGeofenceService.clearGeofences();
-        _logDiagnostic('Cleared OS geofences because no alerts are active.');
+      while (_geofenceSyncRequested) {
+        _geofenceSyncRequested = false;
+        await _syncOsGeofenceRegistrationsOnce();
+      }
+    } finally {
+      _geofenceSyncRunning = false;
+    }
+  }
+
+  Future<void> _syncOsGeofenceRegistrationsOnce() async {
+    try {
+      final permission = await Geolocator.checkPermission();
+      final signature = _geofenceSignature(_latestPlaces, permission);
+      if (signature == _appliedGeofenceSignature) {
+        _logDiagnostic(
+          'Skipped OS geofence sync because its configuration is unchanged.',
+        );
         return;
       }
-      final permission = await Geolocator.checkPermission();
-      if (permission != LocationPermission.always) {
+
+      if (_latestPlaces.isEmpty || permission != LocationPermission.always) {
         await nativeGeofenceService.clearGeofences();
+        _appliedGeofenceSignature = signature;
         _logDiagnostic(
-          'Cleared OS geofences because Always permission is unavailable '
-          '(permission=${permission.name}).',
+          _latestPlaces.isEmpty
+              ? 'Cleared OS geofences because no alerts are active.'
+              : 'Cleared OS geofences because Always permission is '
+                    'unavailable (permission=${permission.name}).',
         );
         return;
       }
       await nativeGeofenceService.syncGeofences(_latestPlaces);
+      _appliedGeofenceSignature = signature;
       _logDiagnostic(
         'Synced ${_latestPlaces.where((place) => place.isActive).length} '
         'active alert(s) with the OS geofence service.',
@@ -345,7 +388,7 @@ class NearbyProximityMonitor {
     if (state == AppLifecycleState.resumed) {
       await _ensurePositionMonitoring();
       await _syncNearbyAlertsForCurrentPosition();
-      await _syncOsGeofenceRegistrations();
+      await _requestOsGeofenceSync();
       return;
     }
     if (state != AppLifecycleState.paused &&
