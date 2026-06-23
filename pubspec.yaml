@@ -23,10 +23,10 @@ dependencies:
       ref: 2dcc9043cd056fcbf710afcf8d2907217ad1d08e
 
   # Firebase
-  firebase_core: ^3.13.0
-  firebase_auth: ^5.5.3
-  cloud_firestore: ^5.6.6
-  firebase_storage: ^12.4.5
+  firebase_core: ^4.11.0
+  firebase_auth: ^6.5.4
+  cloud_firestore: ^6.6.0
+  firebase_storage: ^13.4.3
 
   # Google Sign-In
   google_sign_in: ^6.2.2
@@ -58,10 +58,10 @@ dependencies:
   uuid: ^4.5.1
   purchases_ui_flutter: ^10.1.0
   shared_preferences: ^2.5.5
-  firebase_app_check: ^0.3.2+10
-  cloud_functions: ^5.6.2
-  firebase_crashlytics: 4.3.10
-  firebase_messaging: ^15.2.10
+  firebase_app_check: ^0.4.5
+  cloud_functions: ^6.3.3
+  firebase_crashlytics: ^5.2.4
+  firebase_messaging: ^16.4.1
   flutter_local_notifications: ^22.0.0
 dev_dependencies:
   flutter_test:

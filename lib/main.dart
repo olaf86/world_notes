@@ -41,10 +41,12 @@ void main() async {
   //   • Debug builds use the debug provider — print the debug token from the
   //     console logs once and register it in Firebase Console → App Check.
   await FirebaseAppCheck.instance.activate(
-    appleProvider: kDebugMode ? AppleProvider.debug : AppleProvider.appAttest,
-    androidProvider: kDebugMode
-        ? AndroidProvider.debug
-        : AndroidProvider.playIntegrity,
+    providerApple: kDebugMode
+        ? const AppleDebugProvider()
+        : const AppleAppAttestProvider(),
+    providerAndroid: kDebugMode
+        ? const AndroidDebugProvider()
+        : const AndroidPlayIntegrityProvider(),
   );
 
   await MobileAds.instance.initialize();
