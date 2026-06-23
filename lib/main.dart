@@ -9,6 +9,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
+import 'config/app_config.dart';
 import 'config/router.dart';
 import 'core/theme/app_theme.dart';
 import 'firebase_options.dart';
@@ -100,7 +101,7 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp> {
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(
-      title: 'World Notes',
+      title: AppConfig.appName,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,
