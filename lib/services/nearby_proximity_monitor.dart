@@ -8,7 +8,6 @@ import 'package:geolocator/geolocator.dart';
 import '../config/app_config.dart';
 import '../domain/entities/nearby_notification_entity.dart';
 import '../domain/repositories/place_repository.dart';
-import 'location_service.dart';
 import 'native_geofence_service.dart';
 import 'nearby_notification_service.dart';
 
@@ -21,7 +20,6 @@ import 'nearby_notification_service.dart';
 class NearbyProximityMonitor {
   final FirebaseCrashlytics crashlytics;
   final PlaceRepository placeRepository;
-  final LocationService locationService;
   final NativeGeofenceService nativeGeofenceService;
   final NearbyNotificationService nearbyNotificationService;
 
@@ -30,7 +28,6 @@ class NearbyProximityMonitor {
 
   Position? _latestPosition;
   List<NearbyNotificationPlace> _latestPlaces = const [];
-  StreamSubscription<Position>? _positionSubscription;
   StreamSubscription<NativeGeofenceEvent>? _nativeGeofenceSubscription;
   AppLifecycleListener? _lifecycleListener;
   String? _appliedGeofenceSignature;
@@ -40,7 +37,6 @@ class NearbyProximityMonitor {
   NearbyProximityMonitor({
     required this.crashlytics,
     required this.placeRepository,
-    required this.locationService,
     required this.nativeGeofenceService,
     required this.nearbyNotificationService,
   });
@@ -65,12 +61,19 @@ class NearbyProximityMonitor {
       'active=${places.where((place) => place.isActive).length}).',
     );
     if (places.isEmpty) {
-      unawaited(_stopPositionMonitoringIfUnused());
+      _latestPosition = null;
+      _lastCheckedAt.clear();
     } else {
-      unawaited(_ensurePositionMonitoring());
       unawaited(_syncNearbyAlertsForCurrentPosition());
     }
     unawaited(_requestOsGeofenceSync());
+  }
+
+  void updatePosition(Position position) {
+    _latestPosition = position;
+    if (_latestPlaces.isNotEmpty) {
+      unawaited(_syncNearbyAlertsForCurrentPosition());
+    }
   }
 
   Future<void> _writeDiagnostic(String message) async {
@@ -320,34 +323,9 @@ class NearbyProximityMonitor {
     }
   }
 
-  Future<void> _ensurePositionMonitoring() async {
-    if (_positionSubscription != null || _latestPlaces.isEmpty) return;
-    final permission = await Geolocator.checkPermission();
-    if (permission != LocationPermission.always &&
-        permission != LocationPermission.whileInUse) {
-      _logDiagnostic(
-        'Foreground position monitoring not started '
-        '(permission=${permission.name}).',
-      );
-      return;
-    }
-    _positionSubscription = locationService.watchPosition().listen(
-      (position) {
-        _latestPosition = position;
-        unawaited(_syncNearbyAlertsForCurrentPosition());
-      },
-      onError: (Object error, StackTrace stack) {
-        unawaited(_reportError('watching foreground position', error, stack));
-      },
-    );
-    _logDiagnostic('Foreground position monitoring started.');
-  }
-
-  Future<void> _stopForegroundPositionMonitoring({
+  Future<void> _clearForegroundPosition({
     required bool clearInRangeState,
   }) async {
-    await _positionSubscription?.cancel();
-    _positionSubscription = null;
     _latestPosition = null;
 
     final reportedInRangePlaceIds = {
@@ -375,19 +353,11 @@ class NearbyProximityMonitor {
     } else {
       _inRangePlaceIds.clear();
     }
-    _logDiagnostic('Foreground position monitoring stopped.');
-  }
-
-  Future<void> _stopPositionMonitoringIfUnused() async {
-    if (_latestPlaces.isNotEmpty) return;
-    await _stopForegroundPositionMonitoring(clearInRangeState: false);
-    _lastCheckedAt.clear();
+    _logDiagnostic('Foreground position state cleared.');
   }
 
   Future<void> _handleLifecycleChange(AppLifecycleState state) async {
     if (state == AppLifecycleState.resumed) {
-      await _ensurePositionMonitoring();
-      await _syncNearbyAlertsForCurrentPosition();
       await _requestOsGeofenceSync();
       return;
     }
@@ -399,15 +369,16 @@ class NearbyProximityMonitor {
 
     final permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.whileInUse) {
-      await _stopForegroundPositionMonitoring(clearInRangeState: true);
+      await _clearForegroundPosition(clearInRangeState: true);
       _logDiagnostic(
         'Foreground-only in-range state cleared while app is backgrounded.',
       );
+    } else {
+      await _clearForegroundPosition(clearInRangeState: false);
     }
   }
 
   void dispose() {
-    _positionSubscription?.cancel();
     _nativeGeofenceSubscription?.cancel();
     _lifecycleListener?.dispose();
   }

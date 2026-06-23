@@ -194,12 +194,28 @@ final nearbyNotificationPlaceProvider =
           .watchNearbyNotificationPlace(userId: user.id, placeId: placeId);
     });
 
+// --- Location ---
+
+/// Live position stream. [ref.keepAlive] prevents the stream from being torn
+/// down when the user switches tabs in the [ShellRoute] — without it, every
+/// tab switch would restart GPS acquisition and briefly show
+/// "location unavailable".
+final positionStreamProvider = StreamProvider<Position>((ref) {
+  ref.keepAlive();
+  return ref.watch(locationServiceProvider).watchPosition();
+});
+
+final _nearbySharedPositionProvider = Provider<AsyncValue<Position>?>((ref) {
+  final places = ref.watch(nearbyNotificationPlacesProvider).valueOrNull;
+  if (places == null || places.isEmpty) return null;
+  return ref.watch(positionStreamProvider);
+});
+
 final nearbyProximityMonitorProvider = Provider<void>((ref) {
   ref.keepAlive();
   final monitor = NearbyProximityMonitor(
     crashlytics: ref.read(firebaseCrashlyticsProvider),
     placeRepository: ref.read(placeRepositoryProvider),
-    locationService: ref.read(locationServiceProvider),
     nativeGeofenceService: ref.read(nativeGeofenceServiceProvider),
     nearbyNotificationService: ref.read(nearbyNotificationServiceProvider),
   )..start();
@@ -210,18 +226,10 @@ final nearbyProximityMonitorProvider = Provider<void>((ref) {
       next.whenData(monitor.updatePlaces);
     },
   );
+  ref.listen<AsyncValue<Position>?>(_nearbySharedPositionProvider, (_, next) {
+    next?.whenData(monitor.updatePosition);
+  });
   ref.onDispose(monitor.dispose);
-});
-
-// --- Location ---
-
-/// Live position stream. [ref.keepAlive] prevents the stream from being torn
-/// down when the user switches tabs in the [ShellRoute] — without it, every
-/// tab switch would restart GPS acquisition and briefly show
-/// "location unavailable".
-final positionStreamProvider = StreamProvider<Position>((ref) {
-  ref.keepAlive();
-  return ref.watch(locationServiceProvider).watchPosition();
 });
 
 /// Anchor position used as the centre of the map's notes-query window.
