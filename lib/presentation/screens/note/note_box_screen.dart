@@ -908,14 +908,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                     if (!place.canAcceptMessagesAt(now))
                       _ThreadStatusBanner(place: place, now: now),
                     StaticNoteMiniMap(place: place),
-                    if (!isOwner && !widget.readOnly)
-                      _NearbyNotificationPanel(
-                        enabled: nearbyAlertEnabled,
-                        busy:
-                            _nearbyNotificationBusy ||
-                            nearbyAlertAsync.isLoading,
-                        onChanged: _setNearbyNotification,
-                      ),
+                    if (place != null) StaticNoteMiniMap(place: place),
                     Expanded(
                       child: messagesAsync.when(
                         loading: () =>
