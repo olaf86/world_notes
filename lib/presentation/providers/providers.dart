@@ -1,12 +1,9 @@
-import 'dart:async';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -32,6 +29,7 @@ import '../../services/message_image_service.dart';
 import '../../services/my_notes_notification_service.dart';
 import '../../services/native_geofence_service.dart';
 import '../../services/nearby_notification_service.dart';
+import '../../services/nearby_proximity_monitor.dart';
 import '../../services/subscription_service.dart';
 
 // --- Infrastructure ---
@@ -196,312 +194,6 @@ final nearbyNotificationPlaceProvider =
           .watchNearbyNotificationPlace(userId: user.id, placeId: placeId);
     });
 
-final nearbyProximityMonitorProvider = Provider<void>((ref) {
-  ref.keepAlive();
-  final crashlytics = ref.read(firebaseCrashlyticsProvider);
-  final inRangePlaceIds = <String>{};
-  final lastCheckedAt = <String, DateTime>{};
-  Position? latestPosition;
-  List<NearbyNotificationPlace> latestPlaces = const [];
-  StreamSubscription<Position>? positionSubscription;
-  StreamSubscription<NativeGeofenceEvent>? nativeGeofenceSubscription;
-
-  Future<void> writeNearbyDiagnostic(String message) async {
-    final logMessage = '[NearbyGeofence] $message';
-    debugPrint(logMessage);
-    try {
-      await crashlytics.log(logMessage);
-    } catch (error, stack) {
-      debugPrint(
-        '[NearbyGeofence] Could not write Crashlytics breadcrumb: '
-        '$error\n$stack',
-      );
-    }
-  }
-
-  void logNearbyDiagnostic(String message) {
-    unawaited(writeNearbyDiagnostic(message));
-  }
-
-  Future<void> reportNearbyProximityMonitorError(
-    String operation,
-    Object error,
-    StackTrace stack,
-  ) async {
-    debugPrint('[NearbyGeofence] Failed during $operation: $error\n$stack');
-    try {
-      await crashlytics.setCustomKey('nearby_geofence_operation', operation);
-      await crashlytics.setCustomKey(
-        'nearby_geofence_platform',
-        defaultTargetPlatform.name,
-      );
-      await crashlytics.recordError(
-        error,
-        stack,
-        reason: 'Nearby geofence failure: $operation',
-        fatal: false,
-      );
-    } catch (crashlyticsError, crashlyticsStack) {
-      debugPrint(
-        '[NearbyGeofence] Could not report failure to Crashlytics: '
-        '$crashlyticsError\n$crashlyticsStack',
-      );
-    }
-  }
-
-  Future<void> checkAndNotifyNearbyUnread(String placeId) async {
-    final last = lastCheckedAt[placeId];
-    if (last != null &&
-        DateTime.now().difference(last).inMinutes <
-            AppConfig.nearbyNotificationCheckCooldownMinutes) {
-      return;
-    }
-    lastCheckedAt[placeId] = DateTime.now();
-    logNearbyDiagnostic('Checking for unread nearby messages.');
-    final result = await ref
-        .read(placeRepositoryProvider)
-        .checkNearbyUnread(placeId);
-    await ref.read(nearbyNotificationServiceProvider).showNearbyUnread(result);
-    logNearbyDiagnostic(
-      result.hasUnread
-          ? 'Unread nearby message found; local notification requested.'
-          : 'No unread nearby message found.',
-    );
-  }
-
-  Future<void> handleNativeGeofenceEvent(NativeGeofenceEvent event) async {
-    final eventAgeSeconds = DateTime.now()
-        .difference(event.occurredAt)
-        .inSeconds
-        .clamp(0, 86400);
-    logNearbyDiagnostic(
-      'Native ${event.transition.name} event received '
-      '(ageSeconds=$eventAgeSeconds).',
-    );
-    final place = latestPlaces
-        .where((candidate) => candidate.placeId == event.placeId)
-        .firstOrNull;
-    if (place == null || !place.isActive) {
-      logNearbyDiagnostic('Native event ignored for an inactive alert.');
-      return;
-    }
-    final repository = ref.read(placeRepositoryProvider);
-    switch (event.transition) {
-      case NativeGeofenceTransition.enter:
-        inRangePlaceIds.add(event.placeId);
-        await repository.markNearbyNotificationInRange(
-          placeId: event.placeId,
-          inRange: true,
-        );
-        logNearbyDiagnostic('Native enter state synced to the server.');
-        await checkAndNotifyNearbyUnread(event.placeId);
-      case NativeGeofenceTransition.exit:
-        inRangePlaceIds.remove(event.placeId);
-        await repository.markNearbyNotificationInRange(
-          placeId: event.placeId,
-          inRange: false,
-        );
-        logNearbyDiagnostic('Native exit state synced to the server.');
-    }
-  }
-
-  Future<void> handleNativeGeofenceEventSafely(
-    NativeGeofenceEvent event,
-  ) async {
-    try {
-      await handleNativeGeofenceEvent(event);
-    } catch (error, stack) {
-      await reportNearbyProximityMonitorError(
-        'handling native ${event.transition.name} event',
-        error,
-        stack,
-      );
-    }
-  }
-
-  Future<void> processQueuedNativeGeofenceEvents() async {
-    try {
-      final events = await ref
-          .read(nativeGeofenceServiceProvider)
-          .takePendingEvents();
-      logNearbyDiagnostic(
-        'Loaded ${events.length} queued native geofence event(s).',
-      );
-      for (final event in events) {
-        await handleNativeGeofenceEventSafely(event);
-      }
-    } catch (error, stack) {
-      await reportNearbyProximityMonitorError(
-        'processing queued native geofence events',
-        error,
-        stack,
-      );
-    }
-  }
-
-  // Registers the current nearby-alert list with iOS/Android geofencing.
-  // If there are no alerts, or Always location is unavailable, stale native
-  // registrations are cleared so old note regions cannot keep firing.
-  Future<void> syncOsGeofenceRegistrations() async {
-    try {
-      final nativeGeofences = ref.read(nativeGeofenceServiceProvider);
-      if (latestPlaces.isEmpty) {
-        await nativeGeofences.clearGeofences();
-        logNearbyDiagnostic(
-          'Cleared OS geofences because no alerts are active.',
-        );
-        return;
-      }
-      final permission = await Geolocator.checkPermission();
-      if (permission != LocationPermission.always) {
-        await nativeGeofences.clearGeofences();
-        logNearbyDiagnostic(
-          'Cleared OS geofences because Always permission is unavailable '
-          '(permission=${permission.name}).',
-        );
-        return;
-      }
-      await nativeGeofences.syncGeofences(latestPlaces);
-      logNearbyDiagnostic(
-        'Synced ${latestPlaces.where((place) => place.isActive).length} '
-        'active alert(s) with the OS geofence service.',
-      );
-      await processQueuedNativeGeofenceEvents();
-    } catch (error, stack) {
-      await reportNearbyProximityMonitorError(
-        'syncing OS geofence registrations',
-        error,
-        stack,
-      );
-    }
-  }
-
-  Future<void> syncNearbyAlertsForCurrentPosition() async {
-    try {
-      final position = latestPosition;
-      if (position == null || latestPlaces.isEmpty) return;
-
-      final repository = ref.read(placeRepositoryProvider);
-      for (final place in latestPlaces.where((p) => p.isActive)) {
-        final distanceMeters = Geolocator.distanceBetween(
-          position.latitude,
-          position.longitude,
-          place.latitude,
-          place.longitude,
-        );
-        final isInRange = distanceMeters <= place.radiusMeters;
-        final wasInRange = inRangePlaceIds.contains(place.placeId);
-        if (isInRange && !wasInRange) {
-          inRangePlaceIds.add(place.placeId);
-          logNearbyDiagnostic(
-            'Foreground position entered an alert radius '
-            '(distanceMeters=${distanceMeters.round()}, '
-            'radiusMeters=${place.radiusMeters}).',
-          );
-          await repository.markNearbyNotificationInRange(
-            placeId: place.placeId,
-            inRange: true,
-          );
-        } else if (!isInRange && wasInRange) {
-          inRangePlaceIds.remove(place.placeId);
-          logNearbyDiagnostic(
-            'Foreground position exited an alert radius '
-            '(distanceMeters=${distanceMeters.round()}, '
-            'radiusMeters=${place.radiusMeters}).',
-          );
-          await repository.markNearbyNotificationInRange(
-            placeId: place.placeId,
-            inRange: false,
-          );
-          continue;
-        }
-
-        if (!isInRange) continue;
-        await checkAndNotifyNearbyUnread(place.placeId);
-      }
-    } catch (error, stack) {
-      await reportNearbyProximityMonitorError(
-        'syncing nearby alerts for current position',
-        error,
-        stack,
-      );
-    }
-  }
-
-  Future<void> ensurePositionMonitoring() async {
-    if (positionSubscription != null || latestPlaces.isEmpty) return;
-    final permission = await Geolocator.checkPermission();
-    if (permission != LocationPermission.always) {
-      logNearbyDiagnostic(
-        'Foreground position monitoring not started '
-        '(permission=${permission.name}).',
-      );
-      return;
-    }
-    positionSubscription = ref
-        .read(locationServiceProvider)
-        .watchPosition()
-        .listen(
-          (position) {
-            latestPosition = position;
-            unawaited(syncNearbyAlertsForCurrentPosition());
-          },
-          onError: (Object error, StackTrace stack) {
-            unawaited(
-              reportNearbyProximityMonitorError(
-                'watching foreground position',
-                error,
-                stack,
-              ),
-            );
-          },
-        );
-    logNearbyDiagnostic('Foreground position monitoring started.');
-  }
-
-  Future<void> stopPositionMonitoringIfUnused() async {
-    if (latestPlaces.isNotEmpty) return;
-    await positionSubscription?.cancel();
-    positionSubscription = null;
-    latestPosition = null;
-    inRangePlaceIds.clear();
-    lastCheckedAt.clear();
-    logNearbyDiagnostic('Foreground position monitoring stopped.');
-  }
-
-  ref.listen<AsyncValue<List<NearbyNotificationPlace>>>(
-    nearbyNotificationPlacesProvider,
-    (_, next) {
-      next.whenData((places) {
-        latestPlaces = places;
-        logNearbyDiagnostic(
-          'Nearby alert list updated '
-          '(total=${places.length}, '
-          'active=${places.where((place) => place.isActive).length}).',
-        );
-        if (places.isEmpty) {
-          unawaited(stopPositionMonitoringIfUnused());
-        } else {
-          unawaited(ensurePositionMonitoring());
-          unawaited(syncNearbyAlertsForCurrentPosition());
-        }
-        unawaited(syncOsGeofenceRegistrations());
-      });
-    },
-  );
-  nativeGeofenceSubscription = ref
-      .read(nativeGeofenceServiceProvider)
-      .events
-      .listen((event) {
-        unawaited(handleNativeGeofenceEventSafely(event));
-      });
-  unawaited(processQueuedNativeGeofenceEvents());
-  ref.onDispose(() {
-    positionSubscription?.cancel();
-    nativeGeofenceSubscription?.cancel();
-  });
-});
-
 // --- Location ---
 
 /// Live position stream. [ref.keepAlive] prevents the stream from being torn
@@ -511,6 +203,33 @@ final nearbyProximityMonitorProvider = Provider<void>((ref) {
 final positionStreamProvider = StreamProvider<Position>((ref) {
   ref.keepAlive();
   return ref.watch(locationServiceProvider).watchPosition();
+});
+
+final _nearbySharedPositionProvider = Provider<AsyncValue<Position>?>((ref) {
+  final places = ref.watch(nearbyNotificationPlacesProvider).valueOrNull;
+  if (places == null || places.isEmpty) return null;
+  return ref.watch(positionStreamProvider);
+});
+
+final nearbyProximityMonitorProvider = Provider<void>((ref) {
+  ref.keepAlive();
+  final monitor = NearbyProximityMonitor(
+    crashlytics: ref.read(firebaseCrashlyticsProvider),
+    placeRepository: ref.read(placeRepositoryProvider),
+    nativeGeofenceService: ref.read(nativeGeofenceServiceProvider),
+    nearbyNotificationService: ref.read(nearbyNotificationServiceProvider),
+  )..start();
+
+  ref.listen<AsyncValue<List<NearbyNotificationPlace>>>(
+    nearbyNotificationPlacesProvider,
+    (_, next) {
+      next.whenData(monitor.updatePlaces);
+    },
+  );
+  ref.listen<AsyncValue<Position>?>(_nearbySharedPositionProvider, (_, next) {
+    next?.whenData(monitor.updatePosition);
+  });
+  ref.onDispose(monitor.dispose);
 });
 
 /// Anchor position used as the centre of the map's notes-query window.

@@ -1,4 +1,6 @@
 class AppConfig {
+  static const String appName = 'World Notes';
+
   static const stadiaApiKey = String.fromEnvironment(
     'STADIA_API_KEY',
     defaultValue: '',

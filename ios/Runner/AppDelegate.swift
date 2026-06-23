@@ -180,6 +180,13 @@ final class NotificationLaunchManager {
 }
 
 final class NativeGeofenceManager: NSObject, CLLocationManagerDelegate {
+  private struct GeofenceSpec {
+    let placeId: String
+    let latitude: Double
+    let longitude: Double
+    let radiusMeters: Double
+  }
+
   static let shared = NativeGeofenceManager()
 
   private static let channelName = "world_notes/geofence"
@@ -248,8 +255,8 @@ final class NativeGeofenceManager: NSObject, CLLocationManagerDelegate {
       return
     }
 
-    clearGeofences()
-    var submitted = 0
+    let maximumRadius = locationManager.maximumRegionMonitoringDistance
+    var requested: [String: GeofenceSpec] = [:]
     for geofence in geofences {
       guard
         let placeId = geofence["placeId"] as? String,
@@ -262,25 +269,69 @@ final class NativeGeofenceManager: NSObject, CLLocationManagerDelegate {
         continue
       }
 
-      let maximumRadius = locationManager.maximumRegionMonitoringDistance
-      let latitude = latitudeValue.doubleValue
-      let longitude = longitudeValue.doubleValue
       let radiusMeters = radiusValue.doubleValue
       let radius = maximumRadius > 0 ? min(radiusMeters, maximumRadius) : radiusMeters
-      let center = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+      requested[placeId] = GeofenceSpec(
+        placeId: placeId,
+        latitude: latitudeValue.doubleValue,
+        longitude: longitudeValue.doubleValue,
+        radiusMeters: radius
+      )
+    }
+
+    let existing = locationManager.monitoredRegions.compactMap { region -> CLCircularRegion? in
+      guard
+        region.identifier.hasPrefix(Self.identifierPrefix),
+        let circularRegion = region as? CLCircularRegion
+      else {
+        return nil
+      }
+      return circularRegion
+    }
+    var unchangedPlaceIds = Set<String>()
+    var removed = 0
+    for region in existing {
+      let placeId = String(region.identifier.dropFirst(Self.identifierPrefix.count))
+      if let spec = requested[placeId], matches(region: region, spec: spec) {
+        unchangedPlaceIds.insert(placeId)
+      } else {
+        locationManager.stopMonitoring(for: region)
+        removed += 1
+      }
+    }
+
+    var added = 0
+    for spec in requested.values where !unchangedPlaceIds.contains(spec.placeId) {
+      let center = CLLocationCoordinate2D(
+        latitude: spec.latitude,
+        longitude: spec.longitude
+      )
       let region = CLCircularRegion(
         center: center,
-        radius: radius,
-        identifier: Self.identifierPrefix + placeId
+        radius: spec.radiusMeters,
+        identifier: Self.identifierPrefix + spec.placeId
       )
       region.notifyOnEntry = true
       region.notifyOnExit = true
       locationManager.startMonitoring(for: region)
       locationManager.requestState(for: region)
-      submitted += 1
+      added += 1
     }
-    log("Submitted \(submitted) monitored region(s).")
+    log(
+      "Applied geofence diff: unchanged=\(unchangedPlaceIds.count), " +
+        "removed=\(removed), added=\(added)."
+    )
     result(nil)
+  }
+
+  private func matches(region: CLCircularRegion, spec: GeofenceSpec) -> Bool {
+    let coordinateTolerance = 0.0000001
+    let radiusToleranceMeters = 0.1
+    return abs(region.center.latitude - spec.latitude) <= coordinateTolerance &&
+      abs(region.center.longitude - spec.longitude) <= coordinateTolerance &&
+      abs(region.radius - spec.radiusMeters) <= radiusToleranceMeters &&
+      region.notifyOnEntry &&
+      region.notifyOnExit
   }
 
   private func clearGeofences() {

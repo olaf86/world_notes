@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/foundation.dart';
 
+import '../config/app_config.dart';
 import '../domain/entities/nearby_notification_entity.dart';
 
 class NearbyNotificationService {
@@ -111,7 +112,7 @@ class NearbyNotificationService {
     );
     await _notifications.show(
       id: placeId.hashCode,
-      title: 'World Notes',
+      title: AppConfig.appName,
       body: '$title has new messages nearby.',
       notificationDetails: details,
       payload: placeId,

@@ -24,6 +24,10 @@ import org.json.JSONObject
 class MainActivity : FlutterActivity() {
     private lateinit var geofencingClient: GeofencingClient
 
+    // Android does not expose the currently registered geofences. Reconcile
+    // persisted IDs once after this process starts, then apply only diffs.
+    private var didPerformInitialGeofenceReconciliation = false
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         geofencingClient = LocationServices.getGeofencingClient(this)
@@ -77,38 +81,66 @@ class MainActivity : FlutterActivity() {
             return
         }
 
-        val geofences = rawGeofences.mapNotNull { raw ->
+        val requestedGeofences = rawGeofences.mapNotNull { raw ->
             val item = raw as? Map<*, *> ?: return@mapNotNull null
             val placeId = item["placeId"] as? String ?: return@mapNotNull null
             val latitude = item["latitude"] as? Double ?: return@mapNotNull null
             val longitude = item["longitude"] as? Double ?: return@mapNotNull null
             val radiusMeters = (item["radiusMeters"] as? Number)?.toFloat() ?: return@mapNotNull null
             if (placeId.isBlank() || radiusMeters <= 0f) return@mapNotNull null
-            Geofence.Builder()
-                .setRequestId(placeId)
-                .setCircularRegion(latitude, longitude, radiusMeters)
-                .setTransitionTypes(
-                    Geofence.GEOFENCE_TRANSITION_ENTER or Geofence.GEOFENCE_TRANSITION_EXIT,
-                )
-                .setExpirationDuration(Geofence.NEVER_EXPIRE)
-                .build()
+            GeofenceSpec(placeId, latitude, longitude, radiusMeters)
+        }.associateBy { it.placeId }
+
+        val preferences = getPreferences(this)
+        val registeredGeofences = readRegisteredGeofences(this)
+        val legacyRegisteredIds =
+            preferences.getStringSet(KEY_REGISTERED_IDS, emptySet())?.toSet().orEmpty()
+        val registeredIds = registeredGeofences.keys + legacyRegisteredIds
+        val idsToRemove = if (!didPerformInitialGeofenceReconciliation) {
+            registeredIds
+        } else {
+            registeredIds.filterTo(mutableSetOf()) { placeId ->
+                requestedGeofences[placeId] != registeredGeofences[placeId]
+            }
+        }
+        val geofencesToAdd = if (!didPerformInitialGeofenceReconciliation) {
+            requestedGeofences.values.toList()
+        } else {
+            requestedGeofences.values.filter { spec ->
+                registeredGeofences[spec.placeId] != spec
+            }
         }
 
-        clearGeofences {
-            if (geofences.isEmpty()) {
-                Log.i(LOG_TAG, "No valid geofences to register.")
+        if (idsToRemove.isEmpty() && geofencesToAdd.isEmpty()) {
+            didPerformInitialGeofenceReconciliation = true
+            Log.i(LOG_TAG, "Geofence configuration is unchanged.")
+            result.success(null)
+            return
+        }
+
+        removeGeofences(idsToRemove) {
+            if (geofencesToAdd.isEmpty()) {
+                writeRegisteredGeofences(this, requestedGeofences.values)
+                didPerformInitialGeofenceReconciliation = true
+                Log.i(LOG_TAG, "Removed ${idsToRemove.size} stale geofence(s).")
                 result.success(null)
-                return@clearGeofences
+                return@removeGeofences
             }
+
+            val geofences = geofencesToAdd.map { it.toGeofence() }
             val request = GeofencingRequest.Builder()
                 .setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER)
                 .addGeofences(geofences)
                 .build()
             geofencingClient.addGeofences(request, geofencePendingIntent(this))
                 .addOnSuccessListener {
-                    val ids = geofences.map { it.requestId }.toSet()
-                    getPreferences(this).edit().putStringSet(KEY_REGISTERED_IDS, ids).apply()
-                    Log.i(LOG_TAG, "Registered ${ids.size} geofence(s).")
+                    writeRegisteredGeofences(this, requestedGeofences.values)
+                    didPerformInitialGeofenceReconciliation = true
+                    Log.i(
+                        LOG_TAG,
+                        "Applied geofence diff: removed=${idsToRemove.size}, " +
+                            "added=${geofencesToAdd.size}.",
+                    )
                     result.success(null)
                 }
                 .addOnFailureListener { error ->
@@ -119,16 +151,31 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun clearGeofences(onComplete: () -> Unit) {
-        val ids = getPreferences(this).getStringSet(KEY_REGISTERED_IDS, emptySet())?.toSet()
-            ?: emptySet()
+        val preferences = getPreferences(this)
+        val ids =
+            readRegisteredGeofences(this).keys +
+                preferences.getStringSet(KEY_REGISTERED_IDS, emptySet())?.toSet().orEmpty()
         if (ids.isEmpty()) {
             Log.i(LOG_TAG, "No registered geofences to clear.")
+            clearRegisteredGeofences(this)
+            didPerformInitialGeofenceReconciliation = true
+            onComplete()
+            return
+        }
+        removeGeofences(ids) {
+            clearRegisteredGeofences(this)
+            didPerformInitialGeofenceReconciliation = true
+            Log.i(LOG_TAG, "Cleared ${ids.size} geofence(s).")
+            onComplete()
+        }
+    }
+
+    private fun removeGeofences(ids: Collection<String>, onComplete: () -> Unit) {
+        if (ids.isEmpty()) {
             onComplete()
             return
         }
         geofencingClient.removeGeofences(ids.toList()).addOnCompleteListener {
-            getPreferences(this).edit().remove(KEY_REGISTERED_IDS).apply()
-            Log.i(LOG_TAG, "Cleared ${ids.size} geofence(s).")
             onComplete()
         }
     }
@@ -197,7 +244,25 @@ private const val CHANNEL_NAME = "world_notes/geofence"
 private const val LOG_TAG = "NearbyGeofence"
 private const val PREFS_NAME = "world_notes_geofences"
 private const val KEY_REGISTERED_IDS = "registered_geofence_ids"
+private const val KEY_REGISTERED_GEOFENCES = "registered_geofences"
 private const val KEY_PENDING_EVENTS = "pending_geofence_events"
+
+private data class GeofenceSpec(
+    val placeId: String,
+    val latitude: Double,
+    val longitude: Double,
+    val radiusMeters: Float,
+) {
+    fun toGeofence(): Geofence =
+        Geofence.Builder()
+            .setRequestId(placeId)
+            .setCircularRegion(latitude, longitude, radiusMeters)
+            .setTransitionTypes(
+                Geofence.GEOFENCE_TRANSITION_ENTER or Geofence.GEOFENCE_TRANSITION_EXIT,
+            )
+            .setExpirationDuration(Geofence.NEVER_EXPIRE)
+            .build()
+}
 
 private fun geofencePendingIntent(context: Context): PendingIntent {
     val intent = Intent(context, GeofenceBroadcastReceiver::class.java)
@@ -216,6 +281,64 @@ private fun geofencePendingIntent(context: Context): PendingIntent {
 
 private fun getPreferences(context: Context) =
     context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+private fun readRegisteredGeofences(context: Context): Map<String, GeofenceSpec> {
+    val raw = getPreferences(context).getString(KEY_REGISTERED_GEOFENCES, "[]")
+    val array = JSONArray(raw)
+    val result = mutableMapOf<String, GeofenceSpec>()
+    for (index in 0 until array.length()) {
+        val item = array.optJSONObject(index) ?: continue
+        val placeId = item.optString("placeId")
+        val latitude = item.optDouble("latitude", Double.NaN)
+        val longitude = item.optDouble("longitude", Double.NaN)
+        val radiusMeters = item.optDouble("radiusMeters", Double.NaN)
+        if (
+            placeId.isBlank() ||
+            latitude.isNaN() ||
+            longitude.isNaN() ||
+            radiusMeters.isNaN() ||
+            radiusMeters <= 0
+        ) {
+            continue
+        }
+        result[placeId] = GeofenceSpec(
+            placeId = placeId,
+            latitude = latitude,
+            longitude = longitude,
+            radiusMeters = radiusMeters.toFloat(),
+        )
+    }
+    return result
+}
+
+private fun writeRegisteredGeofences(
+    context: Context,
+    geofences: Collection<GeofenceSpec>,
+) {
+    val array = JSONArray()
+    geofences.sortedBy { it.placeId }.forEach { spec ->
+        array.put(
+            JSONObject()
+                .put("placeId", spec.placeId)
+                .put("latitude", spec.latitude)
+                .put("longitude", spec.longitude)
+                .put("radiusMeters", spec.radiusMeters.toDouble()),
+        )
+    }
+    getPreferences(context)
+        .edit()
+        .putString(KEY_REGISTERED_GEOFENCES, array.toString())
+        .putStringSet(KEY_REGISTERED_IDS, geofences.mapTo(mutableSetOf()) { it.placeId })
+        .apply()
+}
+
+private fun clearRegisteredGeofences(context: Context) {
+    getPreferences(context)
+        .edit()
+        .remove(KEY_REGISTERED_GEOFENCES)
+        .remove(KEY_REGISTERED_IDS)
+        .apply()
+}
 
 private fun appendPendingEvent(context: Context, payload: Map<String, Any>) {
     val preferences = getPreferences(context)

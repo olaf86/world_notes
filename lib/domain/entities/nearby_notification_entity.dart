@@ -26,7 +26,7 @@ class NearbyNotificationPlace {
   /// notification radius.
   final bool inRange;
 
-  /// Server-side expiry for the in-range presence. While this is in the
+  /// Server-side expiry for the reported in-range state. While this is in the
   /// future, new messages can trigger nearby FCM without waiting for another
   /// geofence enter event. It also prevents stale "inside the area" state when
   /// an exit event is missed.
