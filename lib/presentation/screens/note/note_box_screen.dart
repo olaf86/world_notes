@@ -804,7 +804,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                         tooltip: 'Go PRO',
                         onPressed: () => context.push('/subscription'),
                       ),
-                    if (place != null && !isOwner && !widget.readOnly)
+                    if (!isOwner && !widget.readOnly)
                       IconButton(
                         icon:
                             _nearbyNotificationBusy ||
@@ -908,7 +908,6 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                     if (!place.canAcceptMessagesAt(now))
                       _ThreadStatusBanner(place: place, now: now),
                     StaticNoteMiniMap(place: place),
-                    if (place != null) StaticNoteMiniMap(place: place),
                     Expanded(
                       child: messagesAsync.when(
                         loading: () =>
