@@ -8,22 +8,27 @@ import 'package:geolocator/geolocator.dart';
 import '../config/app_config.dart';
 import '../domain/entities/nearby_notification_entity.dart';
 import '../domain/repositories/place_repository.dart';
+import 'in_range_state_synchronizer.dart';
 import 'native_geofence_service.dart';
 import 'nearby_notification_service.dart';
 
 /// Coordinates foreground proximity checks and background OS geofences for
 /// notes whose nearby alerts are enabled.
 ///
-/// [_inRangePlaceIds] tracks notes for which this device has reported an active
-/// "inside the notification radius" state to the server. The server uses that
-/// short-lived state to decide whether a new message should trigger an alert.
+/// The in-range synchronizer tracks states reported by this process. The server
+/// uses that short-lived state to decide whether a new message should trigger
+/// an alert.
 class NearbyProximityMonitor {
   final FirebaseCrashlytics crashlytics;
   final PlaceRepository placeRepository;
   final NativeGeofenceService nativeGeofenceService;
   final NearbyNotificationService nearbyNotificationService;
 
-  final Set<String> _inRangePlaceIds = {};
+  late final InRangeStateSynchronizer _inRangeStateSynchronizer =
+      InRangeStateSynchronizer(
+        ({required placeId, required inRange}) => placeRepository
+            .markNearbyNotificationInRange(placeId: placeId, inRange: inRange),
+      );
   final Map<String, DateTime> _lastCheckedAt = {};
 
   Position? _latestPosition;
@@ -155,19 +160,25 @@ class NearbyProximityMonitor {
     }
     switch (event.transition) {
       case NativeGeofenceTransition.enter:
-        _inRangePlaceIds.add(event.placeId);
-        await placeRepository.markNearbyNotificationInRange(
+        final changed = await _inRangeStateSynchronizer.setState(
           placeId: event.placeId,
           inRange: true,
         );
+        if (!changed) {
+          _logDiagnostic('Duplicate native enter event ignored.');
+          return;
+        }
         _logDiagnostic('Native enter state synced to the server.');
         await _checkAndNotifyNearbyUnread(event.placeId);
       case NativeGeofenceTransition.exit:
-        _inRangePlaceIds.remove(event.placeId);
-        await placeRepository.markNearbyNotificationInRange(
+        final changed = await _inRangeStateSynchronizer.setState(
           placeId: event.placeId,
           inRange: false,
         );
+        if (!changed) {
+          _logDiagnostic('Duplicate native exit event ignored.');
+          return;
+        }
         _logDiagnostic('Native exit state synced to the server.');
     }
   }
@@ -284,28 +295,24 @@ class NearbyProximityMonitor {
           place.longitude,
         );
         final isInRange = distanceMeters <= place.radiusMeters;
-        final wasInRange = _inRangePlaceIds.contains(place.placeId);
-        if (isInRange && !wasInRange) {
-          _inRangePlaceIds.add(place.placeId);
+        final changed = await _inRangeStateSynchronizer.setState(
+          placeId: place.placeId,
+          inRange: isInRange,
+          // An unknown initial state outside the radius does not need a
+          // server write. Native exits remain authoritative and are written.
+          assumeIfUnknown: !isInRange,
+        );
+        if (changed && isInRange) {
           _logDiagnostic(
             'Foreground position entered an alert radius '
             '(distanceMeters=${distanceMeters.round()}, '
             'radiusMeters=${place.radiusMeters}).',
           );
-          await placeRepository.markNearbyNotificationInRange(
-            placeId: place.placeId,
-            inRange: true,
-          );
-        } else if (!isInRange && wasInRange) {
-          _inRangePlaceIds.remove(place.placeId);
+        } else if (changed) {
           _logDiagnostic(
             'Foreground position exited an alert radius '
             '(distanceMeters=${distanceMeters.round()}, '
             'radiusMeters=${place.radiusMeters}).',
-          );
-          await placeRepository.markNearbyNotificationInRange(
-            placeId: place.placeId,
-            inRange: false,
           );
           continue;
         }
@@ -329,18 +336,22 @@ class NearbyProximityMonitor {
     _latestPosition = null;
 
     final reportedInRangePlaceIds = {
-      ..._inRangePlaceIds,
+      ..._inRangeStateSynchronizer.inRangePlaceIds,
       ..._latestPlaces
           .where((place) => place.inRange)
           .map((place) => place.placeId),
     };
     if (clearInRangeState && reportedInRangePlaceIds.isNotEmpty) {
-      _inRangePlaceIds.clear();
       for (final placeId in reportedInRangePlaceIds) {
         try {
-          await placeRepository.markNearbyNotificationInRange(
+          await _inRangeStateSynchronizer.setState(
             placeId: placeId,
             inRange: false,
+            // The Firestore snapshot may know about an in-range state that
+            // predates this process's local synchronizer.
+            confirmIfAssumed: _latestPlaces.any(
+              (place) => place.placeId == placeId && place.inRange,
+            ),
           );
         } catch (error, stack) {
           await _reportError(
@@ -350,9 +361,8 @@ class NearbyProximityMonitor {
           );
         }
       }
-    } else {
-      _inRangePlaceIds.clear();
     }
+    _inRangeStateSynchronizer.forgetAll();
     _logDiagnostic('Foreground position state cleared.');
   }
 
