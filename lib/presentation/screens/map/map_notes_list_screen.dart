@@ -1,7 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/time_format.dart';
 import '../../../core/utils/place_icon.dart';
@@ -9,6 +11,7 @@ import '../../../domain/entities/pin_summary_entity.dart';
 import '../../../services/location_service.dart';
 import '../../providers/providers.dart';
 import '../../widgets/note/note_list_card.dart';
+import 'map_notes_error_messages.dart';
 
 class MapNotesListScreen extends ConsumerWidget {
   final bool embedded;
@@ -77,15 +80,27 @@ class _PinList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final pinsAsync = ref.watch(
-      mapPinsProvider(
-        MapPinsRequest(
-          center: center,
-          user: latLng(userLatitude, userLongitude),
-          radiusKm: radiusKm,
-        ),
-      ),
+    final request = MapPinsRequest(
+      center: center,
+      user: latLng(userLatitude, userLongitude),
+      radiusKm: radiusKm,
     );
+    final provider = mapPinsProvider(request);
+    ref.listen<AsyncValue<List<PinSummary>>>(provider, (_, next) {
+      if (!next.hasError || next.isLoading) return;
+      final error = next.error;
+      final stack = next.stackTrace;
+      if (error == null || stack == null) return;
+      unawaited(
+        reportMapNotesError(
+          crashlytics: ref.read(firebaseCrashlyticsProvider),
+          operation: 'load list pins',
+          error: error,
+          stack: stack,
+        ),
+      );
+    });
+    final pinsAsync = ref.watch(provider);
 
     return RefreshIndicator(
       onRefresh: onRefresh,
@@ -94,7 +109,7 @@ class _PinList extends ConsumerWidget {
           child: Center(child: CircularProgressIndicator()),
         ),
         error: (e, _) =>
-            _ScrollableStatusView(child: Center(child: Text('Error: $e'))),
+            const _ScrollableStatusView(child: _MapNotesLoadErrorView()),
         data: (pins) {
           if (pins.isEmpty) {
             return _ScrollableStatusView(
@@ -267,16 +282,47 @@ class _MapNoteTile extends StatelessWidget {
             latitude: userLatitude,
             longitude: userLongitude,
           );
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Move closer to open this note: $e')),
+    } catch (error, stack) {
+      await reportMapNotesError(
+        crashlytics: container.read(firebaseCrashlyticsProvider),
+        operation: 'open list pin',
+        error: error,
+        stack: stack,
       );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text(mapNoteOpenErrorMessage)));
       return;
     }
     if (!context.mounted) return;
     context.push(
       '/note/${pin.placeId}?title=${Uri.encodeComponent(pin.title)}',
+    );
+  }
+}
+
+class _MapNotesLoadErrorView extends StatelessWidget {
+  const _MapNotesLoadErrorView();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
+          const SizedBox(height: 12),
+          Text(
+            mapNotesLoadErrorMessage,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

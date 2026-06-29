@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/providers.dart';
+import 'map_notes_error_messages.dart';
 import 'map_notes_list_screen.dart';
 import 'map_screen.dart';
 
@@ -88,11 +89,15 @@ class _MapNotesList extends ConsumerWidget {
       ref.invalidate(provider);
       try {
         await ref.read(provider.future);
-      } catch (e) {
+      } catch (error, stack) {
+        await reportMapNotesError(
+          crashlytics: ref.read(firebaseCrashlyticsProvider),
+          operation: 'refresh list pins',
+          error: error,
+          stack: stack,
+        );
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Could not refresh map notes: $e')),
-          );
+          showMapNotesRefreshErrorSnackBar(context);
         }
       }
     }

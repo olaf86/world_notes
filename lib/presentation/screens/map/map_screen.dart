@@ -13,6 +13,7 @@ import '../../providers/providers.dart';
 import '../../widgets/map/location_checking_view.dart';
 import '../../widgets/map/location_permission_view.dart';
 import '../../widgets/map/note_marker_bottom_sheet.dart';
+import 'map_notes_error_messages.dart';
 import 'note_map_adapter.dart';
 import 'note_map_adapter_factory.dart';
 
@@ -102,11 +103,17 @@ class _MapScreenState extends ConsumerState<MapScreen>
             latitude: anchor.latitude,
             longitude: anchor.longitude,
           );
-    } catch (e) {
-      if (!mounted) return false;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Move closer to open this note: $e')),
+    } catch (error, stack) {
+      await reportMapNotesError(
+        crashlytics: ref.read(firebaseCrashlyticsProvider),
+        operation: 'open map pin',
+        error: error,
+        stack: stack,
       );
+      if (!mounted) return false;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text(mapNoteOpenErrorMessage)));
       return false;
     }
 
@@ -118,11 +125,17 @@ class _MapScreenState extends ConsumerState<MapScreen>
         ),
       );
       return true;
-    } catch (e) {
+    } catch (error, stack) {
+      await reportMapNotesError(
+        crashlytics: ref.read(firebaseCrashlyticsProvider),
+        operation: 'navigate map pin',
+        error: error,
+        stack: stack,
+      );
       if (!mounted) return false;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Could not open this note: $e')));
+      ).showSnackBar(const SnackBar(content: Text(mapNoteOpenErrorMessage)));
       return false;
     }
   }
@@ -198,11 +211,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
     ref.invalidate(provider);
     try {
       await ref.read(provider.future);
-    } catch (e) {
+    } catch (error, stack) {
+      await reportMapNotesError(
+        crashlytics: ref.read(firebaseCrashlyticsProvider),
+        operation: 'refresh map pins',
+        error: error,
+        stack: stack,
+      );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not refresh map notes: $e')),
-        );
+        showMapNotesRefreshErrorSnackBar(context);
       }
     } finally {
       if (mounted) setState(() => _refreshingMapNotes = false);
