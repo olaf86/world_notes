@@ -110,6 +110,7 @@ final class NotificationLaunchManager {
 
   private static let channelName = "world_notes/notification_launch"
   private static let launchPlaceIdKey = "world_notes.notification_launch_place_id"
+  private static let launchReadOnlyKey = "world_notes.notification_launch_read_only"
   private static let supportedTypes: Set<String> = [
     "my_note_message",
     "nearby_note_message",
@@ -149,27 +150,39 @@ final class NotificationLaunchManager {
       debugLog("Ignoring notification launch payload without supported type/placeId.")
       return
     }
-    debugLog("Captured notification launch placeId: \(placeId)")
+    let readOnly = type == "my_note_message"
+    let arguments: [String: Any] = [
+      "placeId": placeId,
+      "readOnly": readOnly,
+    ]
+    debugLog("Captured notification launch placeId: \(placeId), readOnly: \(readOnly)")
     if let channel, isDartReady {
       debugLog("Sending notification launch placeId to Dart: \(placeId)")
-      channel.invokeMethod("notificationLaunchPlaceId", arguments: placeId)
+      channel.invokeMethod("notificationLaunchPlaceId", arguments: arguments)
     } else {
       debugLog("Saving notification launch placeId until Dart is ready: \(placeId)")
       UserDefaults.standard.set(placeId, forKey: Self.launchPlaceIdKey)
+      UserDefaults.standard.set(readOnly, forKey: Self.launchReadOnlyKey)
     }
   }
 
-  private func takeLaunchPlaceId() -> String? {
+  private func takeLaunchPlaceId() -> [String: Any]? {
     isDartReady = true
     let defaults = UserDefaults.standard
     let placeId = defaults.string(forKey: Self.launchPlaceIdKey)
+    let readOnly = defaults.bool(forKey: Self.launchReadOnlyKey)
     defaults.removeObject(forKey: Self.launchPlaceIdKey)
+    defaults.removeObject(forKey: Self.launchReadOnlyKey)
     if let placeId {
       debugLog("Dart took notification launch placeId: \(placeId)")
+      return [
+        "placeId": placeId,
+        "readOnly": readOnly,
+      ]
     } else {
       debugLog("No notification launch placeId to take.")
+      return nil
     }
-    return placeId
   }
 
   private func debugLog(_ message: @autoclosure () -> String) {

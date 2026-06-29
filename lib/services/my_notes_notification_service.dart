@@ -7,6 +7,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import '../config/notification_navigation.dart';
+
 enum ApnsRegistrationState { unknown, pending, succeeded, failed }
 
 class ApnsRegistrationDiagnostic {
@@ -33,8 +35,9 @@ class MyNotesNotificationService {
 
   StreamSubscription<String>? _tokenRefreshSubscription;
   StreamSubscription<User?>? _authStateSubscription;
-  StreamSubscription<String>? _messageOpenSubscription;
-  final _openedPlaceIds = StreamController<String>.broadcast();
+  StreamSubscription<NotificationPlaceRoute>? _messageOpenSubscription;
+  final _openedPlaceRoutes =
+      StreamController<NotificationPlaceRoute>.broadcast();
 
   MyNotesNotificationService({
     required FirebaseMessaging messaging,
@@ -131,15 +134,15 @@ class MyNotesNotificationService {
     });
   }
 
-  Future<String?> initialPlaceIdFromLaunch() async {
+  Future<NotificationPlaceRoute?> initialPlaceRouteFromLaunch() async {
     final message = await _messaging.getInitialMessage();
-    final placeId = placeIdFromMessage(message);
-    if (placeId != null && placeId.isNotEmpty) return placeId;
-    return _initialPlaceIdFromNativeLaunch();
+    final route = placeRouteFromMessage(message);
+    if (route != null) return route;
+    return _initialPlaceRouteFromNativeLaunch();
   }
 
-  Stream<String> get openedPlaceIds {
-    return _openedPlaceIds.stream;
+  Stream<NotificationPlaceRoute> get openedPlaceRoutes {
+    return _openedPlaceRoutes.stream;
   }
 
   Future<ApnsRegistrationDiagnostic> apnsRegistrationDiagnostic() async {
@@ -177,7 +180,7 @@ class MyNotesNotificationService {
     await _tokenRefreshSubscription?.cancel();
     await _messageOpenSubscription?.cancel();
     _nativeLaunchChannel.setMethodCallHandler(null);
-    await _openedPlaceIds.close();
+    await _openedPlaceRoutes.close();
   }
 
   Future<void> _registerCurrentTokenInBackground(String reason) async {
@@ -289,13 +292,13 @@ class MyNotesNotificationService {
     }
   }
 
-  Future<String?> _initialPlaceIdFromNativeLaunch() async {
+  Future<NotificationPlaceRoute?> _initialPlaceRouteFromNativeLaunch() async {
     if (defaultTargetPlatform != TargetPlatform.iOS) return null;
     try {
-      final placeId = await _nativeLaunchChannel.invokeMethod<String>(
+      final payload = await _nativeLaunchChannel.invokeMethod<dynamic>(
         'takeInitialPlaceId',
       );
-      return placeId != null && placeId.isNotEmpty ? placeId : null;
+      return placeRouteFromNativeLaunch(payload);
     } on MissingPluginException {
       return null;
     }
@@ -303,30 +306,63 @@ class MyNotesNotificationService {
 
   void _startNotificationOpenHandling() {
     _messageOpenSubscription ??= FirebaseMessaging.onMessageOpenedApp
-        .map(placeIdFromMessage)
-        .where((placeId) => placeId != null && placeId.isNotEmpty)
-        .cast<String>()
-        .listen(_openedPlaceIds.add);
+        .map(placeRouteFromMessage)
+        .where((route) => route != null)
+        .cast<NotificationPlaceRoute>()
+        .listen(_openedPlaceRoutes.add);
 
     if (defaultTargetPlatform != TargetPlatform.iOS) return;
     _nativeLaunchChannel.setMethodCallHandler((call) async {
       if (call.method != 'notificationLaunchPlaceId') return null;
-      final placeId = call.arguments;
-      if (placeId is String && placeId.isNotEmpty) {
-        debugPrint('Opened notification launch placeId from iOS: $placeId');
-        _openedPlaceIds.add(placeId);
+      final route = placeRouteFromNativeLaunch(call.arguments);
+      if (route != null) {
+        debugPrint(
+          'Opened notification launch placeId from iOS: '
+          '${route.placeId} (readOnly=${route.readOnly})',
+        );
+        _openedPlaceRoutes.add(route);
       }
       return null;
     });
   }
 
-  static String? placeIdFromMessage(RemoteMessage? message) {
-    final type = message?.data['type'];
-    if (type != 'my_note_message' && type != 'nearby_note_message') {
-      return null;
+  static NotificationPlaceRoute? placeRouteFromMessage(RemoteMessage? message) {
+    return placeRouteFromMessageData(message?.data);
+  }
+
+  static NotificationPlaceRoute? placeRouteFromMessageData(
+    Map<String, dynamic>? data,
+  ) {
+    final type = data?['type'];
+    final placeId = data?['placeId'];
+    if (placeId is! String || placeId.isEmpty) return null;
+
+    return switch (type) {
+      'my_note_message' => NotificationPlaceRoute(
+        placeId: placeId,
+        readOnly: true,
+      ),
+      'nearby_note_message' => NotificationPlaceRoute(placeId: placeId),
+      _ => null,
+    };
+  }
+
+  static NotificationPlaceRoute? placeRouteFromNativeLaunch(dynamic payload) {
+    if (payload is String && payload.isNotEmpty) {
+      return NotificationPlaceRoute(placeId: payload, readOnly: true);
     }
-    final placeId = message?.data['placeId'];
-    return placeId is String && placeId.isNotEmpty ? placeId : null;
+    if (payload is! Map) return null;
+
+    final placeId = payload['placeId'];
+    if (placeId is! String || placeId.isEmpty) return null;
+    return NotificationPlaceRoute(
+      placeId: placeId,
+      readOnly: payload['readOnly'] == true,
+    );
+  }
+
+  static String? placeIdFromMessage(RemoteMessage? message) {
+    return placeRouteFromMessage(message)?.placeId;
   }
 
   static bool _isGranted(AuthorizationStatus status) {
