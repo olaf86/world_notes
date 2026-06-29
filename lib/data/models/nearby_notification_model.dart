@@ -6,6 +6,8 @@ import '../../domain/entities/nearby_notification_entity.dart';
 class NearbyNotificationModel {
   final String placeId;
   final String title;
+  final String colorHex;
+  final String icon;
   final double latitude;
   final double longitude;
   final int radiusMeters;
@@ -21,6 +23,8 @@ class NearbyNotificationModel {
   const NearbyNotificationModel({
     required this.placeId,
     required this.title,
+    required this.colorHex,
+    required this.icon,
     required this.latitude,
     required this.longitude,
     required this.radiusMeters,
@@ -39,6 +43,8 @@ class NearbyNotificationModel {
     return NearbyNotificationModel(
       placeId: data['placeId'] as String? ?? doc.id,
       title: data['title'] as String? ?? 'Untitled note',
+      colorHex: data['colorHex'] as String,
+      icon: data['icon'] as String,
       latitude: (data['latitude'] as num?)?.toDouble() ?? 0,
       longitude: (data['longitude'] as num?)?.toDouble() ?? 0,
       radiusMeters:
@@ -61,6 +67,8 @@ class NearbyNotificationModel {
   NearbyNotificationPlace toEntity() => NearbyNotificationPlace(
     placeId: placeId,
     title: title,
+    colorHex: colorHex,
+    icon: icon,
     latitude: latitude,
     longitude: longitude,
     radiusMeters: radiusMeters,

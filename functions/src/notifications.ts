@@ -148,6 +148,8 @@ function notificationPlaceData(
   return {
     placeId: placeSnap.id,
     title: placeSnap.get("title") as string,
+    colorHex: placeSnap.get("colorHex") as string,
+    icon: placeSnap.get("icon") as string,
     latitude: placeSnap.get("latitude") as number,
     longitude: placeSnap.get("longitude") as number,
     radiusMeters: Math.round(NOTE_DETAIL_ACCESS_RADIUS_KM * 1000),

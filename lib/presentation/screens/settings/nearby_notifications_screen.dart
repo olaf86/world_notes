@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../config/app_config.dart';
+import '../../../core/utils/place_icon.dart';
 import '../../../domain/entities/nearby_notification_entity.dart';
 import '../../providers/providers.dart';
 import '../../widgets/note/note_list_card.dart';
@@ -27,9 +28,8 @@ class NearbyNotificationsView extends ConsumerWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'These alerts are only for notes you do not own. You will be '
-            'notified when a followed note has new messages and you are '
-            'within the note access range.',
+            'You will be notified when a followed note has new messages and '
+            'you are within the note access range.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
@@ -94,11 +94,18 @@ class _NearbyAlertCardState extends ConsumerState<_NearbyAlertCard> {
   bool _busy = false;
 
   Future<void> _disable() async {
+    final confirmed = await _confirmDisable();
+    if (confirmed != true || !mounted) return;
+
     setState(() => _busy = true);
     try {
       await ref
           .read(placeRepositoryProvider)
           .setNearbyNotification(placeId: widget.alert.placeId, enabled: false);
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Nearby alert turned off.')));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -109,27 +116,45 @@ class _NearbyAlertCardState extends ConsumerState<_NearbyAlertCard> {
     }
   }
 
+  Future<bool?> _confirmDisable() {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.notifications_off_outlined),
+        title: const Text('Turn off nearby alert?'),
+        content: const Text(
+          'You will need to visit this location again to turn nearby alerts '
+          'back on.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Turn off'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final alert = widget.alert;
-    final radiusKm = alert.radiusMeters / 1000;
     final expires = _dateLabel(alert.expiresAt);
     final lastNotified = alert.lastNotifiedMessageAt == null
         ? 'No notifications yet'
         : 'Last notified ${_dateLabel(alert.lastNotifiedMessageAt!)}';
 
-    final colorScheme = Theme.of(context).colorScheme;
+    final color = parsePlaceColor(alert.colorHex);
 
     return NoteListCard(
-      avatarColor: colorScheme.primary,
-      avatarIcon: Icons.notifications_active_outlined,
+      avatarColor: color,
+      avatarIcon: placeIconData(alert.icon),
       title: alert.title,
       metadata: [
-        NoteListMeta(
-          icon: Icons.near_me_outlined,
-          label:
-              'Within ${radiusKm.toStringAsFixed(radiusKm >= 10 ? 0 : 1)} km',
-        ),
         NoteListMeta(icon: Icons.event_outlined, label: 'Expires $expires'),
         NoteListMeta(
           icon: Icons.notifications_none_outlined,

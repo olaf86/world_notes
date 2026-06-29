@@ -13,6 +13,8 @@ enum NearbyNotificationState {
 class NearbyNotificationPlace {
   final String placeId;
   final String title;
+  final String colorHex;
+  final String icon;
   final double latitude;
   final double longitude;
   final int radiusMeters;
@@ -36,6 +38,8 @@ class NearbyNotificationPlace {
   const NearbyNotificationPlace({
     required this.placeId,
     required this.title,
+    required this.colorHex,
+    required this.icon,
     required this.latitude,
     required this.longitude,
     required this.radiusMeters,
