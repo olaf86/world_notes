@@ -1,11 +1,8 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../../config/regions.dart';
 import '../../../core/map_style.dart';
-import '../../../services/my_notes_notification_service.dart';
 import '../../providers/providers.dart';
 import '../../widgets/my_notes_notification_controls.dart';
 
@@ -44,10 +41,6 @@ class SettingsScreen extends ConsumerWidget {
           const _RegionSection(),
           const SizedBox(height: 24),
           const _MyNotesNotificationsSection(),
-          if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) ...[
-            const SizedBox(height: 24),
-            const _PushNotificationDiagnosticsSection(),
-          ],
         ],
       ),
     );
@@ -73,107 +66,6 @@ class _MyNotesNotificationsSection extends StatelessWidget {
         const SizedBox(height: 8),
         const MyNotesNotificationSwitchTile(),
       ],
-    );
-  }
-}
-
-class _PushNotificationDiagnosticsSection extends ConsumerWidget {
-  const _PushNotificationDiagnosticsSection();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final diagnostic = ref.watch(apnsRegistrationDiagnosticProvider);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                'Push Notification Diagnostics',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            IconButton(
-              tooltip: 'Refresh diagnostics',
-              onPressed: () =>
-                  ref.invalidate(apnsRegistrationDiagnosticProvider),
-              icon: const Icon(Icons.refresh),
-            ),
-          ],
-        ),
-        Text(
-          'Shows whether iOS successfully registered this device with APNs. '
-          'No notification token is displayed.',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 8),
-        diagnostic.when(
-          loading: () => const LinearProgressIndicator(),
-          error: (error, _) => ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.error_outline),
-            title: const Text('Could not load APNs status'),
-            subtitle: Text('$error'),
-          ),
-          data: (value) => _ApnsDiagnosticTile(diagnostic: value),
-        ),
-      ],
-    );
-  }
-}
-
-class _ApnsDiagnosticTile extends StatelessWidget {
-  final ApnsRegistrationDiagnostic diagnostic;
-
-  const _ApnsDiagnosticTile({required this.diagnostic});
-
-  @override
-  Widget build(BuildContext context) {
-    final (label, icon, color) = switch (diagnostic.state) {
-      ApnsRegistrationState.succeeded => (
-        'Registered',
-        Icons.check_circle_outline,
-        Colors.green,
-      ),
-      ApnsRegistrationState.failed => (
-        'Registration failed',
-        Icons.error_outline,
-        Theme.of(context).colorScheme.error,
-      ),
-      ApnsRegistrationState.pending => (
-        'Registration pending',
-        Icons.schedule,
-        Colors.orange,
-      ),
-      ApnsRegistrationState.unknown => (
-        'No registration result yet',
-        Icons.help_outline,
-        Theme.of(context).colorScheme.onSurfaceVariant,
-      ),
-    };
-    final updatedAt = diagnostic.updatedAt;
-    final details = <String>[];
-    if (diagnostic.message case final message?) {
-      details.add(message);
-    }
-    if (updatedAt != null) {
-      details.add(
-        'Updated ${DateFormat.yMd().add_jms().format(updatedAt.toLocal())}',
-      );
-    }
-
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(icon, color: color),
-      title: Text(label),
-      subtitle: details.isEmpty ? null : Text(details.join('\n')),
     );
   }
 }
