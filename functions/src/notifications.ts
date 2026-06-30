@@ -3,6 +3,7 @@ import {createHash} from "crypto";
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import {
+  DocumentReference,
   DocumentSnapshot,
   FieldValue,
   Firestore,
@@ -31,6 +32,10 @@ interface SetMyNotesNotificationEnabledData {
   enabled?: unknown;
 }
 
+interface SetMyNotesNotificationPreviewEnabledData {
+  enabled?: unknown;
+}
+
 interface SetNearbyNotificationData {
   placeId?: unknown;
   enabled?: unknown;
@@ -47,6 +52,17 @@ interface MarkNearbyInRangeData {
 
 interface MarkNearbyReadData {
   placeId?: unknown;
+}
+
+interface MyNotesNotificationToken {
+  ref: DocumentReference;
+  token: string;
+  showPreview: boolean;
+}
+
+interface NotificationContent {
+  title: string;
+  body: string;
 }
 
 const VALID_PLATFORMS = new Set([
@@ -77,11 +93,39 @@ function platformOf(value: unknown): string {
   return VALID_PLATFORMS.has(value) ? value : "unknown";
 }
 
-function compactBody(placeTitle: unknown): string {
-  const title = typeof placeTitle === "string" ? placeTitle.trim() : "";
-  if (title.length === 0) return "Your note has a new message.";
-  const clipped = title.length > 60 ? `${title.slice(0, 57)}...` : title;
-  return `New message on "${clipped}"`;
+function normalizedText(value: unknown): string {
+  return typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
+}
+
+function clippedText(value: string, maxLength: number): string {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
+}
+
+function noteNotificationTitle(placeTitle: unknown): string {
+  const title = normalizedText(placeTitle);
+  return title.length === 0 ? "Your note" : clippedText(title, 80);
+}
+
+function messageNotificationPreview(messageSnap: DocumentSnapshot): string {
+  const content = clippedText(normalizedText(messageSnap.get("content")), 120);
+  if (content.length > 0) return content;
+
+  const imageStoragePath = normalizedText(messageSnap.get("imageStoragePath"));
+  return imageStoragePath.length > 0 ? "Photo message" : "New message";
+}
+
+function myNotesNotificationContent(
+  placeSnap: DocumentSnapshot,
+  messageSnap: DocumentSnapshot,
+  showPreview: boolean,
+): NotificationContent {
+  return {
+    title: noteNotificationTitle(placeSnap.get("title")),
+    body: showPreview ?
+      messageNotificationPreview(messageSnap) :
+      "New message",
+  };
 }
 
 function placeIdOf(value: unknown): string {
@@ -238,6 +282,33 @@ export const setMyNotesNotificationEnabled =
         .set(
           {
             myNotesEnabled: req.data.enabled,
+            updatedAt: FieldValue.serverTimestamp(),
+          },
+          {merge: true},
+        );
+
+      return {ok: true};
+    },
+  );
+
+export const setMyNotesNotificationPreviewEnabled =
+  onCall<SetMyNotesNotificationPreviewEnabledData>(
+    {enforceAppCheck: true, region: REGION},
+    async (req) => {
+      const uid = req.auth?.uid;
+      if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+      if (typeof req.data?.enabled !== "boolean") {
+        throw new HttpsError("invalid-argument", "enabled is required.");
+      }
+
+      await getFirestore()
+        .collection("users")
+        .doc(uid)
+        .collection("notificationSettings")
+        .doc("main")
+        .set(
+          {
+            myNotesPreviewEnabled: req.data.enabled,
             updatedAt: FieldValue.serverTimestamp(),
           },
           {merge: true},
@@ -652,10 +723,11 @@ export async function sendMyNotesMessageNotifications(
       ]);
       const enabled = settingsSnap.get("myNotesEnabled") === true;
       if (!enabled) return {enabled: false, tokens: []};
+      const showPreview = settingsSnap.get("myNotesPreviewEnabled") !== false;
       const tokens = tokensSnap.docs.flatMap((doc) => {
         const token = doc.get("token");
         return typeof token === "string" && token.length > 0 ?
-          [{ref: doc.ref, token}] :
+          [{ref: doc.ref, token, showPreview}] :
           [];
       });
       return {enabled: true, tokens};
@@ -678,49 +750,71 @@ export async function sendMyNotesMessageNotifications(
     return;
   }
 
-  const body = compactBody(placeSnap.get("title"));
-  let sent = 0;
-  for (let i = 0; i < tokenEntries.length; i += 500) {
-    const chunk = tokenEntries.slice(i, i + 500);
-    const response = await getMessaging().sendEachForMulticast({
-      tokens: chunk.map((entry) => entry.token),
-      notification: {
-        title: "World Notes",
-        body,
-      },
-      data: {
-        type: "my_note_message",
-        placeId,
-        messageId,
-      },
-      apns: {
-        payload: {
-          aps: {
+  const sendToTokens = async (
+    entries: MyNotesNotificationToken[],
+    notification: NotificationContent,
+  ): Promise<number> => {
+    let successCount = 0;
+    for (let i = 0; i < entries.length; i += 500) {
+      const chunk = entries.slice(i, i + 500);
+      const response = await getMessaging().sendEachForMulticast({
+        tokens: chunk.map((entry) => entry.token),
+        notification,
+        data: {
+          type: "my_note_message",
+          placeId,
+          messageId,
+        },
+        apns: {
+          payload: {
+            aps: {
+              sound: "default",
+            },
+          },
+        },
+        android: {
+          priority: "high",
+          notification: {
             sound: "default",
           },
         },
-      },
-      android: {
-        priority: "high",
-        notification: {
-          sound: "default",
-        },
-      },
-    });
+      });
 
-    sent += response.successCount;
-    await Promise.all(
-      response.responses.map(async (result, index) => {
-        const code = result.error?.code;
-        if (
-          code === "messaging/registration-token-not-registered" ||
-          code === "messaging/invalid-registration-token"
-        ) {
-          await chunk[index].ref.delete();
-        }
-      }),
-    );
-  }
+      successCount += response.successCount;
+      await Promise.all(
+        response.responses.map(async (result, index) => {
+          const code = result.error?.code;
+          if (
+            code === "messaging/registration-token-not-registered" ||
+            code === "messaging/invalid-registration-token"
+          ) {
+            await chunk[index].ref.delete();
+          }
+        }),
+      );
+    }
+    return successCount;
+  };
+
+  const previewTokenEntries = tokenEntries.filter((entry) =>
+    entry.showPreview,
+  );
+  const privateTokenEntries = tokenEntries.filter((entry) =>
+    !entry.showPreview,
+  );
+  const previewContent = myNotesNotificationContent(
+    placeSnap,
+    messageSnap,
+    true,
+  );
+  const privateContent = myNotesNotificationContent(
+    placeSnap,
+    messageSnap,
+    false,
+  );
+  let sent = 0;
+  sent += await sendToTokens(previewTokenEntries, previewContent);
+  sent += await sendToTokens(privateTokenEntries, privateContent);
 
   logger.info(
     `sendMyNotesMessageNotifications: sent ${sent}/${tokenEntries.length}` +

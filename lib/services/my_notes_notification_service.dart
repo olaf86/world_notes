@@ -79,6 +79,12 @@ class MyNotesNotificationService {
         .call<Map<String, dynamic>>({'enabled': false});
   }
 
+  Future<void> setMessagePreviewEnabled(bool enabled) async {
+    await _functions
+        .httpsCallable('setMyNotesNotificationPreviewEnabled')
+        .call<Map<String, dynamic>>({'enabled': enabled});
+  }
+
   Future<void> registerCurrentToken({
     bool reportUnavailableToken = false,
   }) async {
