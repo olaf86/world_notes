@@ -22,6 +22,13 @@ import {
   MAX_SUBTITLE_LENGTH,
   REGION,
 } from "./constants";
+import {
+  hashLockSecret,
+  MAX_LOCK_HINT_LENGTH,
+  NOTE_PW_PEPPER,
+  parseLockType,
+  validateLockSecret,
+} from "./noteLock";
 
 initializeApp();
 setGlobalOptions({maxInstances: 10, region: REGION});
@@ -74,6 +81,13 @@ interface CreateNoteData {
   expiryDays?: unknown;
   visibility?: unknown;
   publishAtMillis?: unknown;
+  lock?: unknown;
+}
+
+interface CreateNoteLock {
+  lockType: "password" | "pattern";
+  lockHint: string | null;
+  hash: string;
 }
 
 interface ArchiveNoteData {
@@ -94,7 +108,7 @@ interface ArchiveNoteData {
  * auto-archive function (Phase 3 #2).
  */
 export const createNote = onCall<CreateNoteData>(
-  {enforceAppCheck: true},
+  {enforceAppCheck: true, secrets: [NOTE_PW_PEPPER]},
   async (req) => {
     const uid = req.auth?.uid;
     if (!uid) {
@@ -146,8 +160,59 @@ export const createNote = onCall<CreateNoteData>(
       throw new HttpsError("invalid-argument", "Invalid expiry selection.");
     }
 
-    const visibility =
+    const requestedVisibility =
       req.data?.visibility === "private" ? "private" : "public";
+    const rawLock = req.data?.lock;
+    let lock: CreateNoteLock | null = null;
+    if (rawLock != null) {
+      if (
+        typeof rawLock !== "object" ||
+        Array.isArray(rawLock) ||
+        rawLock == null
+      ) {
+        throw new HttpsError("invalid-argument", "Invalid lock.");
+      }
+      const lockData = rawLock as {
+        lockType?: unknown;
+        password?: unknown;
+        lockHint?: unknown;
+      };
+      const lockType = parseLockType(lockData.lockType);
+      if (lockType == null) {
+        throw new HttpsError("invalid-argument", "Invalid lock type.");
+      }
+      if (typeof lockData.password !== "string") {
+        throw new HttpsError("invalid-argument", "password is required.");
+      }
+      const weakness = validateLockSecret(lockData.password, lockType);
+      if (weakness) throw new HttpsError("invalid-argument", weakness);
+      if (
+        lockData.lockHint != null &&
+        (
+          typeof lockData.lockHint !== "string" ||
+          lockData.lockHint.length > MAX_LOCK_HINT_LENGTH
+        )
+      ) {
+        throw new HttpsError("invalid-argument", "Invalid hint.");
+      }
+      const trimmedHint =
+        typeof lockData.lockHint === "string" &&
+          lockData.lockHint.trim().length > 0 ?
+          lockData.lockHint.trim() :
+          null;
+      lock = {
+        lockType,
+        lockHint: trimmedHint,
+        hash: await hashLockSecret(lockData.password),
+      };
+    }
+    if (requestedVisibility === "private" && lock == null) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Private notes require a lock.",
+      );
+    }
+    const visibility = lock == null ? "public" : "private";
     const trimmedSubtitle =
       typeof subtitle === "string" && subtitle.trim().length > 0 ?
         subtitle.trim() :
@@ -213,7 +278,7 @@ export const createNote = onCall<CreateNoteData>(
         );
       }
 
-      tx.set(placeRef, {
+      const placeData: Record<string, unknown> = {
         latitude,
         longitude,
         geohash,
@@ -235,7 +300,21 @@ export const createNote = onCall<CreateNoteData>(
         isOpen: true,
         isArchived: false,
         expiresAt,
-      });
+      };
+      if (lock != null) {
+        placeData.lockType = lock.lockType;
+        if (lock.lockHint != null) {
+          placeData.lockHint = lock.lockHint;
+        }
+      }
+
+      tx.set(placeRef, placeData);
+      if (lock != null) {
+        tx.set(placeRef.collection("secret").doc("auth"), {
+          hash: lock.hash,
+          passwordVersion: 0,
+        });
+      }
 
       // Counter is the source of truth for the cap. New user docs do not need
       // to store activeNoteCount until their first note is created.

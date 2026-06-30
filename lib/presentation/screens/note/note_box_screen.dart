@@ -16,22 +16,13 @@ import '../../widgets/map/static_note_mini_map.dart';
 import '../../widgets/note/manage_access_sheet.dart';
 import '../../widgets/note/message_bubble.dart';
 import '../../widgets/note/message_creation_overlay.dart';
-import '../../widgets/pattern_lock/pattern_lock_input.dart';
+import '../../widgets/note/note_lock_setup_dialog.dart';
 
 // ---------------------------------------------------------------------------
 // Screen
 // ---------------------------------------------------------------------------
 
-enum _LockSetupMethod { password, pattern }
-
 enum _NearbyLocationMode { whileUsingApp, background }
-
-extension _LockSetupMethodLabel on _LockSetupMethod {
-  NoteLockType get noteLockType => switch (this) {
-    _LockSetupMethod.password => NoteLockType.password,
-    _LockSetupMethod.pattern => NoteLockType.pattern,
-  };
-}
 
 class NoteBoxScreen extends ConsumerStatefulWidget {
   final String placeId;
@@ -537,17 +528,42 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
   /// Owner: set or change the note lock (locks it as private).
   Future<void> _promptSetPassword({required bool isChange}) async {
     final place = ref.read(placeProvider(widget.placeId)).valueOrNull;
-    final saved = await showDialog<bool>(
+    final saved = await showDialog<NoteLockSetupValue>(
       context: context,
-      builder: (_) => _SetLockDialog(
-        placeId: widget.placeId,
-        place: place,
-        isChange: isChange,
-        lockSaveErrorMessage: _lockSaveErrorMessage,
+      builder: (_) => NoteLockSetupDialog(
+        title: isChange ? 'Change lock' : 'Set lock',
+        initialLockType: place?.lockType,
+        initialHint: place?.lockHint,
         onPatternTooLong: _showPatternTooLongSnack,
+        onSubmit: (value) async {
+          try {
+            await ref
+                .read(placeRepositoryProvider)
+                .setNotePassword(
+                  placeId: widget.placeId,
+                  password: value.secret,
+                  lockType: value.lockType,
+                  lockHint: value.lockHint,
+                );
+            return null;
+          } on FirebaseFunctionsException catch (e) {
+            assert(() {
+              debugPrint(
+                'setNotePassword failed: code=${e.code}, '
+                'message=${e.message}, details=${e.details}',
+              );
+              return true;
+            }());
+            final isSignedIn =
+                ref.read(firebaseAuthProvider).currentUser != null;
+            return _lockSaveErrorMessage(e, isSignedIn: isSignedIn);
+          } catch (_) {
+            return 'Failed to save the lock.';
+          }
+        },
       ),
     );
-    if (saved == true && mounted) {
+    if (saved != null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Lock saved. This note is private.')),
       );
@@ -580,9 +596,9 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     await showDialog<void>(
       context: context,
       builder: (ctx) {
-        final method = place?.lockType == NoteLockType.password
-            ? _LockSetupMethod.password
-            : _LockSetupMethod.pattern;
+        final lockType = place?.lockType == NoteLockType.password
+            ? NoteLockType.password
+            : NoteLockType.pattern;
         var password = '';
         List<int> pattern = const [];
         String? error;
@@ -591,17 +607,17 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
           builder: (ctx, setLocal) {
             Future<void> submit() async {
               if (busy) return;
-              final validation = switch (method) {
-                _LockSetupMethod.password => PasswordUtil.validate(password),
-                _LockSetupMethod.pattern => PatternLockUtil.validate(pattern),
+              final validation = switch (lockType) {
+                NoteLockType.password => PasswordUtil.validate(password),
+                NoteLockType.pattern => PatternLockUtil.validate(pattern),
               };
               if (validation != null) {
                 setLocal(() => error = validation);
                 return;
               }
-              final secret = switch (method) {
-                _LockSetupMethod.password => password,
-                _LockSetupMethod.pattern => PatternLockUtil.encode(pattern),
+              final secret = switch (lockType) {
+                NoteLockType.password => password,
+                NoteLockType.pattern => PatternLockUtil.encode(pattern),
               };
               setLocal(() {
                 busy = true;
@@ -621,7 +637,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                   busy = false;
                   error = switch (e.code) {
                     'permission-denied' =>
-                      method == _LockSetupMethod.pattern
+                      lockType == NoteLockType.pattern
                           ? 'Incorrect pattern.'
                           : 'Incorrect password.',
                     'resource-exhausted' =>
@@ -657,8 +673,8 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                       ),
                     ],
                     const SizedBox(height: 12),
-                    if (method == _LockSetupMethod.password)
-                      _PasswordLockInput(
+                    if (lockType == NoteLockType.password)
+                      PasswordLockInput(
                         onChanged: (value) {
                           setLocal(() {
                             password = value;
@@ -668,7 +684,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                         onSubmitted: submit,
                       )
                     else
-                      _PatternLockInputWithClear(
+                      PatternLockInputWithClear(
                         enabled: !busy,
                         size: 248,
                         onChanged: (path) {
@@ -1037,231 +1053,6 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
   }
 }
 
-class _SetLockDialog extends ConsumerStatefulWidget {
-  final String placeId;
-  final PlaceEntity? place;
-  final bool isChange;
-  final String Function(
-    FirebaseFunctionsException error, {
-    required bool isSignedIn,
-  })
-  lockSaveErrorMessage;
-  final VoidCallback onPatternTooLong;
-
-  const _SetLockDialog({
-    required this.placeId,
-    required this.place,
-    required this.isChange,
-    required this.lockSaveErrorMessage,
-    required this.onPatternTooLong,
-  });
-
-  @override
-  ConsumerState<_SetLockDialog> createState() => _SetLockDialogState();
-}
-
-class _SetLockDialogState extends ConsumerState<_SetLockDialog> {
-  late _LockSetupMethod _method;
-  late final TextEditingController _hintController;
-  var _password = '';
-  var _passwordConfirmation = '';
-  List<int> _pattern = const [];
-  String? _error;
-  var _busy = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _method = switch (widget.place?.lockType) {
-      NoteLockType.pattern => _LockSetupMethod.pattern,
-      _ => _LockSetupMethod.password,
-    };
-    _hintController = TextEditingController(text: widget.place?.lockHint ?? '');
-  }
-
-  @override
-  void dispose() {
-    _hintController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit() async {
-    if (_busy) return;
-    final validation = switch (_method) {
-      _LockSetupMethod.password => PasswordUtil.validateConfirmation(
-        password: _password,
-        confirmation: _passwordConfirmation,
-      ),
-      _LockSetupMethod.pattern => PatternLockUtil.validate(_pattern),
-    };
-    if (validation != null) {
-      setState(() => _error = validation);
-      return;
-    }
-    final secret = switch (_method) {
-      _LockSetupMethod.password => _password,
-      _LockSetupMethod.pattern => PatternLockUtil.encode(_pattern),
-    };
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-    final trimmedHint = _hintController.text.trim();
-    try {
-      await ref
-          .read(placeRepositoryProvider)
-          .setNotePassword(
-            placeId: widget.placeId,
-            password: secret,
-            lockType: _method.noteLockType,
-            lockHint: trimmedHint.isEmpty ? null : trimmedHint,
-          );
-      if (mounted) Navigator.pop(context, true);
-    } on FirebaseFunctionsException catch (e) {
-      assert(() {
-        debugPrint(
-          'setNotePassword failed: code=${e.code}, '
-          'message=${e.message}, details=${e.details}',
-        );
-        return true;
-      }());
-      final isSignedIn = ref.read(firebaseAuthProvider).currentUser != null;
-      if (!mounted) return;
-      setState(() {
-        _busy = false;
-        _error = widget.lockSaveErrorMessage(e, isSignedIn: isSignedIn);
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _busy = false;
-        _error = 'Failed to save the lock.';
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.isChange ? 'Change lock' : 'Set lock'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SegmentedButton<_LockSetupMethod>(
-              segments: const [
-                ButtonSegment(
-                  value: _LockSetupMethod.password,
-                  icon: Icon(Icons.password_outlined),
-                  label: Text('Password'),
-                ),
-                ButtonSegment(
-                  value: _LockSetupMethod.pattern,
-                  icon: Icon(Icons.grid_3x3),
-                  label: Text('Pattern'),
-                ),
-              ],
-              selected: {_method},
-              onSelectionChanged: _busy
-                  ? null
-                  : (selected) {
-                      setState(() {
-                        _method = selected.single;
-                        _password = '';
-                        _passwordConfirmation = '';
-                        _pattern = const [];
-                        _error = null;
-                      });
-                    },
-            ),
-            const SizedBox(height: 12),
-            if (_method == _LockSetupMethod.password)
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _PasswordLockInput(
-                    enabled: !_busy,
-                    labelText: 'Password',
-                    textInputAction: TextInputAction.next,
-                    onChanged: (value) {
-                      setState(() {
-                        _password = value;
-                        _error = null;
-                      });
-                    },
-                    onSubmitted: () => FocusScope.of(context).nextFocus(),
-                  ),
-                  const SizedBox(height: 12),
-                  _PasswordLockInput(
-                    enabled: !_busy,
-                    labelText: 'Confirm password',
-                    autofocus: false,
-                    onChanged: (value) {
-                      setState(() {
-                        _passwordConfirmation = value;
-                        _error = null;
-                      });
-                    },
-                    onSubmitted: _submit,
-                  ),
-                ],
-              )
-            else ...[
-              const Text('Draw a path between neighboring dots.'),
-              const SizedBox(height: 12),
-              _PatternLockInputWithClear(
-                enabled: !_busy,
-                size: 248,
-                onChanged: (path) {
-                  setState(() {
-                    _pattern = path;
-                    _error = null;
-                  });
-                },
-                onTooLong: widget.onPatternTooLong,
-              ),
-            ],
-            if (_error != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                _error!,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.error,
-                ),
-              ),
-            ],
-            const SizedBox(height: 12),
-            TextField(
-              controller: _hintController,
-              maxLength: 140,
-              decoration: const InputDecoration(
-                labelText: 'Hint (optional)',
-                counterText: '',
-              ),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: _busy ? null : () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: _busy ? null : _submit,
-          child: _busy
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('Save'),
-        ),
-      ],
-    );
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Thread status banner — shown when the thread can't accept new messages
 // ---------------------------------------------------------------------------
@@ -1495,119 +1286,6 @@ class _LockedNoteView extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _PasswordLockInput extends StatefulWidget {
-  final ValueChanged<String> onChanged;
-  final VoidCallback onSubmitted;
-  final String labelText;
-  final TextInputAction textInputAction;
-  final bool enabled;
-  final bool autofocus;
-
-  const _PasswordLockInput({
-    required this.onChanged,
-    required this.onSubmitted,
-    this.labelText = 'Password',
-    this.textInputAction = TextInputAction.done,
-    this.enabled = true,
-    this.autofocus = true,
-  });
-
-  @override
-  State<_PasswordLockInput> createState() => _PasswordLockInputState();
-}
-
-class _PasswordLockInputState extends State<_PasswordLockInput> {
-  final _controller = TextEditingController();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: _controller,
-      enabled: widget.enabled,
-      autofocus: widget.autofocus,
-      obscureText: true,
-      enableSuggestions: false,
-      autocorrect: false,
-      maxLength: PasswordUtil.maxLength,
-      textInputAction: widget.textInputAction,
-      onChanged: widget.onChanged,
-      onSubmitted: (_) => widget.onSubmitted(),
-      decoration: InputDecoration(labelText: widget.labelText, counterText: ''),
-    );
-  }
-}
-
-class _PatternLockInputWithClear extends StatefulWidget {
-  final ValueChanged<List<int>> onChanged;
-  final ValueChanged<List<int>>? onCompleted;
-  final VoidCallback? onTooLong;
-  final bool enabled;
-  final double size;
-
-  const _PatternLockInputWithClear({
-    required this.onChanged,
-    this.onCompleted,
-    this.onTooLong,
-    this.enabled = true,
-    this.size = 280,
-  });
-
-  @override
-  State<_PatternLockInputWithClear> createState() =>
-      _PatternLockInputWithClearState();
-}
-
-class _PatternLockInputWithClearState
-    extends State<_PatternLockInputWithClear> {
-  var _inputKey = UniqueKey();
-  var _hasPattern = false;
-
-  void _handleChanged(List<int> path) {
-    setState(() => _hasPattern = path.isNotEmpty);
-    widget.onChanged(path);
-  }
-
-  void _clear() {
-    setState(() {
-      _inputKey = UniqueKey();
-      _hasPattern = false;
-    });
-    widget.onChanged(const []);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        IgnorePointer(
-          ignoring: !widget.enabled,
-          child: PatternLockInput(
-            key: _inputKey,
-            size: widget.size,
-            onChanged: _handleChanged,
-            onCompleted: widget.onCompleted,
-            onTooLong: widget.onTooLong,
-          ),
-        ),
-        Align(
-          alignment: Alignment.centerRight,
-          child: TextButton.icon(
-            onPressed: widget.enabled && _hasPattern ? _clear : null,
-            icon: const Icon(Icons.backspace_outlined),
-            label: const Text('Clear'),
-          ),
-        ),
-      ],
     );
   }
 }

@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../config/app_config.dart';
+import '../../../domain/entities/place_entity.dart';
 import '../../providers/providers.dart';
+import '../../widgets/note/note_lock_setup_dialog.dart';
 
 enum _PublicationPreset {
   now('Now', null),
@@ -49,6 +51,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
   int _expiryDays = AppConfig.defaultNoteExpiryDays;
   _PublicationPreset _publicationPreset = _PublicationPreset.now;
   DateTime? _customPublishAt;
+  NoteLockSetupValue? _lockSetup;
   bool _loading = false;
 
   /// Human-readable label for an expiry preset (in days).
@@ -139,6 +142,33 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
     });
   }
 
+  void _showPatternTooLongSnack() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Pattern is too long. Use 30 nodes or fewer.'),
+      ),
+    );
+  }
+
+  Future<void> _configureLock() async {
+    final value = await showDialog<NoteLockSetupValue>(
+      context: context,
+      builder: (_) => NoteLockSetupDialog(
+        title: _lockSetup == null ? 'Set lock' : 'Change lock',
+        submitLabel: _lockSetup == null ? 'Use lock' : 'Update',
+        initialLockType: _lockSetup?.lockType,
+        initialHint: _lockSetup?.lockHint,
+        onPatternTooLong: _showPatternTooLongSnack,
+      ),
+    );
+    if (value == null || !mounted) return;
+    setState(() => _lockSetup = value);
+  }
+
+  void _removeLock() {
+    setState(() => _lockSetup = null);
+  }
+
   @override
   void dispose() {
     _titleController.dispose();
@@ -170,6 +200,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
       final colorHex = '#$r$g$b'.toUpperCase();
 
       final title = _titleController.text.trim();
+      final lockSetup = _lockSetup;
       final placeId = await ref
           .read(placeRepositoryProvider)
           .createNote(
@@ -183,6 +214,16 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
             icon: _selectedIcon,
             expiryDays: _expiryDays,
             publishAt: _publishAtForCreate(),
+            visibility: lockSetup == null
+                ? PlaceVisibility.public
+                : PlaceVisibility.private,
+            lock: lockSetup == null
+                ? null
+                : NoteLockDraft(
+                    lockType: lockSetup.lockType,
+                    secret: lockSetup.secret,
+                    lockHint: lockSetup.lockHint,
+                  ),
           );
       ref.invalidate(mapPinsProvider);
       ref.invalidate(myPlacesProvider);
@@ -365,6 +406,14 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
                 );
               }).toList(),
             ),
+            const SizedBox(height: 24),
+            Text('Access', style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: 8),
+            _LockSetupSummary(
+              value: _lockSetup,
+              onConfigure: _configureLock,
+              onRemove: _removeLock,
+            ),
             const SizedBox(height: 32),
             FilledButton(
               onPressed: _loading ? null : _create,
@@ -376,6 +425,82 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
                     )
                   : const Text('Create Note'),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LockSetupSummary extends StatelessWidget {
+  final NoteLockSetupValue? value;
+  final VoidCallback onConfigure;
+  final VoidCallback onRemove;
+
+  const _LockSetupSummary({
+    required this.value,
+    required this.onConfigure,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final value = this.value;
+    final isLocked = value != null;
+    final lockTypeLabel = switch (value?.lockType) {
+      NoteLockType.password => 'Password',
+      NoteLockType.pattern => 'Pattern',
+      null => 'Public',
+    };
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          children: [
+            Icon(
+              isLocked ? Icons.lock_outline : Icons.lock_open_outlined,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    isLocked ? 'Locked note' : 'Public note',
+                    style: theme.textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    isLocked
+                        ? '$lockTypeLabel lock${value.lockHint == null ? '' : ' with hint'}'
+                        : 'Anyone nearby can open it.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: isLocked ? 'Change lock' : 'Set lock',
+              onPressed: onConfigure,
+              icon: Icon(isLocked ? Icons.edit_outlined : Icons.lock_outline),
+            ),
+            if (isLocked)
+              IconButton(
+                tooltip: 'Remove lock',
+                onPressed: onRemove,
+                icon: const Icon(Icons.close),
+              ),
           ],
         ),
       ),
