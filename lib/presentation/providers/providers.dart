@@ -169,6 +169,19 @@ final myNotesNotificationEnabledProvider = StreamProvider<bool>((ref) {
       .map((snap) => snap.data()?['myNotesEnabled'] == true);
 });
 
+final myNotesNotificationPreviewEnabledProvider = StreamProvider<bool>((ref) {
+  final user = ref.watch(authStateProvider).valueOrNull;
+  if (user == null) return Stream.value(true);
+  return ref
+      .watch(firestoreProvider)
+      .collection('users')
+      .doc(user.id)
+      .collection('notificationSettings')
+      .doc('main')
+      .snapshots()
+      .map((snap) => snap.data()?['myNotesPreviewEnabled'] != false);
+});
+
 final nearbyNotificationPlacesProvider =
     StreamProvider<List<NearbyNotificationPlace>>((ref) {
       final user = ref.watch(authStateProvider).valueOrNull;

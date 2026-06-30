@@ -51,6 +51,7 @@ export {
   registerFcmToken,
   deleteFcmToken,
   setMyNotesNotificationEnabled,
+  setMyNotesNotificationPreviewEnabled,
   setNearbyNotification,
   markNearbyNotificationRead,
   markNearbyNotificationInRange,

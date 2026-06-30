@@ -1,0 +1,97 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:world_notes/config/notification_navigation.dart';
+import 'package:world_notes/services/my_notes_notification_service.dart';
+
+void main() {
+  test('FCM message data maps My Notes notifications to read-only routes', () {
+    final route = MyNotesNotificationService.placeRouteFromMessageData({
+      'type': 'my_note_message',
+      'placeId': 'place-1',
+    });
+
+    expect(route?.placeId, 'place-1');
+    expect(route?.readOnly, isTrue);
+    expect(route?.location, '/note/place-1?readOnly=true');
+  });
+
+  test('FCM message data maps nearby notifications to normal note routes', () {
+    final route = MyNotesNotificationService.placeRouteFromMessageData({
+      'type': 'nearby_note_message',
+      'placeId': 'place-1',
+    });
+
+    expect(route?.placeId, 'place-1');
+    expect(route?.readOnly, isFalse);
+    expect(route?.location, '/note/place-1');
+  });
+
+  testWidgets('notification navigation pushes note over map', (tester) async {
+    final router = GoRouter(
+      initialLocation: '/map',
+      routes: [
+        GoRoute(
+          path: '/map',
+          builder: (context, state) => const Scaffold(body: Text('Map')),
+        ),
+        GoRoute(
+          path: '/note/:placeId',
+          builder: (context, state) => Scaffold(
+            body: Text(
+              'Note ${state.pathParameters['placeId']} '
+              'readOnly=${state.uri.queryParameters['readOnly']}',
+            ),
+          ),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Map'), findsOneWidget);
+
+    openNotificationPlace(
+      router,
+      const NotificationPlaceRoute(placeId: 'place-1', readOnly: true),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Note place-1 readOnly=true'), findsOneWidget);
+    expect(router.canPop(), isTrue);
+
+    router.pop();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Map'), findsOneWidget);
+  });
+
+  testWidgets('notification navigation ignores missing place id', (
+    tester,
+  ) async {
+    final router = GoRouter(
+      initialLocation: '/map',
+      routes: [
+        GoRoute(
+          path: '/map',
+          builder: (context, state) => const Scaffold(body: Text('Map')),
+        ),
+        GoRoute(
+          path: '/note/:placeId',
+          builder: (context, state) =>
+              Scaffold(body: Text('Note ${state.pathParameters['placeId']}')),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
+
+    openNotificationPlace(router, null);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Map'), findsOneWidget);
+    expect(router.canPop(), isFalse);
+  });
+}

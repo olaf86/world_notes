@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import 'config/app_config.dart';
+import 'config/notification_navigation.dart';
 import 'config/router.dart';
 import 'core/theme/app_theme.dart';
 import 'firebase_options.dart';
@@ -64,7 +65,7 @@ class WorldNotesApp extends ConsumerStatefulWidget {
 }
 
 class _WorldNotesAppState extends ConsumerState<WorldNotesApp> {
-  StreamSubscription<String>? _notificationOpenSubscription;
+  StreamSubscription<NotificationPlaceRoute>? _notificationOpenSubscription;
   StreamSubscription<String>? _nearbyNotificationOpenSubscription;
 
   @override
@@ -72,15 +73,17 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final service = ref.read(myNotesNotificationServiceProvider);
-      service.initialPlaceIdFromLaunch().then(_openPlaceFromNotification);
-      _notificationOpenSubscription = service.openedPlaceIds.listen(
+      service.initialPlaceRouteFromLaunch().then(_openPlaceFromNotification);
+      _notificationOpenSubscription = service.openedPlaceRoutes.listen(
         _openPlaceFromNotification,
       );
       final nearbyService = ref.read(nearbyNotificationServiceProvider);
       nearbyService.initialize();
-      nearbyService.initialPlaceIdFromLaunch().then(_openPlaceFromNotification);
+      nearbyService.initialPlaceIdFromLaunch().then(
+        _openNearbyPlaceFromNotification,
+      );
       _nearbyNotificationOpenSubscription = nearbyService.openedPlaceIds.listen(
-        _openPlaceFromNotification,
+        _openNearbyPlaceFromNotification,
       );
       ref.read(nearbyProximityMonitorProvider);
     });
@@ -93,9 +96,17 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp> {
     super.dispose();
   }
 
-  void _openPlaceFromNotification(String? placeId) {
-    if (!mounted || placeId == null || placeId.isEmpty) return;
-    ref.read(routerProvider).go(Uri(path: '/note/$placeId').toString());
+  void _openPlaceFromNotification(NotificationPlaceRoute? route) {
+    if (!mounted) return;
+    openNotificationPlace(ref.read(routerProvider), route);
+  }
+
+  void _openNearbyPlaceFromNotification(String? placeId) {
+    _openPlaceFromNotification(
+      placeId == null || placeId.isEmpty
+          ? null
+          : NotificationPlaceRoute(placeId: placeId),
+    );
   }
 
   @override

@@ -111,6 +111,64 @@ class _MyNotesNotificationSwitchTileState
   }
 }
 
+class MyNotesNotificationPreviewSwitchTile extends ConsumerStatefulWidget {
+  const MyNotesNotificationPreviewSwitchTile({super.key});
+
+  @override
+  ConsumerState<MyNotesNotificationPreviewSwitchTile> createState() =>
+      _MyNotesNotificationPreviewSwitchTileState();
+}
+
+class _MyNotesNotificationPreviewSwitchTileState
+    extends ConsumerState<MyNotesNotificationPreviewSwitchTile> {
+  bool _updating = false;
+
+  Future<void> _setEnabled(bool enabled) async {
+    if (_updating) return;
+    setState(() => _updating = true);
+    try {
+      await ref
+          .read(myNotesNotificationServiceProvider)
+          .setMessagePreviewEnabled(enabled);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not update notification previews.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _updating = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final notificationsEnabledAsync = ref.watch(
+      myNotesNotificationEnabledProvider,
+    );
+    final previewEnabledAsync = ref.watch(
+      myNotesNotificationPreviewEnabledProvider,
+    );
+    final notificationsEnabled = notificationsEnabledAsync.valueOrNull ?? false;
+    final previewEnabled = previewEnabledAsync.valueOrNull ?? true;
+    final disabled =
+        !notificationsEnabled ||
+        _updating ||
+        notificationsEnabledAsync.isLoading ||
+        previewEnabledAsync.isLoading;
+
+    return SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      title: const Text('Message previews'),
+      subtitle: const Text('Show message text on My Notes notifications.'),
+      value: previewEnabled,
+      onChanged: disabled ? null : _setEnabled,
+    );
+  }
+}
+
 Future<bool> setMyNotesNotificationsEnabled(WidgetRef ref, bool enabled) async {
   final service = ref.read(myNotesNotificationServiceProvider);
   if (enabled) {
