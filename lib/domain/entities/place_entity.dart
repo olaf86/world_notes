@@ -30,6 +30,18 @@ enum NoteLockType {
   };
 }
 
+class NoteLockDraft {
+  final NoteLockType lockType;
+  final String secret;
+  final String? lockHint;
+
+  const NoteLockDraft({
+    required this.lockType,
+    required this.secret,
+    this.lockHint,
+  });
+}
+
 /// Why a note thread was closed (read-only).
 ///
 /// owner        — the owner closed it manually; the owner may re-open it.

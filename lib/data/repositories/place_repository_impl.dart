@@ -4,6 +4,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import '../../domain/entities/place_entity.dart'
     show
         ClosedReason,
+        NoteLockDraft,
         NoteLockType,
         NoteMember,
         NoteMembership,
@@ -81,6 +82,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
     required int expiryDays,
     DateTime? publishAt,
     PlaceVisibility visibility = PlaceVisibility.public,
+    NoteLockDraft? lock,
   }) async {
     // All creation goes through the Cloud Function: it enforces the per-user
     // note cap in a transaction and computes the geohash server-side. Direct
@@ -97,6 +99,12 @@ class PlaceRepositoryImpl implements PlaceRepository {
       if (publishAt != null)
         'publishAtMillis': publishAt.millisecondsSinceEpoch,
       'visibility': visibility.toJson(),
+      if (lock != null)
+        'lock': {
+          'lockType': lock.lockType.toJson(),
+          'password': lock.secret,
+          'lockHint': lock.lockHint,
+        },
     });
     return result.data['placeId'] as String;
   }

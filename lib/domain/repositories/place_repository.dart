@@ -34,7 +34,8 @@ abstract class PlaceRepository {
     required String icon,
     required int expiryDays,
     DateTime? publishAt,
-    PlaceVisibility visibility,
+    PlaceVisibility visibility = PlaceVisibility.public,
+    NoteLockDraft? lock,
   });
 
   Future<PlaceEntity?> getPlace(String placeId);
