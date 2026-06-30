@@ -10,7 +10,7 @@ import {
   Timestamp,
   getFirestore,
 } from "firebase-admin/firestore";
-import {getMessaging} from "firebase-admin/messaging";
+import {BatchResponse, getMessaging} from "firebase-admin/messaging";
 
 import {
   NEARBY_NOTIFICATION_IN_RANGE_TTL_MINUTES,
@@ -54,15 +54,31 @@ interface MarkNearbyReadData {
   placeId?: unknown;
 }
 
+type NotificationLocale = "en" | "ja";
+
 interface MyNotesNotificationToken {
   ref: DocumentReference;
   token: string;
   showPreview: boolean;
+  locale: NotificationLocale;
 }
 
 interface NotificationContent {
   title: string;
   body: string;
+}
+
+interface MyNotesNotificationGroup {
+  locale: NotificationLocale;
+  showPreview: boolean;
+  tokens: MyNotesNotificationToken[];
+}
+
+interface MyNotesSendContext {
+  placeId: string;
+  messageId: string;
+  locale: NotificationLocale;
+  showPreview: boolean;
 }
 
 const VALID_PLATFORMS = new Set([
@@ -72,6 +88,38 @@ const VALID_PLATFORMS = new Set([
   "web",
   "unknown",
 ]);
+const DEFAULT_NOTIFICATION_LOCALE: NotificationLocale = "en";
+const SUPPORTED_NOTIFICATION_LOCALES: readonly NotificationLocale[] = [
+  "en",
+  "ja",
+];
+const FCM_MULTICAST_LIMIT = 500;
+const NOTIFICATION_PLACE_TITLE_MAX_LENGTH = 80;
+const NOTIFICATION_MESSAGE_PREVIEW_MAX_LENGTH = 120;
+const TEXT_ELLIPSIS = "...";
+const INVALID_FCM_TOKEN_CODES = new Set([
+  "messaging/registration-token-not-registered",
+  "messaging/invalid-registration-token",
+]);
+const MY_NOTES_NOTIFICATION_COPY: Record<
+  NotificationLocale,
+  {
+    fallbackNoteTitle: string;
+    photoMessage: string;
+    newMessage: string;
+  }
+> = {
+  en: {
+    fallbackNoteTitle: "Your note",
+    photoMessage: "Photo message",
+    newMessage: "New message",
+  },
+  ja: {
+    fallbackNoteTitle: "あなたのノート",
+    photoMessage: "写真メッセージ",
+    newMessage: "新着メッセージ",
+  },
+};
 
 function validToken(value: unknown): string {
   if (typeof value !== "string") {
@@ -93,39 +141,131 @@ function platformOf(value: unknown): string {
   return VALID_PLATFORMS.has(value) ? value : "unknown";
 }
 
+function notificationLocaleOf(value: unknown): NotificationLocale {
+  if (typeof value !== "string") return DEFAULT_NOTIFICATION_LOCALE;
+  const language = value.trim().toLowerCase().split(/[-_]/)[0];
+  return SUPPORTED_NOTIFICATION_LOCALES.includes(
+    language as NotificationLocale,
+  ) ?
+    language as NotificationLocale :
+    DEFAULT_NOTIFICATION_LOCALE;
+}
+
 function normalizedText(value: unknown): string {
   return typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
 }
 
 function clippedText(value: string, maxLength: number): string {
   if (value.length <= maxLength) return value;
-  return `${value.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
+  return `${value.slice(
+    0,
+    Math.max(0, maxLength - TEXT_ELLIPSIS.length),
+  ).trimEnd()}${TEXT_ELLIPSIS}`;
 }
 
-function noteNotificationTitle(placeTitle: unknown): string {
+function noteNotificationTitle(
+  placeTitle: unknown,
+  locale: NotificationLocale,
+): string {
   const title = normalizedText(placeTitle);
-  return title.length === 0 ? "Your note" : clippedText(title, 80);
+  return title.length === 0 ?
+    MY_NOTES_NOTIFICATION_COPY[locale].fallbackNoteTitle :
+    clippedText(title, NOTIFICATION_PLACE_TITLE_MAX_LENGTH);
 }
 
-function messageNotificationPreview(messageSnap: DocumentSnapshot): string {
-  const content = clippedText(normalizedText(messageSnap.get("content")), 120);
+function messageNotificationPreview(
+  messageSnap: DocumentSnapshot,
+  locale: NotificationLocale,
+): string {
+  const content = clippedText(
+    normalizedText(messageSnap.get("content")),
+    NOTIFICATION_MESSAGE_PREVIEW_MAX_LENGTH,
+  );
   if (content.length > 0) return content;
 
   const imageStoragePath = normalizedText(messageSnap.get("imageStoragePath"));
-  return imageStoragePath.length > 0 ? "Photo message" : "New message";
+  const copy = MY_NOTES_NOTIFICATION_COPY[locale];
+  return imageStoragePath.length > 0 ? copy.photoMessage : copy.newMessage;
 }
 
 function myNotesNotificationContent(
   placeSnap: DocumentSnapshot,
   messageSnap: DocumentSnapshot,
   showPreview: boolean,
+  locale: NotificationLocale,
 ): NotificationContent {
+  const copy = MY_NOTES_NOTIFICATION_COPY[locale];
   return {
-    title: noteNotificationTitle(placeSnap.get("title")),
+    title: noteNotificationTitle(placeSnap.get("title"), locale),
     body: showPreview ?
-      messageNotificationPreview(messageSnap) :
-      "New message",
+      messageNotificationPreview(messageSnap, locale) :
+      copy.newMessage,
   };
+}
+
+function myNotesNotificationGroupKey(
+  locale: NotificationLocale,
+  showPreview: boolean,
+): string {
+  return `${locale}:${showPreview ? "preview" : "private"}`;
+}
+
+function groupMyNotesNotificationTokens(
+  tokens: MyNotesNotificationToken[],
+): MyNotesNotificationGroup[] {
+  const groups = new Map<string, MyNotesNotificationGroup>();
+  for (const token of tokens) {
+    const key = myNotesNotificationGroupKey(token.locale, token.showPreview);
+    const group = groups.get(key);
+    if (group) {
+      group.tokens.push(token);
+      continue;
+    }
+    groups.set(key, {
+      locale: token.locale,
+      showPreview: token.showPreview,
+      tokens: [token],
+    });
+  }
+  return [...groups.values()];
+}
+
+function fcmErrorCodeCounts(response: BatchResponse): Record<string, number> {
+  return response.responses.reduce<Record<string, number>>((counts, result) => {
+    const code = result.error?.code;
+    if (!code) return counts;
+    counts[code] = (counts[code] ?? 0) + 1;
+    return counts;
+  }, {});
+}
+
+function logMyNotesNotificationFailures(
+  response: BatchResponse,
+  context: MyNotesSendContext,
+  tokenCount: number,
+): void {
+  if (response.failureCount === 0) return;
+  logger.warn("sendMyNotesMessageNotifications: FCM send failures.", {
+    ...context,
+    tokenCount,
+    successCount: response.successCount,
+    failureCount: response.failureCount,
+    errorCodeCounts: fcmErrorCodeCounts(response),
+  });
+}
+
+async function deleteInvalidFcmTokens(
+  response: BatchResponse,
+  tokens: MyNotesNotificationToken[],
+): Promise<void> {
+  await Promise.all(
+    response.responses.map(async (result, index) => {
+      const code = result.error?.code;
+      if (code != null && INVALID_FCM_TOKEN_CODES.has(code)) {
+        await tokens[index].ref.delete();
+      }
+    }),
+  );
 }
 
 function placeIdOf(value: unknown): string {
@@ -708,26 +848,24 @@ export async function sendMyNotesMessageNotifications(
 
   const ownerEntries = await Promise.all(
     [...ownerIds].map(async (uid) => {
-      const settingsRef = db
-        .collection("users")
-        .doc(uid)
+      const userRef = db.collection("users").doc(uid);
+      const settingsRef = userRef
         .collection("notificationSettings")
         .doc("main");
-      const tokensRef = db
-        .collection("users")
-        .doc(uid)
-        .collection("fcmTokens");
-      const [settingsSnap, tokensSnap] = await Promise.all([
+      const tokensRef = userRef.collection("fcmTokens");
+      const [userSnap, settingsSnap, tokensSnap] = await Promise.all([
+        userRef.get(),
         settingsRef.get(),
         tokensRef.get(),
       ]);
       const enabled = settingsSnap.get("myNotesEnabled") === true;
       if (!enabled) return {enabled: false, tokens: []};
       const showPreview = settingsSnap.get("myNotesPreviewEnabled") !== false;
+      const locale = notificationLocaleOf(userSnap.get("locale"));
       const tokens = tokensSnap.docs.flatMap((doc) => {
         const token = doc.get("token");
         return typeof token === "string" && token.length > 0 ?
-          [{ref: doc.ref, token, showPreview}] :
+          [{ref: doc.ref, token, showPreview, locale}] :
           [];
       });
       return {enabled: true, tokens};
@@ -750,71 +888,67 @@ export async function sendMyNotesMessageNotifications(
     return;
   }
 
-  const sendToTokens = async (
-    entries: MyNotesNotificationToken[],
-    notification: NotificationContent,
+  const sendToGroup = async (
+    group: MyNotesNotificationGroup,
   ): Promise<number> => {
+    const notification = myNotesNotificationContent(
+      placeSnap,
+      messageSnap,
+      group.showPreview,
+      group.locale,
+    );
+    const context: MyNotesSendContext = {
+      placeId,
+      messageId,
+      locale: group.locale,
+      showPreview: group.showPreview,
+    };
     let successCount = 0;
-    for (let i = 0; i < entries.length; i += 500) {
-      const chunk = entries.slice(i, i + 500);
-      const response = await getMessaging().sendEachForMulticast({
-        tokens: chunk.map((entry) => entry.token),
-        notification,
-        data: {
-          type: "my_note_message",
-          placeId,
-          messageId,
-        },
-        apns: {
-          payload: {
-            aps: {
+    for (let i = 0; i < group.tokens.length; i += FCM_MULTICAST_LIMIT) {
+      const chunk = group.tokens.slice(i, i + FCM_MULTICAST_LIMIT);
+      try {
+        const response = await getMessaging().sendEachForMulticast({
+          tokens: chunk.map((entry) => entry.token),
+          notification,
+          data: {
+            type: "my_note_message",
+            placeId,
+            messageId,
+          },
+          apns: {
+            payload: {
+              aps: {
+                sound: "default",
+              },
+            },
+          },
+          android: {
+            priority: "high",
+            notification: {
               sound: "default",
             },
           },
-        },
-        android: {
-          priority: "high",
-          notification: {
-            sound: "default",
-          },
-        },
-      });
+        });
 
-      successCount += response.successCount;
-      await Promise.all(
-        response.responses.map(async (result, index) => {
-          const code = result.error?.code;
-          if (
-            code === "messaging/registration-token-not-registered" ||
-            code === "messaging/invalid-registration-token"
-          ) {
-            await chunk[index].ref.delete();
-          }
-        }),
-      );
+        successCount += response.successCount;
+        logMyNotesNotificationFailures(response, context, chunk.length);
+        await deleteInvalidFcmTokens(response, chunk);
+      } catch (error) {
+        logger.error("sendMyNotesMessageNotifications: FCM send threw.", {
+          ...context,
+          tokenCount: chunk.length,
+          error,
+        });
+        throw error;
+      }
     }
     return successCount;
   };
 
-  const previewTokenEntries = tokenEntries.filter((entry) =>
-    entry.showPreview,
-  );
-  const privateTokenEntries = tokenEntries.filter((entry) =>
-    !entry.showPreview,
-  );
-  const previewContent = myNotesNotificationContent(
-    placeSnap,
-    messageSnap,
-    true,
-  );
-  const privateContent = myNotesNotificationContent(
-    placeSnap,
-    messageSnap,
-    false,
-  );
   let sent = 0;
-  sent += await sendToTokens(previewTokenEntries, previewContent);
-  sent += await sendToTokens(privateTokenEntries, privateContent);
+  for (const group of groupMyNotesNotificationTokens(tokenEntries)) {
+    sent += await sendToGroup(group);
+  }
 
   logger.info(
     `sendMyNotesMessageNotifications: sent ${sent}/${tokenEntries.length}` +
