@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 class AppConfig {
   static const String appName = 'World Notes';
 
@@ -20,10 +22,31 @@ class AppConfig {
   static const double defaultZoom = 14.0;
 
   // Ads
-  static const String bannerAdUnitId = String.fromEnvironment(
+  static const String _bannerAdUnitIdOverride = String.fromEnvironment(
     'BANNER_AD_UNIT_ID',
-    defaultValue: 'ca-app-pub-3940256099942544/6300978111', // test ID
+    defaultValue: '',
   );
+  static const String androidTestBannerAdUnitId =
+      'ca-app-pub-3940256099942544/6300978111';
+  static const String iosTestBannerAdUnitId =
+      'ca-app-pub-3940256099942544/2934735716';
+
+  static bool get supportsMobileAds {
+    if (kIsWeb) return false;
+    return switch (defaultTargetPlatform) {
+      TargetPlatform.android || TargetPlatform.iOS => true,
+      _ => false,
+    };
+  }
+
+  static String get bannerAdUnitId {
+    if (_bannerAdUnitIdOverride.isNotEmpty) return _bannerAdUnitIdOverride;
+    return switch (defaultTargetPlatform) {
+      TargetPlatform.iOS => iosTestBannerAdUnitId,
+      TargetPlatform.android => androidTestBannerAdUnitId,
+      _ => androidTestBannerAdUnitId,
+    };
+  }
 
   // RevenueCat
   static const String revenueCatApiKeyIos = String.fromEnvironment(

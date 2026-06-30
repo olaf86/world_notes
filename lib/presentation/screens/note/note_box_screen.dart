@@ -91,6 +91,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
   // ── Ad loading ────────────────────────────────────────────────────────────
 
   void _loadAdIfNeeded() {
+    if (!AppConfig.supportsMobileAds) return;
     if (ref.read(isPremiumProvider).valueOrNull == true) return;
     _bannerAd = BannerAd(
       adUnitId: AppConfig.bannerAdUnitId,
