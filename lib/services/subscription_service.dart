@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import '../config/app_config.dart';
 
@@ -27,7 +30,8 @@ class SubscriptionService {
     try {
       final info = await Purchases.getCustomerInfo();
       return info.entitlements.active.containsKey(AppConfig.proEntitlementId);
-    } catch (_) {
+    } catch (error, stack) {
+      await _reportRevenueCatError('checking premium status', error, stack);
       return false;
     }
   }
@@ -73,7 +77,8 @@ class SubscriptionService {
     try {
       final offerings = await Purchases.getOfferings();
       return offerings.current?.availablePackages ?? [];
-    } catch (_) {
+    } catch (error, stack) {
+      await _reportRevenueCatError('loading offerings', error, stack);
       return [];
     }
   }
@@ -85,7 +90,8 @@ class SubscriptionService {
       return result.customerInfo.entitlements.active.containsKey(
         AppConfig.proEntitlementId,
       );
-    } catch (_) {
+    } catch (error, stack) {
+      await _reportRevenueCatError('purchasing package', error, stack);
       return false;
     }
   }
@@ -95,7 +101,8 @@ class SubscriptionService {
     try {
       final info = await Purchases.restorePurchases();
       return info.entitlements.active.containsKey(AppConfig.proEntitlementId);
-    } catch (_) {
+    } catch (error, stack) {
+      await _reportRevenueCatError('restoring purchases', error, stack);
       return false;
     }
   }
@@ -104,13 +111,41 @@ class SubscriptionService {
     if (!_configured) return;
     try {
       await Purchases.logIn(userId);
-    } catch (_) {}
+    } catch (error, stack) {
+      await _reportRevenueCatError('identifying user', error, stack);
+    }
   }
 
   Future<void> logOut() async {
     if (!_configured) return;
     try {
       await Purchases.logOut();
+    } catch (error, stack) {
+      await _reportRevenueCatError('logging out', error, stack);
+    }
+  }
+
+  static Future<void> _reportRevenueCatError(
+    String operation,
+    Object error,
+    StackTrace stack,
+  ) async {
+    final message = _describeRevenueCatError(operation, error);
+    debugPrint(message);
+    try {
+      await FirebaseCrashlytics.instance.log(message);
+      await FirebaseCrashlytics.instance.recordError(error, stack);
     } catch (_) {}
+  }
+
+  static String _describeRevenueCatError(String operation, Object error) {
+    if (error is PlatformException) {
+      final code = PurchasesErrorHelper.getErrorCode(error);
+      return '[RevenueCat] Error while $operation: '
+          'code=${error.code} ($code), '
+          'message=${error.message}, '
+          'details=${error.details}';
+    }
+    return '[RevenueCat] Error while $operation: $error';
   }
 }
