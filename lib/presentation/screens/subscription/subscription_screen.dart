@@ -1,4 +1,6 @@
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 
 import '../../../config/app_config.dart';
@@ -51,13 +53,29 @@ class SubscriptionScreen extends StatelessWidget {
         onPurchaseCompleted: (customerInfo, storeTransaction) {
           if (context.mounted) Navigator.of(context).pop();
         },
+        onPurchaseError: (error) => _reportPaywallError('purchase', error),
         onRestoreCompleted: (customerInfo) {
           if (context.mounted) Navigator.of(context).pop();
         },
+        onRestoreError: (error) => _reportPaywallError('restore', error),
         onDismiss: () {
           if (context.mounted) Navigator.of(context).pop();
         },
       ),
     );
   }
+}
+
+Future<void> _reportPaywallError(String action, PurchasesError error) async {
+  final message =
+      '[RevenueCat Paywall] $action failed: '
+      'code=${error.code}, '
+      'readableCode=${error.readableErrorCode}, '
+      'message=${error.message}, '
+      'underlying=${error.underlyingErrorMessage}';
+  debugPrint(message);
+  try {
+    await FirebaseCrashlytics.instance.log(message);
+    await FirebaseCrashlytics.instance.recordError(StateError(message), null);
+  } catch (_) {}
 }
