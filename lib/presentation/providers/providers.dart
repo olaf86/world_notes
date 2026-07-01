@@ -326,7 +326,10 @@ class MapPinsRequest {
 }
 
 final mapPinsProvider = FutureProvider.family<List<PinSummary>, MapPinsRequest>(
-  (ref, request) {
+  (ref, request) async {
+    final user = await ref.watch(authStateProvider.future);
+    if (user == null) return const <PinSummary>[];
+
     return ref
         .watch(placeRepositoryProvider)
         .listMapPins(
