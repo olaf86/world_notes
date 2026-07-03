@@ -251,7 +251,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     }
   }
 
-  // ── Owner thread controls ─────────────────────────────────────────────────
+  // ── Maintainer thread controls ────────────────────────────────────────────
 
   Future<void> _closeThread() async {
     final confirmed = await showDialog<bool>(
@@ -334,7 +334,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     }
   }
 
-  /// Owner: open the access-management sheet (invite link + member list).
+  /// Maintainer: open the access-management sheet.
   void _showManageAccess() {
     showModalBottomSheet<void>(
       context: context,
@@ -526,7 +526,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     );
   }
 
-  /// Owner: set or change the note lock (locks it as private).
+  /// Creator: set or change the note lock (locks it as private).
   Future<void> _promptSetPassword({required bool isChange}) async {
     final place = ref.read(placeProvider(widget.placeId)).valueOrNull;
     final saved = await showDialog<NoteLockSetupValue>(
@@ -580,7 +580,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
         isSignedIn
             ? 'Could not verify this app. Please try again.'
             : 'Authentication failed. Please sign in again.',
-      'permission-denied' => 'Only the note owner can change this lock.',
+      'permission-denied' => 'Only the note creator can change this lock.',
       'not-found' => 'Note not found.',
       'invalid-argument' ||
       'failed-precondition' => error.message ?? 'Failed to save the lock.',
@@ -749,7 +749,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
       return _LoadingNoteView(title: widget.placeTitle);
     }
 
-    final isOwner = place.isOwnedBy(currentUser?.id);
+    final isMaintainer = place.isMaintainedBy(currentUser?.id);
     final isCreator = place.createdByUserId == currentUser?.id;
     final displayTitle = place.title;
     final nearbyAlertAsync = ref.watch(
@@ -761,7 +761,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     // Private-note access gate. For a private note the viewer doesn't own,
     // check their membership grant; if it's absent or stale, show the locked
     // view and DON'T subscribe to messages (the read would be denied anyway).
-    if (place.isPrivate && !isOwner) {
+    if (place.isPrivate && !isMaintainer) {
       final membership = ref
           .watch(noteMembershipProvider(widget.placeId))
           .valueOrNull;
@@ -821,7 +821,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                         tooltip: 'Go PRO',
                         onPressed: () => context.push('/subscription'),
                       ),
-                    if (!isOwner && !widget.readOnly)
+                    if (!isMaintainer && !widget.readOnly)
                       IconButton(
                         icon:
                             _nearbyNotificationBusy ||
@@ -846,10 +846,10 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                             ? null
                             : () => _setNearbyNotification(!nearbyAlertEnabled),
                       ),
-                    // My Notes keeps message posting read-only, but owners
+                    // My Notes keeps message posting read-only, but maintainers
                     // still need thread management. Creator-only actions stay
-                    // hidden from co-owners to keep ownership boundaries clear.
-                    if (isOwner && !place.isArchived)
+                    // hidden from maintainers to keep role boundaries clear.
+                    if (isMaintainer && !place.isArchived)
                       PopupMenuButton<String>(
                         tooltip: 'Thread options',
                         onSelected: (value) {
@@ -1089,7 +1089,7 @@ class _ThreadStatusBanner extends StatelessWidget {
       ),
       _ => (
         Icons.lock_outline,
-        'The owner closed this thread. It is read-only.',
+        'A maintainer closed this thread. It is read-only.',
       ),
     };
 

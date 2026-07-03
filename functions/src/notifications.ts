@@ -18,6 +18,7 @@ import {
   NOTE_DETAIL_ACCESS_RADIUS_KM,
   REGION,
 } from "./constants";
+import {isNoteMaintainer, maintainerIdsOf} from "./noteMaintenance";
 
 interface RegisterFcmTokenData {
   token?: unknown;
@@ -282,16 +283,6 @@ function boolOf(value: unknown, name: string): boolean {
   return value;
 }
 
-function ownerIdsOf(placeSnap: DocumentSnapshot): string[] {
-  const ownerIds = placeSnap.get("ownerIds") as string[] | undefined;
-  return ownerIds ?? [];
-}
-
-function isOwner(placeSnap: DocumentSnapshot, uid: string): boolean {
-  return placeSnap.get("createdByUserId") === uid ||
-    ownerIdsOf(placeSnap).includes(uid);
-}
-
 function isPublishedPlace(placeSnap: DocumentSnapshot, nowMs: number): boolean {
   const publishAt = placeSnap.get("publishAt") as Timestamp | undefined;
   const expiresAt = placeSnap.get("expiresAt") as Timestamp | undefined;
@@ -318,7 +309,7 @@ function canAccessPlace(
   uid: string,
 ): boolean {
   if (placeSnap.get("visibility") !== "private") return true;
-  if (isOwner(placeSnap, uid)) return true;
+  if (isNoteMaintainer(placeSnap, uid)) return true;
   return hasValidMembership(placeSnap, memberSnap);
 }
 
@@ -508,10 +499,10 @@ export const setNearbyNotification = onCall<SetNearbyNotificationData>(
           "This note is not available.",
         );
       }
-      if (isOwner(placeSnap, uid)) {
+      if (isNoteMaintainer(placeSnap, uid)) {
         throw new HttpsError(
           "failed-precondition",
-          "Nearby alerts are only for notes you do not own.",
+          "Nearby alerts are only for notes you do not maintain.",
         );
       }
 
@@ -811,7 +802,8 @@ export const checkNearbyUnread = onCall<CheckNearbyUnreadData>(
 );
 
 /**
- * Sends a push notification to note owners when somebody else posts a message.
+ * Sends a push notification to note maintainers when somebody else posts a
+ * message.
  *
  * @param {Firestore} db Firestore instance.
  * @param {string} placeId Note id.
@@ -839,17 +831,17 @@ export async function sendMyNotesMessageNotifications(
   if (messageSnap.get("isVisible") !== true) return;
   if (messageSnap.get("isPubliclyVisible") !== true) return;
 
-  const ownerIds = new Set<string>(
-    ((placeSnap.get("ownerIds") as string[] | undefined) ?? [])
+  const maintainerIds = new Set<string>(
+    maintainerIdsOf(placeSnap)
       .filter((value) => typeof value === "string" && value.length > 0),
   );
   const createdBy = placeSnap.get("createdByUserId") as string | undefined;
-  if (createdBy) ownerIds.add(createdBy);
-  ownerIds.delete(senderId);
-  if (ownerIds.size === 0) return;
+  if (createdBy) maintainerIds.add(createdBy);
+  maintainerIds.delete(senderId);
+  if (maintainerIds.size === 0) return;
 
-  const ownerEntries = await Promise.all(
-    [...ownerIds].map(async (uid) => {
+  const maintainerEntries = await Promise.all(
+    [...maintainerIds].map(async (uid) => {
       const userRef = db.collection("users").doc(uid);
       const settingsRef = userRef
         .collection("notificationSettings")
@@ -874,17 +866,18 @@ export async function sendMyNotesMessageNotifications(
     }),
   );
 
-  const enabledOwnerCount = ownerEntries.filter((entry) => entry.enabled)
-    .length;
-  const tokenEntries = ownerEntries.flatMap((entry) => entry.tokens);
+  const enabledMaintainerCount = maintainerEntries.filter(
+    (entry) => entry.enabled,
+  ).length;
+  const tokenEntries = maintainerEntries.flatMap((entry) => entry.tokens);
   if (tokenEntries.length === 0) {
     logger.info(
       "sendMyNotesMessageNotifications: no registered recipient tokens.",
       {
         placeId,
         messageId,
-        ownerCount: ownerIds.size,
-        enabledOwnerCount,
+        maintainerCount: maintainerIds.size,
+        enabledMaintainerCount,
       },
     );
     return;
@@ -959,7 +952,7 @@ export async function sendMyNotesMessageNotifications(
 }
 
 /**
- * Sends a push notification to non-owner nearby followers currently in range.
+ * Sends a push notification to non-maintainer nearby followers in range.
  *
  * @param {Firestore} db Firestore instance.
  * @param {string} placeId Note id.
@@ -998,7 +991,7 @@ export async function sendNearbyInRangeMessageNotifications(
   const userEntries = await Promise.all(
     followersSnap.docs.map(async (followerDoc) => {
       const uid = followerDoc.id;
-      if (uid === senderId || isOwner(placeSnap, uid)) return [];
+      if (uid === senderId || isNoteMaintainer(placeSnap, uid)) return [];
       const lastRead =
         (followerDoc.get("lastReadMessageAt") as Timestamp | undefined) ??
         Timestamp.fromMillis(0);

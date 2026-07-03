@@ -11,7 +11,7 @@ class PlaceModel {
   final String colorHex;
   final String icon;
   final String createdByUserId;
-  final List<String> ownerIds;
+  final List<String> maintainerIds;
   final DateTime createdAt;
   final DateTime publishAt;
   final int messageCount;
@@ -37,7 +37,7 @@ class PlaceModel {
     required this.colorHex,
     required this.icon,
     required this.createdByUserId,
-    this.ownerIds = const [],
+    this.maintainerIds = const [],
     required this.createdAt,
     required this.publishAt,
     required this.expiresAt,
@@ -54,14 +54,18 @@ class PlaceModel {
     this.archivedAt,
   });
 
-  static List<String> _ownerIdsFromData(Map<String, dynamic> data) {
+  static List<String> _maintainerIdsFromData(Map<String, dynamic> data) {
     final createdByUserId = data['createdByUserId'] as String;
-    final ownerIds = (data['ownerIds'] as List<dynamic>?)
+    final maintainerIds = (data['maintainerIds'] as List<dynamic>?)
         ?.whereType<String>()
         .toList();
-    if (ownerIds == null || ownerIds.isEmpty) return [createdByUserId];
-    if (ownerIds.contains(createdByUserId)) return ownerIds;
-    return [createdByUserId, ...ownerIds];
+    final legacyOwnerIds = (data['ownerIds'] as List<dynamic>?)
+        ?.whereType<String>()
+        .toList();
+    final ids = maintainerIds ?? legacyOwnerIds;
+    if (ids == null || ids.isEmpty) return [createdByUserId];
+    if (ids.contains(createdByUserId)) return ids;
+    return [createdByUserId, ...ids];
   }
 
   factory PlaceModel.fromFirestore(DocumentSnapshot doc) {
@@ -76,7 +80,7 @@ class PlaceModel {
       colorHex: data['colorHex'] as String,
       icon: data['icon'] as String,
       createdByUserId: data['createdByUserId'] as String,
-      ownerIds: _ownerIdsFromData(data),
+      maintainerIds: _maintainerIdsFromData(data),
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       publishAt: (data['publishAt'] as Timestamp).toDate(),
       messageCount: data['messageCount'] as int,
@@ -104,7 +108,9 @@ class PlaceModel {
       'colorHex': colorHex,
       'icon': icon,
       'createdByUserId': createdByUserId,
-      'ownerIds': ownerIds.isEmpty ? [createdByUserId] : ownerIds,
+      'maintainerIds': maintainerIds.isEmpty
+          ? [createdByUserId]
+          : maintainerIds,
       'createdAt': FieldValue.serverTimestamp(),
       'publishAt': Timestamp.fromDate(publishAt),
       'messageCount': messageCount,
@@ -134,7 +140,7 @@ class PlaceModel {
     colorHex: colorHex,
     icon: icon,
     createdByUserId: createdByUserId,
-    ownerIds: ownerIds,
+    maintainerIds: maintainerIds,
     createdAt: createdAt,
     publishAt: publishAt,
     messageCount: messageCount,

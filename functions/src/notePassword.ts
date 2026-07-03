@@ -14,7 +14,7 @@ import {
   validateLockSecret,
   verifyLockSecret,
 } from "./noteLock";
-import {isNoteCreator} from "./noteOwnership";
+import {isNoteCreator} from "./noteMaintenance";
 import {profileForMember} from "./userProfile";
 
 // Online brute-force protection for unlockNote.
@@ -101,7 +101,7 @@ export const setNotePassword = onCall<{
  *
  * Rate-limited per user+note to blunt online brute force. On success a
  * members/{uid} doc records the passwordVersion unlocked with, so the user
- * is not prompted again until the owner changes the secret.
+ * is not prompted again until the creator changes the secret.
  */
 export const unlockNote = onCall<{placeId?: unknown; password?: unknown}>(
   {secrets: [NOTE_PW_PEPPER], enforceAppCheck: true, region: REGION},

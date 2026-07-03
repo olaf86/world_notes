@@ -3,7 +3,7 @@ import 'package:world_notes/domain/entities/place_entity.dart';
 
 void main() {
   group('PlaceEntity', () {
-    test('treats creator and ownerIds as owners', () {
+    test('treats creator and maintainerIds as maintainers', () {
       final now = DateTime.now();
       final place = PlaceEntity(
         id: 'place-1',
@@ -14,16 +14,16 @@ void main() {
         colorHex: '#4CAF50',
         icon: 'place',
         createdByUserId: 'creator-1',
-        ownerIds: const ['creator-1', 'owner-2'],
+        maintainerIds: const ['creator-1', 'maintainer-2'],
         createdAt: now,
         publishAt: now,
         expiresAt: now.add(const Duration(days: 7)),
       );
 
-      expect(place.isOwnedBy('creator-1'), isTrue);
-      expect(place.isOwnedBy('owner-2'), isTrue);
-      expect(place.isOwnedBy('member-3'), isFalse);
-      expect(place.isOwnedBy(null), isFalse);
+      expect(place.isMaintainedBy('creator-1'), isTrue);
+      expect(place.isMaintainedBy('maintainer-2'), isTrue);
+      expect(place.isMaintainedBy('member-3'), isFalse);
+      expect(place.isMaintainedBy(null), isFalse);
     });
   });
 }

@@ -51,8 +51,8 @@ export {
   claimInvite,
   revokeInvite,
   revokeNoteAccess,
-  grantNoteOwnership,
-  revokeNoteOwnership,
+  grantNoteMaintainer,
+  revokeNoteMaintainer,
 } from "./invites";
 
 // Push notification preferences and FCM token registration.
@@ -293,7 +293,7 @@ export const createNote = onCall<CreateNoteData>(
         icon: typeof icon === "string" ? icon : "place",
         createdByUserId: uid,
         creatorName,
-        ownerIds: [uid],
+        maintainerIds: [uid],
         createdAt: FieldValue.serverTimestamp(),
         publishAt,
         messageCount: 0,
@@ -333,7 +333,7 @@ export const createNote = onCall<CreateNoteData>(
 );
 
 /**
- * Owner-only terminal archive. The place update and active-note counter
+ * Creator-only terminal archive. The place update and active-note counter
  * decrement share a transaction so retries cannot free the slot twice.
  */
 export const archiveNote = onCall<ArchiveNoteData>(
@@ -415,7 +415,7 @@ export const archiveNote = onCall<ArchiveNoteData>(
  *   • isArchived = true (so it drops out of proximity search and can no longer
  *     accept messages — both already enforced client-side / by rules),
  *   • archivedAt timestamp,
- *   • decrements the owner's activeNoteCount so the slot frees up against the
+ *   • decrements the creator's activeNoteCount so the slot frees up against the
  *     creation cap (the counter is the source of truth used by createNote).
  *
  * Archival is terminal — there is no return to active. Notes are processed in
@@ -442,18 +442,18 @@ export const archiveExpiredNotes = onSchedule(
 
       if (snap.empty) break;
 
-      const placesByOwner = new Map<string, DocumentReference[]>();
+      const placesByCreator = new Map<string, DocumentReference[]>();
       for (const doc of snap.docs) {
-        const ownerId = doc.get("createdByUserId") as string;
-        const refs = placesByOwner.get(ownerId) ?? [];
+        const creatorId = doc.get("createdByUserId") as string;
+        const refs = placesByCreator.get(creatorId) ?? [];
         refs.push(doc.ref);
-        placesByOwner.set(ownerId, refs);
+        placesByCreator.set(creatorId, refs);
       }
 
       const archivedCounts = await Promise.all(
-        [...placesByOwner.entries()].map(async ([ownerId, placeRefs]) => {
+        [...placesByCreator.entries()].map(async ([creatorId, placeRefs]) => {
           return db.runTransaction(async (tx) => {
-            const userRef = db.collection("users").doc(ownerId);
+            const userRef = db.collection("users").doc(creatorId);
             const [userSnap, ...placeSnaps] = await Promise.all([
               tx.get(userRef),
               ...placeRefs.map((ref) => tx.get(ref)),
@@ -463,7 +463,7 @@ export const archiveExpiredNotes = onSchedule(
                 placeSnap.get("expiresAt") as Timestamp | undefined;
               return placeSnap.exists &&
                 placeSnap.get("isArchived") !== true &&
-                placeSnap.get("createdByUserId") === ownerId &&
+                placeSnap.get("createdByUserId") === creatorId &&
                 expiresAt != null &&
                 expiresAt.toMillis() <= now.toMillis();
             });

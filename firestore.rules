@@ -8,13 +8,15 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isOwner(uid) {
+    function isCurrentUser(uid) {
       return isSignedIn() && request.auth.uid == uid;
     }
 
-    function isPlaceOwner(place) {
+    function isPlaceMaintainer(place) {
       return isSignedIn()
              && (place.createdByUserId == request.auth.uid
+                 || (place.maintainerIds is list
+                     && request.auth.uid in place.maintainerIds)
                  || (place.ownerIds is list
                      && request.auth.uid in place.ownerIds));
     }
@@ -35,13 +37,13 @@ service cloud.firestore {
     }
 
     // True if the caller may access a note's messages: public notes are open
-    // to all signed-in users; private notes require ownership or membership.
+    // to all signed-in users; private notes require maintenance or membership.
     // get() results are cached per request, so this costs ~1-2 reads for a
     // whole messages query, not per message.
     function canAccessNote(placeId) {
       let place = getPlace(placeId);
       return isSignedIn()
-             && (isPlaceOwner(place)
+             && (isPlaceMaintainer(place)
                  || (isPubliclyReadablePlace(place)
                      && (place.visibility == 'public'
                          || hasNoteMembership(placeId, place))));
@@ -54,11 +56,11 @@ service cloud.firestore {
     }
 
     function canListOwnedPlace(place) {
-      return isPlaceOwner(place);
+      return isPlaceMaintainer(place);
     }
 
     function canGetPlace(place) {
-      return isPlaceOwner(place) || isPubliclyReadablePlace(place);
+      return isPlaceMaintainer(place) || isPubliclyReadablePlace(place);
     }
 
     function isPubliclyVisibleMessage(message) {
@@ -74,8 +76,8 @@ service cloud.firestore {
 
     // ── users ─────────────────────────────────────────────────────────────────
     match /users/{uid} {
-      allow read: if isOwner(uid);
-      allow create: if isOwner(uid)
+      allow read: if isCurrentUser(uid);
+      allow create: if isCurrentUser(uid)
                     && request.resource.data.keys()
                         .hasOnly(['displayName', 'email', 'photoUrl'])
                     && request.resource.data.displayName is string
@@ -91,11 +93,11 @@ service cloud.firestore {
       allow update: if false;
       allow delete: if false;
 
-      // Notification preferences are readable by the signed-in owner, but only
+      // Notification preferences are readable by the signed-in user, but only
       // callable Cloud Functions may change them. The server remains the single
       // source of truth for who can receive My Notes push notifications.
       match /notificationSettings/{settingsId} {
-        allow read: if isOwner(uid);
+        allow read: if isCurrentUser(uid);
         allow write: if false;
       }
 
@@ -107,9 +109,9 @@ service cloud.firestore {
 
       // User-facing mirror of nearby note alerts. Read-only for the account
       // holder; all changes go through callable Cloud Functions so access,
-      // owner exclusion, and the 5-note cap stay server-enforced.
+      // maintainer exclusion, and the 5-note cap stay server-enforced.
       match /nearbyNotificationPlaces/{placeId} {
-        allow read: if isOwner(uid);
+        allow read: if isCurrentUser(uid);
         allow write: if false;
       }
     }
@@ -126,10 +128,11 @@ service cloud.firestore {
       // exceed the configured free / premium cap.
       allow create: if false;
 
-      // Owner writability changes (close / re-open).
+      // Maintainer writability changes (close / re-open).
       //   • Re-opening (isOpen → true) is allowed ONLY when the thread was
-      //     closed manually by the owner; message-limit closes are permanent.
-      allow update: if isPlaceOwner(resource.data)
+      //     closed manually by a maintainer; message-limit closes are
+      //     permanent.
+      allow update: if isPlaceMaintainer(resource.data)
                     && request.resource.data.diff(resource.data).affectedKeys()
                         .hasOnly(['isOpen', 'closedReason', 'closedAt'])
                     && (request.resource.data.isOpen == false
@@ -157,13 +160,13 @@ service cloud.firestore {
         allow read, write: if false;
       }
 
-      // Access grants. A user may read their OWN membership; the note owner may
+      // Access grants. A user may read their OWN membership; a note maintainer may
       // read the whole list (to manage access). Grants are written exclusively
       // by the unlockNote / claimInvite / revoke Cloud Functions.
       match /members/{memberUid} {
         allow read: if isSignedIn()
                     && (request.auth.uid == memberUid
-                        || isPlaceOwner(getPlace(placeId)));
+                        || isPlaceMaintainer(getPlace(placeId)));
         allow write: if false;
       }
 
@@ -182,7 +185,7 @@ service cloud.firestore {
 
       // ── messages (subcollection) ──────────────────────────────────────
       // Nested under the place so reads can be gated on the parent note's
-      // visibility + membership. For private notes, only the owner and
+      // visibility + membership. For private notes, only maintainers and
       // unlocked/invited members can read or post.
       match /messages/{messageId} {
         allow read: if canReadMessage(placeId, resource.data);

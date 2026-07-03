@@ -4,8 +4,8 @@ import '../../config/app_config.dart';
 ///
 /// public  — any proximity user can read & write.
 /// private — locked; access via password/pattern (verified server-side by a
-///           Cloud Function) or by owner invitation.  Once granted, access
-///           persists until the owner changes the secret (tracked by
+///           Cloud Function) or by maintainer invitation.  Once granted, access
+///           persists until the creator changes the secret (tracked by
 ///           passwordVersion).
 enum PlaceVisibility {
   public,
@@ -44,7 +44,7 @@ class NoteLockDraft {
 
 /// Why a note thread was closed (read-only).
 ///
-/// owner        — the owner closed it manually; the owner may re-open it.
+/// owner        — a maintainer closed it manually; a maintainer may re-open it.
 /// messageLimit — the thread hit AppConfig.maxMessagesPerThread; it is full
 ///                and CANNOT be manually re-opened.
 enum ClosedReason {
@@ -70,7 +70,7 @@ class PlaceEntity {
   final String colorHex;
   final String icon;
   final String createdByUserId;
-  final List<String> ownerIds;
+  final List<String> maintainerIds;
   final DateTime createdAt;
   final DateTime publishAt;
 
@@ -82,7 +82,7 @@ class PlaceEntity {
   // ── Axis 1: Visibility ──────────────────────────────────────────────────
   final PlaceVisibility visibility;
 
-  /// Increments each time the owner changes the lock secret.  A remembered
+  /// Increments each time the creator changes the lock secret.  A remembered
   /// access grant is valid only while it matches the current version.
   /// The password hash itself is NOT stored here — it lives in a Cloud
   /// Function-protected location so clients can never read it.
@@ -122,7 +122,7 @@ class PlaceEntity {
     required this.colorHex,
     required this.icon,
     required this.createdByUserId,
-    this.ownerIds = const [],
+    this.maintainerIds = const [],
     required this.createdAt,
     required this.publishAt,
     required this.expiresAt,
@@ -145,12 +145,12 @@ class PlaceEntity {
   bool get isClosed => !isOpen;
   bool get isAtMessageLimit => messageCount >= AppConfig.maxMessagesPerThread;
 
-  /// Owner may re-open only notes they closed manually (never message-limit).
+  /// Maintainers may re-open only notes closed manually (never message-limit).
   bool get canReopen => isClosed && closedReason == ClosedReason.owner;
 
-  bool isOwnedBy(String? uid) {
+  bool isMaintainedBy(String? uid) {
     if (uid == null) return false;
-    return uid == createdByUserId || ownerIds.contains(uid);
+    return uid == createdByUserId || maintainerIds.contains(uid);
   }
 
   bool isPublishedAt(DateTime now) => !now.isBefore(publishAt);
@@ -176,7 +176,7 @@ class PlaceEntity {
   /// Public notes are always accessible.
   bool isAccessibleBy(String? uid, NoteMembership? membership) {
     if (isPublic) return true;
-    if (isOwnedBy(uid)) return true;
+    if (isMaintainedBy(uid)) return true;
     if (membership == null) return false;
     return membership.invited ||
         membership.viaPasswordVersion == passwordVersion;
@@ -185,7 +185,7 @@ class PlaceEntity {
 
 /// A user's access grant to a private note (places/{id}/members/{uid}).
 class NoteMembership {
-  /// Granted by an owner invitation (survives password changes).
+  /// Granted by a maintainer invitation (survives password changes).
   final bool invited;
 
   /// The note's passwordVersion at unlock time. Access is valid only while it
@@ -198,7 +198,7 @@ class NoteMembership {
   });
 }
 
-/// A member of a private note, as seen by the owner in the access list.
+/// A member of a private note, as seen by maintainers in the access list.
 class NoteMember {
   final String userId;
   final String? displayName;
@@ -206,14 +206,14 @@ class NoteMember {
   /// True for invite-link members; false for password-unlock members.
   final bool invited;
 
-  /// True when this member is also listed in the note's ownerIds.
-  final bool isOwner;
+  /// True when this member is also listed in the note's maintainerIds.
+  final bool isMaintainer;
 
   const NoteMember({
     required this.userId,
     this.displayName,
     this.invited = false,
-    this.isOwner = false,
+    this.isMaintainer = false,
   });
 
   /// Best label to show for this member.

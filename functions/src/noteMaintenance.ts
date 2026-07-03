@@ -1,14 +1,18 @@
 import {DocumentSnapshot} from "firebase-admin/firestore";
 
 /**
- * Reads ownerIds from notes that may have been created before that field.
+ * Reads maintainerIds, falling back to ownerIds during migration.
  *
  * @param {DocumentSnapshot} placeSnap The note document.
- * @return {string[]} Owner ids stored on the note.
+ * @return {string[]} Creator plus delegated maintainer ids.
  */
-export function ownerIdsOf(placeSnap: DocumentSnapshot): string[] {
-  const ownerIds = placeSnap.get("ownerIds") as string[] | undefined;
-  return ownerIds ?? [];
+export function maintainerIdsOf(placeSnap: DocumentSnapshot): string[] {
+  const maintainerIds =
+    placeSnap.get("maintainerIds") as string[] | undefined;
+  if (maintainerIds != null) return maintainerIds;
+
+  const legacyOwnerIds = placeSnap.get("ownerIds") as string[] | undefined;
+  return legacyOwnerIds ?? [];
 }
 
 /**
@@ -26,15 +30,16 @@ export function isNoteCreator(
 }
 
 /**
- * Returns whether uid is the creator or a co-owner of the note.
+ * Returns whether uid has maintainer-level access.
  *
  * @param {DocumentSnapshot} placeSnap The note document.
  * @param {string} uid The user id to check.
- * @return {boolean} Whether the user owns the note.
+ * @return {boolean} Whether the user can maintain the note.
  */
-export function isNoteOwner(
+export function isNoteMaintainer(
   placeSnap: DocumentSnapshot,
   uid: string,
 ): boolean {
-  return isNoteCreator(placeSnap, uid) || ownerIdsOf(placeSnap).includes(uid);
+  return isNoteCreator(placeSnap, uid) ||
+    maintainerIdsOf(placeSnap).includes(uid);
 }

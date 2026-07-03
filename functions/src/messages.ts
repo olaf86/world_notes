@@ -19,6 +19,7 @@ import {
   sendMyNotesMessageNotifications,
   sendNearbyInRangeMessageNotifications,
 } from "./notifications";
+import {isNoteMaintainer} from "./noteMaintenance";
 
 interface SendMessageData {
   messageId?: unknown;
@@ -70,16 +71,6 @@ function photoUrlFor(tokenPicture: unknown): string | null {
   return stringOrNull(tokenPicture);
 }
 
-function ownerIdsOf(placeSnap: DocumentSnapshot): string[] {
-  const ownerIds = placeSnap.get("ownerIds") as string[] | undefined;
-  return ownerIds ?? [];
-}
-
-function isOwner(placeSnap: DocumentSnapshot, uid: string): boolean {
-  return placeSnap.get("createdByUserId") === uid ||
-    ownerIdsOf(placeSnap).includes(uid);
-}
-
 function hasValidMembership(
   placeSnap: DocumentSnapshot,
   memberSnap: DocumentSnapshot | null,
@@ -95,7 +86,7 @@ function canAccessNote(
   uid: string,
 ): boolean {
   if (placeSnap.get("visibility") !== "private") return true;
-  if (isOwner(placeSnap, uid)) return true;
+  if (isNoteMaintainer(placeSnap, uid)) return true;
   return hasValidMembership(placeSnap, memberSnap);
 }
 
@@ -243,7 +234,8 @@ export const sendMessage = onCall<SendMessageData>(
         return;
       }
       const memberSnap =
-        placeSnap.get("visibility") === "private" && !isOwner(placeSnap, uid) ?
+        placeSnap.get("visibility") === "private" &&
+          !isNoteMaintainer(placeSnap, uid) ?
           await tx.get(memberRef) :
           null;
       if (!canAccessNote(placeSnap, memberSnap, uid)) {

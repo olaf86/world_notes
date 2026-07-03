@@ -8,8 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../config/app_config.dart';
 import '../../providers/providers.dart';
 
-/// Owner-only sheet to manage a private note's access: create/share/revoke the
-/// invite link and remove individual members.
+/// Maintainer-only sheet to manage a private note's access.
 class ManageAccessSheet extends ConsumerStatefulWidget {
   final String placeId;
   const ManageAccessSheet({super.key, required this.placeId});
@@ -102,25 +101,25 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
     }
   }
 
-  Future<void> _grantOwner(String userId) async {
+  Future<void> _grantMaintainer(String userId) async {
     try {
       await ref
           .read(placeRepositoryProvider)
-          .grantNoteOwnership(placeId: widget.placeId, userId: userId);
-      _snack('Owner access granted.');
+          .grantNoteMaintainer(placeId: widget.placeId, userId: userId);
+      _snack('Maintainer access granted.');
     } on FirebaseFunctionsException catch (e) {
-      _snack(e.message ?? 'Could not make this person an owner.');
+      _snack(e.message ?? 'Could not make this person a maintainer.');
     }
   }
 
-  Future<void> _revokeOwner(String userId) async {
+  Future<void> _revokeMaintainer(String userId) async {
     try {
       await ref
           .read(placeRepositoryProvider)
-          .revokeNoteOwnership(placeId: widget.placeId, userId: userId);
-      _snack('Owner access removed.');
+          .revokeNoteMaintainer(placeId: widget.placeId, userId: userId);
+      _snack('Maintainer access removed.');
     } on FirebaseFunctionsException catch (e) {
-      _snack(e.message ?? 'Could not remove owner access.');
+      _snack(e.message ?? 'Could not remove maintainer access.');
     }
   }
 
@@ -173,7 +172,8 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
             const SizedBox(height: 4),
             Text(
               'Share the invite link so people can read and post without the '
-              'password. Only the creator can change locks and owners.',
+              'password. Maintainers can create invite links; only the '
+              'creator can revoke links or change maintainers.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -237,12 +237,14 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
                       label: Text(_linkCopied ? 'Copied' : 'Copy link'),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  OutlinedButton.icon(
-                    onPressed: _busy ? null : _revokeLink,
-                    icon: const Icon(Icons.link_off, size: 18),
-                    label: const Text('Revoke'),
-                  ),
+                  if (isCreator) ...[
+                    const SizedBox(width: 8),
+                    OutlinedButton.icon(
+                      onPressed: _busy ? null : _revokeLink,
+                      icon: const Icon(Icons.link_off, size: 18),
+                      label: const Text('Revoke'),
+                    ),
+                  ],
                 ],
               ),
             ],
@@ -270,15 +272,16 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
                         itemCount: members.length,
                         itemBuilder: (context, i) {
                           final m = members[i];
-                          final canGrantOwner = isCreator && !m.isOwner;
-                          final canRevokeOwner =
+                          final canGrantMaintainer =
+                              isCreator && !m.isMaintainer;
+                          final canRevokeMaintainer =
                               isCreator &&
-                              m.isOwner &&
+                              m.isMaintainer &&
                               m.userId != place?.createdByUserId;
-                          final canRemoveAccess = !m.isOwner;
+                          final canRemoveAccess = !m.isMaintainer;
                           final hasActions =
-                              canGrantOwner ||
-                              canRevokeOwner ||
+                              canGrantMaintainer ||
+                              canRevokeMaintainer ||
                               canRemoveAccess;
                           return ListTile(
                             contentPadding: EdgeInsets.zero,
@@ -296,7 +299,7 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
                             ),
                             subtitle: Text(
                               [
-                                if (m.isOwner) 'Owner',
+                                if (m.isMaintainer) 'Maintainer',
                                 if (m.invited)
                                   'Invited'
                                 else
@@ -307,38 +310,38 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
                                 ? PopupMenuButton<String>(
                                     tooltip: 'Member options',
                                     onSelected: (value) {
-                                      if (value == 'grantOwner') {
-                                        _grantOwner(m.userId);
+                                      if (value == 'grantMaintainer') {
+                                        _grantMaintainer(m.userId);
                                       }
-                                      if (value == 'revokeOwner') {
-                                        _revokeOwner(m.userId);
+                                      if (value == 'revokeMaintainer') {
+                                        _revokeMaintainer(m.userId);
                                       }
                                       if (value == 'removeAccess') {
                                         _removeMember(m.userId);
                                       }
                                     },
                                     itemBuilder: (context) => [
-                                      if (canRevokeOwner)
+                                      if (canRevokeMaintainer)
                                         const PopupMenuItem(
-                                          value: 'revokeOwner',
+                                          value: 'revokeMaintainer',
                                           child: ListTile(
                                             leading: Icon(
                                               Icons
                                                   .admin_panel_settings_outlined,
                                             ),
-                                            title: Text('Remove owner'),
+                                            title: Text('Remove maintainer'),
                                             contentPadding: EdgeInsets.zero,
                                           ),
                                         ),
-                                      if (canGrantOwner)
+                                      if (canGrantMaintainer)
                                         const PopupMenuItem(
-                                          value: 'grantOwner',
+                                          value: 'grantMaintainer',
                                           child: ListTile(
                                             leading: Icon(
                                               Icons
                                                   .admin_panel_settings_outlined,
                                             ),
-                                            title: Text('Make owner'),
+                                            title: Text('Make maintainer'),
                                             contentPadding: EdgeInsets.zero,
                                           ),
                                         ),
