@@ -16,9 +16,7 @@ service cloud.firestore {
       return isSignedIn()
              && (place.createdByUserId == request.auth.uid
                  || (place.maintainerIds is list
-                     && request.auth.uid in place.maintainerIds)
-                 || (place.ownerIds is list
-                     && request.auth.uid in place.ownerIds));
+                     && request.auth.uid in place.maintainerIds));
     }
 
     // Returns the data map of a place document.

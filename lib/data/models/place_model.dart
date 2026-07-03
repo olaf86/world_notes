@@ -59,13 +59,11 @@ class PlaceModel {
     final maintainerIds = (data['maintainerIds'] as List<dynamic>?)
         ?.whereType<String>()
         .toList();
-    final legacyOwnerIds = (data['ownerIds'] as List<dynamic>?)
-        ?.whereType<String>()
-        .toList();
-    final ids = maintainerIds ?? legacyOwnerIds;
-    if (ids == null || ids.isEmpty) return [createdByUserId];
-    if (ids.contains(createdByUserId)) return ids;
-    return [createdByUserId, ...ids];
+    if (maintainerIds == null || maintainerIds.isEmpty) {
+      return [createdByUserId];
+    }
+    if (maintainerIds.contains(createdByUserId)) return maintainerIds;
+    return [createdByUserId, ...maintainerIds];
   }
 
   factory PlaceModel.fromFirestore(DocumentSnapshot doc) {

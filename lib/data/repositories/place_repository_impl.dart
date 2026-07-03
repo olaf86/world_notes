@@ -347,10 +347,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
               userId: doc.id,
               displayName: data['displayName'] as String?,
               invited: data['invited'] as bool? ?? false,
-              isMaintainer:
-                  data['isMaintainer'] as bool? ??
-                  data['isOwner'] as bool? ??
-                  false,
+              isMaintainer: data['isMaintainer'] as bool? ?? false,
             );
           }).toList(),
         );

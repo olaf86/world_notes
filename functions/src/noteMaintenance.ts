@@ -1,7 +1,7 @@
 import {DocumentSnapshot} from "firebase-admin/firestore";
 
 /**
- * Reads maintainerIds, falling back to ownerIds during migration.
+ * Reads maintainerIds from a note.
  *
  * @param {DocumentSnapshot} placeSnap The note document.
  * @return {string[]} Creator plus delegated maintainer ids.
@@ -9,10 +9,7 @@ import {DocumentSnapshot} from "firebase-admin/firestore";
 export function maintainerIdsOf(placeSnap: DocumentSnapshot): string[] {
   const maintainerIds =
     placeSnap.get("maintainerIds") as string[] | undefined;
-  if (maintainerIds != null) return maintainerIds;
-
-  const legacyOwnerIds = placeSnap.get("ownerIds") as string[] | undefined;
-  return legacyOwnerIds ?? [];
+  return maintainerIds ?? [];
 }
 
 /**

@@ -32,7 +32,5 @@ Operational notes:
 
 - `maintainerIds` intentionally includes `createdByUserId` so My Notes queries
   and maintainer notifications can use one array-contains query.
-- Client and Cloud Functions may read legacy `ownerIds` during migration, but
-  new writes should use `maintainerIds`.
 - Invite-link revocation is creator-only because it invalidates an existing
   sharing channel for everyone.
