@@ -152,6 +152,9 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final currentUser = ref.watch(authStateProvider).valueOrNull;
+    final place = ref.watch(placeProvider(widget.placeId)).valueOrNull;
+    final isCreator = place?.createdByUserId == currentUser?.id;
     final membersAsync = ref.watch(noteMembersProvider(widget.placeId));
 
     return SafeArea(
@@ -170,7 +173,7 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
             const SizedBox(height: 4),
             Text(
               'Share the invite link so people can read and post without the '
-              'password. Owners can also manage the note.',
+              'password. Only the creator can change locks and owners.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -267,6 +270,16 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
                         itemCount: members.length,
                         itemBuilder: (context, i) {
                           final m = members[i];
+                          final canGrantOwner = isCreator && !m.isOwner;
+                          final canRevokeOwner =
+                              isCreator &&
+                              m.isOwner &&
+                              m.userId != place?.createdByUserId;
+                          final canRemoveAccess = !m.isOwner;
+                          final hasActions =
+                              canGrantOwner ||
+                              canRevokeOwner ||
+                              canRemoveAccess;
                           return ListTile(
                             contentPadding: EdgeInsets.zero,
                             leading: CircleAvatar(
@@ -290,57 +303,61 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
                                   'Unlocked with password',
                               ].join(' • '),
                             ),
-                            trailing: PopupMenuButton<String>(
-                              tooltip: 'Member options',
-                              onSelected: (value) {
-                                if (value == 'grantOwner') {
-                                  _grantOwner(m.userId);
-                                }
-                                if (value == 'revokeOwner') {
-                                  _revokeOwner(m.userId);
-                                }
-                                if (value == 'removeAccess') {
-                                  _removeMember(m.userId);
-                                }
-                              },
-                              itemBuilder: (context) => [
-                                if (m.isOwner)
-                                  const PopupMenuItem(
-                                    value: 'revokeOwner',
-                                    child: ListTile(
-                                      leading: Icon(
-                                        Icons.admin_panel_settings_outlined,
-                                      ),
-                                      title: Text('Remove owner'),
-                                      contentPadding: EdgeInsets.zero,
-                                    ),
+                            trailing: hasActions
+                                ? PopupMenuButton<String>(
+                                    tooltip: 'Member options',
+                                    onSelected: (value) {
+                                      if (value == 'grantOwner') {
+                                        _grantOwner(m.userId);
+                                      }
+                                      if (value == 'revokeOwner') {
+                                        _revokeOwner(m.userId);
+                                      }
+                                      if (value == 'removeAccess') {
+                                        _removeMember(m.userId);
+                                      }
+                                    },
+                                    itemBuilder: (context) => [
+                                      if (canRevokeOwner)
+                                        const PopupMenuItem(
+                                          value: 'revokeOwner',
+                                          child: ListTile(
+                                            leading: Icon(
+                                              Icons
+                                                  .admin_panel_settings_outlined,
+                                            ),
+                                            title: Text('Remove owner'),
+                                            contentPadding: EdgeInsets.zero,
+                                          ),
+                                        ),
+                                      if (canGrantOwner)
+                                        const PopupMenuItem(
+                                          value: 'grantOwner',
+                                          child: ListTile(
+                                            leading: Icon(
+                                              Icons
+                                                  .admin_panel_settings_outlined,
+                                            ),
+                                            title: Text('Make owner'),
+                                            contentPadding: EdgeInsets.zero,
+                                          ),
+                                        ),
+                                      if (canRemoveAccess) ...[
+                                        const PopupMenuDivider(),
+                                        const PopupMenuItem(
+                                          value: 'removeAccess',
+                                          child: ListTile(
+                                            leading: Icon(
+                                              Icons.person_remove_outlined,
+                                            ),
+                                            title: Text('Remove access'),
+                                            contentPadding: EdgeInsets.zero,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   )
-                                else
-                                  const PopupMenuItem(
-                                    value: 'grantOwner',
-                                    child: ListTile(
-                                      leading: Icon(
-                                        Icons.admin_panel_settings_outlined,
-                                      ),
-                                      title: Text('Make owner'),
-                                      contentPadding: EdgeInsets.zero,
-                                    ),
-                                  ),
-                                if (!m.isOwner) ...[
-                                  const PopupMenuDivider(),
-                                  const PopupMenuItem(
-                                    value: 'removeAccess',
-                                    child: ListTile(
-                                      leading: Icon(
-                                        Icons.person_remove_outlined,
-                                      ),
-                                      title: Text('Remove access'),
-                                      contentPadding: EdgeInsets.zero,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
+                                : null,
                           );
                         },
                       ),

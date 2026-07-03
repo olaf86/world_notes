@@ -750,6 +750,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     }
 
     final isOwner = place.isOwnedBy(currentUser?.id);
+    final isCreator = place.createdByUserId == currentUser?.id;
     final displayTitle = place.title;
     final nearbyAlertAsync = ref.watch(
       nearbyNotificationPlaceProvider(widget.placeId),
@@ -846,8 +847,8 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                             : () => _setNearbyNotification(!nearbyAlertEnabled),
                       ),
                     // My Notes keeps message posting read-only, but owners
-                    // still need access to thread management. Archived notes
-                    // are terminal and remain fully read-only.
+                    // still need thread management. Creator-only actions stay
+                    // hidden from co-owners to keep ownership boundaries clear.
                     if (isOwner && !place.isArchived)
                       PopupMenuButton<String>(
                         tooltip: 'Thread options',
@@ -879,20 +880,21 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                                 contentPadding: EdgeInsets.zero,
                               ),
                             ),
-                          PopupMenuItem(
-                            value: 'password',
-                            child: ListTile(
-                              leading: Icon(
-                                place.isPrivate
-                                    ? Icons.lock_reset
-                                    : Icons.lock_person_outlined,
+                          if (isCreator)
+                            PopupMenuItem(
+                              value: 'password',
+                              child: ListTile(
+                                leading: Icon(
+                                  place.isPrivate
+                                      ? Icons.lock_reset
+                                      : Icons.lock_person_outlined,
+                                ),
+                                title: Text(
+                                  place.isPrivate ? 'Change lock' : 'Set lock',
+                                ),
+                                contentPadding: EdgeInsets.zero,
                               ),
-                              title: Text(
-                                place.isPrivate ? 'Change lock' : 'Set lock',
-                              ),
-                              contentPadding: EdgeInsets.zero,
                             ),
-                          ),
                           if (place.isPrivate)
                             const PopupMenuItem(
                               value: 'access',
@@ -902,7 +904,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                                 contentPadding: EdgeInsets.zero,
                               ),
                             ),
-                          if (isOwner) ...[
+                          if (isCreator) ...[
                             const PopupMenuDivider(),
                             const PopupMenuItem(
                               value: 'archive',

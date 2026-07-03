@@ -355,19 +355,15 @@ export const archiveNote = onCall<ArchiveNoteData>(
       if (!placeSnap.exists) {
         throw new HttpsError("not-found", "Note not found.");
       }
-      const ownerIds = placeSnap.get("ownerIds") as string[] | undefined;
-      const isOwner = placeSnap.get("createdByUserId") === uid ||
-        (ownerIds ?? []).includes(uid);
-      if (!isOwner) {
+      if (placeSnap.get("createdByUserId") !== uid) {
         throw new HttpsError(
           "permission-denied",
-          "Only a note owner can archive it.",
+          "Only the note creator can archive it.",
         );
       }
       if (placeSnap.get("isArchived") === true) return false;
 
-      const creatorId = placeSnap.get("createdByUserId") as string;
-      const userRef = db.collection("users").doc(creatorId);
+      const userRef = db.collection("users").doc(uid);
       const userSnap = await tx.get(userRef);
       const activeCount =
         (userSnap.get("activeNoteCount") as number | undefined) ?? 0;
