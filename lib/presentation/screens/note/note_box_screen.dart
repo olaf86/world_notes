@@ -750,7 +750,6 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     }
 
     final isOwner = place.isOwnedBy(currentUser?.id);
-    final isCreator = place.createdByUserId == currentUser?.id;
     final displayTitle = place.title;
     final nearbyAlertAsync = ref.watch(
       nearbyNotificationPlaceProvider(widget.placeId),
@@ -903,7 +902,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                                 contentPadding: EdgeInsets.zero,
                               ),
                             ),
-                          if (isCreator) ...[
+                          if (isOwner) ...[
                             const PopupMenuDivider(),
                             const PopupMenuItem(
                               value: 'archive',

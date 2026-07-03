@@ -1,9 +1,36 @@
 import {onCall, HttpsError} from "firebase-functions/v2/https";
-import {getFirestore, FieldValue} from "firebase-admin/firestore";
+import {
+  DocumentSnapshot,
+  getFirestore,
+  FieldValue,
+} from "firebase-admin/firestore";
 import {randomBytes} from "crypto";
 
 import {REGION} from "./constants";
 import {profileForMember} from "./userProfile";
+
+/**
+ * Reads the note owner id array, tolerating legacy docs without it.
+ *
+ * @param {DocumentSnapshot} placeSnap The note document.
+ * @return {string[]} Owner ids stored on the note.
+ */
+function ownerIdsOf(placeSnap: DocumentSnapshot): string[] {
+  const ownerIds = placeSnap.get("ownerIds") as string[] | undefined;
+  return ownerIds ?? [];
+}
+
+/**
+ * Returns whether uid is the creator or a co-owner of the note.
+ *
+ * @param {DocumentSnapshot} placeSnap The note document.
+ * @param {string} uid The user id to check.
+ * @return {boolean} Whether the user owns the note.
+ */
+function isOwner(placeSnap: DocumentSnapshot, uid: string): boolean {
+  return placeSnap.get("createdByUserId") === uid ||
+    ownerIdsOf(placeSnap).includes(uid);
+}
 
 /**
  * Loads a place and asserts the caller owns it. Throws otherwise.
@@ -17,7 +44,7 @@ async function assertOwner(placeId: string, uid: string) {
   if (!snap.exists) {
     throw new HttpsError("not-found", "Note not found.");
   }
-  if (snap.get("createdByUserId") !== uid) {
+  if (!isOwner(snap, uid)) {
     throw new HttpsError("permission-denied", "Only the owner can do this.");
   }
   if (snap.get("isArchived") === true) {
@@ -212,12 +239,137 @@ export const revokeNoteAccess = onCall<{placeId?: unknown; userId?: unknown}>(
     }
     await assertOwner(placeId, uid);
 
-    await getFirestore()
-      .collection("places")
-      .doc(placeId)
+    const db = getFirestore();
+    const placeRef = db.collection("places").doc(placeId);
+    const placeSnap = await placeRef.get();
+    if (!placeSnap.exists) {
+      throw new HttpsError("not-found", "Note not found.");
+    }
+    if (isOwner(placeSnap, userId)) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Remove owner access before removing this member.",
+      );
+    }
+
+    await placeRef
       .collection("members")
       .doc(userId)
       .delete();
+    return {ok: true};
+  },
+);
+
+/**
+ * Owner-only: promotes an existing member to a co-owner.
+ */
+export const grantNoteOwnership = onCall<{
+  placeId?: unknown;
+  userId?: unknown;
+}>(
+  {enforceAppCheck: true, region: REGION},
+  async (req) => {
+    const uid = req.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+    const {placeId, userId} = req.data ?? {};
+    if (
+      typeof placeId !== "string" ||
+      placeId.length === 0 ||
+      typeof userId !== "string" ||
+      userId.length === 0
+    ) {
+      throw new HttpsError("invalid-argument", "placeId/userId required.");
+    }
+
+    const db = getFirestore();
+    const placeRef = db.collection("places").doc(placeId);
+    await db.runTransaction(async (tx) => {
+      const placeSnap = await tx.get(placeRef);
+      if (!placeSnap.exists) {
+        throw new HttpsError("not-found", "Note not found.");
+      }
+      if (!isOwner(placeSnap, uid)) {
+        throw new HttpsError(
+          "permission-denied",
+          "Only the owner can do this.",
+        );
+      }
+      if (placeSnap.get("isArchived") === true) {
+        throw new HttpsError("failed-precondition", "This note is archived.");
+      }
+
+      const memberRef = placeRef.collection("members").doc(userId);
+      const memberSnap = await tx.get(memberRef);
+      if (!memberSnap.exists) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Only people with access can become owners.",
+        );
+      }
+
+      tx.update(placeRef, {ownerIds: FieldValue.arrayUnion(userId)});
+      tx.set(memberRef, {isOwner: true}, {merge: true});
+    });
+
+    return {ok: true};
+  },
+);
+
+/**
+ * Owner-only: removes co-owner status from a member.
+ */
+export const revokeNoteOwnership = onCall<{
+  placeId?: unknown;
+  userId?: unknown;
+}>(
+  {enforceAppCheck: true, region: REGION},
+  async (req) => {
+    const uid = req.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+    const {placeId, userId} = req.data ?? {};
+    if (
+      typeof placeId !== "string" ||
+      placeId.length === 0 ||
+      typeof userId !== "string" ||
+      userId.length === 0
+    ) {
+      throw new HttpsError("invalid-argument", "placeId/userId required.");
+    }
+    if (userId === uid) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Ask another owner to remove your owner access.",
+      );
+    }
+
+    const db = getFirestore();
+    const placeRef = db.collection("places").doc(placeId);
+    await db.runTransaction(async (tx) => {
+      const placeSnap = await tx.get(placeRef);
+      if (!placeSnap.exists) {
+        throw new HttpsError("not-found", "Note not found.");
+      }
+      if (!isOwner(placeSnap, uid)) {
+        throw new HttpsError(
+          "permission-denied",
+          "Only the owner can do this.",
+        );
+      }
+      if (placeSnap.get("createdByUserId") === userId) {
+        throw new HttpsError(
+          "failed-precondition",
+          "The note creator must remain an owner.",
+        );
+      }
+
+      const memberRef = placeRef.collection("members").doc(userId);
+      const memberSnap = await tx.get(memberRef);
+      tx.update(placeRef, {ownerIds: FieldValue.arrayRemove(userId)});
+      if (memberSnap.exists) {
+        tx.set(memberRef, {isOwner: false}, {merge: true});
+      }
+    });
+
     return {ok: true};
   },
 );

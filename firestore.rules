@@ -15,7 +15,8 @@ service cloud.firestore {
     function isPlaceOwner(place) {
       return isSignedIn()
              && (place.createdByUserId == request.auth.uid
-                 || request.auth.uid in place.ownerIds);
+                 || (place.ownerIds is list
+                     && request.auth.uid in place.ownerIds));
     }
 
     // Returns the data map of a place document.

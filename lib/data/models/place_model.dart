@@ -54,6 +54,16 @@ class PlaceModel {
     this.archivedAt,
   });
 
+  static List<String> _ownerIdsFromData(Map<String, dynamic> data) {
+    final createdByUserId = data['createdByUserId'] as String;
+    final ownerIds = (data['ownerIds'] as List<dynamic>?)
+        ?.whereType<String>()
+        .toList();
+    if (ownerIds == null || ownerIds.isEmpty) return [createdByUserId];
+    if (ownerIds.contains(createdByUserId)) return ownerIds;
+    return [createdByUserId, ...ownerIds];
+  }
+
   factory PlaceModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return PlaceModel(
@@ -66,9 +76,7 @@ class PlaceModel {
       colorHex: data['colorHex'] as String,
       icon: data['icon'] as String,
       createdByUserId: data['createdByUserId'] as String,
-      ownerIds: (data['ownerIds'] as List<dynamic>)
-          .whereType<String>()
-          .toList(),
+      ownerIds: _ownerIdsFromData(data),
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       publishAt: (data['publishAt'] as Timestamp).toDate(),
       messageCount: data['messageCount'] as int,

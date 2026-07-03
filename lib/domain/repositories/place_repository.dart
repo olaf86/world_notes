@@ -111,6 +111,18 @@ abstract class PlaceRepository {
     required String userId,
   });
 
+  /// Owner-only: promotes an existing member to a co-owner.
+  Future<void> grantNoteOwnership({
+    required String placeId,
+    required String userId,
+  });
+
+  /// Owner-only: removes co-owner status from a member.
+  Future<void> revokeNoteOwnership({
+    required String placeId,
+    required String userId,
+  });
+
   /// Redeems an invite token for the signed-in user; returns the placeId to
   /// open. Throws [FirebaseFunctionsException] (`not-found` = invalid/revoked).
   Future<String> claimInvite(String token);

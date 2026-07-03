@@ -1,5 +1,6 @@
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {
+  DocumentSnapshot,
   getFirestore,
   FieldValue,
   Timestamp,
@@ -19,6 +20,29 @@ import {profileForMember} from "./userProfile";
 // Online brute-force protection for unlockNote.
 const MAX_ATTEMPTS = 5;
 const ATTEMPT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+
+/**
+ * Reads the note owner id array, tolerating legacy docs without it.
+ *
+ * @param {DocumentSnapshot} placeSnap The note document.
+ * @return {string[]} Owner ids stored on the note.
+ */
+function ownerIdsOf(placeSnap: DocumentSnapshot): string[] {
+  const ownerIds = placeSnap.get("ownerIds") as string[] | undefined;
+  return ownerIds ?? [];
+}
+
+/**
+ * Returns whether uid is the creator or a co-owner of the note.
+ *
+ * @param {DocumentSnapshot} placeSnap The note document.
+ * @param {string} uid The user id to check.
+ * @return {boolean} Whether the user owns the note.
+ */
+function isOwner(placeSnap: DocumentSnapshot, uid: string): boolean {
+  return placeSnap.get("createdByUserId") === uid ||
+    ownerIdsOf(placeSnap).includes(uid);
+}
 
 /**
  * Owner-only: set or change a note's lock secret (locks it as private).
@@ -65,7 +89,7 @@ export const setNotePassword = onCall<{
     if (!placeSnap.exists) {
       throw new HttpsError("not-found", "Note not found.");
     }
-    if (placeSnap.get("createdByUserId") !== uid) {
+    if (!isOwner(placeSnap, uid)) {
       throw new HttpsError("permission-denied", "Only the owner can do this.");
     }
 
@@ -170,12 +194,16 @@ export const unlockNote = onCall<{placeId?: unknown; password?: unknown}>(
     );
 
     const batch = db.batch();
-    batch.set(placeRef.collection("members").doc(uid), {
-      userId: uid,
-      viaPasswordVersion: authSnap.get("passwordVersion") as number,
-      grantedAt: FieldValue.serverTimestamp(),
-      displayName: profile.displayName,
-    });
+    batch.set(
+      placeRef.collection("members").doc(uid),
+      {
+        userId: uid,
+        viaPasswordVersion: authSnap.get("passwordVersion") as number,
+        grantedAt: FieldValue.serverTimestamp(),
+        displayName: profile.displayName,
+      },
+      {merge: true},
+    );
     batch.delete(attemptRef);
     await batch.commit();
 

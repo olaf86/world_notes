@@ -51,6 +51,8 @@ export {
   claimInvite,
   revokeInvite,
   revokeNoteAccess,
+  grantNoteOwnership,
+  revokeNoteOwnership,
 } from "./invites";
 
 // Push notification preferences and FCM token registration.
@@ -353,15 +355,19 @@ export const archiveNote = onCall<ArchiveNoteData>(
       if (!placeSnap.exists) {
         throw new HttpsError("not-found", "Note not found.");
       }
-      if (placeSnap.get("createdByUserId") !== uid) {
+      const ownerIds = placeSnap.get("ownerIds") as string[] | undefined;
+      const isOwner = placeSnap.get("createdByUserId") === uid ||
+        (ownerIds ?? []).includes(uid);
+      if (!isOwner) {
         throw new HttpsError(
           "permission-denied",
-          "Only the note creator can archive it.",
+          "Only a note owner can archive it.",
         );
       }
       if (placeSnap.get("isArchived") === true) return false;
 
-      const userRef = db.collection("users").doc(uid);
+      const creatorId = placeSnap.get("createdByUserId") as string;
+      const userRef = db.collection("users").doc(creatorId);
       const userSnap = await tx.get(userRef);
       const activeCount =
         (userSnap.get("activeNoteCount") as number | undefined) ?? 0;

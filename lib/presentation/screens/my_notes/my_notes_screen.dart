@@ -134,7 +134,7 @@ class _MyNotesListView extends ConsumerWidget {
                     final place = places[index];
                     return _MyNoteCard(
                       place: place,
-                      onArchive: place.createdByUserId == currentUser?.id
+                      onArchive: place.isOwnedBy(currentUser?.id)
                           ? () => _archivePlace(context, ref, place)
                           : null,
                     );

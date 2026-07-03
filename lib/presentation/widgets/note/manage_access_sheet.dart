@@ -102,6 +102,28 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
     }
   }
 
+  Future<void> _grantOwner(String userId) async {
+    try {
+      await ref
+          .read(placeRepositoryProvider)
+          .grantNoteOwnership(placeId: widget.placeId, userId: userId);
+      _snack('Owner access granted.');
+    } on FirebaseFunctionsException catch (e) {
+      _snack(e.message ?? 'Could not make this person an owner.');
+    }
+  }
+
+  Future<void> _revokeOwner(String userId) async {
+    try {
+      await ref
+          .read(placeRepositoryProvider)
+          .revokeNoteOwnership(placeId: widget.placeId, userId: userId);
+      _snack('Owner access removed.');
+    } on FirebaseFunctionsException catch (e) {
+      _snack(e.message ?? 'Could not remove owner access.');
+    }
+  }
+
   Future<void> _copyLink() async {
     if (_token == null) return;
     await Clipboard.setData(ClipboardData(text: AppConfig.inviteLink(_token!)));
@@ -148,7 +170,7 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
             const SizedBox(height: 4),
             Text(
               'Share the invite link so people can read and post without the '
-              'password. Revoking the link stops new joins.',
+              'password. Owners can also manage the note.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -260,12 +282,64 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
                               overflow: TextOverflow.ellipsis,
                             ),
                             subtitle: Text(
-                              m.invited ? 'Invited' : 'Unlocked with password',
+                              [
+                                if (m.isOwner) 'Owner',
+                                if (m.invited)
+                                  'Invited'
+                                else
+                                  'Unlocked with password',
+                              ].join(' • '),
                             ),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.person_remove_outlined),
-                              tooltip: 'Remove access',
-                              onPressed: () => _removeMember(m.userId),
+                            trailing: PopupMenuButton<String>(
+                              tooltip: 'Member options',
+                              onSelected: (value) {
+                                if (value == 'grantOwner') {
+                                  _grantOwner(m.userId);
+                                }
+                                if (value == 'revokeOwner') {
+                                  _revokeOwner(m.userId);
+                                }
+                                if (value == 'removeAccess') {
+                                  _removeMember(m.userId);
+                                }
+                              },
+                              itemBuilder: (context) => [
+                                if (m.isOwner)
+                                  const PopupMenuItem(
+                                    value: 'revokeOwner',
+                                    child: ListTile(
+                                      leading: Icon(
+                                        Icons.admin_panel_settings_outlined,
+                                      ),
+                                      title: Text('Remove owner'),
+                                      contentPadding: EdgeInsets.zero,
+                                    ),
+                                  )
+                                else
+                                  const PopupMenuItem(
+                                    value: 'grantOwner',
+                                    child: ListTile(
+                                      leading: Icon(
+                                        Icons.admin_panel_settings_outlined,
+                                      ),
+                                      title: Text('Make owner'),
+                                      contentPadding: EdgeInsets.zero,
+                                    ),
+                                  ),
+                                if (!m.isOwner) ...[
+                                  const PopupMenuDivider(),
+                                  const PopupMenuItem(
+                                    value: 'removeAccess',
+                                    child: ListTile(
+                                      leading: Icon(
+                                        Icons.person_remove_outlined,
+                                      ),
+                                      title: Text('Remove access'),
+                                      contentPadding: EdgeInsets.zero,
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                           );
                         },

@@ -206,10 +206,14 @@ class NoteMember {
   /// True for invite-link members; false for password-unlock members.
   final bool invited;
 
+  /// True when this member is also listed in the note's ownerIds.
+  final bool isOwner;
+
   const NoteMember({
     required this.userId,
     this.displayName,
     this.invited = false,
+    this.isOwner = false,
   });
 
   /// Best label to show for this member.

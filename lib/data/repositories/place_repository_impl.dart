@@ -306,6 +306,26 @@ class PlaceRepositoryImpl implements PlaceRepository {
   }
 
   @override
+  Future<void> grantNoteOwnership({
+    required String placeId,
+    required String userId,
+  }) async {
+    await _functions
+        .httpsCallable('grantNoteOwnership')
+        .call<Map<String, dynamic>>({'placeId': placeId, 'userId': userId});
+  }
+
+  @override
+  Future<void> revokeNoteOwnership({
+    required String placeId,
+    required String userId,
+  }) async {
+    await _functions
+        .httpsCallable('revokeNoteOwnership')
+        .call<Map<String, dynamic>>({'placeId': placeId, 'userId': userId});
+  }
+
+  @override
   Future<String> claimInvite(String token) async {
     final result = await _functions
         .httpsCallable('claimInvite')
@@ -326,6 +346,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
               userId: doc.id,
               displayName: data['displayName'] as String?,
               invited: data['invited'] as bool? ?? false,
+              isOwner: data['isOwner'] as bool? ?? false,
             );
           }).toList(),
         );
