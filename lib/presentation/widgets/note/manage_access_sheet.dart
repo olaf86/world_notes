@@ -6,10 +6,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../config/app_config.dart';
+import '../../../domain/policies/note_permissions.dart';
 import '../../providers/providers.dart';
 
-/// Owner-only sheet to manage a private note's access: create/share/revoke the
-/// invite link and remove individual members.
+/// Maintainer-only sheet to manage a private note's access.
 class ManageAccessSheet extends ConsumerStatefulWidget {
   final String placeId;
   const ManageAccessSheet({super.key, required this.placeId});
@@ -102,6 +102,28 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
     }
   }
 
+  Future<void> _grantMaintainer(String userId) async {
+    try {
+      await ref
+          .read(placeRepositoryProvider)
+          .grantNoteMaintainer(placeId: widget.placeId, userId: userId);
+      _snack('Maintainer access granted.');
+    } on FirebaseFunctionsException catch (e) {
+      _snack(e.message ?? 'Could not make this person a maintainer.');
+    }
+  }
+
+  Future<void> _revokeMaintainer(String userId) async {
+    try {
+      await ref
+          .read(placeRepositoryProvider)
+          .revokeNoteMaintainer(placeId: widget.placeId, userId: userId);
+      _snack('Maintainer access removed.');
+    } on FirebaseFunctionsException catch (e) {
+      _snack(e.message ?? 'Could not remove maintainer access.');
+    }
+  }
+
   Future<void> _copyLink() async {
     if (_token == null) return;
     await Clipboard.setData(ClipboardData(text: AppConfig.inviteLink(_token!)));
@@ -130,6 +152,14 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final currentUser = ref.watch(authStateProvider).valueOrNull;
+    final place = ref.watch(placeProvider(widget.placeId)).valueOrNull;
+    final permissions = place?.permissionsFor(
+      uid: currentUser?.id,
+      membership: null,
+      readOnly: false,
+      now: DateTime.now(),
+    );
     final membersAsync = ref.watch(noteMembersProvider(widget.placeId));
 
     return SafeArea(
@@ -148,7 +178,8 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
             const SizedBox(height: 4),
             Text(
               'Share the invite link so people can read and post without the '
-              'password. Revoking the link stops new joins.',
+              'password. Maintainers can create invite links; only the '
+              'creator can revoke links or change maintainers.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -212,12 +243,14 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
                       label: Text(_linkCopied ? 'Copied' : 'Copy link'),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  OutlinedButton.icon(
-                    onPressed: _busy ? null : _revokeLink,
-                    icon: const Icon(Icons.link_off, size: 18),
-                    label: const Text('Revoke'),
-                  ),
+                  if (permissions?.canRevokeInviteLink ?? false) ...[
+                    const SizedBox(width: 8),
+                    OutlinedButton.icon(
+                      onPressed: _busy ? null : _revokeLink,
+                      icon: const Icon(Icons.link_off, size: 18),
+                      label: const Text('Revoke'),
+                    ),
+                  ],
                 ],
               ),
             ],
@@ -245,6 +278,17 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
                         itemCount: members.length,
                         itemBuilder: (context, i) {
                           final m = members[i];
+                          final memberPermissions =
+                              place == null || permissions == null
+                              ? const NoteMemberPermissions(
+                                  canRemoveAccess: false,
+                                  canPromoteToMaintainer: false,
+                                  canDemoteMaintainer: false,
+                                )
+                              : m.permissionsFor(
+                                  place: place,
+                                  actor: permissions,
+                                );
                           return ListTile(
                             contentPadding: EdgeInsets.zero,
                             leading: CircleAvatar(
@@ -260,13 +304,71 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
                               overflow: TextOverflow.ellipsis,
                             ),
                             subtitle: Text(
-                              m.invited ? 'Invited' : 'Unlocked with password',
+                              [
+                                if (m.isMaintainer) 'Maintainer',
+                                if (m.invited)
+                                  'Invited'
+                                else
+                                  'Unlocked with password',
+                              ].join(' • '),
                             ),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.person_remove_outlined),
-                              tooltip: 'Remove access',
-                              onPressed: () => _removeMember(m.userId),
-                            ),
+                            trailing: memberPermissions.hasActions
+                                ? PopupMenuButton<String>(
+                                    tooltip: 'Member options',
+                                    onSelected: (value) {
+                                      if (value == 'grantMaintainer') {
+                                        _grantMaintainer(m.userId);
+                                      }
+                                      if (value == 'revokeMaintainer') {
+                                        _revokeMaintainer(m.userId);
+                                      }
+                                      if (value == 'removeAccess') {
+                                        _removeMember(m.userId);
+                                      }
+                                    },
+                                    itemBuilder: (context) => [
+                                      if (memberPermissions.canDemoteMaintainer)
+                                        const PopupMenuItem(
+                                          value: 'revokeMaintainer',
+                                          child: ListTile(
+                                            leading: Icon(
+                                              Icons
+                                                  .admin_panel_settings_outlined,
+                                            ),
+                                            title: Text('Remove maintainer'),
+                                            contentPadding: EdgeInsets.zero,
+                                          ),
+                                        ),
+                                      if (memberPermissions
+                                          .canPromoteToMaintainer)
+                                        const PopupMenuItem(
+                                          value: 'grantMaintainer',
+                                          child: ListTile(
+                                            leading: Icon(
+                                              Icons
+                                                  .admin_panel_settings_outlined,
+                                            ),
+                                            title: Text('Make maintainer'),
+                                            contentPadding: EdgeInsets.zero,
+                                          ),
+                                        ),
+                                      if (memberPermissions
+                                          .canRemoveAccess) ...[
+                                        const PopupMenuDivider(),
+                                        const PopupMenuItem(
+                                          value: 'removeAccess',
+                                          child: ListTile(
+                                            leading: Icon(
+                                              Icons.person_remove_outlined,
+                                            ),
+                                            title: Text('Remove access'),
+                                            contentPadding: EdgeInsets.zero,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  )
+                                : null,
                           );
                         },
                       ),

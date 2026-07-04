@@ -126,11 +126,12 @@ class PlaceRepositoryImpl implements PlaceRepository {
         );
   }
 
-  // ── Ownership queries ─────────────────────────────────────────────────────
+  // ── Maintainer queries ────────────────────────────────────────────────────
 
-  Query _ownedPlacesQuery(String userId, {required bool isArchived}) => _places
-      .where('ownerIds', arrayContains: userId)
-      .where('isArchived', isEqualTo: isArchived);
+  Query _maintainedPlacesQuery(String userId, {required bool isArchived}) =>
+      _places
+          .where('maintainerIds', arrayContains: userId)
+          .where('isArchived', isEqualTo: isArchived);
 
   List<PlaceEntity> _collectMyPlaces(QuerySnapshot snap) {
     final places = snap.docs
@@ -161,7 +162,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
   @override
   Future<int> countUserActivePlaces(String userId) async {
     final snap = await _places
-        .where('ownerIds', arrayContains: userId)
+        .where('maintainerIds', arrayContains: userId)
         .where('isArchived', isEqualTo: false)
         .count()
         .get();
@@ -170,7 +171,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
 
   @override
   Stream<List<PlaceEntity>> watchMyPlaces(String userId) {
-    return _ownedPlacesQuery(
+    return _maintainedPlacesQuery(
       userId,
       isArchived: false,
     ).snapshots().map(_collectMyPlaces);
@@ -178,13 +179,13 @@ class PlaceRepositoryImpl implements PlaceRepository {
 
   @override
   Future<List<PlaceEntity>> getMyPlaces(String userId) async {
-    final snap = await _ownedPlacesQuery(userId, isArchived: false).get();
+    final snap = await _maintainedPlacesQuery(userId, isArchived: false).get();
     return _collectMyPlaces(snap);
   }
 
   @override
   Stream<List<PlaceEntity>> watchArchivedMyPlaces(String userId) {
-    return _ownedPlacesQuery(
+    return _maintainedPlacesQuery(
       userId,
       isArchived: true,
     ).snapshots().map(_collectArchivedMyPlaces);
@@ -306,6 +307,26 @@ class PlaceRepositoryImpl implements PlaceRepository {
   }
 
   @override
+  Future<void> grantNoteMaintainer({
+    required String placeId,
+    required String userId,
+  }) async {
+    await _functions
+        .httpsCallable('grantNoteMaintainer')
+        .call<Map<String, dynamic>>({'placeId': placeId, 'userId': userId});
+  }
+
+  @override
+  Future<void> revokeNoteMaintainer({
+    required String placeId,
+    required String userId,
+  }) async {
+    await _functions
+        .httpsCallable('revokeNoteMaintainer')
+        .call<Map<String, dynamic>>({'placeId': placeId, 'userId': userId});
+  }
+
+  @override
   Future<String> claimInvite(String token) async {
     final result = await _functions
         .httpsCallable('claimInvite')
@@ -326,6 +347,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
               userId: doc.id,
               displayName: data['displayName'] as String?,
               invited: data['invited'] as bool? ?? false,
+              isMaintainer: data['isMaintainer'] as bool? ?? false,
             );
           }).toList(),
         );

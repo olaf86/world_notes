@@ -1,24 +1,59 @@
 import {onCall, HttpsError} from "firebase-functions/v2/https";
-import {getFirestore, FieldValue} from "firebase-admin/firestore";
+import {
+  getFirestore,
+  FieldValue,
+} from "firebase-admin/firestore";
 import {randomBytes} from "crypto";
 
 import {REGION} from "./constants";
+import {
+  canChangeNoteMaintainers,
+  canMaintainNote,
+  canRevokeNoteInvites,
+  isNoteMaintainer,
+} from "./noteMaintenance";
 import {profileForMember} from "./userProfile";
 
 /**
- * Loads a place and asserts the caller owns it. Throws otherwise.
+ * Loads a place and asserts the caller can maintain it. Throws otherwise.
  *
  * @param {string} placeId The note's id.
  * @param {string} uid The caller's uid.
  */
-async function assertOwner(placeId: string, uid: string) {
+async function assertMaintainer(placeId: string, uid: string) {
   const db = getFirestore();
   const snap = await db.collection("places").doc(placeId).get();
   if (!snap.exists) {
     throw new HttpsError("not-found", "Note not found.");
   }
-  if (snap.get("createdByUserId") !== uid) {
-    throw new HttpsError("permission-denied", "Only the owner can do this.");
+  if (!canMaintainNote(snap, uid)) {
+    throw new HttpsError(
+      "permission-denied",
+      "Only a note maintainer can do this.",
+    );
+  }
+  if (snap.get("isArchived") === true) {
+    throw new HttpsError("failed-precondition", "This note is archived.");
+  }
+}
+
+/**
+ * Loads a place and asserts the caller can revoke its invite links.
+ *
+ * @param {string} placeId The note's id.
+ * @param {string} uid The caller's uid.
+ */
+async function assertInviteRevoker(placeId: string, uid: string) {
+  const db = getFirestore();
+  const snap = await db.collection("places").doc(placeId).get();
+  if (!snap.exists) {
+    throw new HttpsError("not-found", "Note not found.");
+  }
+  if (!canRevokeNoteInvites(snap, uid)) {
+    throw new HttpsError(
+      "permission-denied",
+      "Only the note creator can do this.",
+    );
   }
   if (snap.get("isArchived") === true) {
     throw new HttpsError("failed-precondition", "This note is archived.");
@@ -41,7 +76,8 @@ async function activeInviteToken(placeId: string): Promise<string | null> {
 }
 
 /**
- * Owner-only: returns the note's active reusable invite token, if one exists.
+ * Maintainer-only: returns the note's active reusable invite token, if one
+ * exists.
  * Unlike createInviteLink, this does not create a new invite.
  */
 export const getInviteLink = onCall<{placeId?: unknown}>(
@@ -53,16 +89,17 @@ export const getInviteLink = onCall<{placeId?: unknown}>(
     if (typeof placeId !== "string" || placeId.length === 0) {
       throw new HttpsError("invalid-argument", "placeId is required.");
     }
-    await assertOwner(placeId, uid);
+    await assertMaintainer(placeId, uid);
 
     return {token: await activeInviteToken(placeId)};
   },
 );
 
 /**
- * Owner-only: returns the note's reusable invite token, creating one if none
- * is active. The token is the secret (high-entropy doc id) and lives in the
- * server-only `invites` collection — never on the client-readable place doc.
+ * Maintainer-only: returns the note's reusable invite token, creating one if
+ * none is active. The token is the secret (high-entropy doc id) and lives in
+ * the server-only `invites` collection — never on the client-readable place
+ * doc.
  */
 export const createInviteLink = onCall<{placeId?: unknown}>(
   {enforceAppCheck: true, region: REGION},
@@ -73,7 +110,7 @@ export const createInviteLink = onCall<{placeId?: unknown}>(
     if (typeof placeId !== "string" || placeId.length === 0) {
       throw new HttpsError("invalid-argument", "placeId is required.");
     }
-    await assertOwner(placeId, uid);
+    await assertMaintainer(placeId, uid);
 
     const db = getFirestore();
     // Reuse an existing active token (one reusable link per note).
@@ -162,7 +199,7 @@ export const claimInvite = onCall<{token?: unknown}>(
 );
 
 /**
- * Owner-only: revokes the note's invite link(s), so the shared link stops
+ * Creator-only: revokes the note's invite link(s), so the shared link stops
  * working. Existing members keep their access (use revokeNoteAccess to remove
  * an individual).
  */
@@ -175,7 +212,7 @@ export const revokeInvite = onCall<{placeId?: unknown}>(
     if (typeof placeId !== "string" || placeId.length === 0) {
       throw new HttpsError("invalid-argument", "placeId is required.");
     }
-    await assertOwner(placeId, uid);
+    await assertInviteRevoker(placeId, uid);
 
     const db = getFirestore();
     const tokens = await db
@@ -194,7 +231,7 @@ export const revokeInvite = onCall<{placeId?: unknown}>(
 );
 
 /**
- * Owner-only: removes a single member's access grant.
+ * Maintainer-only: removes a single regular member's access grant.
  */
 export const revokeNoteAccess = onCall<{placeId?: unknown; userId?: unknown}>(
   {enforceAppCheck: true, region: REGION},
@@ -210,14 +247,132 @@ export const revokeNoteAccess = onCall<{placeId?: unknown; userId?: unknown}>(
     ) {
       throw new HttpsError("invalid-argument", "placeId/userId required.");
     }
-    await assertOwner(placeId, uid);
+    await assertMaintainer(placeId, uid);
 
-    await getFirestore()
-      .collection("places")
-      .doc(placeId)
+    const db = getFirestore();
+    const placeRef = db.collection("places").doc(placeId);
+    const placeSnap = await placeRef.get();
+    if (!placeSnap.exists) {
+      throw new HttpsError("not-found", "Note not found.");
+    }
+    if (isNoteMaintainer(placeSnap, userId)) {
+      throw new HttpsError(
+        "failed-precondition",
+        "This member is a maintainer. Remove maintainer access first.",
+      );
+    }
+
+    await placeRef
       .collection("members")
       .doc(userId)
       .delete();
+    return {ok: true};
+  },
+);
+
+/**
+ * Creator-only: promotes an existing member to a maintainer.
+ */
+export const grantNoteMaintainer = onCall<{
+  placeId?: unknown;
+  userId?: unknown;
+}>(
+  {enforceAppCheck: true, region: REGION},
+  async (req) => {
+    const uid = req.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+    const {placeId, userId} = req.data ?? {};
+    if (
+      typeof placeId !== "string" ||
+      placeId.length === 0 ||
+      typeof userId !== "string" ||
+      userId.length === 0
+    ) {
+      throw new HttpsError("invalid-argument", "placeId/userId required.");
+    }
+
+    const db = getFirestore();
+    const placeRef = db.collection("places").doc(placeId);
+    await db.runTransaction(async (tx) => {
+      const placeSnap = await tx.get(placeRef);
+      if (!placeSnap.exists) {
+        throw new HttpsError("not-found", "Note not found.");
+      }
+      if (!canChangeNoteMaintainers(placeSnap, uid)) {
+        throw new HttpsError(
+          "permission-denied",
+          "Only the note creator can change maintainers.",
+        );
+      }
+      if (placeSnap.get("isArchived") === true) {
+        throw new HttpsError("failed-precondition", "This note is archived.");
+      }
+
+      const memberRef = placeRef.collection("members").doc(userId);
+      const memberSnap = await tx.get(memberRef);
+      if (!memberSnap.exists) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Only people with access can become maintainers.",
+        );
+      }
+
+      tx.update(placeRef, {maintainerIds: FieldValue.arrayUnion(userId)});
+      tx.set(memberRef, {isMaintainer: true}, {merge: true});
+    });
+
+    return {ok: true};
+  },
+);
+
+/**
+ * Creator-only: removes maintainer status from a member.
+ */
+export const revokeNoteMaintainer = onCall<{
+  placeId?: unknown;
+  userId?: unknown;
+}>(
+  {enforceAppCheck: true, region: REGION},
+  async (req) => {
+    const uid = req.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+    const {placeId, userId} = req.data ?? {};
+    if (
+      typeof placeId !== "string" ||
+      placeId.length === 0 ||
+      typeof userId !== "string" ||
+      userId.length === 0
+    ) {
+      throw new HttpsError("invalid-argument", "placeId/userId required.");
+    }
+    const db = getFirestore();
+    const placeRef = db.collection("places").doc(placeId);
+    await db.runTransaction(async (tx) => {
+      const placeSnap = await tx.get(placeRef);
+      if (!placeSnap.exists) {
+        throw new HttpsError("not-found", "Note not found.");
+      }
+      if (!canChangeNoteMaintainers(placeSnap, uid)) {
+        throw new HttpsError(
+          "permission-denied",
+          "Only the note creator can change maintainers.",
+        );
+      }
+      if (placeSnap.get("createdByUserId") === userId) {
+        throw new HttpsError(
+          "failed-precondition",
+          "The note creator must remain a maintainer.",
+        );
+      }
+
+      const memberRef = placeRef.collection("members").doc(userId);
+      const memberSnap = await tx.get(memberRef);
+      tx.update(placeRef, {maintainerIds: FieldValue.arrayRemove(userId)});
+      if (memberSnap.exists) {
+        tx.set(memberRef, {isMaintainer: false}, {merge: true});
+      }
+    });
+
     return {ok: true};
   },
 );

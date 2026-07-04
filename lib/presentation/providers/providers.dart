@@ -363,7 +363,7 @@ final noteMembershipProvider = StreamProvider.family<NoteMembership?, String>((
       .watchMembership(placeId: placeId, userId: user.id);
 });
 
-/// Owner view of a private note's access list.
+/// Maintainer view of a private note's access list.
 final noteMembersProvider = StreamProvider.family<List<NoteMember>, String>((
   ref,
   placeId,

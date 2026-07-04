@@ -35,7 +35,7 @@
       "collectionGroup": "places",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ownerIds", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "maintainerIds", "arrayConfig": "CONTAINS" },
         { "fieldPath": "isArchived", "order": "ASCENDING" }
       ]
     },

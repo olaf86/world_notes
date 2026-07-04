@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/place_icon.dart';
 import '../../../domain/entities/place_entity.dart';
+import '../../../domain/policies/note_permissions.dart';
 import '../../providers/providers.dart';
 import '../../widgets/my_notes_notification_controls.dart';
 import '../../widgets/note/note_list_card.dart';
@@ -132,9 +133,15 @@ class _MyNotesListView extends ConsumerWidget {
                       const SizedBox(height: 10),
                   itemBuilder: (context, index) {
                     final place = places[index];
+                    final permissions = place.permissionsFor(
+                      uid: currentUser?.id,
+                      membership: null,
+                      readOnly: true,
+                      now: DateTime.now(),
+                    );
                     return _MyNoteCard(
                       place: place,
-                      onArchive: place.createdByUserId == currentUser?.id
+                      onArchive: permissions.canArchive
                           ? () => _archivePlace(context, ref, place)
                           : null,
                     );

@@ -14,6 +14,7 @@ import {
   validateLockSecret,
   verifyLockSecret,
 } from "./noteLock";
+import {canChangeNoteLock} from "./noteMaintenance";
 import {profileForMember} from "./userProfile";
 
 // Online brute-force protection for unlockNote.
@@ -21,7 +22,7 @@ const MAX_ATTEMPTS = 5;
 const ATTEMPT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 
 /**
- * Owner-only: set or change a note's lock secret (locks it as private).
+ * Creator-only: set or change a note's lock secret (locks it as private).
  *
  * The hash lives in places/{id}/secret/auth, which clients can never read,
  * and is keyed by a server pepper so a Firestore leak alone can't crack it.
@@ -65,8 +66,11 @@ export const setNotePassword = onCall<{
     if (!placeSnap.exists) {
       throw new HttpsError("not-found", "Note not found.");
     }
-    if (placeSnap.get("createdByUserId") !== uid) {
-      throw new HttpsError("permission-denied", "Only the owner can do this.");
+    if (!canChangeNoteLock(placeSnap, uid)) {
+      throw new HttpsError(
+        "permission-denied",
+        "Only the note creator can change this lock.",
+      );
     }
 
     const newVersion = ((placeSnap.get("passwordVersion") as number) ?? 0) + 1;
@@ -97,7 +101,7 @@ export const setNotePassword = onCall<{
  *
  * Rate-limited per user+note to blunt online brute force. On success a
  * members/{uid} doc records the passwordVersion unlocked with, so the user
- * is not prompted again until the owner changes the secret.
+ * is not prompted again until the creator changes the secret.
  */
 export const unlockNote = onCall<{placeId?: unknown; password?: unknown}>(
   {secrets: [NOTE_PW_PEPPER], enforceAppCheck: true, region: REGION},
@@ -170,12 +174,16 @@ export const unlockNote = onCall<{placeId?: unknown; password?: unknown}>(
     );
 
     const batch = db.batch();
-    batch.set(placeRef.collection("members").doc(uid), {
-      userId: uid,
-      viaPasswordVersion: authSnap.get("passwordVersion") as number,
-      grantedAt: FieldValue.serverTimestamp(),
-      displayName: profile.displayName,
-    });
+    batch.set(
+      placeRef.collection("members").doc(uid),
+      {
+        userId: uid,
+        viaPasswordVersion: authSnap.get("passwordVersion") as number,
+        grantedAt: FieldValue.serverTimestamp(),
+        displayName: profile.displayName,
+      },
+      {merge: true},
+    );
     batch.delete(attemptRef);
     await batch.commit();
 

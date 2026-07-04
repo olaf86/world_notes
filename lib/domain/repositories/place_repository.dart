@@ -43,35 +43,35 @@ abstract class PlaceRepository {
   /// Live stream of a single place document. Emits null if it does not exist.
   Stream<PlaceEntity?> watchPlace(String placeId);
 
-  // ── Ownership queries ─────────────────────────────────────────────────────
+  // ── Maintainer queries ────────────────────────────────────────────────────
 
-  /// Returns the number of active (non-archived) notes owned by [userId].
+  /// Returns the number of active (non-archived) notes maintained by [userId].
   /// Used to enforce free / premium creation limits before writing.
   Future<int> countUserActivePlaces(String userId);
 
-  /// Active notes owned by [userId], used by the My Notes management view.
+  /// Active notes maintained by [userId], used by the My Notes view.
   Stream<List<PlaceEntity>> watchMyPlaces(String userId);
   Future<List<PlaceEntity>> getMyPlaces(String userId);
 
-  /// Archived notes owned by [userId], used by the archived My Notes view.
+  /// Archived notes maintained by [userId], used by the archived My Notes view.
   Stream<List<PlaceEntity>> watchArchivedMyPlaces(String userId);
 
   /// Permanently moves an active note to the archived lifecycle state.
   Future<void> archivePlace(String placeId);
 
-  // ── Writability (owner only) ──────────────────────────────────────────────
+  // ── Writability (maintainer only) ─────────────────────────────────────────
 
   /// Closes the thread (read-only).  [reason] records whether this was a
-  /// manual owner close or an automatic message-limit close.
+  /// manual maintainer close or an automatic message-limit close.
   Future<void> closePlace(String placeId, {required ClosedReason reason});
 
-  /// Re-opens a thread.  Only valid for owner-closed threads — the caller
+  /// Re-opens a thread.  Only valid for maintainer-closed threads — the caller
   /// must verify [PlaceEntity.canReopen] first (rules also enforce this).
   Future<void> reopenPlace(String placeId);
 
   // ── Private access (Cloud Functions) ──────────────────────────────────────
 
-  /// Owner-only: sets or changes the note's lock secret (locks it as private)
+  /// Creator-only: sets or changes the note's lock secret (locks it as private)
   /// via the `setNotePassword` function. Throws [FirebaseFunctionsException].
   Future<void> setNotePassword({
     required String placeId,
@@ -94,19 +94,31 @@ abstract class PlaceRepository {
 
   // ── Invitations (Cloud Functions) ─────────────────────────────────────────
 
-  /// Owner-only: returns the note's reusable invite token if one is already
-  /// active. Does not create a new invite link.
+  /// Maintainer-only: returns the note's reusable invite token if one is
+  /// already active. Does not create a new invite link.
   Future<String?> getInviteLink(String placeId);
 
-  /// Owner-only: returns the note's reusable invite token (creating one if
-  /// needed) via `createInviteLink`. Combine with [AppConfig.inviteLink].
+  /// Maintainer-only: returns the note's reusable invite token (creating one
+  /// if needed) via `createInviteLink`. Combine with [AppConfig.inviteLink].
   Future<String> createInviteLink(String placeId);
 
-  /// Owner-only: revokes the note's invite link.
+  /// Creator-only: revokes the note's invite link.
   Future<void> revokeInvite(String placeId);
 
-  /// Owner-only: removes a single member's access grant.
+  /// Maintainer-only: removes a single regular member's access grant.
   Future<void> revokeNoteAccess({
+    required String placeId,
+    required String userId,
+  });
+
+  /// Creator-only: promotes an existing member to a maintainer.
+  Future<void> grantNoteMaintainer({
+    required String placeId,
+    required String userId,
+  });
+
+  /// Creator-only: removes maintainer status from a member.
+  Future<void> revokeNoteMaintainer({
     required String placeId,
     required String userId,
   });
@@ -115,7 +127,7 @@ abstract class PlaceRepository {
   /// open. Throws [FirebaseFunctionsException] (`not-found` = invalid/revoked).
   Future<String> claimInvite(String token);
 
-  /// Owner view of the note's access list (invited + password-unlock members).
+  /// Maintainer view of the note's access list.
   Stream<List<NoteMember>> watchMembers(String placeId);
 
   // ── Nearby notifications ─────────────────────────────────────────────────
