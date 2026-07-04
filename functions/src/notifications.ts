@@ -18,7 +18,7 @@ import {
   NOTE_DETAIL_ACCESS_RADIUS_KM,
   REGION,
 } from "./constants";
-import {isNoteMaintainer, maintainerIdsOf} from "./noteMaintenance";
+import {canMaintainNote, maintainerIdsOf} from "./noteMaintenance";
 
 interface RegisterFcmTokenData {
   token?: unknown;
@@ -309,7 +309,7 @@ function canAccessPlace(
   uid: string,
 ): boolean {
   if (placeSnap.get("visibility") !== "private") return true;
-  if (isNoteMaintainer(placeSnap, uid)) return true;
+  if (canMaintainNote(placeSnap, uid)) return true;
   return hasValidMembership(placeSnap, memberSnap);
 }
 
@@ -499,7 +499,7 @@ export const setNearbyNotification = onCall<SetNearbyNotificationData>(
           "This note is not available.",
         );
       }
-      if (isNoteMaintainer(placeSnap, uid)) {
+      if (canMaintainNote(placeSnap, uid)) {
         throw new HttpsError(
           "failed-precondition",
           "Nearby alerts are only for notes you do not maintain.",
@@ -991,7 +991,7 @@ export async function sendNearbyInRangeMessageNotifications(
   const userEntries = await Promise.all(
     followersSnap.docs.map(async (followerDoc) => {
       const uid = followerDoc.id;
-      if (uid === senderId || isNoteMaintainer(placeSnap, uid)) return [];
+      if (uid === senderId || canMaintainNote(placeSnap, uid)) return [];
       const lastRead =
         (followerDoc.get("lastReadMessageAt") as Timestamp | undefined) ??
         Timestamp.fromMillis(0);

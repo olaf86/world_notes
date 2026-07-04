@@ -6,6 +6,11 @@ World Notes has four practical roles around a note.
 delegated maintainers. The creator is still identified by `createdByUserId`;
 that field decides creator-only actions.
 
+The Flutter client should derive UI actions through
+`lib/domain/policies/note_permissions.dart` instead of duplicating role checks
+inside widgets. Cloud Functions should use named helpers in
+`functions/src/noteMaintenance.ts` for server-authoritative checks.
+
 | Role | Meaning |
 | --- | --- |
 | Creator | The original note creator and final authority. Stored in `createdByUserId`. |

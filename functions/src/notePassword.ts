@@ -14,7 +14,7 @@ import {
   validateLockSecret,
   verifyLockSecret,
 } from "./noteLock";
-import {isNoteCreator} from "./noteMaintenance";
+import {canChangeNoteLock} from "./noteMaintenance";
 import {profileForMember} from "./userProfile";
 
 // Online brute-force protection for unlockNote.
@@ -66,7 +66,7 @@ export const setNotePassword = onCall<{
     if (!placeSnap.exists) {
       throw new HttpsError("not-found", "Note not found.");
     }
-    if (!isNoteCreator(placeSnap, uid)) {
+    if (!canChangeNoteLock(placeSnap, uid)) {
       throw new HttpsError(
         "permission-denied",
         "Only the note creator can change this lock.",

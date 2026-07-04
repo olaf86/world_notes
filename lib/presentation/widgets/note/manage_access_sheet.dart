@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../config/app_config.dart';
+import '../../../domain/policies/note_permissions.dart';
 import '../../providers/providers.dart';
 
 /// Maintainer-only sheet to manage a private note's access.
@@ -153,7 +154,12 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
     final theme = Theme.of(context);
     final currentUser = ref.watch(authStateProvider).valueOrNull;
     final place = ref.watch(placeProvider(widget.placeId)).valueOrNull;
-    final isCreator = place?.createdByUserId == currentUser?.id;
+    final permissions = place?.permissionsFor(
+      uid: currentUser?.id,
+      membership: null,
+      readOnly: false,
+      now: DateTime.now(),
+    );
     final membersAsync = ref.watch(noteMembersProvider(widget.placeId));
 
     return SafeArea(
@@ -237,7 +243,7 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
                       label: Text(_linkCopied ? 'Copied' : 'Copy link'),
                     ),
                   ),
-                  if (isCreator) ...[
+                  if (permissions?.canRevokeInviteLink ?? false) ...[
                     const SizedBox(width: 8),
                     OutlinedButton.icon(
                       onPressed: _busy ? null : _revokeLink,
@@ -272,17 +278,17 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
                         itemCount: members.length,
                         itemBuilder: (context, i) {
                           final m = members[i];
-                          final canGrantMaintainer =
-                              isCreator && !m.isMaintainer;
-                          final canRevokeMaintainer =
-                              isCreator &&
-                              m.isMaintainer &&
-                              m.userId != place?.createdByUserId;
-                          final canRemoveAccess = !m.isMaintainer;
-                          final hasActions =
-                              canGrantMaintainer ||
-                              canRevokeMaintainer ||
-                              canRemoveAccess;
+                          final memberPermissions =
+                              place == null || permissions == null
+                              ? const NoteMemberPermissions(
+                                  canRemoveAccess: false,
+                                  canPromoteToMaintainer: false,
+                                  canDemoteMaintainer: false,
+                                )
+                              : m.permissionsFor(
+                                  place: place,
+                                  actor: permissions,
+                                );
                           return ListTile(
                             contentPadding: EdgeInsets.zero,
                             leading: CircleAvatar(
@@ -306,7 +312,7 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
                                   'Unlocked with password',
                               ].join(' • '),
                             ),
-                            trailing: hasActions
+                            trailing: memberPermissions.hasActions
                                 ? PopupMenuButton<String>(
                                     tooltip: 'Member options',
                                     onSelected: (value) {
@@ -321,7 +327,7 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
                                       }
                                     },
                                     itemBuilder: (context) => [
-                                      if (canRevokeMaintainer)
+                                      if (memberPermissions.canDemoteMaintainer)
                                         const PopupMenuItem(
                                           value: 'revokeMaintainer',
                                           child: ListTile(
@@ -333,7 +339,8 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
                                             contentPadding: EdgeInsets.zero,
                                           ),
                                         ),
-                                      if (canGrantMaintainer)
+                                      if (memberPermissions
+                                          .canPromoteToMaintainer)
                                         const PopupMenuItem(
                                           value: 'grantMaintainer',
                                           child: ListTile(
@@ -345,7 +352,8 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
                                             contentPadding: EdgeInsets.zero,
                                           ),
                                         ),
-                                      if (canRemoveAccess) ...[
+                                      if (memberPermissions
+                                          .canRemoveAccess) ...[
                                         const PopupMenuDivider(),
                                         const PopupMenuItem(
                                           value: 'removeAccess',

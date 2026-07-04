@@ -11,6 +11,7 @@ import '../../../core/utils/password_util.dart';
 import '../../../core/utils/pattern_lock_util.dart';
 import '../../../domain/entities/message_entity.dart';
 import '../../../domain/entities/place_entity.dart';
+import '../../../domain/policies/note_permissions.dart';
 import '../../providers/providers.dart';
 import '../../widgets/map/static_note_mini_map.dart';
 import '../../widgets/note/manage_access_sheet.dart';
@@ -749,8 +750,15 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
       return _LoadingNoteView(title: widget.placeTitle);
     }
 
-    final isMaintainer = place.isMaintainedBy(currentUser?.id);
-    final isCreator = place.createdByUserId == currentUser?.id;
+    final membership = place.isPrivate
+        ? ref.watch(noteMembershipProvider(widget.placeId)).valueOrNull
+        : null;
+    final permissions = place.permissionsFor(
+      uid: currentUser?.id,
+      membership: membership,
+      readOnly: widget.readOnly,
+      now: now,
+    );
     final displayTitle = place.title;
     final nearbyAlertAsync = ref.watch(
       nearbyNotificationPlaceProvider(widget.placeId),
@@ -758,28 +766,19 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     final nearbyAlert = nearbyAlertAsync.valueOrNull;
     final nearbyAlertEnabled = nearbyAlert?.isActive ?? false;
 
-    // Private-note access gate. For a private note the viewer doesn't own,
-    // check their membership grant; if it's absent or stale, show the locked
-    // view and DON'T subscribe to messages (the read would be denied anyway).
-    if (place.isPrivate && !isMaintainer) {
-      final membership = ref
-          .watch(noteMembershipProvider(widget.placeId))
-          .valueOrNull;
-      if (!place.isAccessibleBy(currentUser?.id, membership)) {
-        return _LockedNoteView(
-          title: displayTitle,
-          lockType: place.lockType,
-          lockHint: place.lockHint,
-          onUnlock: _promptUnlock,
-        );
-      }
+    // Private-note access gate. If the membership grant is absent or stale,
+    // show the locked view and DON'T subscribe to messages.
+    if (place.isPrivate && !permissions.canReadContent) {
+      return _LockedNoteView(
+        title: displayTitle,
+        lockType: place.lockType,
+        lockHint: place.lockHint,
+        onUnlock: _promptUnlock,
+      );
     }
 
     // Public, owned, or unlocked — safe to read messages now.
     final messagesAsync = ref.watch(messagesProvider(widget.placeId));
-    // Whether a new message may be posted right now — only once the place is
-    // loaded and still accepting messages (open, not expired/archived/full).
-    final canPostMessage = !widget.readOnly && place.canAcceptMessagesAt(now);
 
     // Exclude this screen's semantics while a dialog, report sheet, or message
     // editor is shown on top — prevents parentDataDirty noise when two routes
@@ -821,7 +820,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                         tooltip: 'Go PRO',
                         onPressed: () => context.push('/subscription'),
                       ),
-                    if (!isMaintainer && !widget.readOnly)
+                    if (permissions.canSubscribeNearbyAlerts)
                       IconButton(
                         icon:
                             _nearbyNotificationBusy ||
@@ -846,10 +845,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                             ? null
                             : () => _setNearbyNotification(!nearbyAlertEnabled),
                       ),
-                    // My Notes keeps message posting read-only, but maintainers
-                    // still need thread management. Creator-only actions stay
-                    // hidden from maintainers to keep role boundaries clear.
-                    if (isMaintainer && !place.isArchived)
+                    if (permissions.hasThreadActions)
                       PopupMenuButton<String>(
                         tooltip: 'Thread options',
                         onSelected: (value) {
@@ -862,7 +858,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                           if (value == 'access') _showManageAccess();
                         },
                         itemBuilder: (ctx) => [
-                          if (place.isOpen)
+                          if (permissions.canCloseThread)
                             const PopupMenuItem(
                               value: 'close',
                               child: ListTile(
@@ -871,7 +867,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                                 contentPadding: EdgeInsets.zero,
                               ),
                             ),
-                          if (place.canReopen)
+                          if (permissions.canReopenThread)
                             const PopupMenuItem(
                               value: 'reopen',
                               child: ListTile(
@@ -880,7 +876,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                                 contentPadding: EdgeInsets.zero,
                               ),
                             ),
-                          if (isCreator)
+                          if (permissions.canChangeLock)
                             PopupMenuItem(
                               value: 'password',
                               child: ListTile(
@@ -895,7 +891,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                                 contentPadding: EdgeInsets.zero,
                               ),
                             ),
-                          if (place.isPrivate)
+                          if (permissions.canManageAccess)
                             const PopupMenuItem(
                               value: 'access',
                               child: ListTile(
@@ -904,7 +900,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                                 contentPadding: EdgeInsets.zero,
                               ),
                             ),
-                          if (isCreator) ...[
+                          if (permissions.canArchive) ...[
                             const PopupMenuDivider(),
                             const PopupMenuItem(
                               value: 'archive',
@@ -977,7 +973,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                 // in a Stack sibling layer below).  heroTag is unique to prevent
                 // Hero conflicts with the map screen's FABs ('mapAddNote',
                 // 'tracking').  Hidden when the thread is closed / expired / full.
-                floatingActionButton: canPostMessage
+                floatingActionButton: permissions.canPostMessage
                     ? FloatingActionButton(
                         heroTag: 'noteMessageEditor',
                         onPressed: _preparingMessageEditor

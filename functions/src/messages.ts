@@ -19,7 +19,7 @@ import {
   sendMyNotesMessageNotifications,
   sendNearbyInRangeMessageNotifications,
 } from "./notifications";
-import {isNoteMaintainer} from "./noteMaintenance";
+import {canMaintainNote} from "./noteMaintenance";
 
 interface SendMessageData {
   messageId?: unknown;
@@ -86,7 +86,7 @@ function canAccessNote(
   uid: string,
 ): boolean {
   if (placeSnap.get("visibility") !== "private") return true;
-  if (isNoteMaintainer(placeSnap, uid)) return true;
+  if (canMaintainNote(placeSnap, uid)) return true;
   return hasValidMembership(placeSnap, memberSnap);
 }
 
@@ -235,7 +235,7 @@ export const sendMessage = onCall<SendMessageData>(
       }
       const memberSnap =
         placeSnap.get("visibility") === "private" &&
-          !isNoteMaintainer(placeSnap, uid) ?
+          !canMaintainNote(placeSnap, uid) ?
           await tx.get(memberRef) :
           null;
       if (!canAccessNote(placeSnap, memberSnap, uid)) {

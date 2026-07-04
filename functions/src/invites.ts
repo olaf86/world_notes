@@ -6,7 +6,12 @@ import {
 import {randomBytes} from "crypto";
 
 import {REGION} from "./constants";
-import {isNoteCreator, isNoteMaintainer} from "./noteMaintenance";
+import {
+  canChangeNoteMaintainers,
+  canMaintainNote,
+  canRevokeNoteInvites,
+  isNoteMaintainer,
+} from "./noteMaintenance";
 import {profileForMember} from "./userProfile";
 
 /**
@@ -21,7 +26,7 @@ async function assertMaintainer(placeId: string, uid: string) {
   if (!snap.exists) {
     throw new HttpsError("not-found", "Note not found.");
   }
-  if (!isNoteMaintainer(snap, uid)) {
+  if (!canMaintainNote(snap, uid)) {
     throw new HttpsError(
       "permission-denied",
       "Only a note maintainer can do this.",
@@ -33,18 +38,18 @@ async function assertMaintainer(placeId: string, uid: string) {
 }
 
 /**
- * Loads a place and asserts the caller created it. Throws otherwise.
+ * Loads a place and asserts the caller can revoke its invite links.
  *
  * @param {string} placeId The note's id.
  * @param {string} uid The caller's uid.
  */
-async function assertCreator(placeId: string, uid: string) {
+async function assertInviteRevoker(placeId: string, uid: string) {
   const db = getFirestore();
   const snap = await db.collection("places").doc(placeId).get();
   if (!snap.exists) {
     throw new HttpsError("not-found", "Note not found.");
   }
-  if (!isNoteCreator(snap, uid)) {
+  if (!canRevokeNoteInvites(snap, uid)) {
     throw new HttpsError(
       "permission-denied",
       "Only the note creator can do this.",
@@ -207,7 +212,7 @@ export const revokeInvite = onCall<{placeId?: unknown}>(
     if (typeof placeId !== "string" || placeId.length === 0) {
       throw new HttpsError("invalid-argument", "placeId is required.");
     }
-    await assertCreator(placeId, uid);
+    await assertInviteRevoker(placeId, uid);
 
     const db = getFirestore();
     const tokens = await db
@@ -293,7 +298,7 @@ export const grantNoteMaintainer = onCall<{
       if (!placeSnap.exists) {
         throw new HttpsError("not-found", "Note not found.");
       }
-      if (!isNoteCreator(placeSnap, uid)) {
+      if (!canChangeNoteMaintainers(placeSnap, uid)) {
         throw new HttpsError(
           "permission-denied",
           "Only the note creator can change maintainers.",
@@ -347,7 +352,7 @@ export const revokeNoteMaintainer = onCall<{
       if (!placeSnap.exists) {
         throw new HttpsError("not-found", "Note not found.");
       }
-      if (!isNoteCreator(placeSnap, uid)) {
+      if (!canChangeNoteMaintainers(placeSnap, uid)) {
         throw new HttpsError(
           "permission-denied",
           "Only the note creator can change maintainers.",
