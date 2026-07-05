@@ -8,7 +8,7 @@ import '../../../domain/policies/note_permissions.dart';
 import '../../providers/providers.dart';
 import '../../widgets/my_notes_notification_controls.dart';
 import '../../widgets/note/note_list_card.dart';
-import '../settings/nearby_notifications_screen.dart';
+import 'nearby_notifications_view.dart';
 
 class MyNotesScreen extends ConsumerWidget {
   const MyNotesScreen({super.key});
