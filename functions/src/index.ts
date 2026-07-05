@@ -9,6 +9,7 @@ import {
   FieldValue,
   Timestamp,
 } from "firebase-admin/firestore";
+import {getStorage} from "firebase-admin/storage";
 
 import {encodeGeohash} from "./geohash";
 import {
@@ -30,6 +31,7 @@ import {
   validateLockSecret,
 } from "./noteLock";
 import {assertUserCanCreateContent} from "./moderation";
+import {canMaintainNote} from "./noteMaintenance";
 
 initializeApp();
 setGlobalOptions({maxInstances: 10, region: REGION});
@@ -97,6 +99,15 @@ interface CreateNoteLock {
 interface ArchiveNoteData {
   placeId?: unknown;
 }
+
+interface SetNotePinImageData {
+  placeId?: unknown;
+  pinImageStoragePath?: unknown;
+}
+
+const UUID_V7_PATTERN =
+  "[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-" +
+  "[0-9a-f]{12}";
 
 /**
  * Authoritative note creation.
@@ -331,6 +342,80 @@ export const createNote = onCall<CreateNoteData>(
     });
 
     return {placeId: placeRef.id};
+  },
+);
+
+export const setNotePinImage = onCall<SetNotePinImageData>(
+  {enforceAppCheck: true},
+  async (req) => {
+    const uid = req.auth?.uid;
+    if (!uid) {
+      throw new HttpsError("unauthenticated", "You must be signed in.");
+    }
+    const {placeId, pinImageStoragePath} = req.data ?? {};
+    if (typeof placeId !== "string" || placeId.length === 0) {
+      throw new HttpsError("invalid-argument", "placeId is required.");
+    }
+    const expectedPathPattern = new RegExp(
+      `^images/pins/${placeId}/${uid}/${UUID_V7_PATTERN}[.]webp$`,
+    );
+    if (
+      typeof pinImageStoragePath !== "string" ||
+      !expectedPathPattern.test(pinImageStoragePath)
+    ) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Invalid pin image storage path.",
+      );
+    }
+
+    const bucket = getStorage().bucket();
+    try {
+      const [metadata] = await bucket.file(pinImageStoragePath).getMetadata();
+      if (
+        metadata.contentType !== "image/webp" ||
+        Number(metadata.size ?? 0) > 256 * 1024
+      ) {
+        throw new HttpsError(
+          "invalid-argument",
+          "Invalid pin image metadata.",
+        );
+      }
+    } catch (error) {
+      if (error instanceof HttpsError) throw error;
+      throw new HttpsError(
+        "failed-precondition",
+        "Pin image upload was not found.",
+      );
+    }
+
+    const db = getFirestore();
+    const placeRef = db.collection("places").doc(placeId);
+    const previousPath = await db.runTransaction(async (tx) => {
+      const placeSnap = await tx.get(placeRef);
+      if (!placeSnap.exists) {
+        throw new HttpsError("not-found", "Note not found.");
+      }
+      if (!canMaintainNote(placeSnap, uid)) {
+        throw new HttpsError(
+          "permission-denied",
+          "You cannot change this note.",
+        );
+      }
+      const previous = placeSnap.get("pinImageStoragePath");
+      tx.update(placeRef, {pinImageStoragePath});
+      return typeof previous === "string" ? previous : null;
+    });
+
+    if (previousPath != null && previousPath !== pinImageStoragePath) {
+      try {
+        await bucket.file(previousPath).delete({
+          ignoreNotFound: true,
+        });
+      } catch (error) {
+        logger.warn(`Could not delete old pin image ${previousPath}.`, error);
+      }
+    }
   },
 );
 

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../config/app_config.dart';
 import '../../../core/map_style.dart';
+import '../../../core/utils/image_upload_util.dart';
 import '../../../domain/entities/pin_summary_entity.dart';
 import '../../../services/location_service.dart';
 import '../../providers/providers.dart';
@@ -56,6 +58,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     _mapAdapter = createNoteMapAdapter(
       vsync: this,
       onPinSelected: _showPinPreview,
+      markerImageResolver: _loadPinMarkerImage,
     );
   }
 
@@ -66,6 +69,17 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   // ── Pin tap → bottom sheet ────────────────────────────────────────────────
+
+  Future<Uint8List?> _loadPinMarkerImage(PinSummary pin) async {
+    final storagePath = pin.pinImageStoragePath;
+    if (storagePath == null) return null;
+    return ref
+        .read(messageImageServiceProvider)
+        .imageBytes(
+          storagePath,
+          maxSizeBytes: ImageUploadUtil.maxPinThumbnailBytes,
+        );
+  }
 
   Future<void> _showPinPreview(PinSummary pin) async {
     if (!mounted || _activePinPreviewPlaceId != null) return;

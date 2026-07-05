@@ -24,6 +24,25 @@ service firebase.storage {
                     && request.auth.uid == userId;
     }
 
+    // ── map pin thumbnails ─────────────────────────────────────────────────
+    // Path: images/pins/{placeId}/{userId}/{uuidV7}.webp
+    // Only generated thumbnails are stored; original images are not retained.
+    match /images/pins/{placeId}/{userId}/{fileName} {
+      allow read: if request.auth != null;
+
+      allow create: if request.auth != null
+                    && request.auth.uid == userId
+                    && fileName.matches(
+                         '^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}[.]webp$'
+                       )
+                    && request.resource.size <= 256 * 1024
+                    && request.resource.contentType == 'image/webp';
+
+      allow update: if false;
+      allow delete: if request.auth != null
+                    && request.auth.uid == userId;
+    }
+
     // Deny everything else by default.
     match /{allPaths=**} {
       allow read, write: if false;

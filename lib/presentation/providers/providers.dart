@@ -151,6 +151,7 @@ final placeRepositoryProvider = Provider<PlaceRepository>((ref) {
   return PlaceRepositoryImpl(
     firestore: ref.watch(firestoreProvider),
     functions: ref.watch(firebaseFunctionsProvider),
+    storage: ref.watch(firebaseStorageProvider),
   );
 });
 

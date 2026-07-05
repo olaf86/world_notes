@@ -69,6 +69,7 @@ interface PinResult {
   subtitle: string | null;
   colorHex: string;
   icon: string;
+  pinImageStoragePath: string | null;
   creatorName: string;
   messageCount: number;
   createdAtMillis: number;
@@ -253,6 +254,7 @@ function pinFromDoc(
   const createdAt = doc.get("createdAt") as Timestamp | undefined;
   const expiresAt = doc.get("expiresAt") as Timestamp;
   const storedCreatorName = doc.get("creatorName");
+  const storedPinImageStoragePath = doc.get("pinImageStoragePath");
   return {
     placeId: doc.id,
     latitude: coords.latitude,
@@ -261,6 +263,11 @@ function pinFromDoc(
     subtitle: (doc.get("subtitle") as string | undefined) ?? null,
     colorHex: doc.get("colorHex") as string,
     icon: doc.get("icon") as string,
+    pinImageStoragePath:
+      typeof storedPinImageStoragePath === "string" &&
+        storedPinImageStoragePath.trim().length > 0 ?
+        storedPinImageStoragePath.trim() :
+        null,
     creatorName:
       typeof storedCreatorName === "string" &&
         storedCreatorName.trim().length > 0 ?

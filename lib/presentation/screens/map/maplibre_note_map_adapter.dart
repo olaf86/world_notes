@@ -15,9 +15,11 @@ class MapLibreNoteMapAdapter implements NoteMapAdapter {
   MapLibreNoteMapAdapter({
     required TickerProvider vsync,
     required Future<void> Function(PinSummary pin) onPinSelected,
+    required PinMarkerImageResolver markerImageResolver,
   }) : _controller = NoteMapController(
          vsync: vsync,
          onPinSelected: onPinSelected,
+         markerImageResolver: markerImageResolver,
        );
 
   @override
