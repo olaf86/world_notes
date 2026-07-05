@@ -2,6 +2,7 @@
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {
   DocumentSnapshot,
+  Firestore,
   QuerySnapshot,
   Timestamp,
   getFirestore,
@@ -21,6 +22,7 @@ import {
   MAP_PIN_RESULT_LIMIT,
   MAP_PIN_ZOOMED_OUT_RESULT_LIMIT,
   NOTE_DETAIL_ACCESS_RADIUS_KM,
+  PRO_NOTE_DETAIL_ACCESS_RADIUS_KM,
   DISCOVERY_GEOHASH_PRECISION,
   REGION,
 } from "./constants";
@@ -170,8 +172,22 @@ function placeCoordinates(doc: DocumentSnapshot): Coordinates {
   };
 }
 
-function canOpenFrom(user: Coordinates, place: Coordinates): boolean {
-  return distanceKm(user, place) <= NOTE_DETAIL_ACCESS_RADIUS_KM;
+async function noteAccessRadiusKmForUser(
+  db: Firestore,
+  uid: string,
+): Promise<number> {
+  const userSnap = await db.collection("users").doc(uid).get();
+  return userSnap.get("isPremium") === true ?
+    PRO_NOTE_DETAIL_ACCESS_RADIUS_KM :
+    NOTE_DETAIL_ACCESS_RADIUS_KM;
+}
+
+function canOpenFrom(
+  user: Coordinates,
+  place: Coordinates,
+  radiusKm: number,
+): boolean {
+  return distanceKm(user, place) <= radiusKm;
 }
 
 function fineQueries(center: Coordinates, radiusKm: number): FineQuery[] {
@@ -229,6 +245,7 @@ function prefixQuery(center: Coordinates, radiusKm: number): PrefixQuery {
 function pinFromDoc(
   doc: DocumentSnapshot,
   user: Coordinates,
+  noteAccessRadiusKm: number,
   nowMillis: number,
 ): PinResult {
   const coords = placeCoordinates(doc);
@@ -256,13 +273,16 @@ function pinFromDoc(
     expiresAtMillis: expiresAt.toMillis(),
     isPrivate: doc.get("visibility") === "private",
     isClosed: doc.get("isOpen") !== true,
-    access: canOpenFrom(user, coords) ? "openable" : "distanceLocked",
+    access: canOpenFrom(user, coords, noteAccessRadiusKm) ?
+      "openable" :
+      "distanceLocked",
   };
 }
 
 function collectPins(
   snapshots: QuerySnapshot[],
   user: Coordinates,
+  noteAccessRadiusKm: number,
   nowMillis: number,
   seen: Set<string>,
 ): PinResult[] {
@@ -271,7 +291,7 @@ function collectPins(
     for (const doc of snap.docs) {
       if (seen.has(doc.id) || !isPublishedPlace(doc, nowMillis)) continue;
       seen.add(doc.id);
-      pins.push(pinFromDoc(doc, user, nowMillis));
+      pins.push(pinFromDoc(doc, user, noteAccessRadiusKm, nowMillis));
     }
   }
   pins.sort((a, b) => b.lastActivityAtMillis - a.lastActivityAtMillis);
@@ -296,6 +316,7 @@ export const listMapPins = onCall<ListMapPinsData>(
     const searchRadiusKm = assertSearchRadiusKm(req.data?.searchRadiusKm);
 
     const db = getFirestore();
+    const noteAccessRadiusKm = await noteAccessRadiusKmForUser(db, uid);
     const nowMillis = Date.now();
     const publishedAt = Timestamp.fromMillis(nowMillis);
     const expiresAfter = Timestamp.fromMillis(nowMillis);
@@ -359,8 +380,20 @@ export const listMapPins = onCall<ListMapPinsData>(
     const seen = new Set<string>();
     // Preserve center-near pins first, then fill any remaining zoomed-out
     // budget with wider-area results.
-    const localPins = collectPins(localSnapshots, user, nowMillis, seen);
-    const prefixPins = collectPins(prefixSnapshots, user, nowMillis, seen);
+    const localPins = collectPins(
+      localSnapshots,
+      user,
+      noteAccessRadiusKm,
+      nowMillis,
+      seen,
+    );
+    const prefixPins = collectPins(
+      prefixSnapshots,
+      user,
+      noteAccessRadiusKm,
+      nowMillis,
+      seen,
+    );
     const pins = [...localPins, ...prefixPins];
     return {pins: pins.slice(0, resultLimit)};
   },
@@ -378,7 +411,11 @@ export const validateNoteAccess = onCall<ValidateNoteAccessData>(
     }
     const user = assertCoordinatePair(req.data?.latitude, req.data?.longitude);
 
-    const snap = await getFirestore().collection("places").doc(placeId).get();
+    const db = getFirestore();
+    const [snap, noteAccessRadiusKm] = await Promise.all([
+      db.collection("places").doc(placeId).get(),
+      noteAccessRadiusKmForUser(db, uid),
+    ]);
     if (!snap.exists) throw new HttpsError("not-found", "Note not found.");
     const nowMillis = Date.now();
     if (!isPublishedPlace(snap, nowMillis)) {
@@ -387,7 +424,7 @@ export const validateNoteAccess = onCall<ValidateNoteAccessData>(
         "This note is not available.",
       );
     }
-    if (!canOpenFrom(user, placeCoordinates(snap))) {
+    if (!canOpenFrom(user, placeCoordinates(snap), noteAccessRadiusKm)) {
       throw new HttpsError(
         "permission-denied",
         "Move closer to this note to open it.",

@@ -53,6 +53,26 @@ class NearbyNotificationPlace {
     this.updatedAt,
   });
 
+  NearbyNotificationPlace withRadiusMeters(int radiusMeters) {
+    return NearbyNotificationPlace(
+      placeId: placeId,
+      title: title,
+      colorHex: colorHex,
+      icon: icon,
+      latitude: latitude,
+      longitude: longitude,
+      radiusMeters: radiusMeters,
+      expiresAt: expiresAt,
+      enabled: enabled,
+      state: state,
+      lastReadMessageAt: lastReadMessageAt,
+      lastNotifiedMessageAt: lastNotifiedMessageAt,
+      inRange: inRange,
+      inRangeUntil: inRangeUntil,
+      updatedAt: updatedAt,
+    );
+  }
+
   bool get isActive => enabled && state == NearbyNotificationState.active;
 }
 

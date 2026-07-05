@@ -15,7 +15,6 @@ import {BatchResponse, getMessaging} from "firebase-admin/messaging";
 import {
   NEARBY_NOTIFICATION_IN_RANGE_TTL_MINUTES,
   NEARBY_NOTIFICATION_LIMIT,
-  NOTE_DETAIL_ACCESS_RADIUS_KM,
   REGION,
 } from "./constants";
 import {canMaintainNote, maintainerIdsOf} from "./noteMaintenance";
@@ -327,7 +326,6 @@ function notificationPlaceData(
     icon: placeSnap.get("icon") as string,
     latitude: placeSnap.get("latitude") as number,
     longitude: placeSnap.get("longitude") as number,
-    radiusMeters: Math.round(NOTE_DETAIL_ACCESS_RADIUS_KM * 1000),
     expiresAt,
     enabled,
     state,
@@ -556,7 +554,12 @@ export const setNearbyNotification = onCall<SetNearbyNotificationData>(
       tx.set(
         userPlaceRef,
         {
-          ...notificationPlaceData(placeSnap, true, "active", lastRead),
+          ...notificationPlaceData(
+            placeSnap,
+            true,
+            "active",
+            lastRead,
+          ),
           inRange: false,
         },
         {merge: true},

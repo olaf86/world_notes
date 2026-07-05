@@ -49,6 +49,7 @@ class AppleNoteMapController implements NoteMapAdapter {
   bool _clusteringEnabled = AppConfig.defaultZoom < _clusterMaxZoom;
   Position? _accessAreaCenter;
   bool _accessAreaVisible = false;
+  double? _accessAreaRadiusMeters;
   Color? _accessAreaColor;
   String? _selectedPlaceId;
   int _markerRevision = 0;
@@ -115,11 +116,13 @@ class AppleNoteMapController implements NoteMapAdapter {
   Future<void> updateAccessArea({
     required Position center,
     required bool visible,
+    required double radiusMeters,
     required ColorScheme colorScheme,
   }) async {
     final color = colorScheme.primary;
     final previous = _accessAreaCenter;
     if (_accessAreaVisible == visible &&
+        _accessAreaRadiusMeters == radiusMeters &&
         _accessAreaColor == color &&
         previous?.latitude == center.latitude &&
         previous?.longitude == center.longitude) {
@@ -127,13 +130,14 @@ class AppleNoteMapController implements NoteMapAdapter {
     }
     _accessAreaVisible = visible;
     _accessAreaCenter = center;
+    _accessAreaRadiusMeters = radiusMeters;
     _accessAreaColor = color;
     accessAreaCircles.value = visible
         ? {
             apple.Circle(
               circleId: _accessAreaCircleId,
               center: apple.LatLng(center.latitude, center.longitude),
-              radius: AppConfig.noteDetailAccessRadiusMeters.toDouble(),
+              radius: radiusMeters,
               fillColor: color.withValues(alpha: 0.14),
               strokeColor: color.withValues(alpha: 0.82),
               strokeWidth: 2,

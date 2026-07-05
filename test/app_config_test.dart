@@ -26,4 +26,16 @@ void main() {
 
     expect(AppConfig.supportsMobileAds, isFalse);
   });
+
+  test('uses extended note access radius for premium users', () {
+    expect(
+      AppConfig.noteDetailAccessRadiusMetersFor(isPremium: false),
+      AppConfig.noteDetailAccessRadiusMeters,
+    );
+    expect(
+      AppConfig.noteDetailAccessRadiusMetersFor(isPremium: true),
+      AppConfig.proNoteDetailAccessRadiusMeters,
+    );
+    expect(AppConfig.proNoteDetailAccessRadiusMeters, 1000);
+  });
 }

@@ -89,6 +89,7 @@ class NoteMapController {
   List<PinSummary> _latestPins = const [];
   Position? _accessAreaCenter;
   bool _accessAreaVisible = false;
+  double? _accessAreaRadiusMeters;
   Color? _accessAreaColor;
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -245,11 +246,14 @@ class NoteMapController {
   Future<void> updateAccessArea({
     required Position center,
     required bool visible,
+    required double radiusMeters,
     required ColorScheme colorScheme,
   }) async {
     final previous = _accessAreaCenter;
     final colorChanged = _accessAreaColor != colorScheme.primary;
+    final radiusChanged = _accessAreaRadiusMeters != radiusMeters;
     if (_accessAreaVisible == visible &&
+        !radiusChanged &&
         !colorChanged &&
         previous?.latitude == center.latitude &&
         previous?.longitude == center.longitude) {
@@ -257,6 +261,7 @@ class NoteMapController {
     }
     _accessAreaCenter = center;
     _accessAreaVisible = visible;
+    _accessAreaRadiusMeters = radiusMeters;
     _accessAreaColor = colorScheme.primary;
     if (_map == null || !_sourceReady) return;
 
@@ -283,8 +288,9 @@ class NoteMapController {
   Future<void> _pushAccessAreaToSource() async {
     final map = _map;
     final center = _accessAreaCenter;
+    final radiusMeters = _accessAreaRadiusMeters;
     if (map == null) return;
-    if (!_accessAreaVisible || center == null) {
+    if (!_accessAreaVisible || center == null || radiusMeters == null) {
       await map.setGeoJsonSource(_accessAreaSourceId, _emptyFeatureCollection);
       return;
     }
@@ -300,7 +306,7 @@ class NoteMapController {
               _geodesicCircle(
                 latitude: center.latitude,
                 longitude: center.longitude,
-                radiusMeters: AppConfig.noteDetailAccessRadiusMeters.toDouble(),
+                radiusMeters: radiusMeters,
               ),
             ],
           },

@@ -21,6 +21,7 @@ abstract class NoteMapAdapter {
   Future<void> updateAccessArea({
     required Position center,
     required bool visible,
+    required double radiusMeters,
     required ColorScheme colorScheme,
   });
 

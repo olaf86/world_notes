@@ -81,13 +81,29 @@ class AppConfig {
   /// Must match NEARBY_NOTIFICATION_LIMIT in functions/src/constants.ts.
   static const int nearbyNotificationLimit = 5;
 
-  /// Maximum distance from a note at which its detail can be opened.
+  /// Maximum distance from a note at which its detail can be opened for
+  /// non-PRO users.
   /// Must match NOTE_DETAIL_ACCESS_RADIUS_KM in functions/src/constants.ts.
   static const int noteDetailAccessRadiusMeters = 500;
+
+  /// Maximum distance from a note at which its detail can be opened for
+  /// PRO users.
+  /// Must match PRO_NOTE_DETAIL_ACCESS_RADIUS_KM in functions/src/constants.ts.
+  static const int proNoteDetailAccessRadiusMeters = 1000;
+
+  static int noteDetailAccessRadiusMetersFor({required bool isPremium}) {
+    return isPremium
+        ? proNoteDetailAccessRadiusMeters
+        : noteDetailAccessRadiusMeters;
+  }
 
   /// Nearby alerts use the same radius as note detail read/post access.
   static const int nearbyNotificationRadiusMeters =
       noteDetailAccessRadiusMeters;
+
+  /// PRO nearby alerts use the same extended radius as PRO note detail access.
+  static const int proNearbyNotificationRadiusMeters =
+      proNoteDetailAccessRadiusMeters;
 
   /// Minimum interval between active in-range unread checks for a followed
   /// nearby note while the app is running.

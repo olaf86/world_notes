@@ -218,6 +218,26 @@ final nearbyNotificationPlaceProvider =
           .watchNearbyNotificationPlace(userId: user.id, placeId: placeId);
     });
 
+/// Runtime view used by [NearbyProximityMonitor].
+///
+/// The geofence radius is not alert state: it is the current entitlement policy.
+/// Keeping it derived means PRO upgrades and downgrades take effect without
+/// rewriting every saved nearby-alert document.
+final _nearbyNotificationMonitorPlacesProvider =
+    Provider<List<NearbyNotificationPlace>>((ref) {
+      final places = ref.watch(nearbyNotificationPlacesProvider).valueOrNull;
+      if (places == null || places.isEmpty) return const [];
+      final radiusMeters = ref.watch(noteAccessRadiusMetersProvider);
+      return _withCurrentNearbyRadius(places, radiusMeters);
+    });
+
+List<NearbyNotificationPlace> _withCurrentNearbyRadius(
+  List<NearbyNotificationPlace> places,
+  int radiusMeters,
+) {
+  return [for (final place in places) place.withRadiusMeters(radiusMeters)];
+}
+
 final noticesProvider = StreamProvider<List<NoticeEntity>>((ref) {
   final user = ref.watch(authStateProvider).valueOrNull;
   if (user == null) return Stream.value(const []);
@@ -241,8 +261,8 @@ final positionStreamProvider = StreamProvider<Position>((ref) {
 });
 
 final _nearbySharedPositionProvider = Provider<AsyncValue<Position>?>((ref) {
-  final places = ref.watch(nearbyNotificationPlacesProvider).valueOrNull;
-  if (places == null || places.isEmpty) return null;
+  final places = ref.watch(_nearbyNotificationMonitorPlacesProvider);
+  if (places.isEmpty) return null;
   return ref.watch(positionStreamProvider);
 });
 
@@ -255,11 +275,10 @@ final nearbyProximityMonitorProvider = Provider<void>((ref) {
     nearbyNotificationService: ref.read(nearbyNotificationServiceProvider),
   )..start();
 
-  ref.listen<AsyncValue<List<NearbyNotificationPlace>>>(
-    nearbyNotificationPlacesProvider,
-    (_, next) {
-      next.whenData(monitor.updatePlaces);
-    },
+  ref.listen<List<NearbyNotificationPlace>>(
+    _nearbyNotificationMonitorPlacesProvider,
+    (_, next) => monitor.updatePlaces(next),
+    fireImmediately: true,
   );
   ref.listen<AsyncValue<Position>?>(_nearbySharedPositionProvider, (_, next) {
     next?.whenData(monitor.updatePosition);
@@ -423,6 +442,12 @@ final archivedMyPlacesProvider = StreamProvider<List<PlaceEntity>>((ref) {
 final noteLimitProvider = Provider<int>((ref) {
   final isPremium = ref.watch(isPremiumProvider).valueOrNull ?? false;
   return isPremium ? AppConfig.proNoteLimit : AppConfig.freeNoteLimit;
+});
+
+/// The current note-detail and nearby-alert radius for the signed-in user.
+final noteAccessRadiusMetersProvider = Provider<int>((ref) {
+  final isPremium = ref.watch(isPremiumProvider).valueOrNull ?? false;
+  return AppConfig.noteDetailAccessRadiusMetersFor(isPremium: isPremium);
 });
 
 // --- Messages ---

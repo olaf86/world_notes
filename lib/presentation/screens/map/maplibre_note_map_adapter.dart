@@ -67,11 +67,13 @@ class MapLibreNoteMapAdapter implements NoteMapAdapter {
   Future<void> updateAccessArea({
     required Position center,
     required bool visible,
+    required double radiusMeters,
     required ColorScheme colorScheme,
   }) {
     return _controller.updateAccessArea(
       center: center,
       visible: visible,
+      radiusMeters: radiusMeters,
       colorScheme: colorScheme,
     );
   }

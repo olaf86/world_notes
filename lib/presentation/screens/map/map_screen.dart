@@ -291,6 +291,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final anchor = ref.watch(anchorPositionProvider);
     final isTracking = ref.watch(isTrackingProvider);
     final isAccessAreaVisible = ref.watch(isNoteAccessAreaVisibleProvider);
+    final noteAccessRadiusMeters = ref.watch(noteAccessRadiusMetersProvider);
     final searchCenter = ref.watch(mapSearchCenterProvider);
     final searchRadiusKm = ref.watch(mapSearchRadiusKmProvider);
     final effectiveCenter = anchor == null
@@ -329,6 +330,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
         mapAdapter: _mapAdapter,
         isTracking: isTracking,
         isAccessAreaVisible: isAccessAreaVisible,
+        noteAccessRadiusMeters: noteAccessRadiusMeters,
         onAccessAreaToggle: () {
           final notifier = ref.read(isNoteAccessAreaVisibleProvider.notifier);
           notifier.state = !notifier.state;
@@ -364,6 +366,7 @@ class _MapView extends ConsumerWidget {
   final NoteMapAdapter mapAdapter;
   final bool isTracking;
   final bool isAccessAreaVisible;
+  final int noteAccessRadiusMeters;
   final VoidCallback onPointerDown;
   final VoidCallback onTrackingToggle;
   final VoidCallback onAccessAreaToggle;
@@ -379,6 +382,7 @@ class _MapView extends ConsumerWidget {
     required this.mapAdapter,
     required this.isTracking,
     required this.isAccessAreaVisible,
+    required this.noteAccessRadiusMeters,
     required this.onPointerDown,
     required this.onTrackingToggle,
     required this.onAccessAreaToggle,
@@ -398,6 +402,7 @@ class _MapView extends ConsumerWidget {
       mapAdapter.updateAccessArea(
         center: currentPosition,
         visible: isAccessAreaVisible,
+        radiusMeters: noteAccessRadiusMeters.toDouble(),
         colorScheme: colorScheme,
       ),
     );
@@ -418,6 +423,7 @@ class _MapView extends ConsumerWidget {
         if (onShowList != null) _ListButton(onPressed: onShowList!),
         _AccessAreaButton(
           visible: isAccessAreaVisible,
+          radiusMeters: noteAccessRadiusMeters,
           onPressed: onAccessAreaToggle,
         ),
         _RefreshButton(onPressed: onRefresh, refreshing: loadingMapNotes),
@@ -499,11 +505,23 @@ class _MapNotesLoadingStatus extends StatelessWidget {
   }
 }
 
+String _radiusLabel(int radiusMeters) {
+  if (radiusMeters >= 1000 && radiusMeters % 1000 == 0) {
+    return '${radiusMeters ~/ 1000} km';
+  }
+  return '$radiusMeters m';
+}
+
 class _AccessAreaButton extends StatelessWidget {
   final bool visible;
+  final int radiusMeters;
   final VoidCallback onPressed;
 
-  const _AccessAreaButton({required this.visible, required this.onPressed});
+  const _AccessAreaButton({
+    required this.visible,
+    required this.radiusMeters,
+    required this.onPressed,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -513,7 +531,9 @@ class _AccessAreaButton extends StatelessWidget {
       right: 16,
       child: FloatingActionButton.small(
         heroTag: 'noteAccessArea',
-        tooltip: visible ? 'Hide 500 m access area' : 'Show 500 m access area',
+        tooltip: visible
+            ? 'Hide ${_radiusLabel(radiusMeters)} access area'
+            : 'Show ${_radiusLabel(radiusMeters)} access area',
         onPressed: onPressed,
         backgroundColor: visible ? colorScheme.primary : colorScheme.surface,
         elevation: 2,

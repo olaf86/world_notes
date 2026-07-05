@@ -50,6 +50,9 @@ export const MAP_PIN_MID_SEARCH_MAX_RADIUS_KM = 12;
 /** Radius from the user's current location that unlocks note details. */
 export const NOTE_DETAIL_ACCESS_RADIUS_KM = 0.5;
 
+/** PRO radius from the user's current location that unlocks note details. */
+export const PRO_NOTE_DETAIL_ACCESS_RADIUS_KM = 1.0;
+
 /** Max notes a user can register for nearby message alerts. */
 export const NEARBY_NOTIFICATION_LIMIT = 5;
 
