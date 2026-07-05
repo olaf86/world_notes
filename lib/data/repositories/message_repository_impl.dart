@@ -124,16 +124,18 @@ class MessageRepositoryImpl implements MessageRepository {
         .toList();
   }
 
-  Future<String?> _uploadImage({
+  Future<String> _uploadImage({
     required List<int> bytes,
     required String placeId,
     required String userId,
     required String messageId,
+    required int imageIndex,
   }) async {
     final path = ImageUploadUtil.messageStoragePath(
       placeId: placeId,
       userId: userId,
       messageId: messageId,
+      imageIndex: imageIndex,
     );
     final ref = _storage.ref(path);
     try {
@@ -159,19 +161,20 @@ class MessageRepositoryImpl implements MessageRepository {
     required String userId,
     required String userName,
     String? userPhotoUrl,
-    List<int>? imageBytes,
+    List<List<int>> imageBytesList = const [],
     DateTime? publishAt,
   }) async {
     final messageId = id ?? _uuid.v7();
-    String? imageStoragePath;
-    if (imageBytes != null) {
-      imageStoragePath = await _uploadImage(
-        bytes: imageBytes,
-        placeId: placeId,
-        userId: userId,
-        messageId: messageId,
-      );
-    }
+    final imageStoragePaths = await Future.wait([
+      for (var i = 0; i < imageBytesList.length; i += 1)
+        _uploadImage(
+          bytes: imageBytesList[i],
+          placeId: placeId,
+          userId: userId,
+          messageId: messageId,
+          imageIndex: i,
+        ),
+    ]);
 
     final now = DateTime.now();
     final result = await _functions
@@ -180,7 +183,8 @@ class MessageRepositoryImpl implements MessageRepository {
           'messageId': messageId,
           'placeId': placeId,
           'content': content,
-          'imageStoragePath': ?imageStoragePath,
+          if (imageStoragePaths.isNotEmpty)
+            'imageStoragePaths': imageStoragePaths,
           if (publishAt != null)
             'publishAtMillis': publishAt.millisecondsSinceEpoch,
         });
@@ -192,7 +196,7 @@ class MessageRepositoryImpl implements MessageRepository {
       userName: userName,
       userPhotoUrl: userPhotoUrl,
       content: content,
-      imageStoragePath: imageStoragePath,
+      imageStoragePaths: imageStoragePaths,
       createdAt: now,
       publishAt: publishAt ?? now,
     );

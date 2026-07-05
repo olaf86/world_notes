@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 import '../../../config/app_config.dart';
 import '../../../core/utils/image_upload_util.dart';
 import '../../providers/providers.dart';
+import 'image_grid_layout.dart';
 
 enum _MessagePublishPreset {
   now('Now', null),
@@ -69,17 +70,20 @@ class _MessageCreationOverlayState
   final _focusNode = FocusNode();
   final _picker = ImagePicker();
 
-  // Stored as Uint8List (not List<int>) so that the same instance is reused
-  // across rebuilds.  MemoryImage uses reference equality on the byte array;
-  // if we wrapped with Uint8List.fromList() every build, Flutter would treat
-  // it as a different image and re-decode it, causing a white-flash flicker.
-  Uint8List? _imageBytes;
+  // Stored as Uint8List (not List<int>) so that the same instances are reused
+  // across rebuilds. MemoryImage uses reference equality on the byte array;
+  // recreating them every build can cause a white-flash flicker.
+  final List<Uint8List> _imageBytesList = [];
   String? _pendingMessageId;
   _MessagePublishPreset _publishPreset = _MessagePublishPreset.now;
   DateTime? _customPublishAt;
   bool _showScheduleOptions = false;
   bool _isSending = false;
   bool _picking = false;
+
+  static const _pickerImageQuality = 100;
+  static final double _pickerMaxDimension = ImageUploadUtil.maxDimension
+      .toDouble();
 
   @override
   void initState() {
@@ -105,28 +109,50 @@ class _MessageCreationOverlayState
   }
 
   bool get _hasContent =>
-      _controller.text.trim().isNotEmpty || _imageBytes != null;
+      _controller.text.trim().isNotEmpty || _imageBytesList.isNotEmpty;
 
   // ── Image picking ─────────────────────────────────────────────────────────
 
-  Future<void> _pickImage(ImageSource source) async {
+  Future<List<XFile>> _pickGalleryFiles(int limit) {
+    return _picker.pickMultiImage(
+      imageQuality: _pickerImageQuality,
+      maxWidth: _pickerMaxDimension,
+      maxHeight: _pickerMaxDimension,
+      limit: limit,
+    );
+  }
+
+  Future<XFile?> _pickCameraFile() {
+    return _picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: _pickerImageQuality,
+      maxWidth: _pickerMaxDimension,
+      maxHeight: _pickerMaxDimension,
+    );
+  }
+
+  Future<List<Uint8List>> _compressPickedFiles(Iterable<XFile> files) {
+    return Future.wait(
+      files.map((file) async {
+        return ImageUploadUtil.compressToWebP(await file.readAsBytes());
+      }),
+    );
+  }
+
+  Future<void> _pickGalleryImages() async {
     if (_picking) return;
     setState(() => _picking = true);
     try {
-      final file = await _picker.pickImage(
-        source: source,
-        imageQuality: 100,
-        maxWidth: 1920,
-        maxHeight: 1920,
-      );
-      if (file == null || !mounted) return;
-      final bytes = await ImageUploadUtil.compressToWebP(
-        await file.readAsBytes(),
-      );
+      final remaining = AppConfig.maxMessageImages - _imageBytesList.length;
+      if (remaining <= 0) return;
+      final files = await _pickGalleryFiles(remaining);
+      if (files.isEmpty || !mounted) return;
+
+      final compressed = await _compressPickedFiles(files.take(remaining));
       if (!mounted) return;
 
       setState(() {
-        _imageBytes = bytes;
+        _imageBytesList.addAll(compressed);
       });
     } on FormatException catch (error) {
       if (!mounted) return;
@@ -149,8 +175,42 @@ class _MessageCreationOverlayState
     }
   }
 
-  void _removeImage() => setState(() {
-    _imageBytes = null;
+  Future<void> _pickCameraImage() async {
+    if (_picking) return;
+    setState(() => _picking = true);
+    try {
+      if (_imageBytesList.length >= AppConfig.maxMessageImages) return;
+      final file = await _pickCameraFile();
+      if (file == null || !mounted) return;
+      final bytes = (await _compressPickedFiles([file])).single;
+      if (!mounted) return;
+
+      setState(() {
+        _imageBytesList.add(bytes);
+      });
+    } on FormatException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.message),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    } on UnsupportedError {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('WebP encoding is not supported on this device.'),
+          duration: Duration(seconds: 4),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _picking = false);
+    }
+  }
+
+  void _removeImageAt(int index) => setState(() {
+    _imageBytesList.removeAt(index);
   });
 
   static const _maxChars = 2000;
@@ -245,7 +305,7 @@ class _MessageCreationOverlayState
             userId: user.id,
             userName: user.name,
             userPhotoUrl: user.photoUrl,
-            imageBytes: _imageBytes,
+            imageBytesList: _imageBytesList,
             publishAt: _publishAtForSend(),
           );
       _pendingMessageId = null;
@@ -253,7 +313,7 @@ class _MessageCreationOverlayState
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSending = false);
-      final message = _imageBytes != null
+      final message = _imageBytesList.isNotEmpty
           ? 'Failed to upload image. '
                 'Check that Firebase Storage is enabled and security rules allow writes.\n$e'
           : 'Failed to send: $e';
@@ -268,8 +328,8 @@ class _MessageCreationOverlayState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final bytes = _imageBytes;
     final keyboardBottom = MediaQuery.viewInsetsOf(context).bottom;
+    final canAddImages = _imageBytesList.length < AppConfig.maxMessageImages;
 
     return Material(
       color: theme.colorScheme.surface,
@@ -335,10 +395,13 @@ class _MessageCreationOverlayState
               ),
 
               // Image attachment preview (if any).
-              if (bytes != null)
+              if (_imageBytesList.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                  child: _ImagePreview(bytes: bytes, onRemove: _removeImage),
+                  child: _ImagePreviewGrid(
+                    images: _imageBytesList,
+                    onRemove: _removeImageAt,
+                  ),
                 ),
 
               const Divider(height: 1),
@@ -362,10 +425,11 @@ class _MessageCreationOverlayState
               // Keyboard-aware attachment toolbar.
               _AttachmentToolbar(
                 picking: _picking,
+                canAddImages: canAddImages,
                 scheduleLabel: _publishLabel(),
                 scheduled: _isScheduled,
-                onPickGallery: () => _pickImage(ImageSource.gallery),
-                onPickCamera: () => _pickImage(ImageSource.camera),
+                onPickGallery: _pickGalleryImages,
+                onPickCamera: _pickCameraImage,
                 onToggleSchedule: () {
                   setState(() => _showScheduleOptions = !_showScheduleOptions);
                 },
@@ -455,33 +519,48 @@ class _Header extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Image preview with remove button
+// Image preview grid with remove buttons
 // ---------------------------------------------------------------------------
 
-class _ImagePreview extends StatelessWidget {
-  // Uint8List rather than List<int> so Image.memory receives the same instance
-  // on every rebuild — avoids MemoryImage re-decoding and the resulting flicker.
+class _ImagePreviewGrid extends StatelessWidget {
+  final List<Uint8List> images;
+  final ValueChanged<int> onRemove;
+
+  const _ImagePreviewGrid({required this.images, required this.onRemove});
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox(
+        height: 180,
+        child: ImageGridLayout(
+          itemCount: images.length,
+          itemBuilder: (context, index) => _RemovableImagePreview(
+            bytes: images[index],
+            onRemove: () => onRemove(index),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RemovableImagePreview extends StatelessWidget {
   final Uint8List bytes;
   final VoidCallback onRemove;
 
-  const _ImagePreview({required this.bytes, required this.onRemove});
+  const _RemovableImagePreview({required this.bytes, required this.onRemove});
 
   @override
   Widget build(BuildContext context) {
     return Stack(
-      alignment: Alignment.topRight,
+      fit: StackFit.expand,
       children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Image.memory(
-            bytes, // same instance — no Uint8List.fromList() allocation
-            width: double.infinity,
-            height: 180,
-            fit: BoxFit.cover,
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.all(6),
+        Image.memory(bytes, fit: BoxFit.cover),
+        Positioned(
+          top: 6,
+          right: 6,
           child: GestureDetector(
             onTap: onRemove,
             child: Container(
@@ -505,6 +584,7 @@ class _ImagePreview extends StatelessWidget {
 
 class _AttachmentToolbar extends StatelessWidget {
   final bool picking;
+  final bool canAddImages;
   final String scheduleLabel;
   final bool scheduled;
   final VoidCallback onPickGallery;
@@ -513,6 +593,7 @@ class _AttachmentToolbar extends StatelessWidget {
 
   const _AttachmentToolbar({
     required this.picking,
+    required this.canAddImages,
     required this.scheduleLabel,
     required this.scheduled,
     required this.onPickGallery,
@@ -531,13 +612,13 @@ class _AttachmentToolbar extends StatelessWidget {
             tooltip: 'Choose from library',
             icon: const Icon(Icons.image_outlined),
             color: theme.colorScheme.primary,
-            onPressed: picking ? null : onPickGallery,
+            onPressed: picking || !canAddImages ? null : onPickGallery,
           ),
           IconButton(
             tooltip: 'Take a photo',
             icon: const Icon(Icons.camera_alt_outlined),
             color: theme.colorScheme.primary,
-            onPressed: picking ? null : onPickCamera,
+            onPressed: picking || !canAddImages ? null : onPickCamera,
           ),
           const Spacer(),
           TextButton.icon(

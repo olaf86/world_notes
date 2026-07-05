@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../domain/entities/message_entity.dart';
 import '../../providers/providers.dart';
+import 'image_grid_layout.dart';
 
 class MessageBubble extends StatefulWidget {
   final MessageEntity message;
@@ -35,7 +36,8 @@ class _MessageBubbleState extends State<MessageBubble> {
 
   // ── Full-screen image viewer ──────────────────────────────────────────────
 
-  void _openImageViewer(String imageStoragePath) {
+  void _openImageViewer(List<String> imageStoragePaths, int initialIndex) {
+    final pageController = PageController(initialPage: initialIndex);
     showDialog<void>(
       context: context,
       barrierColor: Colors.black87,
@@ -48,20 +50,24 @@ class _MessageBubbleState extends State<MessageBubble> {
             GestureDetector(
               onTap: () => Navigator.pop(ctx),
               behavior: HitTestBehavior.opaque,
-              child: InteractiveViewer(
-                minScale: 1.0,
-                maxScale: 4.0,
-                child: Center(
-                  child: _MessageStorageImage(
-                    storagePath: imageStoragePath,
-                    fit: BoxFit.contain,
-                    placeholder: const Center(
-                      child: CircularProgressIndicator(color: Colors.white),
-                    ),
-                    errorWidget: const Icon(
-                      Icons.broken_image_outlined,
-                      color: Colors.white,
-                      size: 48,
+              child: PageView.builder(
+                controller: pageController,
+                itemCount: imageStoragePaths.length,
+                itemBuilder: (context, index) => InteractiveViewer(
+                  minScale: 1.0,
+                  maxScale: 4.0,
+                  child: Center(
+                    child: _MessageStorageImage(
+                      storagePath: imageStoragePaths[index],
+                      fit: BoxFit.contain,
+                      placeholder: const Center(
+                        child: CircularProgressIndicator(color: Colors.white),
+                      ),
+                      errorWidget: const Icon(
+                        Icons.broken_image_outlined,
+                        color: Colors.white,
+                        size: 48,
+                      ),
                     ),
                   ),
                 ),
@@ -242,6 +248,7 @@ class _MessageBubbleState extends State<MessageBubble> {
     //   • A small "You" badge next to the name
     final isScheduled = widget.isOwn && !message.isPublished;
     final timeStr = _messageTimeLabel(message, isScheduled: isScheduled);
+    final imageStoragePaths = message.imageStoragePaths;
     final hasActions =
         (widget.isOwn && widget.onDelete != null) ||
         (!widget.isOwn && widget.onReport != null);
@@ -384,44 +391,24 @@ class _MessageBubbleState extends State<MessageBubble> {
                         color: theme.colorScheme.onSurface,
                       ),
                     ),
-                    if (message.imageStoragePath != null)
-                      const SizedBox(height: 8),
+                    if (imageStoragePaths.isNotEmpty) const SizedBox(height: 8),
                   ],
-                  // ── Image (optional) ────────────────────────────────
+                  // ── Images (optional) ───────────────────────────────
                   //
-                  // Left-aligned, fills the available column width up to
-                  // maxWidth (280 dp).  AspectRatio keeps it square (1:1)
-                  // with BoxFit.cover so the crop never distorts the image.
-                  // Tap opens a full-screen zoomable viewer.
-                  if (message.imageStoragePath != null)
+                  // Left-aligned, fills the available column width up to 280
+                  // dp. The X-style grid keeps mixed photo counts compact.
+                  // Tap opens a full-screen zoomable pager.
+                  if (imageStoragePaths.isNotEmpty)
                     ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 280),
-                      child: GestureDetector(
-                        onTap: () =>
-                            _openImageViewer(message.imageStoragePath!),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: AspectRatio(
-                            aspectRatio: 1.0,
-                            child: _MessageStorageImage(
-                              storagePath: message.imageStoragePath!,
-                              fit: BoxFit.cover,
-                              placeholder: Container(
-                                color:
-                                    theme.colorScheme.surfaceContainerHighest,
-                                child: const Center(
-                                  child: CircularProgressIndicator(),
-                                ),
-                              ),
-                              errorWidget: Container(
-                                color:
-                                    theme.colorScheme.surfaceContainerHighest,
-                                child: Icon(
-                                  Icons.broken_image_outlined,
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: AspectRatio(
+                          aspectRatio: 1.0,
+                          child: _MessageImageGrid(
+                            storagePaths: imageStoragePaths,
+                            onTap: (index) =>
+                                _openImageViewer(imageStoragePaths, index),
                           ),
                         ),
                       ),
@@ -472,6 +459,54 @@ class _ReportInlineAction extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MessageImageGrid extends StatelessWidget {
+  final List<String> storagePaths;
+  final ValueChanged<int> onTap;
+
+  const _MessageImageGrid({required this.storagePaths, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final count = storagePaths.length.clamp(0, 4).toInt();
+
+    Widget item(int index) => GestureDetector(
+      onTap: () => onTap(index),
+      child: _MessageGridImage(storagePath: storagePaths[index]),
+    );
+
+    return ImageGridLayout(
+      itemCount: count,
+      itemBuilder: (_, index) => item(index),
+    );
+  }
+}
+
+class _MessageGridImage extends StatelessWidget {
+  final String storagePath;
+
+  const _MessageGridImage({required this.storagePath});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return _MessageStorageImage(
+      storagePath: storagePath,
+      fit: BoxFit.cover,
+      placeholder: Container(
+        color: theme.colorScheme.surfaceContainerHighest,
+        child: const Center(child: CircularProgressIndicator()),
+      ),
+      errorWidget: Container(
+        color: theme.colorScheme.surfaceContainerHighest,
+        child: Icon(
+          Icons.broken_image_outlined,
+          color: theme.colorScheme.onSurfaceVariant,
         ),
       ),
     );

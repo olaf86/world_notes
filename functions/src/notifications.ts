@@ -183,9 +183,11 @@ function messageNotificationPreview(
   );
   if (content.length > 0) return content;
 
-  const imageStoragePath = normalizedText(messageSnap.get("imageStoragePath"));
+  const imageStoragePaths = messageSnap.get("imageStoragePaths");
+  const hasImages =
+    Array.isArray(imageStoragePaths) && imageStoragePaths.length > 0;
   const copy = MY_NOTES_NOTIFICATION_COPY[locale];
-  return imageStoragePath.length > 0 ? copy.photoMessage : copy.newMessage;
+  return hasImages ? copy.photoMessage : copy.newMessage;
 }
 
 function myNotesNotificationContent(

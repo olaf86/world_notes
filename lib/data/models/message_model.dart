@@ -9,7 +9,7 @@ class MessageModel {
   final String userName;
   final String? userPhotoUrl;
   final String content;
-  final String? imageStoragePath;
+  final List<String> imageStoragePaths;
   final DateTime createdAt;
   final DateTime publishAt;
   final bool isDeleted;
@@ -27,7 +27,7 @@ class MessageModel {
     required this.userName,
     this.userPhotoUrl,
     required this.content,
-    this.imageStoragePath,
+    this.imageStoragePaths = const [],
     required this.createdAt,
     required this.publishAt,
     this.isDeleted = false,
@@ -48,7 +48,10 @@ class MessageModel {
       userName: data['userName'] as String? ?? 'Unknown',
       userPhotoUrl: data['userPhotoUrl'] as String?,
       content: data['content'] as String,
-      imageStoragePath: data['imageStoragePath'] as String?,
+      imageStoragePaths: List<String>.from(
+        (data['imageStoragePaths'] as List<dynamic>? ?? const [])
+            .whereType<String>(),
+      ),
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       publishAt: (data['publishAt'] as Timestamp).toDate(),
       isDeleted: data['isDeleted'] as bool,
@@ -66,7 +69,7 @@ class MessageModel {
     placeId: placeId,
     author: UserEntity(id: userId, name: userName, photoUrl: userPhotoUrl),
     content: content,
-    imageStoragePath: imageStoragePath,
+    imageStoragePaths: imageStoragePaths,
     createdAt: createdAt,
     publishAt: publishAt,
     isDeleted: isDeleted,

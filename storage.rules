@@ -4,14 +4,17 @@ service firebase.storage {
   match /b/{bucket}/o {
 
     // ── message images ──────────────────────────────────────────────────────
-    // Path: images/messages/{placeId}/{userId}/{uuidV7}.webp
-    match /images/messages/{placeId}/{userId}/{fileName} {
+    // Path: images/messages/{placeId}/{userId}/{uuidV7}/{0-3}.webp
+    match /images/messages/{placeId}/{userId}/{messageId}/{fileName} {
       allow read: if request.auth != null;
 
       allow create: if request.auth != null
                     && request.auth.uid == userId
+                    && messageId.matches(
+                         '^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+                       )
                     && fileName.matches(
-                         '^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}[.]webp$'
+                         '^[0-3][.]webp$'
                        )
                     && request.resource.size <= 2 * 1024 * 1024
                     && request.resource.contentType == 'image/webp';

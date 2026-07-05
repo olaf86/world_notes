@@ -12,6 +12,7 @@ import {getStorage} from "firebase-admin/storage";
 import * as logger from "firebase-functions/logger";
 
 import {
+  MAX_MESSAGE_IMAGES,
   MAX_MESSAGE_PUBLISH_DELAY_DAYS,
   MAX_MESSAGES_PER_THREAD,
   REGION,
@@ -37,7 +38,7 @@ interface SendMessageData {
   messageId?: unknown;
   placeId?: unknown;
   content?: unknown;
-  imageStoragePath?: unknown;
+  imageStoragePaths?: unknown;
   publishAtMillis?: unknown;
 }
 
@@ -45,7 +46,7 @@ interface ValidatedSendMessageInput {
   messageId: string;
   placeId: string;
   trimmedContent: string;
-  trimmedImageStoragePath: string | null;
+  trimmedImageStoragePaths: string[];
   publishAtMillis?: unknown;
 }
 
@@ -78,7 +79,7 @@ interface CreateMessageResult {
   notifyImmediately: boolean;
   publishAtMillis: number;
   moderationNoticePoints: number;
-  imageStoragePathToDelete: string | null;
+  imageStoragePathsToDelete: string[];
 }
 
 interface DeleteMessageData {
@@ -95,6 +96,13 @@ function stringOrNull(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ?
     value.trim() :
     null;
+}
+
+function storedImagePaths(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((path) => stringOrNull(path))
+    .filter((path): path is string => path !== null);
 }
 
 const UUID_V7_PATTERN =
@@ -115,7 +123,7 @@ function validateSendMessageInput(
     messageId: rawMessageId,
     placeId,
     content,
-    imageStoragePath,
+    imageStoragePaths,
     publishAtMillis,
   } = data ?? {};
   const messageId = messageIdOf(rawMessageId);
@@ -129,17 +137,29 @@ function validateSendMessageInput(
     throw new HttpsError("invalid-argument", "Message is too long.");
   }
 
-  const trimmedImageStoragePath =
-    imageStoragePath == null ? null : stringOrNull(imageStoragePath);
-  const expectedImageStoragePath =
-    `images/messages/${placeId}/${uid}/${messageId}.webp`;
-  if (
-    imageStoragePath != null &&
-    trimmedImageStoragePath !== expectedImageStoragePath
-  ) {
-    throw new HttpsError("invalid-argument", "Invalid image storage path.");
+  if (imageStoragePaths != null && !Array.isArray(imageStoragePaths)) {
+    throw new HttpsError("invalid-argument", "Invalid image storage paths.");
   }
-  if (trimmedContent.length === 0 && !trimmedImageStoragePath) {
+  const trimmedImageStoragePaths = storedImagePaths(imageStoragePaths);
+  if (trimmedImageStoragePaths.length > MAX_MESSAGE_IMAGES) {
+    throw new HttpsError("invalid-argument", "Too many images.");
+  }
+  if (
+    Array.isArray(imageStoragePaths) &&
+    trimmedImageStoragePaths.length !== imageStoragePaths.length
+  ) {
+    throw new HttpsError("invalid-argument", "Invalid image storage paths.");
+  }
+  const seenImagePaths = new Set<string>();
+  trimmedImageStoragePaths.forEach((path, index) => {
+    const expectedImageStoragePath =
+      `images/messages/${placeId}/${uid}/${messageId}/${index}.webp`;
+    if (path !== expectedImageStoragePath || seenImagePaths.has(path)) {
+      throw new HttpsError("invalid-argument", "Invalid image storage path.");
+    }
+    seenImagePaths.add(path);
+  });
+  if (trimmedContent.length === 0 && trimmedImageStoragePaths.length === 0) {
     throw new HttpsError(
       "invalid-argument",
       "Message content or image is required.",
@@ -150,7 +170,7 @@ function validateSendMessageInput(
     messageId,
     placeId,
     trimmedContent,
-    trimmedImageStoragePath,
+    trimmedImageStoragePaths,
     publishAtMillis,
   };
 }
@@ -200,15 +220,15 @@ function isModerationRemoval(
   return moderationResult.action === "hidden";
 }
 
-async function deleteStoredImage(storagePath: string | null): Promise<void> {
-  if (!storagePath) return;
-  try {
-    await getStorage()
-      .bucket()
-      .file(storagePath)
-      .delete({ignoreNotFound: true});
-  } catch (error) {
-    logger.warn(`Could not delete message image ${storagePath}.`, error);
+async function deleteStoredImages(storagePaths: string[]): Promise<void> {
+  if (storagePaths.length === 0) return;
+  const bucket = getStorage().bucket();
+  for (const storagePath of storagePaths) {
+    try {
+      await bucket.file(storagePath).delete({ignoreNotFound: true});
+    } catch (error) {
+      logger.warn(`Could not delete message image ${storagePath}.`, error);
+    }
   }
 }
 
@@ -222,7 +242,7 @@ function messageDocumentData({
   profileDisplayName,
   tokenPicture,
   content,
-  imageStoragePath,
+  imageStoragePaths,
   publishAt,
   isPubliclyVisible,
   moderationResult,
@@ -232,7 +252,7 @@ function messageDocumentData({
   profileDisplayName: string | null;
   tokenPicture: unknown;
   content: string;
-  imageStoragePath: string | null;
+  imageStoragePaths: string[];
   publishAt: Timestamp;
   isPubliclyVisible: boolean;
   moderationResult: InternalModerationResult;
@@ -244,8 +264,8 @@ function messageDocumentData({
     userName: profileDisplayName ?? "Unknown user",
     userPhotoUrl: photoUrlFor(tokenPicture),
     content: removedByModeration ? "" : content,
-    ...(!removedByModeration && imageStoragePath ?
-      {imageStoragePath} :
+    ...(!removedByModeration && imageStoragePaths.length > 0 ?
+      {imageStoragePaths} :
       {}),
     createdAt: FieldValue.serverTimestamp(),
     publishAt,
@@ -266,14 +286,14 @@ function moderationReviewDocumentData({
   messageId,
   moderationResult,
   submittedContent,
-  submittedImageStoragePath,
+  submittedImageStoragePaths,
 }: {
   uid: string;
   placeId: string;
   messageId: string;
   moderationResult: InternalModerationResult;
   submittedContent: string;
-  submittedImageStoragePath: string | null;
+  submittedImageStoragePaths: string[];
 }): Record<string, unknown> {
   return {
     userId: uid,
@@ -281,7 +301,7 @@ function moderationReviewDocumentData({
     messageId,
     messagePath: `places/${placeId}/messages/${messageId}`,
     content: submittedContent,
-    imageStoragePath: submittedImageStoragePath,
+    imageStoragePaths: submittedImageStoragePaths,
     status: "open",
     createdAt: FieldValue.serverTimestamp(),
     ...moderationAuditFields(moderationResult),
@@ -417,7 +437,7 @@ async function createMessageInTransaction({
   let created = false;
   let publishAtMillis = nowMs;
   let moderationNoticePoints = 0;
-  let imageStoragePathToDelete: string | null = null;
+  let imageStoragePathsToDelete: string[] = [];
 
   await db.runTransaction(async (tx) => {
     const [placeSnap, messageSnap] = await Promise.all([
@@ -502,7 +522,7 @@ async function createMessageInTransaction({
         profileDisplayName: profile.displayName,
         tokenPicture,
         content: input.trimmedContent,
-        imageStoragePath: input.trimmedImageStoragePath,
+        imageStoragePaths: input.trimmedImageStoragePaths,
         publishAt,
         isPubliclyVisible: isImmediate,
         moderationResult,
@@ -518,11 +538,11 @@ async function createMessageInTransaction({
         messageId: input.messageId,
         moderationResult,
         submittedContent: input.trimmedContent,
-        submittedImageStoragePath: input.trimmedImageStoragePath,
+        submittedImageStoragePaths: input.trimmedImageStoragePaths,
       }));
     }
     if (removedByModeration) {
-      imageStoragePathToDelete = input.trimmedImageStoragePath;
+      imageStoragePathsToDelete = input.trimmedImageStoragePaths;
     }
   });
 
@@ -531,7 +551,7 @@ async function createMessageInTransaction({
     notifyImmediately,
     publishAtMillis,
     moderationNoticePoints,
-    imageStoragePathToDelete,
+    imageStoragePathsToDelete,
   };
 }
 
@@ -612,8 +632,8 @@ async function runSendMessageSideEffects({
 }): Promise<void> {
   if (!result.created) return;
 
-  if (result.imageStoragePathToDelete) {
-    await deleteStoredImage(result.imageStoragePathToDelete);
+  if (result.imageStoragePathsToDelete.length > 0) {
+    await deleteStoredImages(result.imageStoragePathsToDelete);
   }
   await createModerationNoticeSafely({
     uid,
@@ -688,7 +708,7 @@ export const sendMessage = onCall<SendMessageData>(
 );
 
 /**
- * Soft-deletes a published message and removes its stored image.
+ * Soft-deletes a published message and removes its stored images.
  */
 export const deleteMessage = onCall<DeleteMessageData>(
   {enforceAppCheck: true, region: REGION},
@@ -709,7 +729,7 @@ export const deleteMessage = onCall<DeleteMessageData>(
       .doc(placeId)
       .collection("messages")
       .doc(messageId);
-    let imageStoragePath: string | null = null;
+    let imageStoragePaths: string[] = [];
 
     await getFirestore().runTransaction(async (tx) => {
       const messageSnap = await tx.get(messageRef);
@@ -728,18 +748,19 @@ export const deleteMessage = onCall<DeleteMessageData>(
           "Scheduled messages must be canceled.",
         );
       }
-      imageStoragePath =
-        stringOrNull(messageSnap.get("imageStoragePath"));
+      imageStoragePaths = storedImagePaths(messageSnap.get(
+        "imageStoragePaths",
+      ));
       if (messageSnap.get("isDeleted") === true) return;
       tx.update(messageRef, {
         isDeleted: true,
         deletedAt: FieldValue.serverTimestamp(),
         deletedReason: "author",
-        imageStoragePath: FieldValue.delete(),
+        imageStoragePaths: FieldValue.delete(),
       });
     });
 
-    await deleteStoredImage(imageStoragePath);
+    await deleteStoredImages(imageStoragePaths);
     return {ok: true};
   },
 );
@@ -766,7 +787,7 @@ export const cancelScheduledMessage = onCall<CancelScheduledMessageData>(
     const counterRef = placeRef.collection("counters").doc("messageSlots");
     const messageRef = placeRef.collection("messages").doc(messageId);
     const nowMs = Date.now();
-    let imageStoragePath: string | null = null;
+    let imageStoragePaths: string[] = [];
 
     await db.runTransaction(async (tx) => {
       const [placeSnap, messageSnap, counterSnap] = await Promise.all([
@@ -801,8 +822,9 @@ export const cancelScheduledMessage = onCall<CancelScheduledMessageData>(
 
       const publicCount =
         (placeSnap.get("messageCount") as number | undefined) ?? 0;
-      imageStoragePath =
-        stringOrNull(messageSnap.get("imageStoragePath"));
+      imageStoragePaths = storedImagePaths(messageSnap.get(
+        "imageStoragePaths",
+      ));
       const currentSlots = messageSlotCount(counterSnap, publicCount);
       const nextSlots = Math.max(0, currentSlots - 1);
       tx.set(
@@ -834,7 +856,7 @@ export const cancelScheduledMessage = onCall<CancelScheduledMessageData>(
       tx.delete(messageRef);
     });
 
-    await deleteStoredImage(imageStoragePath);
+    await deleteStoredImages(imageStoragePaths);
     return {ok: true};
   },
 );
