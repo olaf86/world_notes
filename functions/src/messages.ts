@@ -55,6 +55,7 @@ interface SendMessageRefs {
   memberRef: DocumentReference;
   counterRef: DocumentReference;
   messageRef: DocumentReference;
+  moderationReviewRef: DocumentReference;
 }
 
 interface SendMessageProfile {
@@ -166,6 +167,9 @@ function sendMessageRefs(
     memberRef: placeRef.collection("members").doc(uid),
     counterRef: placeRef.collection("counters").doc("messageSlots"),
     messageRef: placeRef.collection("messages").doc(input.messageId),
+    moderationReviewRef: db
+      .collection("moderationReviews")
+      .doc(`${input.placeId}_${input.messageId}`),
   };
 }
 
@@ -256,25 +260,38 @@ function messageDocumentData({
   };
 }
 
-function moderationAuditDocumentData({
+function moderationReviewDocumentData({
+  uid,
+  placeId,
+  messageId,
   moderationResult,
   submittedContent,
   submittedImageStoragePath,
 }: {
+  uid: string;
+  placeId: string;
+  messageId: string;
   moderationResult: InternalModerationResult;
   submittedContent: string;
   submittedImageStoragePath: string | null;
 }): Record<string, unknown> {
-  const shouldRetainSubmittedContent = moderationResult.action !== "allow";
   return {
+    userId: uid,
+    placeId,
+    messageId,
+    messagePath: `places/${placeId}/messages/${messageId}`,
+    content: submittedContent,
+    imageStoragePath: submittedImageStoragePath,
+    status: "open",
+    createdAt: FieldValue.serverTimestamp(),
     ...moderationAuditFields(moderationResult),
-    ...(shouldRetainSubmittedContent ?
-      {
-        submittedContent,
-        submittedImageStoragePath,
-      } :
-      {}),
   };
+}
+
+function shouldCreateModerationReview(
+  moderationResult: InternalModerationResult,
+): boolean {
+  return moderationResult.action !== "allow";
 }
 
 function hasValidMembership(
@@ -493,14 +510,16 @@ async function createMessageInTransaction({
         FieldValue.serverTimestamp() :
         null,
     });
-    tx.set(
-      refs.messageRef.collection("moderation").doc("latest"),
-      moderationAuditDocumentData({
+    if (shouldCreateModerationReview(moderationResult)) {
+      tx.set(refs.moderationReviewRef, moderationReviewDocumentData({
+        uid,
+        placeId: input.placeId,
+        messageId: input.messageId,
         moderationResult,
         submittedContent: input.trimmedContent,
         submittedImageStoragePath: input.trimmedImageStoragePath,
-      }),
-    );
+      }));
+    }
     if (removedByModeration) {
       imageStoragePathToDelete = input.trimmedImageStoragePath;
     }

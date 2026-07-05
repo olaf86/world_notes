@@ -252,12 +252,18 @@ service cloud.firestore {
 
         allow delete: if false;
 
-        // Provider scores, retained submitted content for moderated posts,
-        // and moderation audit metadata are server-only.
+        // Legacy nested moderation audit data is server-only.
         match /moderation/{doc} {
           allow read, write: if false;
         }
       }
+    }
+
+    // Flat administrator review queue for non-allow moderation decisions.
+    // Written only by Cloud Functions. Clients cannot read submitted content
+    // or provider scores directly from Firestore.
+    match /moderationReviews/{reviewId} {
+      allow read, write: if false;
     }
 
     // ── invites ─────────────────────────────────────────────────────────────
