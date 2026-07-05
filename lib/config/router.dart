@@ -11,6 +11,7 @@ import '../presentation/screens/note/note_box_screen.dart';
 import '../presentation/screens/note/note_creation_screen.dart';
 import '../presentation/screens/notices/notices_screen.dart';
 import '../presentation/screens/profile/profile_screen.dart';
+import '../presentation/screens/report/report_message_screen.dart';
 import '../presentation/screens/settings/settings_screen.dart';
 import '../presentation/screens/subscription/subscription_screen.dart';
 
@@ -121,6 +122,20 @@ final routerProvider = Provider<GoRouter>((ref) {
               placeId: placeId,
               placeTitle: placeTitle,
               readOnly: readOnly,
+            ),
+            opaque: false,
+            transitionsBuilder: _slideTransition,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/note/:placeId/messages/:messageId/report',
+        pageBuilder: (context, state) {
+          return CustomTransitionPage<bool>(
+            key: state.pageKey,
+            child: ReportMessageScreen(
+              placeId: state.pathParameters['placeId']!,
+              messageId: state.pathParameters['messageId']!,
             ),
             opaque: false,
             transitionsBuilder: _slideTransition,

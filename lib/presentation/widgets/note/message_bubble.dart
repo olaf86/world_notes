@@ -426,10 +426,52 @@ class _MessageBubbleState extends State<MessageBubble> {
                         ),
                       ),
                     ),
+                  if (!widget.isOwn && widget.onReport != null) ...[
+                    const SizedBox(height: 8),
+                    _ReportInlineAction(onPressed: widget.onReport!),
+                  ],
                 ],
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReportInlineAction extends StatelessWidget {
+  final VoidCallback onPressed;
+
+  const _ReportInlineAction({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(4),
+        onTap: onPressed,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 3),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.flag_outlined,
+                size: 13,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'Report',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

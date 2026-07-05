@@ -198,58 +198,18 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
 
   // ── Report ────────────────────────────────────────────────────────────────
 
-  Future<void> _showReportDialog(MessageEntity message) async {
-    const reasons = [
-      'Spam or advertising',
-      'Harassment or bullying',
-      'Adult or explicit content',
-      'Illegal content',
-      'Other',
-    ];
-    final reason = await showDialog<String>(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        title: const Text('Report message'),
-        children: reasons
-            .map(
-              (r) => SimpleDialogOption(
-                onPressed: () => Navigator.pop(ctx, r),
-                child: Text(r),
-              ),
-            )
-            .toList(),
+  Future<void> _openReportMessageScreen(MessageEntity message) async {
+    final reported = await context.push<bool>(
+      '/note/${widget.placeId}/messages/${message.id}/report',
+    );
+    if (!mounted || reported != true) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Report submitted. Thank you for helping keep this community safe.',
+        ),
       ),
     );
-    if (reason == null || !mounted) return;
-
-    final currentUser = ref.read(authStateProvider).valueOrNull;
-    if (currentUser == null) return;
-
-    try {
-      await ref
-          .read(messageRepositoryProvider)
-          .reportMessage(
-            messageId: message.id,
-            placeId: widget.placeId,
-            reporterId: currentUser.id,
-            reason: reason,
-          );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Report submitted. Thank you for helping keep this community safe.',
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to submit report: $e')));
-      }
-    }
   }
 
   // ── Maintainer thread controls ────────────────────────────────────────────
@@ -958,7 +918,9 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                                           ? () => _confirmDeleteMessage(message)
                                           : null,
                                       onReport: !isOwn
-                                          ? () => _showReportDialog(message)
+                                          ? () => _openReportMessageScreen(
+                                              message,
+                                            )
                                           : null,
                                     );
                                   },
