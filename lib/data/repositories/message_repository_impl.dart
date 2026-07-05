@@ -165,18 +165,16 @@ class MessageRepositoryImpl implements MessageRepository {
     DateTime? publishAt,
   }) async {
     final messageId = id ?? _uuid.v7();
-    final imageStoragePaths = <String>[];
-    for (var i = 0; i < imageBytesList.length; i += 1) {
-      imageStoragePaths.add(
-        await _uploadImage(
+    final imageStoragePaths = await Future.wait([
+      for (var i = 0; i < imageBytesList.length; i += 1)
+        _uploadImage(
           bytes: imageBytesList[i],
           placeId: placeId,
           userId: userId,
           messageId: messageId,
           imageIndex: i,
         ),
-      );
-    }
+    ]);
 
     final now = DateTime.now();
     final result = await _functions

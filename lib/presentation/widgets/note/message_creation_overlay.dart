@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 import '../../../config/app_config.dart';
 import '../../../core/utils/image_upload_util.dart';
 import '../../providers/providers.dart';
+import 'image_grid_layout.dart';
 
 enum _MessagePublishPreset {
   now('Now', null),
@@ -80,6 +81,10 @@ class _MessageCreationOverlayState
   bool _isSending = false;
   bool _picking = false;
 
+  static const _pickerImageQuality = 100;
+  static final double _pickerMaxDimension = ImageUploadUtil.maxDimension
+      .toDouble();
+
   @override
   void initState() {
     super.initState();
@@ -108,26 +113,42 @@ class _MessageCreationOverlayState
 
   // ── Image picking ─────────────────────────────────────────────────────────
 
+  Future<List<XFile>> _pickGalleryFiles(int limit) {
+    return _picker.pickMultiImage(
+      imageQuality: _pickerImageQuality,
+      maxWidth: _pickerMaxDimension,
+      maxHeight: _pickerMaxDimension,
+      limit: limit,
+    );
+  }
+
+  Future<XFile?> _pickCameraFile() {
+    return _picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: _pickerImageQuality,
+      maxWidth: _pickerMaxDimension,
+      maxHeight: _pickerMaxDimension,
+    );
+  }
+
+  Future<List<Uint8List>> _compressPickedFiles(Iterable<XFile> files) {
+    return Future.wait(
+      files.map((file) async {
+        return ImageUploadUtil.compressToWebP(await file.readAsBytes());
+      }),
+    );
+  }
+
   Future<void> _pickGalleryImages() async {
     if (_picking) return;
     setState(() => _picking = true);
     try {
       final remaining = AppConfig.maxMessageImages - _imageBytesList.length;
       if (remaining <= 0) return;
-      final files = await _picker.pickMultiImage(
-        imageQuality: 100,
-        maxWidth: 1920,
-        maxHeight: 1920,
-        limit: remaining,
-      );
+      final files = await _pickGalleryFiles(remaining);
       if (files.isEmpty || !mounted) return;
 
-      final compressed = <Uint8List>[];
-      for (final file in files.take(remaining)) {
-        compressed.add(
-          await ImageUploadUtil.compressToWebP(await file.readAsBytes()),
-        );
-      }
+      final compressed = await _compressPickedFiles(files.take(remaining));
       if (!mounted) return;
 
       setState(() {
@@ -159,16 +180,9 @@ class _MessageCreationOverlayState
     setState(() => _picking = true);
     try {
       if (_imageBytesList.length >= AppConfig.maxMessageImages) return;
-      final file = await _picker.pickImage(
-        source: ImageSource.camera,
-        imageQuality: 100,
-        maxWidth: 1920,
-        maxHeight: 1920,
-      );
+      final file = await _pickCameraFile();
       if (file == null || !mounted) return;
-      final bytes = await ImageUploadUtil.compressToWebP(
-        await file.readAsBytes(),
-      );
+      final bytes = (await _compressPickedFiles([file])).single;
       if (!mounted) return;
 
       setState(() {
@@ -520,7 +534,7 @@ class _ImagePreviewGrid extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       child: SizedBox(
         height: 180,
-        child: _ImageGridLayout(
+        child: ImageGridLayout(
           itemCount: images.length,
           itemBuilder: (context, index) => _RemovableImagePreview(
             bytes: images[index],
@@ -557,73 +571,6 @@ class _RemovableImagePreview extends StatelessWidget {
               padding: const EdgeInsets.all(4),
               child: const Icon(Icons.close, size: 18, color: Colors.white),
             ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ImageGridLayout extends StatelessWidget {
-  final int itemCount;
-  final IndexedWidgetBuilder itemBuilder;
-
-  const _ImageGridLayout({required this.itemCount, required this.itemBuilder});
-
-  @override
-  Widget build(BuildContext context) {
-    const gap = 2.0;
-    final count = itemCount.clamp(0, AppConfig.maxMessageImages);
-
-    if (count == 1) return itemBuilder(context, 0);
-
-    if (count == 2) {
-      return Row(
-        children: [
-          Expanded(child: itemBuilder(context, 0)),
-          const SizedBox(width: gap),
-          Expanded(child: itemBuilder(context, 1)),
-        ],
-      );
-    }
-
-    if (count == 3) {
-      return Row(
-        children: [
-          Expanded(child: itemBuilder(context, 0)),
-          const SizedBox(width: gap),
-          Expanded(
-            child: Column(
-              children: [
-                Expanded(child: itemBuilder(context, 1)),
-                const SizedBox(height: gap),
-                Expanded(child: itemBuilder(context, 2)),
-              ],
-            ),
-          ),
-        ],
-      );
-    }
-
-    return Column(
-      children: [
-        Expanded(
-          child: Row(
-            children: [
-              Expanded(child: itemBuilder(context, 0)),
-              const SizedBox(width: gap),
-              Expanded(child: itemBuilder(context, 1)),
-            ],
-          ),
-        ),
-        const SizedBox(height: gap),
-        Expanded(
-          child: Row(
-            children: [
-              Expanded(child: itemBuilder(context, 2)),
-              const SizedBox(width: gap),
-              Expanded(child: itemBuilder(context, 3)),
-            ],
           ),
         ),
       ],

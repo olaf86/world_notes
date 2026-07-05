@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../domain/entities/message_entity.dart';
 import '../../providers/providers.dart';
+import 'image_grid_layout.dart';
 
 class MessageBubble extends StatefulWidget {
   final MessageEntity message;
@@ -472,66 +473,16 @@ class _MessageImageGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const gap = 2.0;
-    final count = storagePaths.length.clamp(0, 4);
+    final count = storagePaths.length.clamp(0, 4).toInt();
 
     Widget item(int index) => GestureDetector(
       onTap: () => onTap(index),
       child: _MessageGridImage(storagePath: storagePaths[index]),
     );
 
-    if (count == 1) return item(0);
-
-    if (count == 2) {
-      return Row(
-        children: [
-          Expanded(child: item(0)),
-          const SizedBox(width: gap),
-          Expanded(child: item(1)),
-        ],
-      );
-    }
-
-    if (count == 3) {
-      return Row(
-        children: [
-          Expanded(child: item(0)),
-          const SizedBox(width: gap),
-          Expanded(
-            child: Column(
-              children: [
-                Expanded(child: item(1)),
-                const SizedBox(height: gap),
-                Expanded(child: item(2)),
-              ],
-            ),
-          ),
-        ],
-      );
-    }
-
-    return Column(
-      children: [
-        Expanded(
-          child: Row(
-            children: [
-              Expanded(child: item(0)),
-              const SizedBox(width: gap),
-              Expanded(child: item(1)),
-            ],
-          ),
-        ),
-        const SizedBox(height: gap),
-        Expanded(
-          child: Row(
-            children: [
-              Expanded(child: item(2)),
-              const SizedBox(width: gap),
-              Expanded(child: item(3)),
-            ],
-          ),
-        ),
-      ],
+    return ImageGridLayout(
+      itemCount: count,
+      itemBuilder: (_, index) => item(index),
     );
   }
 }
