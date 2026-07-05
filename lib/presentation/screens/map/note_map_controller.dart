@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -8,6 +10,7 @@ import '../../../config/app_config.dart';
 import '../../../core/utils/marker_image.dart';
 import '../../../core/utils/place_icon.dart';
 import '../../../domain/entities/pin_summary_entity.dart';
+import 'note_map_adapter.dart';
 
 /// Adapter between the places domain and a [MapLibreMapController].
 ///
@@ -55,6 +58,7 @@ class NoteMapController {
 
   // ── External hooks ────────────────────────────────────────────────────────
   final TickerProvider vsync;
+  final PinMarkerImageResolver markerImageResolver;
 
   /// Invoked when the user taps an unclustered pin. The returned future
   /// should complete when whatever UI was opened (e.g. a bottom sheet) is
@@ -62,7 +66,11 @@ class NoteMapController {
   /// it resolves.
   final Future<void> Function(PinSummary pin) onPinSelected;
 
-  NoteMapController({required this.vsync, required this.onPinSelected}) {
+  NoteMapController({
+    required this.vsync,
+    required this.onPinSelected,
+    required this.markerImageResolver,
+  }) {
     _pinScaleController = AnimationController(
       vsync: vsync,
       duration: const Duration(milliseconds: 220),
@@ -368,8 +376,9 @@ class NoteMapController {
 
     // Register any (icon, color) combinations we haven't seen yet — must
     // happen before pushing features that reference them.
+    final imageIdsByPlaceId = <String, String>{};
     for (final pin in pins) {
-      await _ensureMarkerImage(pin.icon, pin.colorHex);
+      imageIdsByPlaceId[pin.placeId] = await _ensureMarkerImage(pin);
     }
 
     // Underlying features changed; any selection overlay is stale.
@@ -385,7 +394,7 @@ class NoteMapController {
               'coordinates': [pin.longitude, pin.latitude],
             },
             'properties': {
-              'iconImageId': _markerImageId(pin.icon, pin.colorHex),
+              'iconImageId': imageIdsByPlaceId[pin.placeId],
               'title': pin.title,
             },
           },
@@ -401,18 +410,60 @@ class NoteMapController {
   String _markerImageId(String iconName, String colorHex) =>
       'marker_${iconName}_${colorHex.replaceAll('#', '')}';
 
-  Future<void> _ensureMarkerImage(String iconName, String colorHex) async {
-    final id = _markerImageId(iconName, colorHex);
-    if (_registeredMarkerIds.contains(id)) return;
+  String _photoMarkerImageId(PinSummary pin) {
+    final encodedPath = base64Url
+        .encode(utf8.encode(pin.pinImageStoragePath ?? ''))
+        .replaceAll('=', '');
+    return '${_markerImageId(pin.icon, pin.colorHex)}_photo_$encodedPath';
+  }
+
+  Future<String> _ensureMarkerImage(PinSummary pin) async {
+    final fallbackId = _markerImageId(pin.icon, pin.colorHex);
+    final photoStoragePath = pin.pinImageStoragePath;
+    final photoId = photoStoragePath == null ? null : _photoMarkerImageId(pin);
+    if (photoId != null && _registeredMarkerIds.contains(photoId)) {
+      return photoId;
+    }
+
+    final photoBytes = photoStoragePath == null
+        ? null
+        : await _resolveMarkerImage(pin);
     final map = _map;
-    if (map == null) return;
+    if (map == null) return photoBytes == null ? fallbackId : photoId!;
+
+    if (photoBytes != null) {
+      try {
+        final bytes = await MarkerImage.render(
+          iconData: placeIconData(pin.icon),
+          color: parsePlaceColor(pin.colorHex),
+          imageBytes: photoBytes,
+        );
+        await map.addImage(photoId!, bytes);
+        _registeredMarkerIds.add(photoId);
+        return photoId;
+      } catch (error, stack) {
+        debugPrint('Failed to render pin marker image: $error\n$stack');
+      }
+    }
+
+    if (_registeredMarkerIds.contains(fallbackId)) return fallbackId;
 
     final bytes = await MarkerImage.render(
-      iconData: placeIconData(iconName),
-      color: parsePlaceColor(colorHex),
+      iconData: placeIconData(pin.icon),
+      color: parsePlaceColor(pin.colorHex),
     );
-    await map.addImage(id, bytes);
-    _registeredMarkerIds.add(id);
+    await map.addImage(fallbackId, bytes);
+    _registeredMarkerIds.add(fallbackId);
+    return fallbackId;
+  }
+
+  Future<Uint8List?> _resolveMarkerImage(PinSummary pin) async {
+    try {
+      return await markerImageResolver(pin);
+    } catch (error, stack) {
+      debugPrint('Failed to load pin marker image: $error\n$stack');
+      return null;
+    }
   }
 
   // ── Tap handling ──────────────────────────────────────────────────────────
@@ -461,8 +512,7 @@ class NoteMapController {
     final coords = _coordsOf(feature);
     if (coords == null) return;
 
-    await _ensureMarkerImage(pin.icon, pin.colorHex);
-    final imageId = _markerImageId(pin.icon, pin.colorHex);
+    final imageId = await _ensureMarkerImage(pin);
 
     // Overlay a managed Symbol on top of the layer-rendered pin so its size
     // can be tweened. Pixel-identical to the layer pin at iconSize 0.5, so

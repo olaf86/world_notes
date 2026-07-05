@@ -8,6 +8,7 @@ class PinSummaryModel {
   final String? subtitle;
   final String colorHex;
   final String icon;
+  final String? pinImageStoragePath;
   final String creatorName;
   final int messageCount;
   final DateTime createdAt;
@@ -25,6 +26,7 @@ class PinSummaryModel {
     this.subtitle,
     required this.colorHex,
     required this.icon,
+    this.pinImageStoragePath,
     required this.creatorName,
     required this.messageCount,
     required this.createdAt,
@@ -48,6 +50,7 @@ class PinSummaryModel {
       subtitle: json['subtitle'] as String?,
       colorHex: json['colorHex'] as String,
       icon: json['icon'] as String,
+      pinImageStoragePath: json['pinImageStoragePath'] as String?,
       creatorName: json['creatorName'] as String? ?? 'Unknown user',
       messageCount: json['messageCount'] as int,
       createdAt: DateTime.fromMillisecondsSinceEpoch(createdAtMillis),
@@ -69,6 +72,7 @@ class PinSummaryModel {
     subtitle: subtitle,
     colorHex: colorHex,
     icon: icon,
+    pinImageStoragePath: pinImageStoragePath,
     creatorName: creatorName,
     messageCount: messageCount,
     createdAt: createdAt,

@@ -1,9 +1,13 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../../../core/map_style.dart';
 import '../../../domain/entities/pin_summary_entity.dart';
 import '../../providers/providers.dart';
+
+typedef PinMarkerImageResolver = Future<Uint8List?> Function(PinSummary pin);
 
 abstract class NoteMapAdapter {
   bool get supportsMapStyle;

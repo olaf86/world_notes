@@ -31,5 +31,14 @@ void main() {
 
       expect(model.toEntity().creatorName, 'Unknown user');
     });
+
+    test('reads an optional pin image storage path', () {
+      final model = PinSummaryModel.fromJson({
+        ...json,
+        'pinImageStoragePath': 'images/pins/place-1.webp',
+      });
+
+      expect(model.toEntity().pinImageStoragePath, 'images/pins/place-1.webp');
+    });
   });
 }

@@ -18,10 +18,12 @@ class MarkerImage {
   static const double _circleCenterY = 40;
   static const double _tipY = 112;
   static const double _iconSize = 36;
+  static const double _photoRadius = 28;
 
   static Future<Uint8List> render({
     required IconData iconData,
     required Color color,
+    Uint8List? imageBytes,
     double scale = 1.0,
   }) async {
     final recorder = ui.PictureRecorder();
@@ -52,34 +54,60 @@ class MarkerImage {
     // Head circle.
     canvas.drawCircle(center, _circleRadius, fillPaint);
 
-    // White ring inside the circle for contrast.
-    final ringPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3;
-    canvas.drawCircle(center, _circleRadius - 1.5, ringPaint);
+    if (imageBytes == null) {
+      // White ring inside the circle for contrast.
+      final ringPaint = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3;
+      canvas.drawCircle(center, _circleRadius - 1.5, ringPaint);
 
-    // Icon glyph in the center.
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: String.fromCharCode(iconData.codePoint),
-        style: TextStyle(
-          fontSize: _iconSize,
-          fontFamily: iconData.fontFamily,
-          package: iconData.fontPackage,
-          color: Colors.white,
+      // Icon glyph in the center.
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: String.fromCharCode(iconData.codePoint),
+          style: TextStyle(
+            fontSize: _iconSize,
+            fontFamily: iconData.fontFamily,
+            package: iconData.fontPackage,
+            color: Colors.white,
+          ),
         ),
-      ),
-      textDirection: TextDirection.ltr,
-    );
-    textPainter.layout();
-    textPainter.paint(
-      canvas,
-      Offset(
-        center.dx - textPainter.width / 2,
-        center.dy - textPainter.height / 2,
-      ),
-    );
+        textDirection: TextDirection.ltr,
+      );
+      textPainter.layout();
+      textPainter.paint(
+        canvas,
+        Offset(
+          center.dx - textPainter.width / 2,
+          center.dy - textPainter.height / 2,
+        ),
+      );
+    } else {
+      final codec = await ui.instantiateImageCodec(
+        imageBytes,
+        targetWidth: (_photoRadius * 2 * scale).round(),
+        targetHeight: (_photoRadius * 2 * scale).round(),
+      );
+      final frame = await codec.getNextFrame();
+      final photoRect = Rect.fromCircle(center: center, radius: _photoRadius);
+
+      canvas.save();
+      canvas.clipPath(Path()..addOval(photoRect));
+      paintImage(
+        canvas: canvas,
+        rect: photoRect,
+        image: frame.image,
+        fit: BoxFit.cover,
+      );
+      canvas.restore();
+
+      final photoRingPaint = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4;
+      canvas.drawCircle(center, _photoRadius + 2, photoRingPaint);
+    }
 
     final picture = recorder.endRecording();
     final img = await picture.toImage(

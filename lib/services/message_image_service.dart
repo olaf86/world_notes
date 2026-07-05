@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
@@ -7,6 +8,7 @@ class MessageImageService {
   final FirebaseStorage _storage;
   final CacheManager cacheManager;
   final Map<String, Future<String>> _downloadUrls = {};
+  final Map<String, Future<Uint8List?>> _imageBytes = {};
 
   MessageImageService({required FirebaseStorage storage})
     : _storage = storage,
@@ -25,8 +27,19 @@ class MessageImageService {
     );
   }
 
+  Future<Uint8List?> imageBytes(
+    String storagePath, {
+    int maxSizeBytes = 512 * 1024,
+  }) {
+    return _imageBytes.putIfAbsent(
+      storagePath,
+      () => _storage.ref(storagePath).getData(maxSizeBytes),
+    );
+  }
+
   Future<void> clearCache() async {
     _downloadUrls.clear();
+    _imageBytes.clear();
     await cacheManager.emptyCache();
   }
 

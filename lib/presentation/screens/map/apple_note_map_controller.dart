@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:apple_maps_flutter/apple_maps_flutter.dart' as apple;
 import 'package:flutter/material.dart';
@@ -28,8 +30,12 @@ class AppleNoteMapController implements NoteMapAdapter {
   static const double _markerZIndex = 0;
 
   final Future<void> Function(PinSummary pin) onPinSelected;
+  final PinMarkerImageResolver markerImageResolver;
 
-  AppleNoteMapController({required this.onPinSelected});
+  AppleNoteMapController({
+    required this.onPinSelected,
+    required this.markerImageResolver,
+  });
 
   final annotations = ValueNotifier<Set<apple.Annotation>>(
     <apple.Annotation>{},
@@ -238,7 +244,7 @@ class AppleNoteMapController implements NoteMapAdapter {
     final next = <apple.Annotation>{};
 
     for (final pin in _latestPins) {
-      final icon = await _markerIcon(pin.icon, pin.colorHex);
+      final icon = await _markerIcon(pin);
       if (revision != _markerRevision) return;
 
       next.add(
@@ -294,20 +300,60 @@ class AppleNoteMapController implements NoteMapAdapter {
     }
   }
 
-  Future<apple.BitmapDescriptor> _markerIcon(
-    String iconName,
-    String colorHex,
-  ) async {
-    final id = 'marker_${iconName}_${colorHex.replaceAll('#', '')}';
-    final cached = _iconsByMarkerId[id];
+  String _markerImageId(String iconName, String colorHex) =>
+      'marker_${iconName}_${colorHex.replaceAll('#', '')}';
+
+  String _photoMarkerImageId(PinSummary pin) {
+    final encodedPath = base64Url
+        .encode(utf8.encode(pin.pinImageStoragePath ?? ''))
+        .replaceAll('=', '');
+    return '${_markerImageId(pin.icon, pin.colorHex)}_photo_$encodedPath';
+  }
+
+  Future<apple.BitmapDescriptor> _markerIcon(PinSummary pin) async {
+    final fallbackId = _markerImageId(pin.icon, pin.colorHex);
+    final photoStoragePath = pin.pinImageStoragePath;
+    final photoId = photoStoragePath == null ? null : _photoMarkerImageId(pin);
+    if (photoId != null && _iconsByMarkerId.containsKey(photoId)) {
+      return _iconsByMarkerId[photoId]!;
+    }
+
+    final photoBytes = photoStoragePath == null
+        ? null
+        : await _resolveMarkerImage(pin);
+    if (photoBytes != null) {
+      try {
+        final bytes = await MarkerImage.render(
+          iconData: placeIconData(pin.icon),
+          color: parsePlaceColor(pin.colorHex),
+          imageBytes: photoBytes,
+        );
+        final descriptor = apple.BitmapDescriptor.fromBytes(bytes);
+        _iconsByMarkerId[photoId!] = descriptor;
+        return descriptor;
+      } catch (error, stack) {
+        debugPrint('Failed to render Apple pin marker image: $error\n$stack');
+      }
+    }
+
+    final cached = _iconsByMarkerId[fallbackId];
     if (cached != null) return cached;
 
     final bytes = await MarkerImage.render(
-      iconData: placeIconData(iconName),
-      color: parsePlaceColor(colorHex),
+      iconData: placeIconData(pin.icon),
+      color: parsePlaceColor(pin.colorHex),
     );
     final descriptor = apple.BitmapDescriptor.fromBytes(bytes);
-    _iconsByMarkerId[id] = descriptor;
+    _iconsByMarkerId[fallbackId] = descriptor;
     return descriptor;
+  }
+
+  Future<Uint8List?> _resolveMarkerImage(PinSummary pin) async {
+    try {
+      return await markerImageResolver(pin);
+    } catch (error, stack) {
+      debugPrint('Failed to load Apple pin marker image: $error\n$stack');
+      return null;
+    }
   }
 }
