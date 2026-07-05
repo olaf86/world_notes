@@ -1,6 +1,11 @@
+import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:uuid/uuid.dart';
 
+import '../../core/utils/image_upload_util.dart';
 import '../../domain/entities/place_entity.dart'
     show
         ClosedReason,
@@ -21,12 +26,16 @@ import '../models/place_model.dart';
 class PlaceRepositoryImpl implements PlaceRepository {
   final FirebaseFirestore _firestore;
   final FirebaseFunctions _functions;
+  final FirebaseStorage _storage;
+  final _uuid = const Uuid();
 
   PlaceRepositoryImpl({
     required FirebaseFirestore firestore,
     required FirebaseFunctions functions,
+    required FirebaseStorage storage,
   }) : _firestore = firestore,
-       _functions = functions;
+       _functions = functions,
+       _storage = storage;
 
   CollectionReference get _places => _firestore.collection('places');
 
@@ -107,6 +116,38 @@ class PlaceRepositoryImpl implements PlaceRepository {
         },
     });
     return result.data['placeId'] as String;
+  }
+
+  @override
+  Future<void> setNotePinImage({
+    required String placeId,
+    required String userId,
+    required List<int> thumbnailBytes,
+  }) async {
+    final path = ImageUploadUtil.pinThumbnailStoragePath(
+      placeId: placeId,
+      userId: userId,
+      imageId: _uuid.v7(),
+    );
+    final ref = _storage.ref(path);
+    try {
+      await ref.putData(
+        Uint8List.fromList(thumbnailBytes),
+        SettableMetadata(contentType: 'image/webp'),
+      );
+      await _functions.httpsCallable('setNotePinImage').call<void>({
+        'placeId': placeId,
+        'pinImageStoragePath': path,
+      });
+    } catch (_) {
+      try {
+        await ref.delete();
+      } catch (_) {
+        // Best effort cleanup. The callable is still the source of truth for
+        // whether a thumbnail is attached to the note.
+      }
+      rethrow;
+    }
   }
 
   @override

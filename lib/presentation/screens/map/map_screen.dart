@@ -75,7 +75,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
     if (storagePath == null) return null;
     return ref
         .read(messageImageServiceProvider)
-        .imageBytes(storagePath, maxSizeBytes: ImageUploadUtil.maxImageBytes);
+        .imageBytes(
+          storagePath,
+          maxSizeBytes: ImageUploadUtil.maxPinThumbnailBytes,
+        );
   }
 
   Future<void> _showPinPreview(PinSummary pin) async {

@@ -38,6 +38,15 @@ abstract class PlaceRepository {
     NoteLockDraft? lock,
   });
 
+  /// Stores a map-pin thumbnail for an existing note and records its storage
+  /// path server-side. Only the generated thumbnail is uploaded; the original
+  /// image is not retained.
+  Future<void> setNotePinImage({
+    required String placeId,
+    required String userId,
+    required List<int> thumbnailBytes,
+  });
+
   Future<PlaceEntity?> getPlace(String placeId);
 
   /// Live stream of a single place document. Emits null if it does not exist.

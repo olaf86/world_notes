@@ -1,13 +1,18 @@
+import 'dart:typed_data';
+
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import '../../../config/app_config.dart';
+import '../../../core/utils/place_icon.dart';
 import '../../../domain/entities/place_entity.dart';
 import '../../providers/providers.dart';
 import '../../widgets/note/note_lock_setup_dialog.dart';
+import '../../widgets/note/pin_thumbnail_crop_dialog.dart';
 
 enum _PublicationPreset {
   now('Now', null),
@@ -42,9 +47,11 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _subtitleController = TextEditingController();
+  final _imagePicker = ImagePicker();
 
   Color _selectedColor = Colors.green;
   String _selectedIcon = 'place';
+  Uint8List? _pinThumbnailBytes;
   // Expiry is required. Defaults to AppConfig.defaultNoteExpiryDays (3 months)
   // — a balanced lifetime that keeps the map from filling with stale notes
   // while not feeling aggressively short.
@@ -53,6 +60,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
   DateTime? _customPublishAt;
   NoteLockSetupValue? _lockSetup;
   bool _loading = false;
+  bool _pickingPinImage = false;
 
   /// Human-readable label for an expiry preset (in days).
   static String _expiryLabel(int days) => switch (days) {
@@ -169,6 +177,45 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
     setState(() => _lockSetup = null);
   }
 
+  Future<void> _pickPinImage() async {
+    if (_pickingPinImage) return;
+    setState(() => _pickingPinImage = true);
+    try {
+      final file = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 100,
+        maxWidth: 1920,
+        maxHeight: 1920,
+      );
+      if (file == null || !mounted) return;
+      final sourceBytes = await file.readAsBytes();
+      if (!mounted) return;
+
+      final thumbnail = await showDialog<Uint8List>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => PinThumbnailCropDialog(imageBytes: sourceBytes),
+      );
+      if (thumbnail == null || !mounted) return;
+
+      setState(() => _pinThumbnailBytes = thumbnail);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not prepare the pin image: $error'),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _pickingPinImage = false);
+    }
+  }
+
+  void _removePinImage() {
+    setState(() => _pinThumbnailBytes = null);
+  }
+
   @override
   void dispose() {
     _titleController.dispose();
@@ -201,6 +248,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
 
       final title = _titleController.text.trim();
       final lockSetup = _lockSetup;
+      final pinThumbnailBytes = _pinThumbnailBytes;
       final placeId = await ref
           .read(placeRepositoryProvider)
           .createNote(
@@ -225,6 +273,28 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
                     lockHint: lockSetup.lockHint,
                   ),
           );
+      if (pinThumbnailBytes != null) {
+        try {
+          await ref
+              .read(placeRepositoryProvider)
+              .setNotePinImage(
+                placeId: placeId,
+                userId: user.id,
+                thumbnailBytes: pinThumbnailBytes,
+              );
+        } catch (error) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Note created, but pin image upload failed: $error',
+                ),
+                duration: const Duration(seconds: 5),
+              ),
+            );
+          }
+        }
+      }
       ref.invalidate(mapPinsProvider);
       ref.invalidate(myPlacesProvider);
 
@@ -348,6 +418,20 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
                   ),
                 );
               }).toList(),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Map pin image',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            const SizedBox(height: 8),
+            _PinImageSummary(
+              bytes: _pinThumbnailBytes,
+              selectedColor: _selectedColor,
+              selectedIcon: _selectedIcon,
+              picking: _pickingPinImage,
+              onPick: _pickPinImage,
+              onRemove: _removePinImage,
             ),
             const SizedBox(height: 24),
             Text('Publish', style: Theme.of(context).textTheme.titleSmall),
@@ -499,6 +583,97 @@ class _LockSetupSummary extends StatelessWidget {
               IconButton(
                 tooltip: 'Remove lock',
                 onPressed: onRemove,
+                icon: const Icon(Icons.close),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PinImageSummary extends StatelessWidget {
+  final Uint8List? bytes;
+  final Color selectedColor;
+  final String selectedIcon;
+  final bool picking;
+  final VoidCallback onPick;
+  final VoidCallback onRemove;
+
+  const _PinImageSummary({
+    required this.bytes,
+    required this.selectedColor,
+    required this.selectedIcon,
+    required this.picking,
+    required this.onPick,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final thumbnail = bytes;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 24,
+              backgroundColor: selectedColor,
+              backgroundImage: thumbnail == null
+                  ? null
+                  : MemoryImage(thumbnail),
+              child: thumbnail == null
+                  ? Icon(placeIconData(selectedIcon), color: Colors.white)
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    thumbnail == null ? 'Default icon pin' : 'Custom image pin',
+                    style: theme.textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    thumbnail == null
+                        ? 'Use an icon, or add a cropped thumbnail.'
+                        : 'Only this cropped thumbnail will be uploaded.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: thumbnail == null ? 'Choose image' : 'Change image',
+              onPressed: picking ? null : onPick,
+              icon: picking
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(
+                      thumbnail == null
+                          ? Icons.add_photo_alternate_outlined
+                          : Icons.edit_outlined,
+                    ),
+            ),
+            if (thumbnail != null)
+              IconButton(
+                tooltip: 'Remove image',
+                onPressed: picking ? null : onRemove,
                 icon: const Icon(Icons.close),
               ),
           ],
