@@ -66,6 +66,39 @@ service cloud.firestore {
              && message.isPubliclyVisible == true;
     }
 
+    function isValidNotice(notice) {
+      return notice.keys().hasOnly([
+               'category',
+               'severity',
+               'title',
+               'body',
+               'action',
+               'sourceType',
+               'sourceId',
+               'createdAt',
+               'readAt'
+             ])
+             && notice.category is string
+             && notice.category.size() > 0
+             && notice.category.size() <= 40
+             && notice.severity in ['info', 'warning', 'critical']
+             && notice.title is string
+             && notice.title.size() > 0
+             && notice.title.size() <= 120
+             && notice.body is string
+             && notice.body.size() > 0
+             && notice.body.size() <= 2000
+             && (notice.action == null || notice.action is map)
+             && (notice.sourceType == null
+                 || (notice.sourceType is string
+                     && notice.sourceType.size() <= 80))
+             && (notice.sourceId == null
+                 || (notice.sourceId is string
+                     && notice.sourceId.size() <= 200))
+             && notice.createdAt is timestamp
+             && (notice.readAt == null || notice.readAt is timestamp);
+    }
+
     function canReadMessage(placeId, message) {
       return canAccessNote(placeId)
              && (isPubliclyVisibleMessage(message)
@@ -111,6 +144,21 @@ service cloud.firestore {
       match /nearbyNotificationPlaces/{placeId} {
         allow read: if isCurrentUser(uid);
         allow write: if false;
+      }
+
+      // User inbox. Notice content is server-managed, but the account holder
+      // may mark a notice read by setting readAt to request.time.
+      match /notices/{noticeId} {
+        allow read: if isCurrentUser(uid);
+        allow create: if false;
+        allow update: if isCurrentUser(uid)
+                      && isValidNotice(resource.data)
+                      && isValidNotice(request.resource.data)
+                      && request.resource.data.diff(resource.data)
+                          .affectedKeys()
+                          .hasOnly(['readAt'])
+                      && request.resource.data.readAt == request.time;
+        allow delete: if false;
       }
     }
 
@@ -203,6 +251,11 @@ service cloud.firestore {
                           == resource.data.reportCount + 1;
 
         allow delete: if false;
+
+        // Provider scores and moderation audit metadata are server-only.
+        match /moderation/{doc} {
+          allow read, write: if false;
+        }
       }
     }
 

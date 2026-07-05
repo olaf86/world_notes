@@ -1,6 +1,7 @@
 /* eslint-disable require-jsdoc */
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {
+  DocumentReference,
   DocumentSnapshot,
   FieldValue,
   Timestamp,
@@ -14,6 +15,16 @@ import {
   MAX_MESSAGES_PER_THREAD,
   REGION,
 } from "./constants";
+import {
+  type InternalModerationResult,
+  OPENAI_API_KEY,
+  applyModerationToUser,
+  assertUserCanCreateContent,
+  createModerationNoticeIfNeeded,
+  moderationAuditFields,
+  moderateTextContent,
+  moderationFields,
+} from "./moderation";
 import {profileForMember} from "./userProfile";
 import {
   sendMyNotesMessageNotifications,
@@ -26,6 +37,14 @@ interface SendMessageData {
   placeId?: unknown;
   content?: unknown;
   imageStoragePath?: unknown;
+  publishAtMillis?: unknown;
+}
+
+interface ValidatedSendMessageInput {
+  messageId: string;
+  placeId: string;
+  trimmedContent: string;
+  trimmedImageStoragePath: string | null;
   publishAtMillis?: unknown;
 }
 
@@ -55,6 +74,81 @@ function messageIdOf(value: unknown): string {
   return value;
 }
 
+function validateSendMessageInput(
+  data: SendMessageData | undefined,
+  uid: string,
+): ValidatedSendMessageInput {
+  const {
+    messageId: rawMessageId,
+    placeId,
+    content,
+    imageStoragePath,
+    publishAtMillis,
+  } = data ?? {};
+  const messageId = messageIdOf(rawMessageId);
+  if (typeof placeId !== "string" || placeId.length === 0) {
+    throw new HttpsError("invalid-argument", "placeId is required.");
+  }
+
+  const trimmedContent =
+    typeof content === "string" ? content.trim() : "";
+  if (trimmedContent.length > 2000) {
+    throw new HttpsError("invalid-argument", "Message is too long.");
+  }
+
+  const trimmedImageStoragePath =
+    imageStoragePath == null ? null : stringOrNull(imageStoragePath);
+  const expectedImageStoragePath =
+    `images/messages/${placeId}/${uid}/${messageId}.webp`;
+  if (
+    imageStoragePath != null &&
+    trimmedImageStoragePath !== expectedImageStoragePath
+  ) {
+    throw new HttpsError("invalid-argument", "Invalid image storage path.");
+  }
+  if (trimmedContent.length === 0 && !trimmedImageStoragePath) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Message content or image is required.",
+    );
+  }
+
+  return {
+    messageId,
+    placeId,
+    trimmedContent,
+    trimmedImageStoragePath,
+    publishAtMillis,
+  };
+}
+
+async function existingMessageResult(
+  messageRef: DocumentReference,
+  uid: string,
+  nowMs: number,
+): Promise<Record<string, unknown> | null> {
+  const existingMessageSnap = await messageRef.get();
+  if (!existingMessageSnap.exists) return null;
+  if (existingMessageSnap.get("userId") !== uid) {
+    throw new HttpsError(
+      "already-exists",
+      "This message id is already in use.",
+    );
+  }
+  const existingPublishAt =
+    existingMessageSnap.get("publishAt") as Timestamp | undefined;
+  return {
+    messageId: messageRef.id,
+    publishAtMillis: existingPublishAt?.toMillis() ?? nowMs,
+  };
+}
+
+function isModerationRemoval(
+  moderationResult: InternalModerationResult,
+): boolean {
+  return moderationResult.action === "hidden";
+}
+
 async function deleteStoredImage(storagePath: string | null): Promise<void> {
   if (!storagePath) return;
   try {
@@ -69,6 +163,50 @@ async function deleteStoredImage(storagePath: string | null): Promise<void> {
 
 function photoUrlFor(tokenPicture: unknown): string | null {
   return stringOrNull(tokenPicture);
+}
+
+function messageDocumentData({
+  placeId,
+  uid,
+  profileDisplayName,
+  tokenPicture,
+  content,
+  imageStoragePath,
+  publishAt,
+  isPubliclyVisible,
+  moderationResult,
+}: {
+  placeId: string;
+  uid: string;
+  profileDisplayName: string | null;
+  tokenPicture: unknown;
+  content: string;
+  imageStoragePath: string | null;
+  publishAt: Timestamp;
+  isPubliclyVisible: boolean;
+  moderationResult: InternalModerationResult;
+}): Record<string, unknown> {
+  const removedByModeration = isModerationRemoval(moderationResult);
+  return {
+    placeId,
+    userId: uid,
+    userName: profileDisplayName ?? "Unknown user",
+    userPhotoUrl: photoUrlFor(tokenPicture),
+    content: removedByModeration ? "" : content,
+    ...(!removedByModeration && imageStoragePath ?
+      {imageStoragePath} :
+      {}),
+    createdAt: FieldValue.serverTimestamp(),
+    publishAt,
+    isDeleted: removedByModeration,
+    deletedAt: removedByModeration ?
+      FieldValue.serverTimestamp() :
+      null,
+    deletedReason: removedByModeration ? "moderation" : null,
+    ...moderationFields(moderationResult),
+    isPubliclyVisible,
+    reportCount: 0,
+  };
 }
 
 function hasValidMembership(
@@ -161,57 +299,33 @@ function validatePublishAt(
  * scheduled messages immediately for cap enforcement.
  */
 export const sendMessage = onCall<SendMessageData>(
-  {enforceAppCheck: true, region: REGION},
+  {enforceAppCheck: true, region: REGION, secrets: [OPENAI_API_KEY]},
   async (req) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
 
-    const {
-      messageId: rawMessageId,
-      placeId,
-      content,
-      imageStoragePath,
-      publishAtMillis,
-    } = req.data ?? {};
-    const messageId = messageIdOf(rawMessageId);
-    if (typeof placeId !== "string" || placeId.length === 0) {
-      throw new HttpsError("invalid-argument", "placeId is required.");
-    }
-    const trimmedContent =
-      typeof content === "string" ? content.trim() : "";
-    if (trimmedContent.length > 2000) {
-      throw new HttpsError("invalid-argument", "Message is too long.");
-    }
-    const trimmedImageStoragePath =
-      imageStoragePath == null ? null : stringOrNull(imageStoragePath);
-    const expectedImageStoragePath =
-      `images/messages/${placeId}/${uid}/${messageId}.webp`;
-    if (
-      imageStoragePath != null &&
-      trimmedImageStoragePath !== expectedImageStoragePath
-    ) {
-      throw new HttpsError("invalid-argument", "Invalid image storage path.");
-    }
-    if (trimmedContent.length === 0 && !trimmedImageStoragePath) {
-      throw new HttpsError(
-        "invalid-argument",
-        "Message content or image is required.",
-      );
-    }
+    const input = validateSendMessageInput(req.data, uid);
 
     const db = getFirestore();
-    const placeRef = db.collection("places").doc(placeId);
+    const placeRef = db.collection("places").doc(input.placeId);
+    const userRef = db.collection("users").doc(uid);
     const memberRef = placeRef.collection("members").doc(uid);
     const counterRef = placeRef.collection("counters").doc("messageSlots");
-    const messageRef = placeRef.collection("messages").doc(messageId);
+    const messageRef = placeRef.collection("messages").doc(input.messageId);
     const nowMs = Date.now();
+    const existingResult = await existingMessageResult(messageRef, uid, nowMs);
+    if (existingResult) return existingResult;
+
+    const moderationResult = await moderateTextContent(input.trimmedContent);
     const profile = await profileForMember(
       uid,
       req.auth?.token.name,
     );
-    let publishedImmediately = false;
+    let notifyImmediately = false;
     let created = false;
     let resolvedPublishAtMs = nowMs;
+    let moderationNoticePoints = 0;
+    let imageStoragePathToDelete: string | null = null;
 
     await db.runTransaction(async (tx) => {
       const [placeSnap, messageSnap] = await Promise.all([
@@ -233,6 +347,7 @@ export const sendMessage = onCall<SendMessageData>(
         resolvedPublishAtMs = existingPublishAt?.toMillis() ?? nowMs;
         return;
       }
+      await assertUserCanCreateContent(tx, userRef, nowMs);
       const memberSnap =
         placeSnap.get("visibility") === "private" &&
           !canMaintainNote(placeSnap, uid) ?
@@ -255,12 +370,22 @@ export const sendMessage = onCall<SendMessageData>(
         throw new HttpsError("resource-exhausted", "This note is full.");
       }
 
-      const publishAt = validatePublishAt(publishAtMillis, nowMs, placeSnap);
+      const publishAt = validatePublishAt(
+        input.publishAtMillis,
+        nowMs,
+        placeSnap,
+      );
       const isImmediate = publishAt.toMillis() <= nowMs;
-      publishedImmediately = isImmediate;
+      const removedByModeration = isModerationRemoval(moderationResult);
+      notifyImmediately = isImmediate && !removedByModeration;
       resolvedPublishAtMs = publishAt.toMillis();
       created = true;
       const nextSlots = currentSlots + 1;
+      moderationNoticePoints = await applyModerationToUser(
+        tx,
+        userRef,
+        moderationResult,
+      );
 
       const placeUpdate: Record<string, unknown> = {};
       if (isImmediate) {
@@ -295,47 +420,76 @@ export const sendMessage = onCall<SendMessageData>(
         tx.update(placeRef, placeUpdate);
       }
       tx.set(messageRef, {
-        placeId,
-        userId: uid,
-        userName: profile.displayName ?? "Unknown user",
-        userPhotoUrl: photoUrlFor(req.auth?.token.picture),
-        content: trimmedContent,
-        ...(trimmedImageStoragePath ?
-          {imageStoragePath: trimmedImageStoragePath} :
-          {}),
-        createdAt: FieldValue.serverTimestamp(),
-        publishAt,
+        ...messageDocumentData({
+          placeId: input.placeId,
+          uid,
+          profileDisplayName: profile.displayName,
+          tokenPicture: req.auth?.token.picture,
+          content: input.trimmedContent,
+          imageStoragePath: input.trimmedImageStoragePath,
+          publishAt,
+          isPubliclyVisible: isImmediate,
+          moderationResult,
+        }),
         placeAggregateAppliedAt: isImmediate ?
           FieldValue.serverTimestamp() :
           null,
-        isDeleted: false,
-        isVisible: true,
-        isPubliclyVisible: isImmediate,
-        reportCount: 0,
       });
+      tx.set(
+        messageRef.collection("moderation").doc("latest"),
+        moderationAuditFields(moderationResult),
+      );
+      if (removedByModeration) {
+        imageStoragePathToDelete = input.trimmedImageStoragePath;
+      }
     });
 
-    if (created && publishedImmediately) {
+    if (created && imageStoragePathToDelete) {
+      await deleteStoredImage(imageStoragePathToDelete);
+    }
+
+    if (created && moderationNoticePoints > 0) {
       try {
-        await sendMyNotesMessageNotifications(db, placeId, messageRef.id, uid);
+        await createModerationNoticeIfNeeded(
+          uid,
+          moderationResult,
+          moderationNoticePoints,
+        );
+      } catch (error) {
+        logger.error(
+          "sendMessage: failed to create moderation notice for " +
+            `places/${input.placeId}/messages/${messageRef.id}.`,
+          error,
+        );
+      }
+    }
+
+    if (created && notifyImmediately) {
+      try {
+        await sendMyNotesMessageNotifications(
+          db,
+          input.placeId,
+          messageRef.id,
+          uid,
+        );
       } catch (error) {
         logger.error(
           "sendMessage: failed to send My Notes notification for " +
-            `places/${placeId}/messages/${messageRef.id}.`,
+            `places/${input.placeId}/messages/${messageRef.id}.`,
           error,
         );
       }
       try {
         await sendNearbyInRangeMessageNotifications(
           db,
-          placeId,
+          input.placeId,
           messageRef.id,
           uid,
         );
       } catch (error) {
         logger.error(
           "sendMessage: failed to send nearby notification for " +
-            `places/${placeId}/messages/${messageRef.id}.`,
+            `places/${input.placeId}/messages/${messageRef.id}.`,
           error,
         );
       }
@@ -395,6 +549,7 @@ export const deleteMessage = onCall<DeleteMessageData>(
       tx.update(messageRef, {
         isDeleted: true,
         deletedAt: FieldValue.serverTimestamp(),
+        deletedReason: "author",
         imageStoragePath: FieldValue.delete(),
       });
     });

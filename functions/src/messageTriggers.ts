@@ -12,7 +12,8 @@ import {
  * Publishes scheduled messages whose publishAt has arrived.
  *
  * The hidden messageSlots counter already reserved capacity at send time. This
- * job increments the public messageCount only when the message becomes public.
+ * job increments the public messageCount when the message or moderation
+ * tombstone becomes public.
  */
 export const aggregatePublishedMessages = onSchedule(
   {schedule: "every 1 minutes", timeZone: "Asia/Tokyo", region: REGION},
@@ -36,6 +37,7 @@ export const aggregatePublishedMessages = onSchedule(
       placeId: string;
       messageId: string;
       senderId: string;
+      notify: boolean;
     }> = [];
     await Promise.all(
       snap.docs.map(async (messageDoc) => {
@@ -46,8 +48,10 @@ export const aggregatePublishedMessages = onSchedule(
           const message = await tx.get(messageDoc.ref);
           if (!message.exists) return;
           if (message.get("placeAggregateAppliedAt") != null) return;
+          const isModerationRemoval =
+            message.get("deletedReason") === "moderation";
           if (
-            message.get("isDeleted") === true ||
+            (message.get("isDeleted") === true && !isModerationRemoval) ||
             message.get("isVisible") !== true
           ) {
             tx.update(messageDoc.ref, {
@@ -95,6 +99,7 @@ export const aggregatePublishedMessages = onSchedule(
             placeId: placeRef.id,
             messageId: messageDoc.id,
             senderId: message.get("userId") as string,
+            notify: !isModerationRemoval,
           });
           applied++;
         });
@@ -102,7 +107,8 @@ export const aggregatePublishedMessages = onSchedule(
     );
 
     await Promise.all(
-      publishedMessages.map(async ({placeId, messageId, senderId}) => {
+      publishedMessages.map(async ({placeId, messageId, senderId, notify}) => {
+        if (!notify) return;
         try {
           await sendMyNotesMessageNotifications(
             db,

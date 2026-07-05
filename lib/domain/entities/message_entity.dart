@@ -15,10 +15,13 @@ class MessageEntity {
   /// True when the author has soft-deleted this message.
   final bool isDeleted;
   final DateTime? deletedAt;
+  final String? deletedReason;
 
   /// False when Cloud Functions auto-moderation has hidden this message.
   /// Invisible messages are filtered out server-side and never reach the client.
   final bool isVisible;
+  final bool isSensitive;
+  final bool reviewRequired;
 
   const MessageEntity({
     required this.id,
@@ -31,7 +34,10 @@ class MessageEntity {
     this.isPending = false,
     this.isDeleted = false,
     this.deletedAt,
+    this.deletedReason,
     this.isVisible = true,
+    this.isSensitive = false,
+    this.reviewRequired = false,
   });
 
   bool isPublishedAt(DateTime now) => !now.isBefore(publishAt);

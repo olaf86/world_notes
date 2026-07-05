@@ -29,6 +29,7 @@ import {
   parseLockType,
   validateLockSecret,
 } from "./noteLock";
+import {assertUserCanCreateContent} from "./moderation";
 
 initializeApp();
 setGlobalOptions({maxInstances: 10, region: REGION});
@@ -260,6 +261,7 @@ export const createNote = onCall<CreateNoteData>(
 
     await db.runTransaction(async (tx) => {
       const userSnap = await tx.get(userRef);
+      await assertUserCanCreateContent(tx, userRef, nowMillis);
       const isPremium = userSnap.get("isPremium") === true;
       const limit = isPremium ? PREMIUM_NOTE_LIMIT : FREE_NOTE_LIMIT;
       const activeCount = (userSnap.get("activeNoteCount") as number) ?? 0;

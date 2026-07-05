@@ -9,6 +9,7 @@ import '../presentation/screens/map/map_notes_screen.dart';
 import '../presentation/screens/my_notes/my_notes_screen.dart';
 import '../presentation/screens/note/note_box_screen.dart';
 import '../presentation/screens/note/note_creation_screen.dart';
+import '../presentation/screens/notices/notices_screen.dart';
 import '../presentation/screens/profile/profile_screen.dart';
 import '../presentation/screens/settings/settings_screen.dart';
 import '../presentation/screens/subscription/subscription_screen.dart';
@@ -60,6 +61,14 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/my-notes',
                 builder: (context, state) => const MyNotesScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/notices',
+                builder: (context, state) => const NoticesScreen(),
               ),
             ],
           ),
@@ -206,12 +215,13 @@ class _MainShell extends ConsumerWidget {
   }
 }
 
-class _BottomNav extends StatelessWidget {
+class _BottomNav extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
   const _BottomNav({required this.navigationShell});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unreadCount = ref.watch(unreadNoticeCountProvider);
     return NavigationBar(
       selectedIndex: navigationShell.currentIndex,
       onDestinationSelected: (index) => navigationShell.goBranch(
@@ -220,17 +230,45 @@ class _BottomNav extends StatelessWidget {
         // root, matching the iOS/Material navigation convention.
         initialLocation: index == navigationShell.currentIndex,
       ),
-      destinations: const [
-        NavigationDestination(icon: Icon(Icons.map_outlined), label: 'Map'),
-        NavigationDestination(
+      destinations: [
+        const NavigationDestination(
+          icon: Icon(Icons.map_outlined),
+          label: 'Map',
+        ),
+        const NavigationDestination(
           icon: Icon(Icons.bookmark_border_outlined),
           label: 'Notes',
         ),
         NavigationDestination(
+          icon: _NoticeNavIcon(count: unreadCount),
+          selectedIcon: _NoticeNavIcon(count: unreadCount, selected: true),
+          label: 'Notices',
+        ),
+        const NavigationDestination(
           icon: Icon(Icons.person_outline),
           label: 'Profile',
         ),
       ],
+    );
+  }
+}
+
+class _NoticeNavIcon extends StatelessWidget {
+  final int count;
+  final bool selected;
+
+  const _NoticeNavIcon({required this.count, this.selected = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Badge(
+      isLabelVisible: count > 0,
+      label: Text(count > 99 ? '99+' : '$count'),
+      child: Icon(
+        selected ? Icons.notifications : Icons.notifications_none_outlined,
+        color: selected ? theme.colorScheme.primary : null,
+      ),
     );
   }
 }

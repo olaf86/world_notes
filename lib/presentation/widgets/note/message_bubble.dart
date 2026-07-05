@@ -148,6 +148,9 @@ class _MessageBubbleState extends State<MessageBubble> {
 
     // ── Deleted tombstone ─────────────────────────────────────────────────
     if (message.isDeleted) {
+      final tombstoneText = message.deletedReason == 'moderation'
+          ? 'This message was removed by an administrator.'
+          : 'This message has been deleted.';
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
         child: Row(
@@ -159,7 +162,7 @@ class _MessageBubbleState extends State<MessageBubble> {
             ),
             const SizedBox(width: 4),
             Text(
-              'This message has been deleted.',
+              tombstoneText,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
                 fontStyle: FontStyle.italic,
@@ -170,8 +173,8 @@ class _MessageBubbleState extends State<MessageBubble> {
       );
     }
 
-    // ── Flagged content warning ───────────────────────────────────────────
-    if (!message.isVisible && !_flaggedContentRevealed) {
+    // ── Sensitive content warning ───────────────────────────────────────
+    if (message.isSensitive && !_flaggedContentRevealed) {
       return GestureDetector(
         onLongPress: _showActionSheet,
         child: Padding(
@@ -192,13 +195,13 @@ class _MessageBubbleState extends State<MessageBubble> {
                     Icon(
                       Icons.warning_amber_rounded,
                       size: 15,
-                      color: theme.colorScheme.error,
+                      color: theme.colorScheme.tertiary,
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      'Flagged content',
+                      'Sensitive content',
                       style: theme.textTheme.labelMedium?.copyWith(
-                        color: theme.colorScheme.error,
+                        color: theme.colorScheme.tertiary,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -206,8 +209,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'This message was hidden by our moderation system '
-                  'for potentially harmful content.',
+                  'This message may contain sensitive content.',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),

@@ -14,8 +14,11 @@ class MessageModel {
   final DateTime publishAt;
   final bool isDeleted;
   final DateTime? deletedAt;
+  final String? deletedReason;
   final bool isVisible;
   final bool isPubliclyVisible;
+  final bool isSensitive;
+  final bool reviewRequired;
 
   MessageModel({
     required this.id,
@@ -29,8 +32,11 @@ class MessageModel {
     required this.publishAt,
     this.isDeleted = false,
     this.deletedAt,
+    this.deletedReason,
     this.isVisible = true,
     this.isPubliclyVisible = false,
+    this.isSensitive = false,
+    this.reviewRequired = false,
   });
 
   factory MessageModel.fromFirestore(DocumentSnapshot doc) {
@@ -47,8 +53,11 @@ class MessageModel {
       publishAt: (data['publishAt'] as Timestamp).toDate(),
       isDeleted: data['isDeleted'] as bool,
       deletedAt: (data['deletedAt'] as Timestamp?)?.toDate(),
+      deletedReason: data['deletedReason'] as String?,
       isVisible: data['isVisible'] as bool,
       isPubliclyVisible: data['isPubliclyVisible'] as bool,
+      isSensitive: data['isSensitive'] as bool,
+      reviewRequired: data['reviewRequired'] as bool,
     );
   }
 
@@ -62,6 +71,9 @@ class MessageModel {
     publishAt: publishAt,
     isDeleted: isDeleted,
     deletedAt: deletedAt,
+    deletedReason: deletedReason,
     isVisible: isVisible,
+    isSensitive: isSensitive,
+    reviewRequired: reviewRequired,
   );
 }

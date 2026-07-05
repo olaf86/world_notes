@@ -67,6 +67,7 @@ class WorldNotesApp extends ConsumerStatefulWidget {
 class _WorldNotesAppState extends ConsumerState<WorldNotesApp> {
   StreamSubscription<NotificationPlaceRoute>? _notificationOpenSubscription;
   StreamSubscription<String>? _nearbyNotificationOpenSubscription;
+  StreamSubscription<String>? _noticeOpenSubscription;
 
   @override
   void initState() {
@@ -76,6 +77,13 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp> {
       service.initialPlaceRouteFromLaunch().then(_openPlaceFromNotification);
       _notificationOpenSubscription = service.openedPlaceRoutes.listen(
         _openPlaceFromNotification,
+      );
+      final noticeService = ref.read(noticeNotificationServiceProvider);
+      noticeService.initialNoticeIdFromLaunch().then(
+        _openNoticesFromNotification,
+      );
+      _noticeOpenSubscription = noticeService.openedNoticeIds.listen(
+        _openNoticesFromNotification,
       );
       final nearbyService = ref.read(nearbyNotificationServiceProvider);
       nearbyService.initialize();
@@ -93,6 +101,7 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp> {
   void dispose() {
     _notificationOpenSubscription?.cancel();
     _nearbyNotificationOpenSubscription?.cancel();
+    _noticeOpenSubscription?.cancel();
     super.dispose();
   }
 
@@ -107,6 +116,11 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp> {
           ? null
           : NotificationPlaceRoute(placeId: placeId),
     );
+  }
+
+  void _openNoticesFromNotification(String? noticeId) {
+    if (!mounted || noticeId == null) return;
+    openNotices(ref.read(routerProvider));
   }
 
   @override

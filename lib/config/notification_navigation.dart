@@ -21,3 +21,7 @@ void openNotificationPlace(GoRouter router, NotificationPlaceRoute? route) {
 
   unawaited(router.push<void>(route.location));
 }
+
+void openNotices(GoRouter router) {
+  router.go('/notices');
+}

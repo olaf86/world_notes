@@ -15,14 +15,17 @@ import '../../config/regions.dart';
 import '../../core/map_style.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../data/repositories/message_repository_impl.dart';
+import '../../data/repositories/notice_repository_impl.dart';
 import '../../data/repositories/place_repository_impl.dart';
 import '../../domain/entities/nearby_notification_entity.dart';
 import '../../domain/entities/message_entity.dart';
+import '../../domain/entities/notice_entity.dart';
 import '../../domain/entities/pin_summary_entity.dart';
 import '../../domain/entities/place_entity.dart';
 import '../../domain/entities/user_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/message_repository.dart';
+import '../../domain/repositories/notice_repository.dart';
 import '../../domain/repositories/place_repository.dart';
 import '../../services/location_service.dart';
 import '../../services/message_image_service.dart';
@@ -30,6 +33,7 @@ import '../../services/my_notes_notification_service.dart';
 import '../../services/native_geofence_service.dart';
 import '../../services/nearby_notification_service.dart';
 import '../../services/nearby_proximity_monitor.dart';
+import '../../services/notice_notification_service.dart';
 import '../../services/subscription_service.dart';
 
 // --- Infrastructure ---
@@ -103,6 +107,16 @@ final myNotesNotificationServiceProvider = Provider<MyNotesNotificationService>(
   },
 );
 
+final noticeNotificationServiceProvider = Provider<NoticeNotificationService>((
+  ref,
+) {
+  final service = NoticeNotificationService(
+    messaging: ref.watch(firebaseMessagingProvider),
+  );
+  ref.onDispose(service.dispose);
+  return service;
+});
+
 final nearbyNotificationServiceProvider = Provider<NearbyNotificationService>((
   ref,
 ) {
@@ -146,6 +160,10 @@ final messageRepositoryProvider = Provider<MessageRepository>((ref) {
     functions: ref.watch(firebaseFunctionsProvider),
     storage: ref.watch(firebaseStorageProvider),
   );
+});
+
+final noticeRepositoryProvider = Provider<NoticeRepository>((ref) {
+  return NoticeRepositoryImpl(firestore: ref.watch(firestoreProvider));
 });
 
 // --- Auth state ---
@@ -199,6 +217,17 @@ final nearbyNotificationPlaceProvider =
           .watch(placeRepositoryProvider)
           .watchNearbyNotificationPlace(userId: user.id, placeId: placeId);
     });
+
+final noticesProvider = StreamProvider<List<NoticeEntity>>((ref) {
+  final user = ref.watch(authStateProvider).valueOrNull;
+  if (user == null) return Stream.value(const []);
+  return ref.watch(noticeRepositoryProvider).watchNotices(user.id);
+});
+
+final unreadNoticeCountProvider = Provider<int>((ref) {
+  final notices = ref.watch(noticesProvider).valueOrNull ?? const [];
+  return notices.where((notice) => notice.isUnread).length;
+});
 
 // --- Location ---
 
