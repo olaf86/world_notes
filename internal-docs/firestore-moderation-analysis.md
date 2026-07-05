@@ -15,7 +15,10 @@
   Functions for FCM delivery.
 - `users/{uid}/notificationSettings/main`: owner-readable, server-writable.
 - `places/{placeId}` and `places/{placeId}/messages/{messageId}`: messages are
-  read only by users who can access the parent note.
+  read only by users who can access the parent note. Messages can carry
+  `moderationAction: "pending"` when provider-side moderation is temporarily
+  unavailable; pending messages remain visible and should be re-evaluated by a
+  future scheduled function.
 - `reports/{reportId}`: currently client-created; planned to move behind a
   callable function in a later moderation phase.
 
@@ -41,6 +44,10 @@ composite index is expected.
 Future administrator tooling can query `moderationReviews` by `status`,
 `createdAt`, `userId`, `placeId`, or `action`; those indexes should be added
 when the admin surface is implemented.
+
+Future delayed moderation tooling can use a collection group query over
+`messages` where `moderationAction == "pending"`. Add the required index when
+that scheduled function is implemented.
 
 ## Rule requirement
 

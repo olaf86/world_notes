@@ -291,7 +291,8 @@ function moderationReviewDocumentData({
 function shouldCreateModerationReview(
   moderationResult: InternalModerationResult,
 ): boolean {
-  return moderationResult.action !== "allow";
+  return moderationResult.action !== "allow" &&
+    moderationResult.action !== "pending";
 }
 
 function hasValidMembership(

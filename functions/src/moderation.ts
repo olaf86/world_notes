@@ -18,7 +18,12 @@ import {
 export const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 
 type ModerationProviderId = "openai";
-type ModerationAction = "allow" | "sensitive" | "hidden" | "review";
+type ModerationAction =
+  "allow" |
+  "sensitive" |
+  "hidden" |
+  "review" |
+  "pending";
 type InternalCategory =
   "harassment" |
   "hate" |
@@ -149,6 +154,22 @@ function actionFor(categories: ModerationCategoryScore[]): ModerationAction {
   return "allow";
 }
 
+function pendingModerationResult(): InternalModerationResult {
+  return {
+    provider: "openai",
+    providerModel: OPENAI_MODERATION_MODEL,
+    policyVersion: POLICY_VERSION,
+    flagged: false,
+    action: "pending",
+    maxScore: 0,
+    categories: [],
+  };
+}
+
+function canDeferModeration(status: number): boolean {
+  return status === 429 || status >= 500;
+}
+
 function normalizeOpenAiModeration(
   response: OpenAiModerationResponse,
 ): InternalModerationResult {
@@ -194,18 +215,26 @@ export async function moderateTextContent(
     };
   }
 
-  const response = await fetch(OPENAI_MODERATION_URL, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${OPENAI_API_KEY.value()}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: OPENAI_MODERATION_MODEL,
-      input: trimmed,
-    }),
-  });
+  let response: Response;
+  try {
+    response = await fetch(OPENAI_MODERATION_URL, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY.value()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: OPENAI_MODERATION_MODEL,
+        input: trimmed,
+      }),
+    });
+  } catch {
+    return pendingModerationResult();
+  }
   if (!response.ok) {
+    if (canDeferModeration(response.status)) {
+      return pendingModerationResult();
+    }
     throw new HttpsError(
       "unavailable",
       "Could not check message safety.",
@@ -270,6 +299,8 @@ function violationPointsFor(result: InternalModerationResult): number {
     return 1;
   case "allow":
     return 0;
+  case "pending":
+    return 0;
   }
 }
 
@@ -277,7 +308,7 @@ function userNoticeForPoints(
   result: InternalModerationResult,
   nextPoints: number,
 ): CreateUserNoticeInput | null {
-  if (result.action === "allow") return null;
+  if (result.action === "allow" || result.action === "pending") return null;
   if (nextPoints >= BAN_POINTS_THRESHOLD) {
     return {
       category: "ban",
@@ -334,16 +365,16 @@ export async function assertUserCanCreateContent(
   nowMs: number,
 ): Promise<void> {
   const userSnap = await tx.get(userRef);
-  const bannedUntil = userSnap.get("bannedUntil") as Timestamp | undefined;
-  if (bannedUntil != null && bannedUntil.toMillis() > nowMs) {
+  const bannedUntil = userSnap.get("bannedUntil") as Timestamp | null;
+  if (bannedUntil !== null && bannedUntil.toMillis() > nowMs) {
     throw new HttpsError(
       "permission-denied",
       "Your account is temporarily banned.",
     );
   }
   const restrictedUntil =
-    userSnap.get("restrictedUntil") as Timestamp | undefined;
-  if (restrictedUntil != null && restrictedUntil.toMillis() > nowMs) {
+    userSnap.get("restrictedUntil") as Timestamp | null;
+  if (restrictedUntil !== null && restrictedUntil.toMillis() > nowMs) {
     throw new HttpsError("permission-denied", USER_CONTENT_BLOCKED_MESSAGE);
   }
 }
@@ -357,8 +388,7 @@ export async function applyModerationToUser(
   if (points === 0) return 0;
 
   const userSnap = await tx.get(userRef);
-  const currentPoints =
-    (userSnap.get("violationPoints") as number | undefined) ?? 0;
+  const currentPoints = userSnap.get("violationPoints") as number;
   const nextPoints = currentPoints + points;
   const update: Record<string, unknown> = {
     violationPoints: nextPoints,
