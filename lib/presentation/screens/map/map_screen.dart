@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../config/app_config.dart';
 import '../../../core/map_style.dart';
+import '../../../core/utils/image_upload_util.dart';
 import '../../../domain/entities/pin_summary_entity.dart';
 import '../../../services/location_service.dart';
 import '../../providers/providers.dart';
@@ -74,7 +75,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     if (storagePath == null) return null;
     return ref
         .read(messageImageServiceProvider)
-        .imageBytes(storagePath, maxSizeBytes: 512 * 1024);
+        .imageBytes(storagePath, maxSizeBytes: ImageUploadUtil.maxImageBytes);
   }
 
   Future<void> _showPinPreview(PinSummary pin) async {

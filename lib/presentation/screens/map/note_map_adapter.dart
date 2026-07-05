@@ -7,6 +7,11 @@ import '../../../core/map_style.dart';
 import '../../../domain/entities/pin_summary_entity.dart';
 import '../../providers/providers.dart';
 
+/// Resolves optional image bytes for a map pin.
+///
+/// Returning null lets map adapters fall back to the normal icon marker. The
+/// resolver is injected so platform map controllers stay independent from
+/// Riverpod, Firebase Storage, and caching details.
 typedef PinMarkerImageResolver = Future<Uint8List?> Function(PinSummary pin);
 
 abstract class NoteMapAdapter {
