@@ -17,7 +17,7 @@ abstract class MessageRepository {
     required String userId,
     required String userName,
     String? userPhotoUrl,
-    List<int>? imageBytes,
+    List<List<int>> imageBytesList = const [],
     DateTime? publishAt,
   });
 

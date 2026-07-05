@@ -9,9 +9,10 @@ void main() {
           placeId: 'place-1',
           userId: 'user-1',
           messageId: '0197a5e7-9b54-7d31-89c4-d4f3671a8c02',
+          imageIndex: 0,
         ),
         'images/messages/place-1/user-1/'
-        '0197a5e7-9b54-7d31-89c4-d4f3671a8c02.webp',
+        '0197a5e7-9b54-7d31-89c4-d4f3671a8c02/0.webp',
       );
     });
 

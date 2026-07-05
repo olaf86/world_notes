@@ -15,8 +15,9 @@ abstract class ImageUploadUtil {
     required String placeId,
     required String userId,
     required String messageId,
+    required int imageIndex,
   }) {
-    return 'images/messages/$placeId/$userId/$messageId.webp';
+    return 'images/messages/$placeId/$userId/$messageId/$imageIndex.webp';
   }
 
   static bool isWithinSizeLimit(int byteLength) {

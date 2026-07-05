@@ -112,6 +112,9 @@ class AppConfig {
   /// Maximum character length of a single message.
   static const int maxMessageLength = 2000;
 
+  /// Maximum images that can be attached to a single message.
+  static const int maxMessageImages = 4;
+
   /// Maximum delay before a scheduled message may be published.
   static const int maxMessagePublishDelayDays = 7;
 

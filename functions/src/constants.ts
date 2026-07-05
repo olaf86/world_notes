@@ -8,6 +8,9 @@ export const PREMIUM_NOTE_LIMIT = 200;
 /** Maximum messages per thread (must match AppConfig.maxMessagesPerThread). */
 export const MAX_MESSAGES_PER_THREAD = 1000;
 
+/** Maximum images per message (must match AppConfig.maxMessageImages). */
+export const MAX_MESSAGE_IMAGES = 4;
+
 /** Write session lifetime, in minutes. */
 export const WRITE_SESSION_TTL_MINUTES = 60;
 
