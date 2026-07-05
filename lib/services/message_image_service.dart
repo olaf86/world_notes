@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
+import '../core/utils/image_upload_util.dart';
+
 class MessageImageService {
   final FirebaseStorage _storage;
   final CacheManager cacheManager;
@@ -29,7 +31,7 @@ class MessageImageService {
 
   Future<Uint8List?> imageBytes(
     String storagePath, {
-    int maxSizeBytes = 512 * 1024,
+    int maxSizeBytes = ImageUploadUtil.maxImageBytes,
   }) {
     return _imageBytes.putIfAbsent(
       storagePath,
