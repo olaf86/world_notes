@@ -252,7 +252,8 @@ service cloud.firestore {
 
         allow delete: if false;
 
-        // Provider scores and moderation audit metadata are server-only.
+        // Provider scores, retained submitted content for moderated posts,
+        // and moderation audit metadata are server-only.
         match /moderation/{doc} {
           allow read, write: if false;
         }

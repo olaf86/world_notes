@@ -4,6 +4,7 @@ import {
   DocumentReference,
   DocumentSnapshot,
   FieldValue,
+  Firestore,
   Timestamp,
   getFirestore,
 } from "firebase-admin/firestore";
@@ -46,6 +47,37 @@ interface ValidatedSendMessageInput {
   trimmedContent: string;
   trimmedImageStoragePath: string | null;
   publishAtMillis?: unknown;
+}
+
+interface SendMessageRefs {
+  placeRef: DocumentReference;
+  userRef: DocumentReference;
+  memberRef: DocumentReference;
+  counterRef: DocumentReference;
+  messageRef: DocumentReference;
+}
+
+interface SendMessageProfile {
+  displayName: string | null;
+}
+
+interface CreateMessageParams {
+  db: Firestore;
+  refs: SendMessageRefs;
+  uid: string;
+  input: ValidatedSendMessageInput;
+  profile: SendMessageProfile;
+  tokenPicture: unknown;
+  moderationResult: InternalModerationResult;
+  nowMs: number;
+}
+
+interface CreateMessageResult {
+  created: boolean;
+  notifyImmediately: boolean;
+  publishAtMillis: number;
+  moderationNoticePoints: number;
+  imageStoragePathToDelete: string | null;
 }
 
 interface DeleteMessageData {
@@ -119,6 +151,21 @@ function validateSendMessageInput(
     trimmedContent,
     trimmedImageStoragePath,
     publishAtMillis,
+  };
+}
+
+function sendMessageRefs(
+  db: Firestore,
+  input: ValidatedSendMessageInput,
+  uid: string,
+): SendMessageRefs {
+  const placeRef = db.collection("places").doc(input.placeId);
+  return {
+    placeRef,
+    userRef: db.collection("users").doc(uid),
+    memberRef: placeRef.collection("members").doc(uid),
+    counterRef: placeRef.collection("counters").doc("messageSlots"),
+    messageRef: placeRef.collection("messages").doc(input.messageId),
   };
 }
 
@@ -209,6 +256,27 @@ function messageDocumentData({
   };
 }
 
+function moderationAuditDocumentData({
+  moderationResult,
+  submittedContent,
+  submittedImageStoragePath,
+}: {
+  moderationResult: InternalModerationResult;
+  submittedContent: string;
+  submittedImageStoragePath: string | null;
+}): Record<string, unknown> {
+  const shouldRetainSubmittedContent = moderationResult.action !== "allow";
+  return {
+    ...moderationAuditFields(moderationResult),
+    ...(shouldRetainSubmittedContent ?
+      {
+        submittedContent,
+        submittedImageStoragePath,
+      } :
+      {}),
+  };
+}
+
 function hasValidMembership(
   placeSnap: DocumentSnapshot,
   memberSnap: DocumentSnapshot | null,
@@ -291,6 +359,259 @@ function validatePublishAt(
   return Timestamp.fromMillis(publishAtMs);
 }
 
+function messageCreationPlaceUpdate(
+  placeSnap: DocumentSnapshot,
+  publicCount: number,
+  publishAt: Timestamp,
+  isImmediate: boolean,
+): Record<string, unknown> {
+  if (!isImmediate) return {};
+
+  const placeUpdate: Record<string, unknown> = {};
+  const nextPublicCount = publicCount + 1;
+  placeUpdate.messageCount = nextPublicCount;
+
+  const lastMessageAt =
+    placeSnap.get("lastMessageAt") as Timestamp | undefined;
+  if (!lastMessageAt || lastMessageAt.toMillis() < publishAt.toMillis()) {
+    placeUpdate.lastMessageAt = publishAt;
+  }
+
+  if (nextPublicCount >= MAX_MESSAGES_PER_THREAD) {
+    placeUpdate.isOpen = false;
+    placeUpdate.closedReason = "messageLimit";
+    placeUpdate.closedAt = FieldValue.serverTimestamp();
+  }
+  return placeUpdate;
+}
+
+async function createMessageInTransaction({
+  db,
+  refs,
+  uid,
+  input,
+  profile,
+  tokenPicture,
+  moderationResult,
+  nowMs,
+}: CreateMessageParams): Promise<CreateMessageResult> {
+  let notifyImmediately = false;
+  let created = false;
+  let publishAtMillis = nowMs;
+  let moderationNoticePoints = 0;
+  let imageStoragePathToDelete: string | null = null;
+
+  await db.runTransaction(async (tx) => {
+    const [placeSnap, messageSnap] = await Promise.all([
+      tx.get(refs.placeRef),
+      tx.get(refs.messageRef),
+    ]);
+    if (!placeSnap.exists) {
+      throw new HttpsError("not-found", "Note not found.");
+    }
+    if (messageSnap.exists) {
+      if (messageSnap.get("userId") !== uid) {
+        throw new HttpsError(
+          "already-exists",
+          "This message id is already in use.",
+        );
+      }
+      const existingPublishAt =
+        messageSnap.get("publishAt") as Timestamp | undefined;
+      publishAtMillis = existingPublishAt?.toMillis() ?? nowMs;
+      return;
+    }
+
+    await assertUserCanCreateContent(tx, refs.userRef, nowMs);
+    const memberSnap =
+      placeSnap.get("visibility") === "private" &&
+        !canMaintainNote(placeSnap, uid) ?
+        await tx.get(refs.memberRef) :
+        null;
+    if (!canAccessNote(placeSnap, memberSnap, uid)) {
+      throw new HttpsError(
+        "permission-denied",
+        "You cannot access this note.",
+      );
+    }
+    const counterSnap = await tx.get(refs.counterRef);
+
+    validatePlaceCanAccept(placeSnap, nowMs);
+    const publicCount =
+      (placeSnap.get("messageCount") as number | undefined) ?? 0;
+    const currentSlots = messageSlotCount(counterSnap, publicCount);
+    if (currentSlots >= MAX_MESSAGES_PER_THREAD) {
+      throw new HttpsError("resource-exhausted", "This note is full.");
+    }
+
+    const publishAt = validatePublishAt(
+      input.publishAtMillis,
+      nowMs,
+      placeSnap,
+    );
+    const isImmediate = publishAt.toMillis() <= nowMs;
+    const removedByModeration = isModerationRemoval(moderationResult);
+    notifyImmediately = isImmediate && !removedByModeration;
+    publishAtMillis = publishAt.toMillis();
+    created = true;
+    moderationNoticePoints = await applyModerationToUser(
+      tx,
+      refs.userRef,
+      moderationResult,
+    );
+
+    const placeUpdate = messageCreationPlaceUpdate(
+      placeSnap,
+      publicCount,
+      publishAt,
+      isImmediate,
+    );
+    tx.set(
+      refs.counterRef,
+      {
+        count: currentSlots + 1,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      {merge: true},
+    );
+    if (Object.keys(placeUpdate).length > 0) {
+      tx.update(refs.placeRef, placeUpdate);
+    }
+    tx.set(refs.messageRef, {
+      ...messageDocumentData({
+        placeId: input.placeId,
+        uid,
+        profileDisplayName: profile.displayName,
+        tokenPicture,
+        content: input.trimmedContent,
+        imageStoragePath: input.trimmedImageStoragePath,
+        publishAt,
+        isPubliclyVisible: isImmediate,
+        moderationResult,
+      }),
+      placeAggregateAppliedAt: isImmediate ?
+        FieldValue.serverTimestamp() :
+        null,
+    });
+    tx.set(
+      refs.messageRef.collection("moderation").doc("latest"),
+      moderationAuditDocumentData({
+        moderationResult,
+        submittedContent: input.trimmedContent,
+        submittedImageStoragePath: input.trimmedImageStoragePath,
+      }),
+    );
+    if (removedByModeration) {
+      imageStoragePathToDelete = input.trimmedImageStoragePath;
+    }
+  });
+
+  return {
+    created,
+    notifyImmediately,
+    publishAtMillis,
+    moderationNoticePoints,
+    imageStoragePathToDelete,
+  };
+}
+
+async function createModerationNoticeSafely({
+  uid,
+  placeId,
+  messageId,
+  moderationResult,
+  moderationNoticePoints,
+}: {
+  uid: string;
+  placeId: string;
+  messageId: string;
+  moderationResult: InternalModerationResult;
+  moderationNoticePoints: number;
+}): Promise<void> {
+  if (moderationNoticePoints <= 0) return;
+  try {
+    await createModerationNoticeIfNeeded(
+      uid,
+      moderationResult,
+      moderationNoticePoints,
+    );
+  } catch (error) {
+    logger.error(
+      "sendMessage: failed to create moderation notice for " +
+        `places/${placeId}/messages/${messageId}.`,
+      error,
+    );
+  }
+}
+
+async function sendMessageNotificationsSafely({
+  db,
+  placeId,
+  messageId,
+  uid,
+}: {
+  db: Firestore;
+  placeId: string;
+  messageId: string;
+  uid: string;
+}): Promise<void> {
+  try {
+    await sendMyNotesMessageNotifications(db, placeId, messageId, uid);
+  } catch (error) {
+    logger.error(
+      "sendMessage: failed to send My Notes notification for " +
+        `places/${placeId}/messages/${messageId}.`,
+      error,
+    );
+  }
+  try {
+    await sendNearbyInRangeMessageNotifications(db, placeId, messageId, uid);
+  } catch (error) {
+    logger.error(
+      "sendMessage: failed to send nearby notification for " +
+        `places/${placeId}/messages/${messageId}.`,
+      error,
+    );
+  }
+}
+
+async function runSendMessageSideEffects({
+  db,
+  uid,
+  input,
+  messageId,
+  moderationResult,
+  result,
+}: {
+  db: Firestore;
+  uid: string;
+  input: ValidatedSendMessageInput;
+  messageId: string;
+  moderationResult: InternalModerationResult;
+  result: CreateMessageResult;
+}): Promise<void> {
+  if (!result.created) return;
+
+  if (result.imageStoragePathToDelete) {
+    await deleteStoredImage(result.imageStoragePathToDelete);
+  }
+  await createModerationNoticeSafely({
+    uid,
+    placeId: input.placeId,
+    messageId,
+    moderationResult,
+    moderationNoticePoints: result.moderationNoticePoints,
+  });
+  if (result.notifyImmediately) {
+    await sendMessageNotificationsSafely({
+      db,
+      placeId: input.placeId,
+      messageId,
+      uid,
+    });
+  }
+}
+
 /**
  * Authoritative message creation.
  *
@@ -305,15 +626,14 @@ export const sendMessage = onCall<SendMessageData>(
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
 
     const input = validateSendMessageInput(req.data, uid);
-
     const db = getFirestore();
-    const placeRef = db.collection("places").doc(input.placeId);
-    const userRef = db.collection("users").doc(uid);
-    const memberRef = placeRef.collection("members").doc(uid);
-    const counterRef = placeRef.collection("counters").doc("messageSlots");
-    const messageRef = placeRef.collection("messages").doc(input.messageId);
+    const refs = sendMessageRefs(db, input, uid);
     const nowMs = Date.now();
-    const existingResult = await existingMessageResult(messageRef, uid, nowMs);
+    const existingResult = await existingMessageResult(
+      refs.messageRef,
+      uid,
+      nowMs,
+    );
     if (existingResult) return existingResult;
 
     const moderationResult = await moderateTextContent(input.trimmedContent);
@@ -321,183 +641,28 @@ export const sendMessage = onCall<SendMessageData>(
       uid,
       req.auth?.token.name,
     );
-    let notifyImmediately = false;
-    let created = false;
-    let resolvedPublishAtMs = nowMs;
-    let moderationNoticePoints = 0;
-    let imageStoragePathToDelete: string | null = null;
-
-    await db.runTransaction(async (tx) => {
-      const [placeSnap, messageSnap] = await Promise.all([
-        tx.get(placeRef),
-        tx.get(messageRef),
-      ]);
-      if (!placeSnap.exists) {
-        throw new HttpsError("not-found", "Note not found.");
-      }
-      if (messageSnap.exists) {
-        if (messageSnap.get("userId") !== uid) {
-          throw new HttpsError(
-            "already-exists",
-            "This message id is already in use.",
-          );
-        }
-        const existingPublishAt =
-          messageSnap.get("publishAt") as Timestamp | undefined;
-        resolvedPublishAtMs = existingPublishAt?.toMillis() ?? nowMs;
-        return;
-      }
-      await assertUserCanCreateContent(tx, userRef, nowMs);
-      const memberSnap =
-        placeSnap.get("visibility") === "private" &&
-          !canMaintainNote(placeSnap, uid) ?
-          await tx.get(memberRef) :
-          null;
-      if (!canAccessNote(placeSnap, memberSnap, uid)) {
-        throw new HttpsError(
-          "permission-denied",
-          "You cannot access this note.",
-        );
-      }
-      const counterSnap = await tx.get(counterRef);
-
-      validatePlaceCanAccept(placeSnap, nowMs);
-      const publicCount =
-        (placeSnap.get("messageCount") as number | undefined) ?? 0;
-      const currentSlots =
-        messageSlotCount(counterSnap, publicCount);
-      if (currentSlots >= MAX_MESSAGES_PER_THREAD) {
-        throw new HttpsError("resource-exhausted", "This note is full.");
-      }
-
-      const publishAt = validatePublishAt(
-        input.publishAtMillis,
-        nowMs,
-        placeSnap,
-      );
-      const isImmediate = publishAt.toMillis() <= nowMs;
-      const removedByModeration = isModerationRemoval(moderationResult);
-      notifyImmediately = isImmediate && !removedByModeration;
-      resolvedPublishAtMs = publishAt.toMillis();
-      created = true;
-      const nextSlots = currentSlots + 1;
-      moderationNoticePoints = await applyModerationToUser(
-        tx,
-        userRef,
-        moderationResult,
-      );
-
-      const placeUpdate: Record<string, unknown> = {};
-      if (isImmediate) {
-        const nextPublicCount = publicCount + 1;
-        placeUpdate.messageCount = nextPublicCount;
-
-        const lastMessageAt =
-          placeSnap.get("lastMessageAt") as Timestamp | undefined;
-        if (
-          !lastMessageAt ||
-          lastMessageAt.toMillis() < publishAt.toMillis()
-        ) {
-          placeUpdate.lastMessageAt = publishAt;
-        }
-
-        if (nextPublicCount >= MAX_MESSAGES_PER_THREAD) {
-          placeUpdate.isOpen = false;
-          placeUpdate.closedReason = "messageLimit";
-          placeUpdate.closedAt = FieldValue.serverTimestamp();
-        }
-      }
-
-      tx.set(
-        counterRef,
-        {
-          count: nextSlots,
-          updatedAt: FieldValue.serverTimestamp(),
-        },
-        {merge: true},
-      );
-      if (Object.keys(placeUpdate).length > 0) {
-        tx.update(placeRef, placeUpdate);
-      }
-      tx.set(messageRef, {
-        ...messageDocumentData({
-          placeId: input.placeId,
-          uid,
-          profileDisplayName: profile.displayName,
-          tokenPicture: req.auth?.token.picture,
-          content: input.trimmedContent,
-          imageStoragePath: input.trimmedImageStoragePath,
-          publishAt,
-          isPubliclyVisible: isImmediate,
-          moderationResult,
-        }),
-        placeAggregateAppliedAt: isImmediate ?
-          FieldValue.serverTimestamp() :
-          null,
-      });
-      tx.set(
-        messageRef.collection("moderation").doc("latest"),
-        moderationAuditFields(moderationResult),
-      );
-      if (removedByModeration) {
-        imageStoragePathToDelete = input.trimmedImageStoragePath;
-      }
+    const result = await createMessageInTransaction({
+      db,
+      refs,
+      uid,
+      input,
+      profile,
+      tokenPicture: req.auth?.token.picture,
+      moderationResult,
+      nowMs,
+    });
+    await runSendMessageSideEffects({
+      db,
+      uid,
+      input,
+      messageId: refs.messageRef.id,
+      moderationResult,
+      result,
     });
 
-    if (created && imageStoragePathToDelete) {
-      await deleteStoredImage(imageStoragePathToDelete);
-    }
-
-    if (created && moderationNoticePoints > 0) {
-      try {
-        await createModerationNoticeIfNeeded(
-          uid,
-          moderationResult,
-          moderationNoticePoints,
-        );
-      } catch (error) {
-        logger.error(
-          "sendMessage: failed to create moderation notice for " +
-            `places/${input.placeId}/messages/${messageRef.id}.`,
-          error,
-        );
-      }
-    }
-
-    if (created && notifyImmediately) {
-      try {
-        await sendMyNotesMessageNotifications(
-          db,
-          input.placeId,
-          messageRef.id,
-          uid,
-        );
-      } catch (error) {
-        logger.error(
-          "sendMessage: failed to send My Notes notification for " +
-            `places/${input.placeId}/messages/${messageRef.id}.`,
-          error,
-        );
-      }
-      try {
-        await sendNearbyInRangeMessageNotifications(
-          db,
-          input.placeId,
-          messageRef.id,
-          uid,
-        );
-      } catch (error) {
-        logger.error(
-          "sendMessage: failed to send nearby notification for " +
-            `places/${input.placeId}/messages/${messageRef.id}.`,
-          error,
-        );
-      }
-    }
-
     return {
-      messageId: messageRef.id,
-      publishAtMillis: resolvedPublishAtMs,
+      messageId: refs.messageRef.id,
+      publishAtMillis: result.publishAtMillis,
     };
   },
 );

@@ -17,8 +17,9 @@
 - `places/{placeId}` and `places/{placeId}/messages/{messageId}`: messages are
   read only by users who can access the parent note.
 - `places/{placeId}/messages/{messageId}/moderation/latest`: server-only
-  provider scores and audit metadata for moderation decisions. Clients read
-  only the derived message fields needed for UI.
+  provider scores and audit metadata for moderation decisions. For non-allow
+  decisions, this also retains the submitted content for administrator review.
+  Clients read only the derived message fields needed for UI.
 - `reports/{reportId}`: currently client-created; planned to move behind a
   callable function in a later moderation phase.
 
