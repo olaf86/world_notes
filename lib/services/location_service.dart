@@ -13,6 +13,49 @@ class LocationPermissionDeniedException implements Exception {
       'permanentlyDenied: $permanentlyDenied)';
 }
 
+enum LocationAvailabilityIssue {
+  permissionDenied,
+  permissionPermanentlyDenied,
+  serviceDisabled,
+}
+
+LocationAvailabilityIssue? locationAvailabilityIssueFromPermission(
+  LocationPermission permission,
+) {
+  return switch (permission) {
+    LocationPermission.denied || LocationPermission.unableToDetermine =>
+      LocationAvailabilityIssue.permissionDenied,
+    LocationPermission.deniedForever =>
+      LocationAvailabilityIssue.permissionPermanentlyDenied,
+    LocationPermission.whileInUse || LocationPermission.always => null,
+  };
+}
+
+LocationAvailabilityIssue? locationAvailabilityIssueFromError(Object? error) {
+  if (error is LocationPermissionDeniedException) {
+    return error.permanentlyDenied
+        ? LocationAvailabilityIssue.permissionPermanentlyDenied
+        : LocationAvailabilityIssue.permissionDenied;
+  }
+  if (error is LocationServiceDisabledException) {
+    return LocationAvailabilityIssue.serviceDisabled;
+  }
+  return null;
+}
+
+extension LocationAvailabilityIssueException on LocationAvailabilityIssue {
+  Exception toException() {
+    return switch (this) {
+      LocationAvailabilityIssue.permissionDenied =>
+        const LocationPermissionDeniedException(),
+      LocationAvailabilityIssue.permissionPermanentlyDenied =>
+        const LocationPermissionDeniedException(permanentlyDenied: true),
+      LocationAvailabilityIssue.serviceDisabled =>
+        const LocationServiceDisabledException(),
+    };
+  }
+}
+
 class LocationService {
   /// Checks the current permission and requests it if not yet determined.
   /// Returns the final [LocationPermission] after any request dialog.
@@ -24,16 +67,19 @@ class LocationService {
     return permission;
   }
 
+  Future<LocationAvailabilityIssue?> ensureLocationAvailable() async {
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return LocationAvailabilityIssue.serviceDisabled;
+
+    final permission = await ensurePermission();
+    return locationAvailabilityIssueFromPermission(permission);
+  }
+
   /// Retrieves the user's current GPS position for actions that need a final
   /// point-in-time location, such as confirming note creation.
   Future<Position> getCurrentPosition() async {
-    final permission = await ensurePermission();
-    if (permission == LocationPermission.denied) {
-      throw const LocationPermissionDeniedException();
-    }
-    if (permission == LocationPermission.deniedForever) {
-      throw const LocationPermissionDeniedException(permanentlyDenied: true);
-    }
+    final issue = await ensureLocationAvailable();
+    if (issue != null) throw issue.toException();
 
     return Geolocator.getCurrentPosition(
       locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
@@ -69,16 +115,10 @@ class LocationService {
       }
       startInProgress = true;
       try {
-        final permission = await ensurePermission();
+        final issue = await ensureLocationAvailable();
         if (disposed || !isForeground) return;
-        if (permission == LocationPermission.denied) {
-          controller.addError(const LocationPermissionDeniedException());
-          return;
-        }
-        if (permission == LocationPermission.deniedForever) {
-          controller.addError(
-            const LocationPermissionDeniedException(permanentlyDenied: true),
-          );
+        if (issue != null) {
+          controller.addError(issue.toException());
           return;
         }
 

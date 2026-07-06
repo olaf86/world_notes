@@ -178,38 +178,37 @@ class _MapScreenState extends ConsumerState<MapScreen>
     _mapAdapter.setTrackingEnabled(false);
   }
 
-  _LocationRecoveryAction? _locationRecoveryActionFor(Object? error) {
-    if (error is LocationPermissionDeniedException) {
-      if (error.permanentlyDenied) {
-        return _LocationRecoveryAction(
+  _LocationRecoveryAction? _locationRecoveryActionFor(
+    LocationAvailabilityIssue? issue,
+  ) {
+    return switch (issue) {
+      LocationAvailabilityIssue.permissionPermanentlyDenied =>
+        _LocationRecoveryAction(
           label: 'Enable Location',
           tooltip: 'Open settings to enable location',
           icon: Icons.settings_outlined,
           onPressed: () {
             unawaited(Geolocator.openAppSettings());
           },
-        );
-      }
-      return _LocationRecoveryAction(
+        ),
+      LocationAvailabilityIssue.permissionDenied => _LocationRecoveryAction(
         label: 'Enable Location',
         tooltip: 'Allow location to add notes',
         icon: Icons.location_on_outlined,
         onPressed: () {
           ref.invalidate(positionStreamProvider);
         },
-      );
-    }
-    if (error is LocationServiceDisabledException) {
-      return _LocationRecoveryAction(
+      ),
+      LocationAvailabilityIssue.serviceDisabled => _LocationRecoveryAction(
         label: 'Enable Location',
         tooltip: 'Open location settings',
         icon: Icons.settings_outlined,
         onPressed: () {
           unawaited(Geolocator.openLocationSettings());
         },
-      );
-    }
-    return null;
+      ),
+      null => null,
+    };
   }
 
   Future<void> _onAddNote() async {
@@ -359,7 +358,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final loadingMapNotes =
         _refreshingMapNotes || (pinsAsync?.isLoading ?? false);
     final locationRecoveryAction = _locationRecoveryActionFor(
-      positionAsync.hasError ? positionAsync.error : null,
+      locationAvailabilityIssueFromError(
+        positionAsync.hasError ? positionAsync.error : null,
+      ),
     );
 
     pinsAsync?.whenData(_mapAdapter.updateMarkers);
