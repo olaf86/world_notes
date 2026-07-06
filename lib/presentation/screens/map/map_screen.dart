@@ -178,6 +178,40 @@ class _MapScreenState extends ConsumerState<MapScreen>
     _mapAdapter.setTrackingEnabled(false);
   }
 
+  _LocationRecoveryAction? _locationRecoveryActionFor(Object? error) {
+    if (error is LocationPermissionDeniedException) {
+      if (error.permanentlyDenied) {
+        return _LocationRecoveryAction(
+          label: 'Enable Location',
+          tooltip: 'Open settings to enable location',
+          icon: Icons.settings_outlined,
+          onPressed: () {
+            unawaited(Geolocator.openAppSettings());
+          },
+        );
+      }
+      return _LocationRecoveryAction(
+        label: 'Enable Location',
+        tooltip: 'Allow location to add notes',
+        icon: Icons.location_on_outlined,
+        onPressed: () {
+          ref.invalidate(positionStreamProvider);
+        },
+      );
+    }
+    if (error is LocationServiceDisabledException) {
+      return _LocationRecoveryAction(
+        label: 'Enable Location',
+        tooltip: 'Open location settings',
+        icon: Icons.settings_outlined,
+        onPressed: () {
+          unawaited(Geolocator.openLocationSettings());
+        },
+      );
+    }
+    return null;
+  }
+
   Future<void> _onAddNote() async {
     if (!mounted) return;
 
@@ -324,6 +358,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
           );
     final loadingMapNotes =
         _refreshingMapNotes || (pinsAsync?.isLoading ?? false);
+    final locationRecoveryAction = _locationRecoveryActionFor(
+      positionAsync.hasError ? positionAsync.error : null,
+    );
 
     pinsAsync?.whenData(_mapAdapter.updateMarkers);
 
@@ -354,6 +391,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
         onRefresh: _refreshMapNotes,
         loadingMapNotes: loadingMapNotes,
         onAddNote: _onAddNote,
+        locationRecoveryAction: locationRecoveryAction,
         onShowList: widget.onShowList,
         onCameraIdle: _onCameraIdle,
       );
@@ -387,6 +425,7 @@ class _MapView extends ConsumerWidget {
   final VoidCallback onRefresh;
   final bool loadingMapNotes;
   final VoidCallback onAddNote;
+  final _LocationRecoveryAction? locationRecoveryAction;
   final VoidCallback? onShowList;
   final ValueChanged<MapCameraSnapshot> onCameraIdle;
 
@@ -403,6 +442,7 @@ class _MapView extends ConsumerWidget {
     required this.onRefresh,
     required this.loadingMapNotes,
     required this.onAddNote,
+    required this.locationRecoveryAction,
     required this.onShowList,
     required this.onCameraIdle,
   });
@@ -442,10 +482,27 @@ class _MapView extends ConsumerWidget {
         ),
         _RefreshButton(onPressed: onRefresh, refreshing: loadingMapNotes),
         _TrackingButton(isTracking: isTracking, onPressed: onTrackingToggle),
-        _AddNoteFab(onPressed: onAddNote),
+        _AddNoteFab(
+          onPressed: onAddNote,
+          locationRecoveryAction: locationRecoveryAction,
+        ),
       ],
     );
   }
+}
+
+class _LocationRecoveryAction {
+  final String label;
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  const _LocationRecoveryAction({
+    required this.label,
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
 }
 
 class _MapNotesLoadingStatus extends StatelessWidget {
@@ -641,19 +698,25 @@ class _TrackingButton extends StatelessWidget {
 
 class _AddNoteFab extends StatelessWidget {
   final VoidCallback onPressed;
+  final _LocationRecoveryAction? locationRecoveryAction;
 
-  const _AddNoteFab({required this.onPressed});
+  const _AddNoteFab({
+    required this.onPressed,
+    required this.locationRecoveryAction,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final recoveryAction = locationRecoveryAction;
     return Positioned(
       bottom: 24,
       right: 16,
       child: FloatingActionButton.extended(
         heroTag: 'mapAddNote',
-        onPressed: onPressed,
-        icon: const Icon(Icons.add_location_alt_outlined),
-        label: const Text('Add Note'),
+        tooltip: recoveryAction?.tooltip ?? 'Add Note',
+        onPressed: recoveryAction?.onPressed ?? onPressed,
+        icon: Icon(recoveryAction?.icon ?? Icons.add_location_alt_outlined),
+        label: Text(recoveryAction?.label ?? 'Add Note'),
       ),
     );
   }
