@@ -24,6 +24,22 @@ class LocationService {
     return permission;
   }
 
+  /// Retrieves the user's current GPS position for actions that need a final
+  /// point-in-time location, such as confirming note creation.
+  Future<Position> getCurrentPosition() async {
+    final permission = await ensurePermission();
+    if (permission == LocationPermission.denied) {
+      throw const LocationPermissionDeniedException();
+    }
+    if (permission == LocationPermission.deniedForever) {
+      throw const LocationPermissionDeniedException(permanentlyDenied: true);
+    }
+
+    return Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+    );
+  }
+
   /// Live position stream. Yields the cached last-known position first (if
   /// available) so callers can render instantly, then continues with live
   /// GPS updates. Throws [LocationPermissionDeniedException] when permission

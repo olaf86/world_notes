@@ -98,13 +98,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/note/create',
         pageBuilder: (context, state) {
-          final lat =
-              double.tryParse(state.uri.queryParameters['lat'] ?? '') ?? 0;
-          final lng =
-              double.tryParse(state.uri.queryParameters['lng'] ?? '') ?? 0;
           return CustomTransitionPage<void>(
             key: state.pageKey,
-            child: NoteCreationScreen(latitude: lat, longitude: lng),
+            child: const NoteCreationScreen(),
             opaque: false,
             transitionsBuilder: _slideTransition,
           );

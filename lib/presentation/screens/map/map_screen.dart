@@ -178,7 +178,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     _mapAdapter.setTrackingEnabled(false);
   }
 
-  Future<void> _onAddNote(Position pos) async {
+  Future<void> _onAddNote() async {
     if (!mounted) return;
 
     final user = ref.read(authStateProvider).valueOrNull;
@@ -204,7 +204,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     }
 
     if (!mounted) return;
-    context.push('/note/create?lat=${pos.latitude}&lng=${pos.longitude}');
+    context.push('/note/create');
   }
 
   Future<void> _refreshMapNotes() async {
@@ -353,7 +353,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
         onTrackingToggle: _toggleTracking,
         onRefresh: _refreshMapNotes,
         loadingMapNotes: loadingMapNotes,
-        onAddNote: () => _onAddNote(anchor),
+        onAddNote: _onAddNote,
         onShowList: widget.onShowList,
         onCameraIdle: _onCameraIdle,
       );

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -10,6 +11,7 @@ import 'package:intl/intl.dart';
 import '../../../config/app_config.dart';
 import '../../../core/utils/place_icon.dart';
 import '../../../domain/entities/place_entity.dart';
+import '../../../services/location_service.dart';
 import '../../providers/providers.dart';
 import '../../widgets/note/note_lock_setup_dialog.dart';
 import '../../widgets/note/pin_thumbnail_crop_dialog.dart';
@@ -32,14 +34,7 @@ enum _PublicationPreset {
 enum _PinMarkerStyle { icon, image }
 
 class NoteCreationScreen extends ConsumerStatefulWidget {
-  final double latitude;
-  final double longitude;
-
-  const NoteCreationScreen({
-    super.key,
-    required this.latitude,
-    required this.longitude,
-  });
+  const NoteCreationScreen({super.key});
 
   @override
   ConsumerState<NoteCreationScreen> createState() => _NoteCreationScreenState();
@@ -219,6 +214,34 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
     setState(() => _pinThumbnailBytes = null);
   }
 
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<Position?> _currentPositionForCreate() async {
+    try {
+      return await ref.read(locationServiceProvider).getCurrentPosition();
+    } on LocationPermissionDeniedException catch (e) {
+      if (!mounted) return null;
+      _showSnack(
+        e.permanentlyDenied
+            ? 'Location permission is disabled. Enable it in settings to create a note.'
+            : 'Location permission is required to create a note.',
+      );
+      return null;
+    } on LocationServiceDisabledException {
+      if (!mounted) return null;
+      _showSnack('Turn on location services to create a note.');
+      return null;
+    } catch (_) {
+      if (!mounted) return null;
+      _showSnack('Could not get your current location. Please try again.');
+      return null;
+    }
+  }
+
   Future<void> _reportPinImageUploadError({
     required String placeId,
     required Object error,
@@ -256,6 +279,8 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
     try {
       final user = ref.read(authStateProvider).valueOrNull;
       if (user == null) throw Exception('Not signed in');
+      final position = await _currentPositionForCreate();
+      if (position == null) return;
 
       // Flutter 3.27+: Color.r/g/b return double (0.0–1.0), multiply by 255.
       final r = (_selectedColor.r * 255)
@@ -283,8 +308,8 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
       final placeId = await ref
           .read(placeRepositoryProvider)
           .createNote(
-            latitude: widget.latitude,
-            longitude: widget.longitude,
+            latitude: position.latitude,
+            longitude: position.longitude,
             title: title,
             subtitle: _subtitleController.text.trim().isEmpty
                 ? null
@@ -351,15 +376,11 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
         _ => e.message ?? 'Could not create the note. Please try again.',
       };
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(message)));
+        _showSnack(message);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        _showSnack('Error: $e');
       }
     } finally {
       if (mounted) setState(() => _loading = false);
