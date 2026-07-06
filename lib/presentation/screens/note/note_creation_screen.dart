@@ -29,6 +29,8 @@ enum _PublicationPreset {
   const _PublicationPreset(this.label, this.delay);
 }
 
+enum _PinMarkerStyle { icon, image }
+
 class NoteCreationScreen extends ConsumerStatefulWidget {
   final double latitude;
   final double longitude;
@@ -50,7 +52,8 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
   final _imagePicker = ImagePicker();
 
   Color _selectedColor = Colors.green;
-  String _selectedIcon = 'place';
+  String _selectedIcon = defaultMapPinIcon;
+  _PinMarkerStyle _pinMarkerStyle = _PinMarkerStyle.icon;
   Uint8List? _pinThumbnailBytes;
   // Expiry is required. Defaults to AppConfig.defaultNoteExpiryDays (3 months)
   // — a balanced lifetime that keeps the map from filling with stale notes
@@ -216,6 +219,29 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
     setState(() => _pinThumbnailBytes = null);
   }
 
+  Future<void> _reportPinImageUploadError({
+    required String placeId,
+    required Object error,
+    required StackTrace stack,
+  }) async {
+    try {
+      final crashlytics = ref.read(firebaseCrashlyticsProvider);
+      await crashlytics.log('Note pin image upload failed for place $placeId');
+      await crashlytics.setCustomKey('note_pin_image_place_id', placeId);
+      await crashlytics.recordError(
+        error,
+        stack,
+        reason: 'Note pin image upload failed after note creation',
+        fatal: false,
+      );
+    } catch (crashlyticsError, crashlyticsStack) {
+      debugPrint(
+        '[NoteCreation] Could not report pin image upload failure: '
+        '$crashlyticsError\n$crashlyticsStack',
+      );
+    }
+  }
+
   @override
   void dispose() {
     _titleController.dispose();
@@ -248,7 +274,12 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
 
       final title = _titleController.text.trim();
       final lockSetup = _lockSetup;
-      final pinThumbnailBytes = _pinThumbnailBytes;
+      final icon = _pinMarkerStyle == _PinMarkerStyle.image
+          ? defaultMapPinIcon
+          : _selectedIcon;
+      final pinThumbnailBytes = _pinMarkerStyle == _PinMarkerStyle.image
+          ? _pinThumbnailBytes
+          : null;
       final placeId = await ref
           .read(placeRepositoryProvider)
           .createNote(
@@ -259,7 +290,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
                 ? null
                 : _subtitleController.text.trim(),
             colorHex: colorHex,
-            icon: _selectedIcon,
+            icon: icon,
             expiryDays: _expiryDays,
             publishAt: _publishAtForCreate(),
             visibility: lockSetup == null
@@ -282,7 +313,12 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
                 userId: user.id,
                 thumbnailBytes: pinThumbnailBytes,
               );
-        } catch (error) {
+        } catch (error, stack) {
+          await _reportPinImageUploadError(
+            placeId: placeId,
+            error: error,
+            stack: stack,
+          );
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -358,7 +394,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
               maxLines: 3,
             ),
             const SizedBox(height: 24),
-            Text('Color', style: Theme.of(context).textTheme.titleSmall),
+            Text('Pin color', style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 8),
             Wrap(
               spacing: 12,
@@ -388,51 +424,72 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
               }).toList(),
             ),
             const SizedBox(height: 24),
-            Text('Icon', style: Theme.of(context).textTheme.titleSmall),
+            Text('Pin style', style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 12,
-              children: _icons.map((item) {
-                final (key, iconData) = item;
-                final isSelected = _selectedIcon == key;
-                return GestureDetector(
-                  onTap: () => setState(() => _selectedIcon = key),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 150),
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? _selectedColor
-                          : Theme.of(
-                              context,
-                            ).colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(12),
+            SegmentedButton<_PinMarkerStyle>(
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(
+                  value: _PinMarkerStyle.icon,
+                  icon: Icon(Icons.place_outlined),
+                  label: Text('Icon'),
+                ),
+                ButtonSegment(
+                  value: _PinMarkerStyle.image,
+                  icon: Icon(Icons.image_outlined),
+                  label: Text('Image'),
+                ),
+              ],
+              selected: {_pinMarkerStyle},
+              onSelectionChanged: (selection) {
+                setState(() => _pinMarkerStyle = selection.single);
+              },
+            ),
+            const SizedBox(height: 16),
+            if (_pinMarkerStyle == _PinMarkerStyle.icon) ...[
+              Text('Icon', style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 12,
+                children: _icons.map((item) {
+                  final (key, iconData) = item;
+                  final isSelected = _selectedIcon == key;
+                  return GestureDetector(
+                    onTap: () => setState(() => _selectedIcon = key),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? _selectedColor
+                            : Theme.of(
+                                context,
+                              ).colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        iconData,
+                        color: isSelected
+                            ? Colors.white
+                            : Theme.of(context).colorScheme.onSurface,
+                      ),
                     ),
-                    child: Icon(
-                      iconData,
-                      color: isSelected
-                          ? Colors.white
-                          : Theme.of(context).colorScheme.onSurface,
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Map pin image',
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-            const SizedBox(height: 8),
-            _PinImageSummary(
-              bytes: _pinThumbnailBytes,
-              selectedColor: _selectedColor,
-              selectedIcon: _selectedIcon,
-              picking: _pickingPinImage,
-              onPick: _pickPinImage,
-              onRemove: _removePinImage,
-            ),
+                  );
+                }).toList(),
+              ),
+            ] else ...[
+              Text('Image', style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 8),
+              _PinImageSummary(
+                bytes: _pinThumbnailBytes,
+                selectedColor: _selectedColor,
+                selectedIcon: defaultMapPinIcon,
+                picking: _pickingPinImage,
+                onPick: _pickPinImage,
+                onRemove: _removePinImage,
+              ),
+            ],
             const SizedBox(height: 24),
             Text('Publish', style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 8),
@@ -640,14 +697,14 @@ class _PinImageSummary extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    thumbnail == null ? 'Default icon pin' : 'Custom image pin',
+                    thumbnail == null ? 'Image pin' : 'Image pin ready',
                     style: theme.textTheme.titleSmall,
                   ),
                   const SizedBox(height: 2),
                   Text(
                     thumbnail == null
-                        ? 'Use an icon, or add a cropped thumbnail.'
-                        : 'Only this cropped thumbnail will be uploaded.',
+                        ? 'Add a cropped thumbnail. The default pin is used as fallback.'
+                        : 'This cropped thumbnail will be uploaded.',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),

@@ -9,18 +9,18 @@ import 'note_map_adapter.dart';
 NoteMapAdapter createNoteMapAdapter({
   required TickerProvider vsync,
   required Future<void> Function(PinSummary pin) onPinSelected,
-  required PinMarkerImageResolver markerImageResolver,
+  required OnResolvePinMarkerImage onResolveMarkerImage,
 }) {
   if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
     return AppleNoteMapController(
       onPinSelected: onPinSelected,
-      markerImageResolver: markerImageResolver,
+      onResolveMarkerImage: onResolveMarkerImage,
     );
   }
 
   return MapLibreNoteMapAdapter(
     vsync: vsync,
     onPinSelected: onPinSelected,
-    markerImageResolver: markerImageResolver,
+    onResolveMarkerImage: onResolveMarkerImage,
   );
 }

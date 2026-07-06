@@ -58,7 +58,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     _mapAdapter = createNoteMapAdapter(
       vsync: this,
       onPinSelected: _showPinPreview,
-      markerImageResolver: _loadPinMarkerImage,
+      onResolveMarkerImage: _loadPinMarkerImage,
     );
   }
 

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+const defaultMapPinIcon = 'place';
+
 /// Maps a [PlaceEntity.icon] string (as persisted in Firestore) to its
 /// Material [IconData]. Unknown values fall back to a generic pin.
 IconData placeIconData(String icon) {
