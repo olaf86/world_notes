@@ -61,6 +61,36 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets(
+    'offers settings when location permission is permanently denied',
+    (tester) async {
+      final locationService = _FakeLocationService(
+        error: const LocationPermissionDeniedException(permanentlyDenied: true),
+      );
+      final placeRepository = _RecordingPlaceRepository();
+
+      await _pumpScreen(
+        tester,
+        locationService: locationService,
+        placeRepository: placeRepository,
+      );
+
+      await tester.enterText(find.byType(TextFormField).first, 'Tokyo Station');
+      await _scrollToCreateButton(tester);
+      await tester.tap(find.text('Create Note'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(locationService.getCurrentPositionCallCount, 1);
+      expect(placeRepository.createNoteCallCount, 0);
+      expect(find.text('Location permission needed'), findsOneWidget);
+      expect(find.text('Open settings'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pump();
+    },
+  );
 }
 
 Future<void> _pumpScreen(
@@ -116,7 +146,7 @@ Position _position({required double latitude, required double longitude}) {
   return Position(
     latitude: latitude,
     longitude: longitude,
-    timestamp: DateTime(2026, 7, 6, 12),
+    timestamp: DateTime(2000),
     accuracy: 5,
     altitude: 0,
     altitudeAccuracy: 0,

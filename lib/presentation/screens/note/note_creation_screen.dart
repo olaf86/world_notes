@@ -220,20 +220,61 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  Future<void> _showLocationSetupDialog({
+    required String title,
+    required String message,
+    required String actionLabel,
+    required Future<bool> Function() openSettings,
+  }) async {
+    final shouldOpen = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.settings_outlined),
+            label: Text(actionLabel),
+          ),
+        ],
+      ),
+    );
+    if (shouldOpen == true) await openSettings();
+  }
+
   Future<Position?> _currentPositionForCreate() async {
     try {
       return await ref.read(locationServiceProvider).getCurrentPosition();
     } on LocationPermissionDeniedException catch (e) {
       if (!mounted) return null;
-      _showSnack(
-        e.permanentlyDenied
-            ? 'Location permission is disabled. Enable it in settings to create a note.'
-            : 'Location permission is required to create a note.',
-      );
+      if (e.permanentlyDenied) {
+        await _showLocationSetupDialog(
+          title: 'Location permission needed',
+          message:
+              'Location permission is disabled. Open system settings and '
+              'allow location access to create notes.',
+          actionLabel: 'Open settings',
+          openSettings: Geolocator.openAppSettings,
+        );
+      } else {
+        _showSnack('Location permission is required to create a note.');
+      }
       return null;
     } on LocationServiceDisabledException {
       if (!mounted) return null;
-      _showSnack('Turn on location services to create a note.');
+      await _showLocationSetupDialog(
+        title: 'Turn on location services',
+        message:
+            'Location services are turned off. Turn them on to create a note '
+            'at your current location.',
+        actionLabel: 'Open settings',
+        openSettings: Geolocator.openLocationSettings,
+      );
       return null;
     } catch (_) {
       if (!mounted) return null;
