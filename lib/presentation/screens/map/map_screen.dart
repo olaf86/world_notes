@@ -404,8 +404,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
     return positionAsync.when(
       loading: () => const LocationCheckingView(),
       error: (e, _) => LocationPermissionView(
-        permanentlyDenied:
-            e is LocationPermissionDeniedException && e.permanentlyDenied,
+        issue:
+            locationAvailabilityIssueFromError(e) ??
+            LocationAvailabilityIssue.permissionDenied,
         onRetry: () => ref.invalidate(positionStreamProvider),
       ),
       data: (_) => const LocationCheckingView(),

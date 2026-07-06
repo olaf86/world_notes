@@ -2,17 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../../../l10n/app_localizations.dart';
+import '../../../services/location_service.dart';
 
 /// Full-screen placeholder shown when the position stream errors with a
-/// permission-denied state. Offers a retry button (re-runs the request flow)
-/// or, if denial is permanent, an "Open Settings" deep link.
+/// location availability issue.
 class LocationPermissionView extends StatelessWidget {
-  final bool permanentlyDenied;
+  final LocationAvailabilityIssue issue;
   final VoidCallback onRetry;
 
   const LocationPermissionView({
     super.key,
-    required this.permanentlyDenied,
+    required this.issue,
     required this.onRetry,
   });
 
@@ -20,6 +20,7 @@ class LocationPermissionView extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final colorScheme = Theme.of(context).colorScheme;
+    final content = _contentFor(l10n);
     return Scaffold(
       backgroundColor: colorScheme.surfaceContainerLow,
       body: SafeArea(
@@ -36,31 +37,24 @@ class LocationPermissionView extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  l10n.locationPermissionTitle,
+                  content.title,
                   style: Theme.of(context).textTheme.titleLarge,
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  l10n.locationPermissionMessage,
+                  content.message,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 32),
-                if (permanentlyDenied)
-                  FilledButton.icon(
-                    onPressed: Geolocator.openAppSettings,
-                    icon: const Icon(Icons.settings_outlined),
-                    label: Text(l10n.locationPermissionOpenSettings),
-                  )
-                else
-                  FilledButton.icon(
-                    onPressed: onRetry,
-                    icon: const Icon(Icons.location_on_outlined),
-                    label: Text(l10n.locationPermissionOpenSettings),
-                  ),
+                FilledButton.icon(
+                  onPressed: content.onPressed,
+                  icon: Icon(content.icon),
+                  label: Text(content.actionLabel),
+                ),
               ],
             ),
           ),
@@ -68,4 +62,47 @@ class LocationPermissionView extends StatelessWidget {
       ),
     );
   }
+
+  _LocationUnavailableContent _contentFor(AppLocalizations l10n) {
+    return switch (issue) {
+      LocationAvailabilityIssue.permissionDenied => _LocationUnavailableContent(
+        title: l10n.locationPermissionTitle,
+        message: l10n.locationPermissionMessage,
+        actionLabel: l10n.locationPermissionAllow,
+        icon: Icons.location_on_outlined,
+        onPressed: onRetry,
+      ),
+      LocationAvailabilityIssue.permissionPermanentlyDenied =>
+        _LocationUnavailableContent(
+          title: l10n.locationPermissionTitle,
+          message: l10n.locationPermissionMessage,
+          actionLabel: l10n.locationPermissionOpenSettings,
+          icon: Icons.settings_outlined,
+          onPressed: Geolocator.openAppSettings,
+        ),
+      LocationAvailabilityIssue.serviceDisabled => _LocationUnavailableContent(
+        title: l10n.locationServiceDisabledTitle,
+        message: l10n.locationServiceDisabledMessage,
+        actionLabel: l10n.locationServiceOpenSettings,
+        icon: Icons.settings_outlined,
+        onPressed: Geolocator.openLocationSettings,
+      ),
+    };
+  }
+}
+
+class _LocationUnavailableContent {
+  final String title;
+  final String message;
+  final String actionLabel;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  const _LocationUnavailableContent({
+    required this.title,
+    required this.message,
+    required this.actionLabel,
+    required this.icon,
+    required this.onPressed,
+  });
 }
