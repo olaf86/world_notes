@@ -19,11 +19,13 @@ class PinSummary {
   final String? pinImageStoragePath;
   final String creatorName;
   final int messageCount;
+  final int visitorCount;
   final DateTime createdAt;
   final DateTime lastActivityAt;
   final DateTime expiresAt;
   final bool isPrivate;
   final bool isClosed;
+  final bool footprintEnabled;
   final PinAccess access;
 
   const PinSummary({
@@ -37,11 +39,13 @@ class PinSummary {
     this.pinImageStoragePath,
     required this.creatorName,
     required this.messageCount,
+    required this.visitorCount,
     required this.createdAt,
     required this.lastActivityAt,
     required this.expiresAt,
     required this.isPrivate,
     required this.isClosed,
+    required this.footprintEnabled,
     required this.access,
   });
 

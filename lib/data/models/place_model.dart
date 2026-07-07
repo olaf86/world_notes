@@ -26,6 +26,8 @@ class PlaceModel {
   final bool isArchived;
   final DateTime? archivedAt;
   final DateTime expiresAt;
+  final bool footprintEnabled;
+  final int visitorCount;
 
   PlaceModel({
     required this.id,
@@ -52,6 +54,8 @@ class PlaceModel {
     this.closedAt,
     this.isArchived = false,
     this.archivedAt,
+    this.footprintEnabled = true,
+    this.visitorCount = 0,
   });
 
   static List<String> _maintainerIdsFromData(Map<String, dynamic> data) {
@@ -93,6 +97,8 @@ class PlaceModel {
       isArchived: data['isArchived'] as bool,
       archivedAt: (data['archivedAt'] as Timestamp?)?.toDate(),
       expiresAt: (data['expiresAt'] as Timestamp).toDate(),
+      footprintEnabled: data['footprintEnabled'] as bool? ?? true,
+      visitorCount: data['visitorCount'] as int? ?? 0,
     );
   }
 
@@ -125,6 +131,8 @@ class PlaceModel {
       'isArchived': isArchived,
       if (archivedAt != null) 'archivedAt': Timestamp.fromDate(archivedAt!),
       'expiresAt': Timestamp.fromDate(expiresAt),
+      'footprintEnabled': footprintEnabled,
+      'visitorCount': visitorCount,
     };
   }
 
@@ -153,5 +161,7 @@ class PlaceModel {
     isArchived: isArchived,
     archivedAt: archivedAt,
     expiresAt: expiresAt,
+    footprintEnabled: footprintEnabled,
+    visitorCount: visitorCount,
   );
 }

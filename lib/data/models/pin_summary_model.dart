@@ -11,11 +11,13 @@ class PinSummaryModel {
   final String? pinImageStoragePath;
   final String creatorName;
   final int messageCount;
+  final int visitorCount;
   final DateTime createdAt;
   final DateTime lastActivityAt;
   final DateTime expiresAt;
   final bool isPrivate;
   final bool isClosed;
+  final bool footprintEnabled;
   final PinAccess access;
 
   const PinSummaryModel({
@@ -29,11 +31,13 @@ class PinSummaryModel {
     this.pinImageStoragePath,
     required this.creatorName,
     required this.messageCount,
+    required this.visitorCount,
     required this.createdAt,
     required this.lastActivityAt,
     required this.expiresAt,
     required this.isPrivate,
     required this.isClosed,
+    required this.footprintEnabled,
     required this.access,
   });
 
@@ -53,6 +57,7 @@ class PinSummaryModel {
       pinImageStoragePath: json['pinImageStoragePath'] as String?,
       creatorName: json['creatorName'] as String? ?? 'Unknown user',
       messageCount: json['messageCount'] as int,
+      visitorCount: json['visitorCount'] as int,
       createdAt: DateTime.fromMillisecondsSinceEpoch(createdAtMillis),
       lastActivityAt: DateTime.fromMillisecondsSinceEpoch(lastActivityAtMillis),
       expiresAt: DateTime.fromMillisecondsSinceEpoch(
@@ -60,6 +65,7 @@ class PinSummaryModel {
       ),
       isPrivate: json['isPrivate'] as bool,
       isClosed: json['isClosed'] as bool,
+      footprintEnabled: json['footprintEnabled'] as bool,
       access: PinAccess.fromJson(json['access'] as String?),
     );
   }
@@ -75,11 +81,13 @@ class PinSummaryModel {
     pinImageStoragePath: pinImageStoragePath,
     creatorName: creatorName,
     messageCount: messageCount,
+    visitorCount: visitorCount,
     createdAt: createdAt,
     lastActivityAt: lastActivityAt,
     expiresAt: expiresAt,
     isPrivate: isPrivate,
     isClosed: isClosed,
+    footprintEnabled: footprintEnabled,
     access: access,
   );
 }

@@ -15,11 +15,13 @@ void main() {
       icon: 'place',
       creatorName: 'Alice',
       messageCount: 0,
+      visitorCount: 0,
       createdAt: now,
       lastActivityAt: now,
       expiresAt: now.add(const Duration(days: 7)),
       isPrivate: false,
       isClosed: false,
+      footprintEnabled: true,
       access: PinAccess.openable,
     );
 

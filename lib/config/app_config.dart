@@ -124,6 +124,12 @@ class AppConfig {
   /// Maximum active notes a PRO user may own simultaneously.
   static const int proNoteLimit = 200;
 
+  /// Maximum visitor avatars shown in compact note-detail previews.
+  static const int visitorPreviewCompactMax = 6;
+
+  /// Maximum visitor avatars shown when the preview has wider horizontal room.
+  static const int visitorPreviewExpandedMax = 10;
+
   /// Maximum image size (bytes) accepted for upload.
   static const int maxImageBytes = 5 * 1024 * 1024; // 5 MB
 

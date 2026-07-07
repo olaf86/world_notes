@@ -1,4 +1,5 @@
 import '../entities/nearby_notification_entity.dart';
+import '../entities/note_visitor_entity.dart';
 import '../entities/place_entity.dart';
 import '../entities/pin_summary_entity.dart';
 
@@ -138,6 +139,30 @@ abstract class PlaceRepository {
 
   /// Maintainer view of the note's access list.
   Stream<List<NoteMember>> watchMembers(String placeId);
+
+  // ── Footprints / visitors ────────────────────────────────────────────────
+
+  /// Records that the current signed-in user opened this note. The server
+  /// decides whether footprints are enabled and whether the user may access it.
+  Future<void> recordNoteVisit(String placeId);
+
+  /// Recent visitors for the compact note-detail preview.
+  Stream<List<NoteVisitor>> watchRecentVisitors({
+    required String placeId,
+    required int limit,
+  });
+
+  /// Visitors for the dedicated visitor screen.
+  Stream<List<NoteVisitor>> watchVisitors({
+    required String placeId,
+    required NoteVisitorSort sort,
+  });
+
+  /// Maintainer-only: controls whether this note records footprints.
+  Future<void> setFootprintEnabled({
+    required String placeId,
+    required bool enabled,
+  });
 
   // ── Nearby notifications ─────────────────────────────────────────────────
 

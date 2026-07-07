@@ -270,6 +270,14 @@ service cloud.firestore {
         allow read, write: if false;
       }
 
+      // Visitor footprints. Anyone who can access this note's content can see
+      // the visitor list; writes are exclusively handled by Cloud Functions so
+      // users cannot forge visit counts or profile fields.
+      match /visitors/{visitorUid} {
+        allow read: if canAccessNote(placeId);
+        allow write: if false;
+      }
+
       // ── messages (subcollection) ──────────────────────────────────────
       // Nested under the place so reads can be gated on the parent note's
       // visibility + membership. For private notes, only maintainers and

@@ -9,6 +9,7 @@ import '../presentation/screens/map/map_notes_screen.dart';
 import '../presentation/screens/my_notes/my_notes_screen.dart';
 import '../presentation/screens/note/note_box_screen.dart';
 import '../presentation/screens/note/note_creation_screen.dart';
+import '../presentation/screens/note/note_visitors_screen.dart';
 import '../presentation/screens/notices/notices_screen.dart';
 import '../presentation/screens/profile/profile_screen.dart';
 import '../presentation/screens/report/report_message_screen.dart';
@@ -136,6 +137,19 @@ final routerProvider = Provider<GoRouter>((ref) {
             child: ReportMessageScreen(
               placeId: state.pathParameters['placeId']!,
               messageId: state.pathParameters['messageId']!,
+            ),
+            opaque: false,
+            transitionsBuilder: _slideTransition,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/note/:placeId/visitors',
+        pageBuilder: (context, state) {
+          return CustomTransitionPage<void>(
+            key: state.pageKey,
+            child: NoteVisitorsScreen(
+              placeId: state.pathParameters['placeId']!,
             ),
             opaque: false,
             transitionsBuilder: _slideTransition,

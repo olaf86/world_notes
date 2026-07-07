@@ -113,6 +113,17 @@ class _NoteMarkerBottomSheetState extends State<NoteMarkerBottomSheet> {
                 icon: Icons.chat_bubble_outline,
                 label: '${pin.messageCount} messages',
               ),
+              _MetaChip(
+                icon: Icons.directions_walk,
+                label: pin.footprintEnabled
+                    ? pin.visitorCount > 0
+                          ? '${pin.visitorCount} footprints'
+                          : 'Footprints on'
+                    : 'Footprints off',
+                color: pin.footprintEnabled
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurfaceVariant,
+              ),
               if (pin.isPrivate)
                 _MetaChip(
                   icon: Icons.lock_outline,

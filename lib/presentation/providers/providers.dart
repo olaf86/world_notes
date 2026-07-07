@@ -19,6 +19,7 @@ import '../../data/repositories/notice_repository_impl.dart';
 import '../../data/repositories/place_repository_impl.dart';
 import '../../domain/entities/nearby_notification_entity.dart';
 import '../../domain/entities/message_entity.dart';
+import '../../domain/entities/note_visitor_entity.dart';
 import '../../domain/entities/notice_entity.dart';
 import '../../domain/entities/pin_summary_entity.dart';
 import '../../domain/entities/place_entity.dart';
@@ -419,6 +420,42 @@ final noteMembersProvider = StreamProvider.family<List<NoteMember>, String>((
 ) {
   return ref.watch(placeRepositoryProvider).watchMembers(placeId);
 });
+
+final recentNoteVisitorsProvider =
+    StreamProvider.family<List<NoteVisitor>, String>((ref, placeId) {
+      return ref
+          .watch(placeRepositoryProvider)
+          .watchRecentVisitors(
+            placeId: placeId,
+            limit: AppConfig.visitorPreviewExpandedMax,
+          );
+    });
+
+class NoteVisitorsRequest {
+  final String placeId;
+  final NoteVisitorSort sort;
+
+  const NoteVisitorsRequest({required this.placeId, required this.sort});
+
+  @override
+  bool operator ==(Object other) =>
+      other is NoteVisitorsRequest &&
+      other.placeId == placeId &&
+      other.sort == sort;
+
+  @override
+  int get hashCode => Object.hash(placeId, sort);
+}
+
+final noteVisitorsProvider =
+    StreamProvider.family<List<NoteVisitor>, NoteVisitorsRequest>((
+      ref,
+      request,
+    ) {
+      return ref
+          .watch(placeRepositoryProvider)
+          .watchVisitors(placeId: request.placeId, sort: request.sort);
+    });
 
 /// Active notes owned by the current user. Used by the My Notes read-only
 /// destination; returns an empty stream while signed out.

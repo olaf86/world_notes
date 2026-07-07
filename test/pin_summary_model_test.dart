@@ -12,11 +12,13 @@ void main() {
       'colorHex': '#4CAF50',
       'icon': 'place',
       'messageCount': 2,
+      'visitorCount': 3,
       'createdAtMillis': 1000,
       'lastActivityAtMillis': 2000,
       'expiresAtMillis': 3000,
       'isPrivate': false,
       'isClosed': false,
+      'footprintEnabled': true,
       'access': 'openable',
     };
 

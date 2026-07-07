@@ -112,6 +112,12 @@ class PlaceEntity {
   /// The lifetime starts at publishAt, not createdAt, for scheduled notes.
   final DateTime expiresAt;
 
+  /// Whether opening this note leaves a visible footprint in its visitor list.
+  final bool footprintEnabled;
+
+  /// Number of distinct users that have left footprints on this note.
+  final int visitorCount;
+
   const PlaceEntity({
     required this.id,
     required this.latitude,
@@ -137,6 +143,8 @@ class PlaceEntity {
     this.closedAt,
     this.isArchived = false,
     this.archivedAt,
+    this.footprintEnabled = true,
+    this.visitorCount = 0,
   });
 
   // ── Convenience getters ─────────────────────────────────────────────────

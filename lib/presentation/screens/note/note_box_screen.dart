@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -18,6 +20,7 @@ import '../../widgets/note/manage_access_sheet.dart';
 import '../../widgets/note/message_bubble.dart';
 import '../../widgets/note/message_creation_overlay.dart';
 import '../../widgets/note/note_lock_setup_dialog.dart';
+import '../../widgets/note/visitor_preview.dart';
 
 // ---------------------------------------------------------------------------
 // Screen
@@ -67,6 +70,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
   bool _nearbyNotificationBusy = false;
   String? _highlightedAuthorId;
   DateTime? _lastNearbyReadMarkedAt;
+  String? _visitRecordedForPlaceId;
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -477,6 +481,43 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     });
   }
 
+  void _recordVisitIfNeeded({
+    required PlaceEntity place,
+    required NotePermissions permissions,
+    required String? currentUserId,
+  }) {
+    if (currentUserId == null ||
+        !place.footprintEnabled ||
+        !permissions.canReadContent ||
+        _visitRecordedForPlaceId == place.id) {
+      return;
+    }
+    _visitRecordedForPlaceId = place.id;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_recordVisit(place.id));
+    });
+  }
+
+  Future<void> _recordVisit(String placeId) async {
+    try {
+      await ref.read(placeRepositoryProvider).recordNoteVisit(placeId);
+    } catch (error, stackTrace) {
+      assert(() {
+        debugPrint('recordNoteVisit failed for $placeId: $error');
+        return true;
+      }());
+      await ref
+          .read(firebaseCrashlyticsProvider)
+          .recordError(
+            error,
+            stackTrace,
+            reason: 'recordNoteVisit failed for $placeId',
+            fatal: false,
+          );
+    }
+  }
+
   // ── Private access (set lock / unlock) ───────────────────────────────────
 
   void _showPatternTooLongSnack() {
@@ -738,6 +779,11 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     }
 
     // Public, owned, or unlocked — safe to read messages now.
+    _recordVisitIfNeeded(
+      place: place,
+      permissions: permissions,
+      currentUserId: currentUser?.id,
+    );
     final messagesAsync = ref.watch(messagesProvider(widget.placeId));
 
     // Exclude this screen's semantics while a dialog, report sheet, or message
@@ -882,6 +928,11 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                     if (!place.canAcceptMessagesAt(now))
                       _ThreadStatusBanner(place: place, now: now),
                     StaticNoteMiniMap(place: place),
+                    VisitorPreview(
+                      placeId: widget.placeId,
+                      footprintEnabled: place.footprintEnabled,
+                      visitorCount: place.visitorCount,
+                    ),
                     Expanded(
                       child: messagesAsync.when(
                         loading: () =>

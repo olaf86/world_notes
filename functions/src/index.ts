@@ -77,6 +77,9 @@ export {updateDisplayName} from "./userProfile";
 // Map exploration pin summaries and detail-entry proximity checks.
 export {listMapPins, validateNoteAccess} from "./mapPins";
 
+// Footprint visitor tracking.
+export {recordNoteVisit, setFootprintEnabled} from "./visitors";
+
 interface CreateNoteData {
   latitude?: unknown;
   longitude?: unknown;
@@ -310,12 +313,14 @@ export const createNote = onCall<CreateNoteData>(
         createdAt: FieldValue.serverTimestamp(),
         publishAt,
         messageCount: 0,
+        visitorCount: 0,
         lastMessageAt: publishAt,
         visibility,
         passwordVersion: 0,
         isOpen: true,
         isArchived: false,
         expiresAt,
+        footprintEnabled: true,
       };
       if (lock != null) {
         placeData.lockType = lock.lockType;

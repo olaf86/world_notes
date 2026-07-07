@@ -72,11 +72,13 @@ interface PinResult {
   pinImageStoragePath: string | null;
   creatorName: string;
   messageCount: number;
+  visitorCount: number;
   createdAtMillis: number;
   lastActivityAtMillis: number;
   expiresAtMillis: number;
   isPrivate: boolean;
   isClosed: boolean;
+  footprintEnabled: boolean;
   access: "openable" | "distanceLocked";
 }
 
@@ -274,12 +276,14 @@ function pinFromDoc(
         storedCreatorName.trim() :
         "Unknown user",
     messageCount: (doc.get("messageCount") as number | undefined) ?? 0,
+    visitorCount: (doc.get("visitorCount") as number | undefined) ?? 0,
     createdAtMillis: createdAt?.toMillis() ?? nowMillis,
     lastActivityAtMillis:
       (lastMessageAt ?? createdAt)?.toMillis() ?? nowMillis,
     expiresAtMillis: expiresAt.toMillis(),
     isPrivate: doc.get("visibility") === "private",
     isClosed: doc.get("isOpen") !== true,
+    footprintEnabled: doc.get("footprintEnabled") !== false,
     access: canOpenFrom(user, coords, noteAccessRadiusKm) ?
       "openable" :
       "distanceLocked",

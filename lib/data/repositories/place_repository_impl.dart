@@ -16,9 +16,11 @@ import '../../domain/entities/place_entity.dart'
         PlaceEntity,
         PlaceVisibility;
 import '../../domain/entities/nearby_notification_entity.dart';
+import '../../domain/entities/note_visitor_entity.dart';
 import '../../domain/entities/pin_summary_entity.dart';
 import '../../domain/repositories/place_repository.dart';
 import '../models/nearby_notification_model.dart';
+import '../models/note_visitor_model.dart';
 import '../models/pin_summary_model.dart';
 import '../models/place_model.dart';
 
@@ -392,6 +394,65 @@ class PlaceRepositoryImpl implements PlaceRepository {
             );
           }).toList(),
         );
+  }
+
+  @override
+  Future<void> recordNoteVisit(String placeId) async {
+    await _functions.httpsCallable('recordNoteVisit').call<void>({
+      'placeId': placeId,
+    });
+  }
+
+  @override
+  Stream<List<NoteVisitor>> watchRecentVisitors({
+    required String placeId,
+    required int limit,
+  }) {
+    return _places
+        .doc(placeId)
+        .collection('visitors')
+        .orderBy('lastVisitedAt', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map(_visitorsFromSnapshot);
+  }
+
+  @override
+  Stream<List<NoteVisitor>> watchVisitors({
+    required String placeId,
+    required NoteVisitorSort sort,
+  }) {
+    final query = switch (sort) {
+      NoteVisitorSort.latest =>
+        _places
+            .doc(placeId)
+            .collection('visitors')
+            .orderBy('lastVisitedAt', descending: true),
+      NoteVisitorSort.visitCount =>
+        _places
+            .doc(placeId)
+            .collection('visitors')
+            .orderBy('visitCount', descending: true),
+    };
+    return query.snapshots().map(_visitorsFromSnapshot);
+  }
+
+  List<NoteVisitor> _visitorsFromSnapshot(QuerySnapshot snap) {
+    return snap.docs
+        .map(NoteVisitorModel.fromFirestore)
+        .map((model) => model.toEntity())
+        .toList();
+  }
+
+  @override
+  Future<void> setFootprintEnabled({
+    required String placeId,
+    required bool enabled,
+  }) async {
+    await _functions.httpsCallable('setFootprintEnabled').call<void>({
+      'placeId': placeId,
+      'enabled': enabled,
+    });
   }
 
   @override
