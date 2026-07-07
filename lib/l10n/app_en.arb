@@ -16,6 +16,26 @@
     "description": "Button label to open system settings for location permission"
   },
 
+  "locationPermissionAllow": "Allow Location",
+  "@locationPermissionAllow": {
+    "description": "Button label to retry requesting location permission"
+  },
+
+  "locationServiceDisabledTitle": "Turn On Location Services",
+  "@locationServiceDisabledTitle": {
+    "description": "Title shown when device location services are disabled"
+  },
+
+  "locationServiceDisabledMessage": "Turn on location services to use World Notes.",
+  "@locationServiceDisabledMessage": {
+    "description": "Body text shown when device location services are disabled"
+  },
+
+  "locationServiceOpenSettings": "Open Location Settings",
+  "@locationServiceOpenSettings": {
+    "description": "Button label to open device location service settings"
+  },
+
   "locationSearching": "Finding your location…",
   "@locationSearching": {
     "description": "Label shown while waiting for the first GPS fix"

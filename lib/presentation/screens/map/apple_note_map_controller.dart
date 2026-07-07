@@ -30,11 +30,11 @@ class AppleNoteMapController implements NoteMapAdapter {
   static const double _markerZIndex = 0;
 
   final Future<void> Function(PinSummary pin) onPinSelected;
-  final PinMarkerImageResolver markerImageResolver;
+  final OnResolvePinMarkerImage onResolveMarkerImage;
 
   AppleNoteMapController({
     required this.onPinSelected,
-    required this.markerImageResolver,
+    required this.onResolveMarkerImage,
   });
 
   final annotations = ValueNotifier<Set<apple.Annotation>>(
@@ -350,7 +350,7 @@ class AppleNoteMapController implements NoteMapAdapter {
 
   Future<Uint8List?> _resolveMarkerImage(PinSummary pin) async {
     try {
-      return await markerImageResolver(pin);
+      return await onResolveMarkerImage(pin);
     } catch (error, stack) {
       debugPrint('Failed to load Apple pin marker image: $error\n$stack');
       return null;

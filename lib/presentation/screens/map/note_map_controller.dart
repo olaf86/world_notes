@@ -58,7 +58,7 @@ class NoteMapController {
 
   // ── External hooks ────────────────────────────────────────────────────────
   final TickerProvider vsync;
-  final PinMarkerImageResolver markerImageResolver;
+  final OnResolvePinMarkerImage onResolveMarkerImage;
 
   /// Invoked when the user taps an unclustered pin. The returned future
   /// should complete when whatever UI was opened (e.g. a bottom sheet) is
@@ -69,7 +69,7 @@ class NoteMapController {
   NoteMapController({
     required this.vsync,
     required this.onPinSelected,
-    required this.markerImageResolver,
+    required this.onResolveMarkerImage,
   }) {
     _pinScaleController = AnimationController(
       vsync: vsync,
@@ -459,7 +459,7 @@ class NoteMapController {
 
   Future<Uint8List?> _resolveMarkerImage(PinSummary pin) async {
     try {
-      return await markerImageResolver(pin);
+      return await onResolveMarkerImage(pin);
     } catch (error, stack) {
       debugPrint('Failed to load pin marker image: $error\n$stack');
       return null;

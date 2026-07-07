@@ -16,6 +16,9 @@ class PinThumbnailCropDialog extends StatefulWidget {
 }
 
 class _PinThumbnailCropDialogState extends State<PinThumbnailCropDialog> {
+  static const double _minScale = 1;
+  static const double _maxScale = 4;
+
   final _previewKey = GlobalKey();
   final _transformController = TransformationController();
   bool _encoding = false;
@@ -71,6 +74,23 @@ class _PinThumbnailCropDialogState extends State<PinThumbnailCropDialog> {
     _transformController.value = Matrix4.identity();
   }
 
+  void _zoomBy(double factor) {
+    final currentScale = _transformController.value.getMaxScaleOnAxis();
+    final targetScale = (currentScale * factor)
+        .clamp(_minScale, _maxScale)
+        .toDouble();
+    final effectiveFactor = targetScale / currentScale;
+    if (effectiveFactor == 1) return;
+
+    final box = _previewKey.currentContext?.findRenderObject() as RenderBox?;
+    final focalPoint = box?.size.center(Offset.zero) ?? Offset.zero;
+    final matrix = _transformController.value.clone()
+      ..translateByDouble(focalPoint.dx, focalPoint.dy, 0, 1)
+      ..scaleByDouble(effectiveFactor, effectiveFactor, 1, 1)
+      ..translateByDouble(-focalPoint.dx, -focalPoint.dy, 0, 1);
+    _transformController.value = matrix;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -92,10 +112,11 @@ class _PinThumbnailCropDialogState extends State<PinThumbnailCropDialog> {
                     child: ClipRect(
                       child: InteractiveViewer(
                         transformationController: _transformController,
-                        minScale: 1,
-                        maxScale: 4,
+                        minScale: _minScale,
+                        maxScale: _maxScale,
                         panEnabled: true,
                         scaleEnabled: true,
+                        trackpadScrollCausesScale: true,
                         child: SizedBox.expand(
                           child: Image.memory(
                             widget.imageBytes,
@@ -118,15 +139,28 @@ class _PinThumbnailCropDialogState extends State<PinThumbnailCropDialog> {
                 ],
               ),
             ),
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Drag and pinch to choose the part shown in the pin.',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Drag and pinch to choose the part shown in the pin.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
                 ),
-              ),
+                IconButton(
+                  tooltip: 'Zoom out',
+                  onPressed: _encoding ? null : () => _zoomBy(0.8),
+                  icon: const Icon(Icons.zoom_out),
+                ),
+                IconButton(
+                  tooltip: 'Zoom in',
+                  onPressed: _encoding ? null : () => _zoomBy(1.25),
+                  icon: const Icon(Icons.zoom_in),
+                ),
+              ],
             ),
           ],
         ),

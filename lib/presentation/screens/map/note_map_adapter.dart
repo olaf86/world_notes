@@ -12,7 +12,7 @@ import '../../providers/providers.dart';
 /// Returning null lets map adapters fall back to the normal icon marker. The
 /// resolver is injected so platform map controllers stay independent from
 /// Riverpod, Firebase Storage, and caching details.
-typedef PinMarkerImageResolver = Future<Uint8List?> Function(PinSummary pin);
+typedef OnResolvePinMarkerImage = Future<Uint8List?> Function(PinSummary pin);
 
 abstract class NoteMapAdapter {
   bool get supportsMapStyle;

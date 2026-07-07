@@ -116,6 +116,30 @@ abstract class AppLocalizations {
   /// **'Open Settings'**
   String get locationPermissionOpenSettings;
 
+  /// Button label to retry requesting location permission
+  ///
+  /// In en, this message translates to:
+  /// **'Allow Location'**
+  String get locationPermissionAllow;
+
+  /// Title shown when device location services are disabled
+  ///
+  /// In en, this message translates to:
+  /// **'Turn On Location Services'**
+  String get locationServiceDisabledTitle;
+
+  /// Body text shown when device location services are disabled
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on location services to use World Notes.'**
+  String get locationServiceDisabledMessage;
+
+  /// Button label to open device location service settings
+  ///
+  /// In en, this message translates to:
+  /// **'Open Location Settings'**
+  String get locationServiceOpenSettings;
+
   /// Label shown while waiting for the first GPS fix
   ///
   /// In en, this message translates to:

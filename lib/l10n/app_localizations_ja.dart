@@ -19,5 +19,18 @@ class AppLocalizationsJa extends AppLocalizations {
   String get locationPermissionOpenSettings => '設定を開く';
 
   @override
+  String get locationPermissionAllow => '現在位置を許可';
+
+  @override
+  String get locationServiceDisabledTitle => '位置情報サービスをオンにしてください';
+
+  @override
+  String get locationServiceDisabledMessage =>
+      'World Notes を利用するには、端末の位置情報サービスをオンにしてください。';
+
+  @override
+  String get locationServiceOpenSettings => '位置情報設定を開く';
+
+  @override
   String get locationSearching => '現在位置を取得中…';
 }
