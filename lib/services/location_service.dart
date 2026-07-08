@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:geolocator/geolocator.dart';
 
+import '../config/runtime_mode.dart';
+
 class LocationPermissionDeniedException implements Exception {
   final bool permanentlyDenied;
   const LocationPermissionDeniedException({this.permanentlyDenied = false});
@@ -57,9 +59,25 @@ extension LocationAvailabilityIssueException on LocationAvailabilityIssue {
 }
 
 class LocationService {
+  Position _screenshotPosition() {
+    return Position(
+      latitude: screenshotLatitude,
+      longitude: screenshotLongitude,
+      timestamp: DateTime.now(),
+      accuracy: 5,
+      altitude: 0,
+      altitudeAccuracy: 0,
+      heading: 0,
+      headingAccuracy: 0,
+      speed: 0,
+      speedAccuracy: 0,
+    );
+  }
+
   /// Checks the current permission and requests it if not yet determined.
   /// Returns the final [LocationPermission] after any request dialog.
   Future<LocationPermission> ensurePermission() async {
+    if (screenshotMode) return LocationPermission.whileInUse;
     var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
@@ -68,6 +86,7 @@ class LocationService {
   }
 
   Future<LocationAvailabilityIssue?> ensureLocationAvailable() async {
+    if (screenshotMode) return null;
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return LocationAvailabilityIssue.serviceDisabled;
 
@@ -78,6 +97,8 @@ class LocationService {
   /// Retrieves the user's current GPS position for actions that need a final
   /// point-in-time location, such as confirming note creation.
   Future<Position> getCurrentPosition() async {
+    if (screenshotMode) return _screenshotPosition();
+
     final issue = await ensureLocationAvailable();
     if (issue != null) throw issue.toException();
 
@@ -91,6 +112,10 @@ class LocationService {
   /// GPS updates. Throws [LocationPermissionDeniedException] when permission
   /// is denied so [StreamProvider]s can surface the denial as an error state.
   Stream<Position> watchPosition() {
+    if (screenshotMode) {
+      return Stream<Position>.value(_screenshotPosition());
+    }
+
     StreamSubscription<Position>? positionSubscription;
     AppLifecycleListener? lifecycleListener;
     var isForeground =

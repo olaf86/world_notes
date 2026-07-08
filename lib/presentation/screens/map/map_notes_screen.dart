@@ -102,23 +102,34 @@ class _MapNotesList extends ConsumerWidget {
       }
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          tooltip: 'Map',
-          icon: const Icon(Icons.map_outlined),
-          onPressed: onShowMap,
-        ),
-        title: const Text('Map Notes'),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh map notes',
-            icon: const Icon(Icons.refresh_outlined),
-            onPressed: anchor == null ? null : refresh,
+    return Semantics(
+      identifier: 'screen-map-notes-list',
+      child: Scaffold(
+        appBar: AppBar(
+          leading: Semantics(
+            identifier: 'action-show-map',
+            button: true,
+            child: IconButton(
+              tooltip: 'Map',
+              icon: const Icon(Icons.map_outlined),
+              onPressed: onShowMap,
+            ),
           ),
-        ],
+          title: const Text('Map Notes'),
+          actions: [
+            Semantics(
+              identifier: 'action-refresh-map-notes-list',
+              button: true,
+              child: IconButton(
+                tooltip: 'Refresh map notes',
+                icon: const Icon(Icons.refresh_outlined),
+                onPressed: anchor == null ? null : refresh,
+              ),
+            ),
+          ],
+        ),
+        body: const MapNotesListScreen(embedded: true),
       ),
-      body: const MapNotesListScreen(embedded: true),
     );
   }
 }

@@ -159,10 +159,15 @@ class _PinList extends ConsumerWidget {
             itemCount: sorted.length,
             separatorBuilder: (context, index) => const SizedBox(height: 10),
             itemBuilder: (context, index) {
-              return _MapNoteTile(
-                pin: sorted[index],
-                userLatitude: userLatitude,
-                userLongitude: userLongitude,
+              final pin = sorted[index];
+              return Semantics(
+                identifier: 'map-note-card-${pin.placeId}',
+                button: true,
+                child: _MapNoteTile(
+                  pin: pin,
+                  userLatitude: userLatitude,
+                  userLongitude: userLongitude,
+                ),
               );
             },
           );

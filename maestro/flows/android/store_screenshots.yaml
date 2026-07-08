@@ -1,0 +1,50 @@
+appId: dev.asobo.worldnotes
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: "screen-map"
+    timeout: 20000
+- takeScreenshot: "artifacts/store_screenshots/android/android_01_map"
+- tapOn:
+    id: "action-show-map-notes-list"
+- extendedWaitUntil:
+    visible:
+      id: "screen-map-notes-list"
+    timeout: 15000
+- extendedWaitUntil:
+    visible:
+      id: "map-note-card-wn_tokyo_station"
+    timeout: 15000
+- takeScreenshot: "artifacts/store_screenshots/android/android_02_nearby_notes"
+- tapOn:
+    id: "map-note-card-wn_tokyo_station"
+- extendedWaitUntil:
+    visible:
+      id: "screen-note-detail-wn_tokyo_station"
+    timeout: 15000
+- takeScreenshot: "artifacts/store_screenshots/android/android_03_note_detail"
+- back
+- tapOn: "Notes"
+- extendedWaitUntil:
+    visible:
+      id: "screen-my-notes"
+    timeout: 15000
+- extendedWaitUntil:
+    visible:
+      id: "my-note-card-wn_tokyo_station"
+    timeout: 15000
+- takeScreenshot: "artifacts/store_screenshots/android/android_04_my_notes"
+- tapOn: "Profile"
+- extendedWaitUntil:
+    visible:
+      id: "screen-profile"
+    timeout: 15000
+- takeScreenshot: "artifacts/store_screenshots/android/android_05_profile"
+- tapOn: "Upgrade to PRO"
+- extendedWaitUntil:
+    visible:
+      id: "screen-subscription"
+    timeout: 15000
+- takeScreenshot: "artifacts/store_screenshots/android/android_06_pro"

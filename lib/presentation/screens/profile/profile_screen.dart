@@ -88,132 +88,140 @@ class ProfileScreen extends ConsumerWidget {
     final userAsync = ref.watch(authStateProvider);
     final isPremiumAsync = ref.watch(isPremiumProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Profile'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Settings',
-            onPressed: () => context.push('/settings'),
-          ),
-        ],
-      ),
-      body: userAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
-        data: (user) {
-          if (user == null) return const SizedBox();
+    return Semantics(
+      identifier: 'screen-profile',
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Profile'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.settings_outlined),
+              tooltip: 'Settings',
+              onPressed: () => context.push('/settings'),
+            ),
+          ],
+        ),
+        body: userAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('Error: $e')),
+          data: (user) {
+            if (user == null) return const SizedBox();
 
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              Center(
-                child: Column(
-                  children: [
-                    CircleAvatar(
-                      radius: 48,
-                      backgroundImage: user.photoUrl != null
-                          ? CachedNetworkImageProvider(user.photoUrl!)
-                          : null,
-                      child: user.photoUrl == null
-                          ? Text(
-                              user.name.isNotEmpty
-                                  ? user.name[0].toUpperCase()
-                                  : '?',
-                              style: const TextStyle(fontSize: 32),
-                            )
-                          : null,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      user.name,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
+            return ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                Center(
+                  child: Column(
+                    children: [
+                      CircleAvatar(
+                        radius: 48,
+                        backgroundImage: user.photoUrl != null
+                            ? CachedNetworkImageProvider(user.photoUrl!)
+                            : null,
+                        child: user.photoUrl == null
+                            ? Text(
+                                user.name.isNotEmpty
+                                    ? user.name[0].toUpperCase()
+                                    : '?',
+                                style: const TextStyle(fontSize: 32),
+                              )
+                            : null,
                       ),
-                    ),
-                    TextButton.icon(
-                      onPressed: () => _editNickname(context, ref, user.name),
-                      icon: const Icon(Icons.edit_outlined, size: 18),
-                      label: const Text('Edit nickname'),
-                    ),
-                    if (user.email != null)
+                      const SizedBox(height: 12),
                       Text(
-                        user.email!,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        user.name,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                    const SizedBox(height: 8),
-                    isPremiumAsync.when(
-                      loading: () => const SizedBox(),
-                      error: (e, st) => const SizedBox(),
-                      data: (isPremium) => isPremium
-                          ? Column(
-                              children: [
-                                Chip(
-                                  label: const Text('PRO'),
-                                  avatar: const Icon(Icons.star, size: 16),
-                                  backgroundColor: Theme.of(
-                                    context,
-                                  ).colorScheme.primaryContainer,
-                                ),
-                                if (SubscriptionService.isConfigured)
-                                  TextButton(
-                                    onPressed: () =>
-                                        RevenueCatUI.presentCustomerCenter(),
-                                    child: const Text('Manage Subscription'),
+                      TextButton.icon(
+                        onPressed: () => _editNickname(context, ref, user.name),
+                        icon: const Icon(Icons.edit_outlined, size: 18),
+                        label: const Text('Edit nickname'),
+                      ),
+                      if (user.email != null)
+                        Text(
+                          user.email!,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
+                        ),
+                      const SizedBox(height: 8),
+                      isPremiumAsync.when(
+                        loading: () => const SizedBox(),
+                        error: (e, st) => const SizedBox(),
+                        data: (isPremium) => isPremium
+                            ? Column(
+                                children: [
+                                  Chip(
+                                    label: const Text('PRO'),
+                                    avatar: const Icon(Icons.star, size: 16),
+                                    backgroundColor: Theme.of(
+                                      context,
+                                    ).colorScheme.primaryContainer,
                                   ),
-                              ],
-                            )
-                          : OutlinedButton.icon(
-                              onPressed: () => context.push('/subscription'),
-                              icon: const Icon(Icons.star_outline),
-                              label: const Text('Upgrade to PRO'),
-                            ),
-                    ),
-                  ],
+                                  if (SubscriptionService.isConfigured)
+                                    TextButton(
+                                      onPressed: () =>
+                                          RevenueCatUI.presentCustomerCenter(),
+                                      child: const Text('Manage Subscription'),
+                                    ),
+                                ],
+                              )
+                            : OutlinedButton.icon(
+                                onPressed: () => context.push('/subscription'),
+                                icon: const Icon(Icons.star_outline),
+                                label: const Text('Upgrade to PRO'),
+                              ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 32),
-              const Divider(),
-              ListTile(
-                leading: const Icon(Icons.star_outline),
-                title: const Text(AppConfig.proPlanName),
-                subtitle: const Text(
-                  'Remove ads, keep 200 notes, and unlock PRO features',
-                ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.push('/subscription'),
-              ),
-              if (SubscriptionService.isConfigured) ...[
+                const SizedBox(height: 32),
                 const Divider(),
                 ListTile(
-                  leading: const Icon(Icons.manage_accounts_outlined),
-                  title: const Text('Manage Subscription'),
-                  subtitle: const Text('Billing, cancellation & support'),
+                  leading: const Icon(Icons.star_outline),
+                  title: const Text(AppConfig.proPlanName),
+                  subtitle: const Text(
+                    'Remove ads, keep 200 notes, and unlock PRO features',
+                  ),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => RevenueCatUI.presentCustomerCenter(),
+                  onTap: () => context.push('/subscription'),
+                ),
+                if (SubscriptionService.isConfigured) ...[
+                  const Divider(),
+                  ListTile(
+                    leading: const Icon(Icons.manage_accounts_outlined),
+                    title: const Text('Manage Subscription'),
+                    subtitle: const Text('Billing, cancellation & support'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => RevenueCatUI.presentCustomerCenter(),
+                  ),
+                ],
+                const Divider(),
+                ListTile(
+                  leading: Icon(
+                    Icons.logout,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                  title: Text(
+                    'Sign Out',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                  onTap: () async {
+                    await ref.read(authRepositoryProvider).signOut();
+                    await ref.read(subscriptionServiceProvider).logOut();
+                  },
                 ),
               ],
-              const Divider(),
-              ListTile(
-                leading: Icon(
-                  Icons.logout,
-                  color: Theme.of(context).colorScheme.error,
-                ),
-                title: Text(
-                  'Sign Out',
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
-                onTap: () async {
-                  await ref.read(authRepositoryProvider).signOut();
-                  await ref.read(subscriptionServiceProvider).logOut();
-                },
-              ),
-            ],
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }

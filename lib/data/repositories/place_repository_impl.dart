@@ -5,6 +5,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../config/runtime_mode.dart';
 import '../../core/utils/image_upload_util.dart';
 import '../../domain/entities/place_entity.dart'
     show
@@ -75,6 +76,8 @@ class PlaceRepositoryImpl implements PlaceRepository {
     required double latitude,
     required double longitude,
   }) async {
+    if (screenshotMode) return;
+
     await _functions.httpsCallable('validateNoteAccess').call<void>({
       'placeId': placeId,
       'latitude': latitude,
@@ -398,6 +401,8 @@ class PlaceRepositoryImpl implements PlaceRepository {
 
   @override
   Future<void> recordNoteVisit(String placeId) async {
+    if (screenshotMode) return;
+
     await _functions.httpsCallable('recordNoteVisit').call<void>({
       'placeId': placeId,
     });

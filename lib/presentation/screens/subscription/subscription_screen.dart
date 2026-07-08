@@ -30,14 +30,17 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   @override
   Widget build(BuildContext context) {
     if (!SubscriptionService.isConfigured) {
-      return Scaffold(
-        appBar: AppBar(title: const Text(AppConfig.proPlanName)),
-        body: const Center(
-          child: Padding(
-            padding: EdgeInsets.all(24),
-            child: Text(
-              '${AppConfig.proPlanName} is not available in this build.',
-              textAlign: TextAlign.center,
+      return Semantics(
+        identifier: 'screen-subscription',
+        child: Scaffold(
+          appBar: AppBar(title: const Text(AppConfig.proPlanName)),
+          body: const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Text(
+                '${AppConfig.proPlanName} is not available in this build.',
+                textAlign: TextAlign.center,
+              ),
             ),
           ),
         ),
@@ -124,40 +127,45 @@ class _RevenueCatPaywall extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: PaywallView(
-        offering: offering,
-        customVariables: {
-          'plan_name': const CustomVariableValue.string(AppConfig.proPlanName),
-          'monthly_price': CustomVariableValue.string(
-            AppConfig.proMonthlyPriceLabel,
-          ),
-          'yearly_price': CustomVariableValue.string(
-            AppConfig.proYearlyPriceLabel,
-          ),
-          'yearly_launch_price': CustomVariableValue.string(
-            AppConfig.proYearlyLaunchPriceLabel,
-          ),
-          'free_note_limit': CustomVariableValue.number(
-            AppConfig.freeNoteLimit.toDouble(),
-          ),
-          'pro_note_limit': CustomVariableValue.number(
-            AppConfig.proNoteLimit.toDouble(),
-          ),
-        },
-        onPurchaseCompleted: (customerInfo, storeTransaction) {
-          if (context.mounted) Navigator.of(context).pop();
-        },
-        onPurchaseError: (error) =>
-            _handlePaywallError(context, 'purchase', error),
-        onRestoreCompleted: (customerInfo) {
-          if (context.mounted) Navigator.of(context).pop();
-        },
-        onRestoreError: (error) =>
-            _handlePaywallError(context, 'restore', error),
-        onDismiss: () {
-          if (context.mounted) Navigator.of(context).pop();
-        },
+    return Semantics(
+      identifier: 'screen-subscription',
+      child: Scaffold(
+        body: PaywallView(
+          offering: offering,
+          customVariables: {
+            'plan_name': const CustomVariableValue.string(
+              AppConfig.proPlanName,
+            ),
+            'monthly_price': CustomVariableValue.string(
+              AppConfig.proMonthlyPriceLabel,
+            ),
+            'yearly_price': CustomVariableValue.string(
+              AppConfig.proYearlyPriceLabel,
+            ),
+            'yearly_launch_price': CustomVariableValue.string(
+              AppConfig.proYearlyLaunchPriceLabel,
+            ),
+            'free_note_limit': CustomVariableValue.number(
+              AppConfig.freeNoteLimit.toDouble(),
+            ),
+            'pro_note_limit': CustomVariableValue.number(
+              AppConfig.proNoteLimit.toDouble(),
+            ),
+          },
+          onPurchaseCompleted: (customerInfo, storeTransaction) {
+            if (context.mounted) Navigator.of(context).pop();
+          },
+          onPurchaseError: (error) =>
+              _handlePaywallError(context, 'purchase', error),
+          onRestoreCompleted: (customerInfo) {
+            if (context.mounted) Navigator.of(context).pop();
+          },
+          onRestoreError: (error) =>
+              _handlePaywallError(context, 'restore', error),
+          onDismiss: () {
+            if (context.mounted) Navigator.of(context).pop();
+          },
+        ),
       ),
     );
   }
@@ -174,33 +182,36 @@ class _SubscriptionSetupErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text(AppConfig.proPlanName)),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Icon(
-                  Icons.error_outline,
-                  size: 40,
-                  color: Theme.of(context).colorScheme.error,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  '${AppConfig.proPlanName} is temporarily unavailable.',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 12),
-                SelectableText(message, textAlign: TextAlign.center),
-                const SizedBox(height: 24),
-                FilledButton(onPressed: onRetry, child: const Text('Retry')),
-              ],
+    return Semantics(
+      identifier: 'screen-subscription',
+      child: Scaffold(
+        appBar: AppBar(title: const Text(AppConfig.proPlanName)),
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: 40,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    '${AppConfig.proPlanName} is temporarily unavailable.',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 12),
+                  SelectableText(message, textAlign: TextAlign.center),
+                  const SizedBox(height: 24),
+                  FilledButton(onPressed: onRetry, child: const Text('Retry')),
+                ],
+              ),
             ),
           ),
         ),

@@ -1,0 +1,25 @@
+appId: dev.asobo.worldnotes
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: "screen-map"
+    timeout: 20000
+- tapOn:
+    id: "action-show-map-notes-list"
+- extendedWaitUntil:
+    visible:
+      id: "screen-map-notes-list"
+    timeout: 15000
+- tapOn:
+    id: "action-show-map"
+- extendedWaitUntil:
+    visible:
+      id: "screen-map"
+    timeout: 15000
+- tapOn: "Profile"
+- extendedWaitUntil:
+    visible:
+      id: "screen-profile"
+    timeout: 15000
