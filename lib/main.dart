@@ -45,7 +45,7 @@ void main() async {
   if (AppConfig.supportsMobileAds) {
     await MobileAds.instance.initialize();
   }
-  if (!screenshotMode) {
+  if (shouldInitializeRevenueCat) {
     await SubscriptionService.initialize();
   }
 
@@ -88,7 +88,7 @@ Future<void> _configureFirebaseServices() async {
 }
 
 Future<void> _signInScreenshotUserIfNeeded() async {
-  if (!shouldUseFirebaseEmulators || !screenshotMode) return;
+  if (!shouldSignInScreenshotUser) return;
 
   final auth = FirebaseAuth.instance;
   if (auth.currentUser != null) {
@@ -129,7 +129,7 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp> {
   @override
   void initState() {
     super.initState();
-    if (screenshotMode) return;
+    if (!shouldStartAppRuntimeServices) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final service = ref.read(myNotesNotificationServiceProvider);
       service.initialPlaceRouteFromLaunch().then(_openPlaceFromNotification);

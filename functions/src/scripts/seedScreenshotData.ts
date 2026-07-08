@@ -1,4 +1,13 @@
-const admin = require("firebase-admin");
+/* eslint-disable require-jsdoc, max-len, no-console */
+import {deleteApp, initializeApp} from "firebase-admin/app";
+import {getAuth, UserRecord} from "firebase-admin/auth";
+import {
+  CollectionReference,
+  DocumentData,
+  FieldValue,
+  getFirestore,
+  Timestamp,
+} from "firebase-admin/firestore";
 
 const projectId = process.env.GCLOUD_PROJECT || "world-notes-prod";
 process.env.FIREBASE_AUTH_EMULATOR_HOST =
@@ -6,10 +15,56 @@ process.env.FIREBASE_AUTH_EMULATOR_HOST =
 process.env.FIRESTORE_EMULATOR_HOST =
   process.env.FIRESTORE_EMULATOR_HOST || "127.0.0.1:8080";
 
-admin.initializeApp({projectId});
+const app = initializeApp({projectId});
+const db = getFirestore(app);
+const auth = getAuth(app);
 
-const db = admin.firestore();
-const auth = admin.auth();
+interface ScreenshotUser {
+  uid: string;
+  email: string;
+  password: string;
+  displayName: string;
+}
+
+interface OtherUser {
+  uid: string;
+  displayName: string;
+}
+
+interface VisitorSeed {
+  userId: string;
+  displayName: string;
+  firstVisitedHoursAgo: number;
+  lastVisitedHoursAgo: number;
+  visitCount: number;
+}
+
+interface MessageSeed {
+  id: string;
+  content: string;
+  hoursAgo: number;
+  userId?: string;
+  userName?: string;
+}
+
+interface PlaceSeed {
+  id: string;
+  title: string;
+  subtitle: string;
+  latitude: number;
+  longitude: number;
+  colorHex: string;
+  icon: string;
+  createdHoursAgo: number;
+  lastMessageHoursAgo: number;
+  expiresInDays: number;
+  visitors: VisitorSeed[];
+  messages: MessageSeed[];
+  visibility?: "public" | "private";
+  publishHoursAgo?: number;
+  isOpen?: boolean;
+  isArchived?: boolean;
+}
 
 const screenshotUser = {
   email: "screenshot@example.com",
@@ -17,15 +72,15 @@ const screenshotUser = {
   displayName: "World Notes Guide",
 };
 
-const otherUsers = [
+const otherUsers: OtherUser[] = [
   {uid: "screenshot_friend_mina", displayName: "Mina"},
   {uid: "screenshot_friend_ren", displayName: "Ren"},
   {uid: "screenshot_friend_sora", displayName: "Sora"},
 ];
 
-const BASE32 = "0123456789bcdefghjkmnpqrstuvwxyz";
+const base32 = "0123456789bcdefghjkmnpqrstuvwxyz";
 
-function encodeGeohash(lat, lng, precision = 6) {
+function encodeGeohash(lat: number, lng: number, precision = 6): string {
   let minLat = -90.0;
   let maxLat = 90.0;
   let minLng = -180.0;
@@ -56,7 +111,7 @@ function encodeGeohash(lat, lng, precision = 6) {
     isEven = !isEven;
     bits++;
     if (bits === 5) {
-      hash += BASE32[hashValue];
+      hash += base32[hashValue];
       bits = 0;
       hashValue = 0;
     }
@@ -64,8 +119,15 @@ function encodeGeohash(lat, lng, precision = 6) {
   return hash;
 }
 
-async function ensureAuthUser() {
-  let userRecord;
+function isFirebaseError(error: unknown): error is {code: string} {
+  return typeof error === "object" &&
+    error != null &&
+    "code" in error &&
+    typeof (error as {code?: unknown}).code === "string";
+}
+
+async function ensureAuthUser(): Promise<ScreenshotUser> {
+  let userRecord: UserRecord;
   try {
     userRecord = await auth.getUserByEmail(screenshotUser.email);
     await auth.updateUser(userRecord.uid, {
@@ -74,7 +136,7 @@ async function ensureAuthUser() {
       emailVerified: true,
     });
   } catch (error) {
-    if (error.code !== "auth/user-not-found") {
+    if (!isFirebaseError(error) || error.code !== "auth/user-not-found") {
       throw error;
     }
     userRecord = await auth.createUser({
@@ -87,7 +149,9 @@ async function ensureAuthUser() {
   return {...screenshotUser, uid: userRecord.uid};
 }
 
-async function deleteCollectionDocs(collectionRef) {
+async function deleteCollectionDocs(
+  collectionRef: CollectionReference<DocumentData>,
+): Promise<void> {
   const snapshot = await collectionRef.get();
   if (snapshot.empty) return;
   const batch = db.batch();
@@ -95,7 +159,7 @@ async function deleteCollectionDocs(collectionRef) {
   await batch.commit();
 }
 
-async function resetSeedData(user) {
+async function resetSeedData(user: ScreenshotUser): Promise<void> {
   const placeIds = [
     "wn_tokyo_station",
     "wn_marunouchi_cafe",
@@ -118,19 +182,23 @@ async function resetSeedData(user) {
   );
 }
 
-function timestamp(date) {
-  return admin.firestore.Timestamp.fromDate(date);
+function timestamp(date: Date): Timestamp {
+  return Timestamp.fromDate(date);
 }
 
-function daysFrom(now, days) {
+function daysFrom(now: Date, days: number): Date {
   return new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
 }
 
-function hoursBefore(now, hours) {
+function hoursBefore(now: Date, hours: number): Date {
   return new Date(now.getTime() - hours * 60 * 60 * 1000);
 }
 
-function placeData(user, now, place) {
+function placeData(
+  user: ScreenshotUser,
+  now: Date,
+  place: PlaceSeed,
+): DocumentData {
   const geohash = encodeGeohash(place.latitude, place.longitude, 6);
   return {
     latitude: place.latitude,
@@ -162,13 +230,13 @@ function placeData(user, now, place) {
   };
 }
 
-async function seedUsers(user) {
+async function seedUsers(user: ScreenshotUser): Promise<void> {
   await db.collection("users").doc(user.uid).set({
     displayName: user.displayName,
     email: user.email,
     photoUrl: null,
     isPremium: false,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
   });
 
   for (const other of otherUsers) {
@@ -177,12 +245,16 @@ async function seedUsers(user) {
       email: null,
       photoUrl: null,
       isPremium: false,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
     });
   }
 }
 
-async function seedPlace(user, now, place) {
+async function seedPlace(
+  user: ScreenshotUser,
+  now: Date,
+  place: PlaceSeed,
+): Promise<void> {
   const placeRef = db.collection("places").doc(place.id);
   const data = placeData(user, now, place);
   await placeRef.set(data);
@@ -232,7 +304,11 @@ async function seedPlace(user, now, place) {
   }
 }
 
-async function seedNearbyAlert(user, now, place) {
+async function seedNearbyAlert(
+  user: ScreenshotUser,
+  now: Date,
+  place: PlaceSeed,
+): Promise<void> {
   await db
     .collection("users")
     .doc(user.uid)
@@ -253,15 +329,12 @@ async function seedNearbyAlert(user, now, place) {
       lastNotifiedMessageAt: timestamp(hoursBefore(now, 3)),
       inRange: true,
       inRangeUntil: timestamp(hoursBefore(now, -1)),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
 }
 
-async function main() {
-  const user = await ensureAuthUser();
-  const now = new Date();
-
-  const places = [
+function screenshotPlaces(user: ScreenshotUser): PlaceSeed[] {
+  return [
     {
       id: "wn_tokyo_station",
       title: "Tokyo Station Time Capsule",
@@ -404,6 +477,12 @@ async function main() {
       ],
     },
   ];
+}
+
+async function main(): Promise<void> {
+  const user = await ensureAuthUser();
+  const now = new Date();
+  const places = screenshotPlaces(user);
 
   await resetSeedData(user);
   await seedUsers(user);
@@ -425,5 +504,5 @@ main()
     process.exitCode = 1;
   })
   .finally(async () => {
-    await admin.app().delete();
+    await deleteApp(app);
   });

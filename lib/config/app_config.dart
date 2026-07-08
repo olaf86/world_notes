@@ -34,7 +34,7 @@ class AppConfig {
       'ca-app-pub-3940256099942544/2934735716';
 
   static bool get supportsMobileAds {
-    if (screenshotMode) return false;
+    if (!shouldServeAds) return false;
     if (kIsWeb) return false;
     return switch (defaultTargetPlatform) {
       TargetPlatform.android || TargetPlatform.iOS => true,

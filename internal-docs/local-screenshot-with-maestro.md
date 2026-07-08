@@ -37,7 +37,8 @@
 
 ## Seed Data
 
-Seed data is written by:
+Seed data is defined in `functions/src/scripts/seedScreenshotData.ts` and
+written by:
 
 ```bash
 (cd functions && npm run seed:screenshot)

@@ -9,7 +9,6 @@ import 'package:go_router/go_router.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../../../config/app_config.dart';
-import '../../../config/runtime_mode.dart';
 import '../../../core/utils/password_util.dart';
 import '../../../core/utils/pattern_lock_util.dart';
 import '../../../domain/entities/message_entity.dart';
@@ -487,7 +486,6 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     required NotePermissions permissions,
     required String? currentUserId,
   }) {
-    if (screenshotMode) return;
     if (currentUserId == null ||
         !place.footprintEnabled ||
         !permissions.canReadContent ||

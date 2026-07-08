@@ -7,7 +7,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../config/app_config.dart';
-import '../../../config/runtime_mode.dart';
 import '../../../core/map_style.dart';
 import '../../../core/utils/image_upload_util.dart';
 import '../../../domain/entities/pin_summary_entity.dart';
@@ -110,28 +109,26 @@ class _MapScreenState extends ConsumerState<MapScreen>
       return false;
     }
 
-    if (!screenshotMode) {
-      try {
-        await ref
-            .read(placeRepositoryProvider)
-            .validateNoteAccess(
-              placeId: pin.placeId,
-              latitude: anchor.latitude,
-              longitude: anchor.longitude,
-            );
-      } catch (error, stack) {
-        await reportMapNotesError(
-          crashlytics: ref.read(firebaseCrashlyticsProvider),
-          operation: 'open map pin',
-          error: error,
-          stack: stack,
-        );
-        if (!mounted) return false;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text(mapNoteOpenErrorMessage)));
-        return false;
-      }
+    try {
+      await ref
+          .read(placeRepositoryProvider)
+          .validateNoteAccess(
+            placeId: pin.placeId,
+            latitude: anchor.latitude,
+            longitude: anchor.longitude,
+          );
+    } catch (error, stack) {
+      await reportMapNotesError(
+        crashlytics: ref.read(firebaseCrashlyticsProvider),
+        operation: 'open map pin',
+        error: error,
+        stack: stack,
+      );
+      if (!mounted) return false;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text(mapNoteOpenErrorMessage)));
+      return false;
     }
 
     if (!mounted) return false;

@@ -5,7 +5,7 @@
     "build": "tsc",
     "build:watch": "tsc --watch",
     "serve": "npm run build && firebase emulators:start --only functions",
-    "seed:screenshot": "node scripts/seed_screenshot_data.js",
+    "seed:screenshot": "npm run build && node lib/scripts/seedScreenshotData.js",
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",
