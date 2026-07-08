@@ -81,6 +81,8 @@ interface MyNotesSendContext {
   showPreview: boolean;
 }
 
+const BATCH_WRITE_LIMIT = 450;
+
 const VALID_PLATFORMS = new Set([
   "android",
   "ios",
@@ -321,11 +323,17 @@ function notificationPlaceData(
   lastReadMessageAt: Timestamp | FieldValue,
 ): Record<string, unknown> {
   const expiresAt = placeSnap.get("expiresAt") as Timestamp;
+  const pinImageStoragePath = placeSnap.get("pinImageStoragePath");
   return {
     placeId: placeSnap.id,
     title: placeSnap.get("title") as string,
     colorHex: placeSnap.get("colorHex") as string,
     icon: placeSnap.get("icon") as string,
+    pinImageStoragePath:
+      typeof pinImageStoragePath === "string" &&
+        pinImageStoragePath.trim().length > 0 ?
+        pinImageStoragePath.trim() :
+        FieldValue.delete(),
     latitude: placeSnap.get("latitude") as number,
     longitude: placeSnap.get("longitude") as number,
     expiresAt,
@@ -335,6 +343,45 @@ function notificationPlaceData(
     lastNotifiedMessageAt: lastReadMessageAt,
     updatedAt: FieldValue.serverTimestamp(),
   };
+}
+
+/**
+ * Refreshes each follower's per-user nearby alert mirror after a pin image
+ * changes.
+ *
+ * @param {string} placeId Note id whose pin image changed.
+ * @param {string} pinImageStoragePath Storage path for the new thumbnail.
+ */
+export async function updateNearbyNotificationPinImages(
+  placeId: string,
+  pinImageStoragePath: string,
+): Promise<void> {
+  const db = getFirestore();
+  const followers = await db
+    .collection("places")
+    .doc(placeId)
+    .collection("nearbyNotificationFollowers")
+    .where("enabled", "==", true)
+    .get();
+
+  for (let i = 0; i < followers.docs.length; i += BATCH_WRITE_LIMIT) {
+    const batch = db.batch();
+    for (const follower of followers.docs.slice(i, i + BATCH_WRITE_LIMIT)) {
+      batch.set(
+        db
+          .collection("users")
+          .doc(follower.id)
+          .collection("nearbyNotificationPlaces")
+          .doc(placeId),
+        {
+          pinImageStoragePath,
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        {merge: true},
+      );
+    }
+    await batch.commit();
+  }
 }
 
 function notificationBody(placeTitle: unknown): string {

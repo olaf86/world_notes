@@ -8,6 +8,7 @@ class NearbyNotificationModel {
   final String title;
   final String colorHex;
   final String icon;
+  final String? pinImageStoragePath;
   final double latitude;
   final double longitude;
   final int radiusMeters;
@@ -25,6 +26,7 @@ class NearbyNotificationModel {
     required this.title,
     required this.colorHex,
     required this.icon,
+    this.pinImageStoragePath,
     required this.latitude,
     required this.longitude,
     required this.radiusMeters,
@@ -45,6 +47,7 @@ class NearbyNotificationModel {
       title: data['title'] as String? ?? 'Untitled note',
       colorHex: data['colorHex'] as String,
       icon: data['icon'] as String,
+      pinImageStoragePath: data['pinImageStoragePath'] as String?,
       latitude: (data['latitude'] as num?)?.toDouble() ?? 0,
       longitude: (data['longitude'] as num?)?.toDouble() ?? 0,
       radiusMeters:
@@ -69,6 +72,7 @@ class NearbyNotificationModel {
     title: title,
     colorHex: colorHex,
     icon: icon,
+    pinImageStoragePath: pinImageStoragePath,
     latitude: latitude,
     longitude: longitude,
     radiusMeters: radiusMeters,

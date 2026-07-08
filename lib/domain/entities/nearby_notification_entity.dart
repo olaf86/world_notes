@@ -15,6 +15,7 @@ class NearbyNotificationPlace {
   final String title;
   final String colorHex;
   final String icon;
+  final String? pinImageStoragePath;
   final double latitude;
   final double longitude;
   final int radiusMeters;
@@ -40,6 +41,7 @@ class NearbyNotificationPlace {
     required this.title,
     required this.colorHex,
     required this.icon,
+    this.pinImageStoragePath,
     required this.latitude,
     required this.longitude,
     required this.radiusMeters,
@@ -59,6 +61,7 @@ class NearbyNotificationPlace {
       title: title,
       colorHex: colorHex,
       icon: icon,
+      pinImageStoragePath: pinImageStoragePath,
       latitude: latitude,
       longitude: longitude,
       radiusMeters: radiusMeters,

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/utils/place_icon.dart';
 import '../../../core/utils/time_format.dart';
 import '../../../domain/entities/pin_summary_entity.dart';
+import '../note/note_pin_avatar.dart';
 
 class NoteMarkerBottomSheet extends StatefulWidget {
   final PinSummary pin;
@@ -50,9 +51,11 @@ class _NoteMarkerBottomSheetState extends State<NoteMarkerBottomSheet> {
         children: [
           Row(
             children: [
-              CircleAvatar(
-                backgroundColor: color,
-                child: Icon(placeIconData(pin.icon), color: Colors.white),
+              NotePinAvatar(
+                color: color,
+                icon: placeIconData(pin.icon),
+                storagePath: pin.pinImageStoragePath,
+                radius: 20,
               ),
               const SizedBox(width: 12),
               Expanded(

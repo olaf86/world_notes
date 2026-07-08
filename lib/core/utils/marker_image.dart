@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -19,6 +20,22 @@ class MarkerImage {
   static const double _tipY = 112;
   static const double _iconSize = 36;
   static const double _photoRadius = 28;
+
+  static String cacheKey({
+    required String namespace,
+    required String iconName,
+    required String colorHex,
+    String? imageStoragePath,
+  }) {
+    final base = '${namespace}_${iconName}_${colorHex.replaceAll('#', '')}';
+    final imagePath = imageStoragePath?.trim();
+    if (imagePath == null || imagePath.isEmpty) return base;
+
+    final encodedPath = base64Url
+        .encode(utf8.encode(imagePath))
+        .replaceAll('=', '');
+    return '${base}_photo_$encodedPath';
+  }
 
   static Future<Uint8List> render({
     required IconData iconData,

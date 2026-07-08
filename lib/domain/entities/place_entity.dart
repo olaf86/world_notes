@@ -69,6 +69,7 @@ class PlaceEntity {
   final String? subtitle;
   final String colorHex;
   final String icon;
+  final String? pinImageStoragePath;
   final String createdByUserId;
   final List<String> maintainerIds;
   final DateTime createdAt;
@@ -127,6 +128,7 @@ class PlaceEntity {
     this.subtitle,
     required this.colorHex,
     required this.icon,
+    this.pinImageStoragePath,
     required this.createdByUserId,
     this.maintainerIds = const [],
     required this.createdAt,

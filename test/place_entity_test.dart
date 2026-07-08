@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:world_notes/data/models/place_model.dart';
 import 'package:world_notes/domain/entities/place_entity.dart';
 
 void main() {
@@ -24,6 +25,29 @@ void main() {
       expect(place.isMaintainedBy('maintainer-2'), isTrue);
       expect(place.isMaintainedBy('member-3'), isFalse);
       expect(place.isMaintainedBy(null), isFalse);
+    });
+
+    test('carries an optional pin image storage path', () {
+      final now = DateTime(2026, 7, 7, 12);
+      final model = PlaceModel(
+        id: 'place-1',
+        latitude: 35.6812,
+        longitude: 139.7671,
+        geohash: 'xn76u',
+        title: 'Tokyo Station',
+        colorHex: '#4CAF50',
+        icon: 'place',
+        pinImageStoragePath: 'images/pins/place-1/user-1/thumb.webp',
+        createdByUserId: 'creator-1',
+        createdAt: now,
+        publishAt: now,
+        expiresAt: now.add(const Duration(days: 7)),
+      );
+
+      expect(
+        model.toEntity().pinImageStoragePath,
+        'images/pins/place-1/user-1/thumb.webp',
+      );
     });
   });
 }

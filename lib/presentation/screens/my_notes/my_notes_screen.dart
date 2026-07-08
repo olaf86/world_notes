@@ -246,6 +246,7 @@ class _MyNoteCard extends StatelessWidget {
     return NoteListCard(
       avatarColor: color,
       avatarIcon: placeIconData(place.icon),
+      avatarImageStoragePath: place.pinImageStoragePath,
       title: place.title,
       subtitle: place.subtitle,
       metadata: [

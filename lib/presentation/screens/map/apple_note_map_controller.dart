@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:apple_maps_flutter/apple_maps_flutter.dart' as apple;
@@ -300,20 +299,20 @@ class AppleNoteMapController implements NoteMapAdapter {
     }
   }
 
-  String _markerImageId(String iconName, String colorHex) =>
-      'marker_${iconName}_${colorHex.replaceAll('#', '')}';
-
-  String _photoMarkerImageId(PinSummary pin) {
-    final encodedPath = base64Url
-        .encode(utf8.encode(pin.pinImageStoragePath ?? ''))
-        .replaceAll('=', '');
-    return '${_markerImageId(pin.icon, pin.colorHex)}_photo_$encodedPath';
-  }
+  String _markerImageId(PinSummary pin, {String? imageStoragePath}) =>
+      MarkerImage.cacheKey(
+        namespace: 'marker',
+        iconName: pin.icon,
+        colorHex: pin.colorHex,
+        imageStoragePath: imageStoragePath,
+      );
 
   Future<apple.BitmapDescriptor> _markerIcon(PinSummary pin) async {
-    final fallbackId = _markerImageId(pin.icon, pin.colorHex);
+    final fallbackId = _markerImageId(pin);
     final photoStoragePath = pin.pinImageStoragePath;
-    final photoId = photoStoragePath == null ? null : _photoMarkerImageId(pin);
+    final photoId = photoStoragePath == null
+        ? null
+        : _markerImageId(pin, imageStoragePath: photoStoragePath);
     if (photoId != null && _iconsByMarkerId.containsKey(photoId)) {
       return _iconsByMarkerId[photoId]!;
     }

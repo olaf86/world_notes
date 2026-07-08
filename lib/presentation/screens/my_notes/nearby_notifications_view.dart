@@ -153,6 +153,7 @@ class _NearbyAlertCardState extends ConsumerState<_NearbyAlertCard> {
     return NoteListCard(
       avatarColor: color,
       avatarIcon: placeIconData(alert.icon),
+      avatarImageStoragePath: alert.pinImageStoragePath,
       title: alert.title,
       metadata: [
         NoteListMeta(icon: Icons.event_outlined, label: 'Expires $expires'),

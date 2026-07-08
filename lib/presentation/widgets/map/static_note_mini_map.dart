@@ -47,7 +47,9 @@ class _StaticNoteMiniMapState extends ConsumerState<StaticNoteMiniMap> {
     if (oldWidget.place.latitude != widget.place.latitude ||
         oldWidget.place.longitude != widget.place.longitude ||
         oldWidget.place.colorHex != widget.place.colorHex ||
-        oldWidget.place.icon != widget.place.icon) {
+        oldWidget.place.icon != widget.place.icon ||
+        oldWidget.place.pinImageStoragePath !=
+            widget.place.pinImageStoragePath) {
       if (_usesAppleMaps) {
         unawaited(_renderAppleMarker());
       } else {
@@ -71,10 +73,12 @@ class _StaticNoteMiniMapState extends ConsumerState<StaticNoteMiniMap> {
 
     final place = widget.place;
     final color = parsePlaceColor(place.colorHex);
-    final imageName = 'selected-note-pin-${place.id}';
+    final imageName = _markerImageId(place);
+    final imageBytes = await _pinImageBytes(place.pinImageStoragePath);
     final markerBytes = await MarkerImage.render(
       iconData: placeIconData(place.icon),
       color: color,
+      imageBytes: imageBytes,
     );
 
     await map.clearSymbols();
@@ -92,15 +96,37 @@ class _StaticNoteMiniMapState extends ConsumerState<StaticNoteMiniMap> {
   Future<void> _renderAppleMarker() async {
     final revision = ++_appleMarkerRevision;
     final place = widget.place;
+    final imageBytes = await _pinImageBytes(place.pinImageStoragePath);
     final markerBytes = await MarkerImage.render(
       iconData: placeIconData(place.icon),
       color: parsePlaceColor(place.colorHex),
+      imageBytes: imageBytes,
     );
     if (!mounted || revision != _appleMarkerRevision) return;
 
     setState(() {
       _appleMarkerIcon = apple.BitmapDescriptor.fromBytes(markerBytes);
     });
+  }
+
+  String _markerImageId(PlaceEntity place) {
+    return MarkerImage.cacheKey(
+      namespace: 'selected_note_pin_${place.id}',
+      iconName: place.icon,
+      colorHex: place.colorHex,
+      imageStoragePath: place.pinImageStoragePath,
+    );
+  }
+
+  Future<Uint8List?> _pinImageBytes(String? storagePath) async {
+    final path = storagePath?.trim();
+    if (path == null || path.isEmpty) return null;
+    try {
+      return await ref.read(messageImageServiceProvider).imageBytes(path);
+    } catch (error, stack) {
+      debugPrint('Failed to load static mini map pin image: $error\n$stack');
+      return null;
+    }
   }
 
   apple.MapAppearanceMode _appleAppearanceModeFor(MapStyle style) {

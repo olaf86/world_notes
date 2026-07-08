@@ -216,6 +216,7 @@ class _MapNoteTile extends StatelessWidget {
     return NoteListCard(
       avatarColor: color,
       avatarIcon: placeIconData(pin.icon),
+      avatarImageStoragePath: pin.pinImageStoragePath,
       title: pin.title,
       subtitle: pin.subtitle,
       metadata: [

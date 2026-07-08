@@ -10,6 +10,7 @@ class PlaceModel {
   final String? subtitle;
   final String colorHex;
   final String icon;
+  final String? pinImageStoragePath;
   final String createdByUserId;
   final List<String> maintainerIds;
   final DateTime createdAt;
@@ -38,6 +39,7 @@ class PlaceModel {
     this.subtitle,
     required this.colorHex,
     required this.icon,
+    this.pinImageStoragePath,
     required this.createdByUserId,
     this.maintainerIds = const [],
     required this.createdAt,
@@ -81,6 +83,7 @@ class PlaceModel {
       subtitle: data['subtitle'] as String?,
       colorHex: data['colorHex'] as String,
       icon: data['icon'] as String,
+      pinImageStoragePath: data['pinImageStoragePath'] as String?,
       createdByUserId: data['createdByUserId'] as String,
       maintainerIds: _maintainerIdsFromData(data),
       createdAt: (data['createdAt'] as Timestamp).toDate(),
@@ -111,6 +114,8 @@ class PlaceModel {
       'subtitle': subtitle,
       'colorHex': colorHex,
       'icon': icon,
+      if (pinImageStoragePath != null)
+        'pinImageStoragePath': pinImageStoragePath,
       'createdByUserId': createdByUserId,
       'maintainerIds': maintainerIds.isEmpty
           ? [createdByUserId]
@@ -145,6 +150,7 @@ class PlaceModel {
     subtitle: subtitle,
     colorHex: colorHex,
     icon: icon,
+    pinImageStoragePath: pinImageStoragePath,
     createdByUserId: createdByUserId,
     maintainerIds: maintainerIds,
     createdAt: createdAt,

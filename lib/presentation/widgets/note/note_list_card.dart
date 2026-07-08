@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
+import 'note_pin_avatar.dart';
+
 class NoteListCard extends StatelessWidget {
   final Color avatarColor;
   final IconData avatarIcon;
+  final String? avatarImageStoragePath;
   final String title;
   final String? subtitle;
   final List<NoteListMeta> metadata;
@@ -13,6 +16,7 @@ class NoteListCard extends StatelessWidget {
     super.key,
     required this.avatarColor,
     required this.avatarIcon,
+    this.avatarImageStoragePath,
     required this.title,
     this.subtitle,
     this.metadata = const [],
@@ -42,10 +46,10 @@ class NoteListCard extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: avatarColor,
-                child: Icon(avatarIcon, color: Colors.white, size: 22),
+              NotePinAvatar(
+                color: avatarColor,
+                icon: avatarIcon,
+                storagePath: avatarImageStoragePath,
               ),
               const SizedBox(width: 12),
               Expanded(
