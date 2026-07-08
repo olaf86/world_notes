@@ -77,7 +77,7 @@ class LocationService {
   /// Checks the current permission and requests it if not yet determined.
   /// Returns the final [LocationPermission] after any request dialog.
   Future<LocationPermission> ensurePermission() async {
-    if (shouldUseFixedLocation) return LocationPermission.whileInUse;
+    if (screenshotMode) return LocationPermission.whileInUse;
     var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
@@ -86,7 +86,7 @@ class LocationService {
   }
 
   Future<LocationAvailabilityIssue?> ensureLocationAvailable() async {
-    if (shouldUseFixedLocation) return null;
+    if (screenshotMode) return null;
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return LocationAvailabilityIssue.serviceDisabled;
 
@@ -97,7 +97,7 @@ class LocationService {
   /// Retrieves the user's current GPS position for actions that need a final
   /// point-in-time location, such as confirming note creation.
   Future<Position> getCurrentPosition() async {
-    if (shouldUseFixedLocation) return _screenshotPosition();
+    if (screenshotMode) return _screenshotPosition();
 
     final issue = await ensureLocationAvailable();
     if (issue != null) throw issue.toException();
@@ -112,7 +112,7 @@ class LocationService {
   /// GPS updates. Throws [LocationPermissionDeniedException] when permission
   /// is denied so [StreamProvider]s can surface the denial as an error state.
   Stream<Position> watchPosition() {
-    if (shouldUseFixedLocation) {
+    if (screenshotMode) {
       return Stream<Position>.value(_screenshotPosition());
     }
 

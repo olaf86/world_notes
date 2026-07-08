@@ -103,7 +103,7 @@ final myNotesNotificationServiceProvider = Provider<MyNotesNotificationService>(
       auth: ref.watch(firebaseAuthProvider),
       crashlytics: ref.watch(firebaseCrashlyticsProvider),
     );
-    if (shouldStartNotificationRegistration) {
+    if (!screenshotMode) {
       service.startRegistrationSync();
     }
     ref.onDispose(service.dispose);

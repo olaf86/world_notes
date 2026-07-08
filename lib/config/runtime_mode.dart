@@ -38,23 +38,6 @@ double get screenshotLongitude =>
 
 bool get shouldUseFirebaseEmulators => useFirebaseEmulators && kDebugMode;
 
-bool get shouldInitializeRevenueCat => !screenshotMode;
-
-bool get shouldStartAppRuntimeServices => !screenshotMode;
-
-bool get shouldStartNotificationRegistration => !screenshotMode;
-
-bool get shouldServeAds => !screenshotMode;
-
-bool get shouldValidateNoteAccessRemotely => !screenshotMode;
-
-bool get shouldRecordNoteVisits => !screenshotMode;
-
-bool get shouldUseFixedLocation => screenshotMode;
-
-bool get shouldSignInScreenshotUser =>
-    shouldUseFirebaseEmulators && screenshotMode;
-
 String firebaseEmulatorHost() {
   if (kIsWeb) return 'localhost';
 

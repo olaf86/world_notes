@@ -76,7 +76,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
     required double latitude,
     required double longitude,
   }) async {
-    if (!shouldValidateNoteAccessRemotely) return;
+    if (screenshotMode) return;
 
     await _functions.httpsCallable('validateNoteAccess').call<void>({
       'placeId': placeId,
@@ -401,7 +401,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
 
   @override
   Future<void> recordNoteVisit(String placeId) async {
-    if (!shouldRecordNoteVisits) return;
+    if (screenshotMode) return;
 
     await _functions.httpsCallable('recordNoteVisit').call<void>({
       'placeId': placeId,
