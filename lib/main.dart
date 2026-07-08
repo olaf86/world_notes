@@ -1,8 +1,12 @@
 import 'dart:async';
 
 import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -12,6 +16,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'config/app_config.dart';
 import 'config/notification_navigation.dart';
 import 'config/router.dart';
+import 'config/runtime_mode.dart';
 import 'core/theme/app_theme.dart';
 import 'firebase_options.dart';
 import 'l10n/app_localizations.dart';
@@ -23,6 +28,9 @@ void main() async {
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
+  await _configureFirebaseServices();
+  await _signInScreenshotUserIfNeeded();
+
   final crashlytics = FirebaseCrashlytics.instance;
   const collectCrashReports = !kDebugMode;
   await crashlytics.setCrashlyticsCollectionEnabled(collectCrashReports);
@@ -32,6 +40,33 @@ void main() async {
       crashlytics.recordError(error, stack, fatal: true);
       return true;
     };
+  }
+
+  if (AppConfig.supportsMobileAds) {
+    await MobileAds.instance.initialize();
+  }
+  if (!screenshotMode) {
+    await SubscriptionService.initialize();
+  }
+
+  runApp(const ProviderScope(child: WorldNotesApp()));
+}
+
+Future<void> _configureFirebaseServices() async {
+  if (shouldUseFirebaseEmulators) {
+    final host = firebaseEmulatorHost();
+    debugPrint('Using Firebase emulators (host: $host)');
+    FirebaseAuth.instance.useAuthEmulator(host, 9099);
+    FirebaseFirestore.instance.useFirestoreEmulator(host, 8080);
+    FirebaseStorage.instance.useStorageEmulator(host, 9199);
+    FirebaseFunctions.instance.useFunctionsEmulator(host, 5001);
+    FirebaseFunctions.instanceFor(
+      region: 'asia-northeast1',
+    ).useFunctionsEmulator(host, 5001);
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: false,
+    );
+    return;
   }
 
   // App Check attests that requests come from a genuine, untampered build of
@@ -50,11 +85,33 @@ void main() async {
         ? const AndroidDebugProvider()
         : const AndroidPlayIntegrityProvider(),
   );
+}
 
-  await MobileAds.instance.initialize();
-  await SubscriptionService.initialize();
+Future<void> _signInScreenshotUserIfNeeded() async {
+  if (!shouldUseFirebaseEmulators || !screenshotMode) return;
 
-  runApp(const ProviderScope(child: WorldNotesApp()));
+  final auth = FirebaseAuth.instance;
+  if (auth.currentUser != null) {
+    await auth.signOut();
+  }
+
+  try {
+    await auth.signInWithEmailAndPassword(
+      email: screenshotAuthEmail,
+      password: screenshotAuthPassword,
+    );
+    debugPrint('Signed in screenshot user: $screenshotAuthEmail');
+  } on FirebaseAuthException catch (error) {
+    if (error.code != 'user-not-found' && error.code != 'invalid-credential') {
+      rethrow;
+    }
+    await auth.createUserWithEmailAndPassword(
+      email: screenshotAuthEmail,
+      password: screenshotAuthPassword,
+    );
+    await auth.currentUser?.updateDisplayName('World Notes Guide');
+    debugPrint('Created screenshot user: $screenshotAuthEmail');
+  }
 }
 
 class WorldNotesApp extends ConsumerStatefulWidget {
@@ -72,6 +129,7 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp> {
   @override
   void initState() {
     super.initState();
+    if (screenshotMode) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final service = ref.read(myNotesNotificationServiceProvider);
       service.initialPlaceRouteFromLaunch().then(_openPlaceFromNotification);

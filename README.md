@@ -90,6 +90,24 @@ Optional repository secrets:
 | `REVENUECAT_API_KEY_ANDROID` | RevenueCat Android public key |
 | `BANNER_AD_UNIT_ID` | AdMob banner unit ID |
 
+### Maestro UI Testing and Screenshots
+
+Maestro flows live in `maestro/flows/`.
+
+```bash
+# Smoke test after launching the app in screenshot mode
+maestro test maestro/flows/smoke.yaml
+
+# Store screenshots after Firebase Emulator + flutter run are active
+./scripts/run_screenshots_ios.sh
+./scripts/run_screenshots_ipad.sh
+./scripts/run_screenshots_android.sh
+```
+
+See [internal-docs/local-screenshot-with-maestro.md](internal-docs/local-screenshot-with-maestro.md)
+for the Firebase Emulator setup, screenshot seed data, and platform-specific
+capture steps.
+
 ### Environment Variables
 
 All secrets are injected at build time via `--dart-define`. No `.env` file is used.

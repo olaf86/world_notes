@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/time_format.dart';
+import '../../../config/runtime_mode.dart';
 import '../../../core/utils/place_icon.dart';
 import '../../../domain/entities/pin_summary_entity.dart';
 import '../../../services/location_service.dart';
@@ -159,10 +160,15 @@ class _PinList extends ConsumerWidget {
             itemCount: sorted.length,
             separatorBuilder: (context, index) => const SizedBox(height: 10),
             itemBuilder: (context, index) {
-              return _MapNoteTile(
-                pin: sorted[index],
-                userLatitude: userLatitude,
-                userLongitude: userLongitude,
+              final pin = sorted[index];
+              return Semantics(
+                identifier: 'map-note-card-${pin.placeId}',
+                button: true,
+                child: _MapNoteTile(
+                  pin: pin,
+                  userLatitude: userLatitude,
+                  userLongitude: userLongitude,
+                ),
               );
             },
           );
@@ -273,27 +279,29 @@ class _MapNoteTile extends StatelessWidget {
       );
       return;
     }
-    final container = ProviderScope.containerOf(context, listen: false);
-    try {
-      await container
-          .read(placeRepositoryProvider)
-          .validateNoteAccess(
-            placeId: pin.placeId,
-            latitude: userLatitude,
-            longitude: userLongitude,
-          );
-    } catch (error, stack) {
-      await reportMapNotesError(
-        crashlytics: container.read(firebaseCrashlyticsProvider),
-        operation: 'open list pin',
-        error: error,
-        stack: stack,
-      );
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text(mapNoteOpenErrorMessage)));
-      return;
+    if (!screenshotMode) {
+      final container = ProviderScope.containerOf(context, listen: false);
+      try {
+        await container
+            .read(placeRepositoryProvider)
+            .validateNoteAccess(
+              placeId: pin.placeId,
+              latitude: userLatitude,
+              longitude: userLongitude,
+            );
+      } catch (error, stack) {
+        await reportMapNotesError(
+          crashlytics: container.read(firebaseCrashlyticsProvider),
+          operation: 'open list pin',
+          error: error,
+          stack: stack,
+        );
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text(mapNoteOpenErrorMessage)));
+        return;
+      }
     }
     if (!context.mounted) return;
     context.push(

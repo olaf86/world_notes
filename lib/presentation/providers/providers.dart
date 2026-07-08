@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../config/app_config.dart';
 import '../../config/regions.dart';
+import '../../config/runtime_mode.dart';
 import '../../core/map_style.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../data/repositories/message_repository_impl.dart';
@@ -102,7 +103,9 @@ final myNotesNotificationServiceProvider = Provider<MyNotesNotificationService>(
       auth: ref.watch(firebaseAuthProvider),
       crashlytics: ref.watch(firebaseCrashlyticsProvider),
     );
-    service.startRegistrationSync();
+    if (!screenshotMode) {
+      service.startRegistrationSync();
+    }
     ref.onDispose(service.dispose);
     return service;
   },

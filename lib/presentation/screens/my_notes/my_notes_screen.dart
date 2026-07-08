@@ -15,16 +15,19 @@ class MyNotesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return const DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        appBar: _NotesAppBar(),
-        body: TabBarView(
-          children: [
-            _MyNotesListView(),
-            _ArchivedNotesListView(),
-            NearbyNotificationsView(),
-          ],
+    return Semantics(
+      identifier: 'screen-my-notes',
+      child: const DefaultTabController(
+        length: 3,
+        child: Scaffold(
+          appBar: _NotesAppBar(),
+          body: TabBarView(
+            children: [
+              _MyNotesListView(),
+              _ArchivedNotesListView(),
+              NearbyNotificationsView(),
+            ],
+          ),
         ),
       ),
     );
@@ -243,46 +246,50 @@ class _MyNoteCard extends StatelessWidget {
     final color = parsePlaceColor(place.colorHex);
     final lastActivity = place.lastMessageAt ?? place.createdAt;
 
-    return NoteListCard(
-      avatarColor: color,
-      avatarIcon: placeIconData(place.icon),
-      title: place.title,
-      subtitle: place.subtitle,
-      metadata: [
-        NoteListMeta(
-          icon: Icons.schedule_outlined,
-          label: 'Last active ${_relativeTime(lastActivity)}',
-        ),
-        if (place.isArchived)
+    return Semantics(
+      identifier: 'my-note-card-${place.id}',
+      button: true,
+      child: NoteListCard(
+        avatarColor: color,
+        avatarIcon: placeIconData(place.icon),
+        title: place.title,
+        subtitle: place.subtitle,
+        metadata: [
           NoteListMeta(
-            icon: Icons.archive_outlined,
-            label:
-                'Archived ${_relativeTime(place.archivedAt ?? place.expiresAt)}',
-          )
-        else if (place.isClosed)
-          const NoteListMeta(
-            icon: Icons.do_not_disturb_on_outlined,
-            label: 'Closed',
+            icon: Icons.schedule_outlined,
+            label: 'Last active ${_relativeTime(lastActivity)}',
           ),
-        if (place.isPrivate)
-          const NoteListMeta(icon: Icons.lock_outline, label: 'Private'),
-      ],
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _MessageCountBadge(count: place.messageCount),
-          if (onArchive != null) ...[
-            const SizedBox(width: 4),
-            IconButton(
-              visualDensity: VisualDensity.compact,
-              tooltip: 'Archive note',
-              onPressed: onArchive,
-              icon: const Icon(Icons.archive_outlined, size: 20),
+          if (place.isArchived)
+            NoteListMeta(
+              icon: Icons.archive_outlined,
+              label:
+                  'Archived ${_relativeTime(place.archivedAt ?? place.expiresAt)}',
+            )
+          else if (place.isClosed)
+            const NoteListMeta(
+              icon: Icons.do_not_disturb_on_outlined,
+              label: 'Closed',
             ),
-          ],
+          if (place.isPrivate)
+            const NoteListMeta(icon: Icons.lock_outline, label: 'Private'),
         ],
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _MessageCountBadge(count: place.messageCount),
+            if (onArchive != null) ...[
+              const SizedBox(width: 4),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                tooltip: 'Archive note',
+                onPressed: onArchive,
+                icon: const Icon(Icons.archive_outlined, size: 20),
+              ),
+            ],
+          ],
+        ),
+        onTap: () => context.push('/note/${place.id}?readOnly=true'),
       ),
-      onTap: () => context.push('/note/${place.id}?readOnly=true'),
     );
   }
 

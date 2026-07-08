@@ -7,6 +7,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../config/app_config.dart';
+import '../../../config/runtime_mode.dart';
 import '../../../core/map_style.dart';
 import '../../../core/utils/image_upload_util.dart';
 import '../../../domain/entities/pin_summary_entity.dart';
@@ -109,26 +110,28 @@ class _MapScreenState extends ConsumerState<MapScreen>
       return false;
     }
 
-    try {
-      await ref
-          .read(placeRepositoryProvider)
-          .validateNoteAccess(
-            placeId: pin.placeId,
-            latitude: anchor.latitude,
-            longitude: anchor.longitude,
-          );
-    } catch (error, stack) {
-      await reportMapNotesError(
-        crashlytics: ref.read(firebaseCrashlyticsProvider),
-        operation: 'open map pin',
-        error: error,
-        stack: stack,
-      );
-      if (!mounted) return false;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text(mapNoteOpenErrorMessage)));
-      return false;
+    if (!screenshotMode) {
+      try {
+        await ref
+            .read(placeRepositoryProvider)
+            .validateNoteAccess(
+              placeId: pin.placeId,
+              latitude: anchor.latitude,
+              longitude: anchor.longitude,
+            );
+      } catch (error, stack) {
+        await reportMapNotesError(
+          crashlytics: ref.read(firebaseCrashlyticsProvider),
+          operation: 'open map pin',
+          error: error,
+          stack: stack,
+        );
+        if (!mounted) return false;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text(mapNoteOpenErrorMessage)));
+        return false;
+      }
     }
 
     if (!mounted) return false;
@@ -463,32 +466,35 @@ class _MapView extends ConsumerWidget {
       ),
     );
 
-    return Stack(
-      children: [
-        Listener(
-          onPointerDown: (_) => onPointerDown(),
-          child: mapAdapter.buildMap(
-            anchor: anchor,
-            colorScheme: colorScheme,
-            mapStyle: mapStyle,
-            styleUrl: styleUrl,
-            onCameraIdle: onCameraIdle,
+    return Semantics(
+      identifier: 'screen-map',
+      child: Stack(
+        children: [
+          Listener(
+            onPointerDown: (_) => onPointerDown(),
+            child: mapAdapter.buildMap(
+              anchor: anchor,
+              colorScheme: colorScheme,
+              mapStyle: mapStyle,
+              styleUrl: styleUrl,
+              onCameraIdle: onCameraIdle,
+            ),
           ),
-        ),
-        _MapNotesLoadingStatus(visible: loadingMapNotes),
-        if (onShowList != null) _ListButton(onPressed: onShowList!),
-        _AccessAreaButton(
-          visible: isAccessAreaVisible,
-          radiusMeters: noteAccessRadiusMeters,
-          onPressed: onAccessAreaToggle,
-        ),
-        _RefreshButton(onPressed: onRefresh, refreshing: loadingMapNotes),
-        _TrackingButton(isTracking: isTracking, onPressed: onTrackingToggle),
-        _AddNoteFab(
-          onPressed: onAddNote,
-          locationRecoveryAction: locationRecoveryAction,
-        ),
-      ],
+          _MapNotesLoadingStatus(visible: loadingMapNotes),
+          if (onShowList != null) _ListButton(onPressed: onShowList!),
+          _AccessAreaButton(
+            visible: isAccessAreaVisible,
+            radiusMeters: noteAccessRadiusMeters,
+            onPressed: onAccessAreaToggle,
+          ),
+          _RefreshButton(onPressed: onRefresh, refreshing: loadingMapNotes),
+          _TrackingButton(isTracking: isTracking, onPressed: onTrackingToggle),
+          _AddNoteFab(
+            onPressed: onAddNote,
+            locationRecoveryAction: locationRecoveryAction,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -602,17 +608,21 @@ class _AccessAreaButton extends StatelessWidget {
     return Positioned(
       bottom: 264,
       right: 16,
-      child: FloatingActionButton.small(
-        heroTag: 'noteAccessArea',
-        tooltip: visible
-            ? 'Hide ${_radiusLabel(radiusMeters)} access area'
-            : 'Show ${_radiusLabel(radiusMeters)} access area',
-        onPressed: onPressed,
-        backgroundColor: visible ? colorScheme.primary : colorScheme.surface,
-        elevation: 2,
-        child: Icon(
-          Icons.radar_outlined,
-          color: visible ? colorScheme.onPrimary : colorScheme.primary,
+      child: Semantics(
+        identifier: 'action-toggle-access-area',
+        button: true,
+        child: FloatingActionButton.small(
+          heroTag: 'noteAccessArea',
+          tooltip: visible
+              ? 'Hide ${_radiusLabel(radiusMeters)} access area'
+              : 'Show ${_radiusLabel(radiusMeters)} access area',
+          onPressed: onPressed,
+          backgroundColor: visible ? colorScheme.primary : colorScheme.surface,
+          elevation: 2,
+          child: Icon(
+            Icons.radar_outlined,
+            color: visible ? colorScheme.onPrimary : colorScheme.primary,
+          ),
         ),
       ),
     );
@@ -631,19 +641,23 @@ class _RefreshButton extends StatelessWidget {
     return Positioned(
       bottom: 208,
       right: 16,
-      child: FloatingActionButton.small(
-        heroTag: 'mapNotesRefresh',
-        tooltip: 'Refresh map notes',
-        onPressed: refreshing ? null : onPressed,
-        backgroundColor: colorScheme.surface,
-        elevation: 2,
-        child: refreshing
-            ? const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : Icon(Icons.refresh_outlined, color: colorScheme.primary),
+      child: Semantics(
+        identifier: 'action-refresh-map-notes',
+        button: true,
+        child: FloatingActionButton.small(
+          heroTag: 'mapNotesRefresh',
+          tooltip: 'Refresh map notes',
+          onPressed: refreshing ? null : onPressed,
+          backgroundColor: colorScheme.surface,
+          elevation: 2,
+          child: refreshing
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Icon(Icons.refresh_outlined, color: colorScheme.primary),
+        ),
       ),
     );
   }
@@ -660,13 +674,17 @@ class _ListButton extends StatelessWidget {
     return Positioned(
       bottom: 152,
       right: 16,
-      child: FloatingActionButton.small(
-        heroTag: 'mapNotesList',
-        tooltip: 'List',
-        onPressed: onPressed,
-        backgroundColor: colorScheme.surface,
-        elevation: 2,
-        child: Icon(Icons.list_alt_outlined, color: colorScheme.primary),
+      child: Semantics(
+        identifier: 'action-show-map-notes-list',
+        button: true,
+        child: FloatingActionButton.small(
+          heroTag: 'mapNotesList',
+          tooltip: 'List',
+          onPressed: onPressed,
+          backgroundColor: colorScheme.surface,
+          elevation: 2,
+          child: Icon(Icons.list_alt_outlined, color: colorScheme.primary),
+        ),
       ),
     );
   }
@@ -684,14 +702,20 @@ class _TrackingButton extends StatelessWidget {
     return Positioned(
       bottom: 96,
       right: 16,
-      child: FloatingActionButton.small(
-        heroTag: 'tracking',
-        onPressed: onPressed,
-        backgroundColor: isTracking ? colorScheme.primary : colorScheme.surface,
-        elevation: 2,
-        child: Icon(
-          isTracking ? Icons.my_location : Icons.location_searching,
-          color: isTracking ? colorScheme.onPrimary : colorScheme.primary,
+      child: Semantics(
+        identifier: 'action-toggle-tracking',
+        button: true,
+        child: FloatingActionButton.small(
+          heroTag: 'tracking',
+          onPressed: onPressed,
+          backgroundColor: isTracking
+              ? colorScheme.primary
+              : colorScheme.surface,
+          elevation: 2,
+          child: Icon(
+            isTracking ? Icons.my_location : Icons.location_searching,
+            color: isTracking ? colorScheme.onPrimary : colorScheme.primary,
+          ),
         ),
       ),
     );
@@ -713,12 +737,16 @@ class _AddNoteFab extends StatelessWidget {
     return Positioned(
       bottom: 24,
       right: 16,
-      child: FloatingActionButton.extended(
-        heroTag: 'mapAddNote',
-        tooltip: recoveryAction?.tooltip ?? 'Add Note',
-        onPressed: recoveryAction?.onPressed ?? onPressed,
-        icon: Icon(recoveryAction?.icon ?? Icons.add_location_alt_outlined),
-        label: Text(recoveryAction?.label ?? 'Add Note'),
+      child: Semantics(
+        identifier: 'action-add-note',
+        button: true,
+        child: FloatingActionButton.extended(
+          heroTag: 'mapAddNote',
+          tooltip: recoveryAction?.tooltip ?? 'Add Note',
+          onPressed: recoveryAction?.onPressed ?? onPressed,
+          icon: Icon(recoveryAction?.icon ?? Icons.add_location_alt_outlined),
+          label: Text(recoveryAction?.label ?? 'Add Note'),
+        ),
       ),
     );
   }

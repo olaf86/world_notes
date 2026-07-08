@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../../../config/app_config.dart';
+import '../../../config/runtime_mode.dart';
 import '../../../core/utils/password_util.dart';
 import '../../../core/utils/pattern_lock_util.dart';
 import '../../../domain/entities/message_entity.dart';
@@ -486,6 +487,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     required NotePermissions permissions,
     required String? currentUserId,
   }) {
+    if (screenshotMode) return;
     if (currentUserId == null ||
         !place.footprintEnabled ||
         !permissions.canReadContent ||
@@ -816,215 +818,228 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
           child: Stack(
             children: [
               // ── Base layer: the message-box screen ──────────────────────
-              Scaffold(
-                appBar: AppBar(
-                  title: Text(displayTitle),
-                  actions: [
-                    if (!isPremium)
-                      IconButton(
-                        icon: const Icon(Icons.star_outline),
-                        tooltip: 'Go PRO',
-                        onPressed: () => context.push('/subscription'),
-                      ),
-                    if (permissions.canSubscribeNearbyAlerts)
-                      IconButton(
-                        icon:
-                            _nearbyNotificationBusy ||
-                                nearbyAlertAsync.isLoading
-                            ? const SizedBox.square(
-                                dimension: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : Icon(
-                                nearbyAlertEnabled
-                                    ? Icons.notifications_active_outlined
-                                    : Icons.notifications_none_outlined,
-                              ),
-                        tooltip: nearbyAlertEnabled
-                            ? 'Turn off nearby alerts'
-                            : 'Notify when nearby',
-                        onPressed:
-                            _nearbyNotificationBusy ||
-                                nearbyAlertAsync.isLoading
-                            ? null
-                            : () => _setNearbyNotification(!nearbyAlertEnabled),
-                      ),
-                    if (permissions.hasThreadActions)
-                      PopupMenuButton<String>(
-                        tooltip: 'Thread options',
-                        onSelected: (value) {
-                          if (value == 'close') _closeThread();
-                          if (value == 'reopen') _reopenThread();
-                          if (value == 'archive') _archiveNote();
-                          if (value == 'password') {
-                            _promptSetPassword(isChange: place.isPrivate);
-                          }
-                          if (value == 'access') _showManageAccess();
-                        },
-                        itemBuilder: (ctx) => [
-                          if (permissions.canCloseThread)
-                            const PopupMenuItem(
-                              value: 'close',
-                              child: ListTile(
-                                leading: Icon(Icons.do_not_disturb_on_outlined),
-                                title: Text('Close thread'),
-                                contentPadding: EdgeInsets.zero,
-                              ),
-                            ),
-                          if (permissions.canReopenThread)
-                            const PopupMenuItem(
-                              value: 'reopen',
-                              child: ListTile(
-                                leading: Icon(Icons.lock_open_outlined),
-                                title: Text('Re-open thread'),
-                                contentPadding: EdgeInsets.zero,
-                              ),
-                            ),
-                          if (permissions.canChangeLock)
-                            PopupMenuItem(
-                              value: 'password',
-                              child: ListTile(
-                                leading: Icon(
-                                  place.isPrivate
-                                      ? Icons.lock_reset
-                                      : Icons.lock_person_outlined,
-                                ),
-                                title: Text(
-                                  place.isPrivate ? 'Change lock' : 'Set lock',
-                                ),
-                                contentPadding: EdgeInsets.zero,
-                              ),
-                            ),
-                          if (permissions.canManageAccess)
-                            const PopupMenuItem(
-                              value: 'access',
-                              child: ListTile(
-                                leading: Icon(Icons.group_outlined),
-                                title: Text('Manage access'),
-                                contentPadding: EdgeInsets.zero,
-                              ),
-                            ),
-                          if (permissions.canArchive) ...[
-                            const PopupMenuDivider(),
-                            const PopupMenuItem(
-                              value: 'archive',
-                              child: ListTile(
-                                leading: Icon(Icons.archive_outlined),
-                                title: Text('Archive note'),
-                                contentPadding: EdgeInsets.zero,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                  ],
-                ),
-                // Body = optional status banner + message list.
-                body: Column(
-                  children: [
-                    if (widget.readOnly) const _ReadOnlyBanner(),
-                    if (!place.canAcceptMessagesAt(now))
-                      _ThreadStatusBanner(place: place, now: now),
-                    StaticNoteMiniMap(place: place),
-                    VisitorPreview(
-                      placeId: widget.placeId,
-                      footprintEnabled: place.footprintEnabled,
-                      visitorCount: place.visitorCount,
-                    ),
-                    Expanded(
-                      child: messagesAsync.when(
-                        loading: () =>
-                            const Center(child: CircularProgressIndicator()),
-                        error: (e, _) => Center(child: Text('Error: $e')),
-                        data: (messages) {
-                          _markNearbyNotificationReadIfNeeded(
-                            nearbyEnabled: nearbyAlertEnabled,
-                            messages: messages,
-                          );
-                          return messages.isEmpty
-                              ? const _EmptyState()
-                              : ListView.builder(
-                                  controller: _scrollController,
-                                  // Extra bottom padding so the FAB never
-                                  // obscures the last message.
-                                  padding: const EdgeInsets.only(
-                                    top: 8,
-                                    bottom: 88,
+              Semantics(
+                identifier: 'screen-note-detail-${place.id}',
+                child: Scaffold(
+                  appBar: AppBar(
+                    title: Text(displayTitle),
+                    actions: [
+                      if (!isPremium)
+                        IconButton(
+                          icon: const Icon(Icons.star_outline),
+                          tooltip: 'Go PRO',
+                          onPressed: () => context.push('/subscription'),
+                        ),
+                      if (permissions.canSubscribeNearbyAlerts)
+                        IconButton(
+                          icon:
+                              _nearbyNotificationBusy ||
+                                  nearbyAlertAsync.isLoading
+                              ? const SizedBox.square(
+                                  dimension: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
                                   ),
-                                  itemCount: messages.length,
-                                  itemBuilder: (context, index) {
-                                    final message = messages[index];
-                                    final isOwn =
-                                        message.author.id == currentUser?.id;
-                                    return MessageBubble(
-                                      message: message,
-                                      isOwn: isOwn,
-                                      isAuthorHighlighted:
-                                          _highlightedAuthorId ==
-                                          message.author.id,
-                                      onAuthorTap: _toggleAuthorHighlight,
-                                      onDelete: isOwn
-                                          ? () => _confirmDeleteMessage(message)
-                                          : null,
-                                      onReport: !isOwn
-                                          ? () => _openReportMessageScreen(
-                                              message,
-                                            )
-                                          : null,
-                                    );
-                                  },
-                                );
-                        },
+                                )
+                              : Icon(
+                                  nearbyAlertEnabled
+                                      ? Icons.notifications_active_outlined
+                                      : Icons.notifications_none_outlined,
+                                ),
+                          tooltip: nearbyAlertEnabled
+                              ? 'Turn off nearby alerts'
+                              : 'Notify when nearby',
+                          onPressed:
+                              _nearbyNotificationBusy ||
+                                  nearbyAlertAsync.isLoading
+                              ? null
+                              : () =>
+                                    _setNearbyNotification(!nearbyAlertEnabled),
+                        ),
+                      if (permissions.hasThreadActions)
+                        PopupMenuButton<String>(
+                          tooltip: 'Thread options',
+                          onSelected: (value) {
+                            if (value == 'close') _closeThread();
+                            if (value == 'reopen') _reopenThread();
+                            if (value == 'archive') _archiveNote();
+                            if (value == 'password') {
+                              _promptSetPassword(isChange: place.isPrivate);
+                            }
+                            if (value == 'access') _showManageAccess();
+                          },
+                          itemBuilder: (ctx) => [
+                            if (permissions.canCloseThread)
+                              const PopupMenuItem(
+                                value: 'close',
+                                child: ListTile(
+                                  leading: Icon(
+                                    Icons.do_not_disturb_on_outlined,
+                                  ),
+                                  title: Text('Close thread'),
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                              ),
+                            if (permissions.canReopenThread)
+                              const PopupMenuItem(
+                                value: 'reopen',
+                                child: ListTile(
+                                  leading: Icon(Icons.lock_open_outlined),
+                                  title: Text('Re-open thread'),
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                              ),
+                            if (permissions.canChangeLock)
+                              PopupMenuItem(
+                                value: 'password',
+                                child: ListTile(
+                                  leading: Icon(
+                                    place.isPrivate
+                                        ? Icons.lock_reset
+                                        : Icons.lock_person_outlined,
+                                  ),
+                                  title: Text(
+                                    place.isPrivate
+                                        ? 'Change lock'
+                                        : 'Set lock',
+                                  ),
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                              ),
+                            if (permissions.canManageAccess)
+                              const PopupMenuItem(
+                                value: 'access',
+                                child: ListTile(
+                                  leading: Icon(Icons.group_outlined),
+                                  title: Text('Manage access'),
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                              ),
+                            if (permissions.canArchive) ...[
+                              const PopupMenuDivider(),
+                              const PopupMenuItem(
+                                value: 'archive',
+                                child: ListTile(
+                                  leading: Icon(Icons.archive_outlined),
+                                  title: Text('Archive note'),
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                    ],
+                  ),
+                  // Body = optional status banner + message list.
+                  body: Column(
+                    children: [
+                      if (widget.readOnly) const _ReadOnlyBanner(),
+                      if (!place.canAcceptMessagesAt(now))
+                        _ThreadStatusBanner(place: place, now: now),
+                      StaticNoteMiniMap(place: place),
+                      VisitorPreview(
+                        placeId: widget.placeId,
+                        footprintEnabled: place.footprintEnabled,
+                        visitorCount: place.visitorCount,
                       ),
-                    ),
-                  ],
-                ),
+                      Expanded(
+                        child: messagesAsync.when(
+                          loading: () =>
+                              const Center(child: CircularProgressIndicator()),
+                          error: (e, _) => Center(child: Text('Error: $e')),
+                          data: (messages) {
+                            _markNearbyNotificationReadIfNeeded(
+                              nearbyEnabled: nearbyAlertEnabled,
+                              messages: messages,
+                            );
+                            return messages.isEmpty
+                                ? const _EmptyState()
+                                : ListView.builder(
+                                    controller: _scrollController,
+                                    // Extra bottom padding so the FAB never
+                                    // obscures the last message.
+                                    padding: const EdgeInsets.only(
+                                      top: 8,
+                                      bottom: 88,
+                                    ),
+                                    itemCount: messages.length,
+                                    itemBuilder: (context, index) {
+                                      final message = messages[index];
+                                      final isOwn =
+                                          message.author.id == currentUser?.id;
+                                      return MessageBubble(
+                                        message: message,
+                                        isOwn: isOwn,
+                                        isAuthorHighlighted:
+                                            _highlightedAuthorId ==
+                                            message.author.id,
+                                        onAuthorTap: _toggleAuthorHighlight,
+                                        onDelete: isOwn
+                                            ? () =>
+                                                  _confirmDeleteMessage(message)
+                                            : null,
+                                        onReport: !isOwn
+                                            ? () => _openReportMessageScreen(
+                                                message,
+                                              )
+                                            : null,
+                                      );
+                                    },
+                                  );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
 
-                // FAB — opens the message editor (state flag + slide-up animation
-                // in a Stack sibling layer below).  heroTag is unique to prevent
-                // Hero conflicts with the map screen's FABs ('mapAddNote',
-                // 'tracking').  Hidden when the thread is closed / expired / full.
-                floatingActionButton: permissions.canPostMessage
-                    ? FloatingActionButton(
-                        heroTag: 'noteMessageEditor',
-                        onPressed: _preparingMessageEditor
-                            ? null
-                            : _openMessageEditor,
-                        tooltip: 'Write a message',
-                        child: _preparingMessageEditor
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
+                  // FAB — opens the message editor (state flag + slide-up animation
+                  // in a Stack sibling layer below).  heroTag is unique to prevent
+                  // Hero conflicts with the map screen's FABs ('mapAddNote',
+                  // 'tracking').  Hidden when the thread is closed / expired / full.
+                  floatingActionButton: permissions.canPostMessage
+                      ? Semantics(
+                          identifier: 'action-write-message',
+                          button: true,
+                          child: FloatingActionButton(
+                            heroTag: 'noteMessageEditor',
+                            onPressed: _preparingMessageEditor
+                                ? null
+                                : _openMessageEditor,
+                            tooltip: 'Write a message',
+                            child: _preparingMessageEditor
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.edit_outlined),
+                          ),
+                        )
+                      : null,
+
+                  // Banner ad — placed in bottomNavigationBar so the Scaffold
+                  // automatically lifts the FAB above it when the ad is loaded.
+                  bottomNavigationBar: ValueListenableBuilder<bool>(
+                    valueListenable: _adLoaded,
+                    builder: (context, loaded, _) {
+                      final ad = _bannerAd;
+                      return AnimatedSize(
+                        duration: const Duration(milliseconds: 250),
+                        curve: Curves.easeOut,
+                        child: (loaded && ad != null && !isPremium)
+                            ? SafeArea(
+                                top: false,
+                                child: SizedBox(
+                                  height: ad.size.height.toDouble(),
+                                  child: AdWidget(ad: ad),
                                 ),
                               )
-                            : const Icon(Icons.edit_outlined),
-                      )
-                    : null,
-
-                // Banner ad — placed in bottomNavigationBar so the Scaffold
-                // automatically lifts the FAB above it when the ad is loaded.
-                bottomNavigationBar: ValueListenableBuilder<bool>(
-                  valueListenable: _adLoaded,
-                  builder: (context, loaded, _) {
-                    final ad = _bannerAd;
-                    return AnimatedSize(
-                      duration: const Duration(milliseconds: 250),
-                      curve: Curves.easeOut,
-                      child: (loaded && ad != null && !isPremium)
-                          ? SafeArea(
-                              top: false,
-                              child: SizedBox(
-                                height: ad.size.height.toDouble(),
-                                child: AdWidget(ad: ad),
-                              ),
-                            )
-                          : const SizedBox.shrink(),
-                    );
-                  },
+                            : const SizedBox.shrink(),
+                      );
+                    },
+                  ),
                 ),
               ),
 
