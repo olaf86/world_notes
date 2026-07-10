@@ -20,7 +20,7 @@ import '../../widgets/note/manage_access_sheet.dart';
 import '../../widgets/note/message_bubble.dart';
 import '../../widgets/note/message_creation_overlay.dart';
 import '../../widgets/note/note_lock_setup_dialog.dart';
-import '../../widgets/note/visitor_preview.dart';
+import '../../widgets/note/visitor_map_overlay.dart';
 
 // ---------------------------------------------------------------------------
 // Screen
@@ -936,7 +936,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                         _ThreadStatusBanner(place: place, now: now),
                       StaticNoteMiniMap(
                         place: place,
-                        topRightOverlay: VisitorPreview.mapOverlay(
+                        topRightOverlay: VisitorMapOverlay(
                           placeId: widget.placeId,
                           footprintEnabled: place.footprintEnabled,
                           visitorCount: place.visitorCount,
