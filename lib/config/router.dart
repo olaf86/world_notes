@@ -99,9 +99,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/note/create',
         pageBuilder: (context, state) {
+          final forkDraft = state.extra is NoteCreationDraft
+              ? state.extra as NoteCreationDraft
+              : null;
           return CustomTransitionPage<void>(
             key: state.pageKey,
-            child: const NoteCreationScreen(),
+            child: NoteCreationScreen(forkDraft: forkDraft),
             opaque: false,
             transitionsBuilder: _slideTransition,
           );

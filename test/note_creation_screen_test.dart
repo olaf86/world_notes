@@ -35,6 +35,47 @@ void main() {
     expect(placeRepository.longitude, 139.767125);
   });
 
+  testWidgets('uses archived note draft values when creating a fork', (
+    tester,
+  ) async {
+    final locationService = _FakeLocationService(
+      position: _position(latitude: 35.681236, longitude: 139.767125),
+    );
+    final placeRepository = _RecordingPlaceRepository();
+
+    await _pumpScreen(
+      tester,
+      locationService: locationService,
+      placeRepository: placeRepository,
+      forkDraft: const NoteCreationDraft(
+        latitude: 34.6937,
+        longitude: 135.5023,
+        title: 'Osaka Castle',
+        subtitle: 'Stone walls and a wide moat',
+        colorHex: '#2196F3',
+        icon: 'star',
+      ),
+    );
+
+    expect(find.text('Osaka Castle'), findsOneWidget);
+    expect(find.text('Stone walls and a wide moat'), findsOneWidget);
+    expect(
+      find.text('This new note will use the archived note\'s location.'),
+      findsOneWidget,
+    );
+
+    await _scrollToCreateButton(tester);
+    await tester.tap(find.text('Create Note'));
+    await tester.pumpAndSettle();
+
+    expect(locationService.getCurrentPositionCallCount, 0);
+    expect(placeRepository.createNoteCallCount, 1);
+    expect(placeRepository.latitude, 34.6937);
+    expect(placeRepository.longitude, 135.5023);
+    expect(placeRepository.title, 'Osaka Castle');
+    expect(placeRepository.subtitle, 'Stone walls and a wide moat');
+  });
+
   testWidgets('does not create a note when current position fails', (
     tester,
   ) async {
@@ -97,6 +138,7 @@ Future<void> _pumpScreen(
   WidgetTester tester, {
   required LocationService locationService,
   required PlaceRepository placeRepository,
+  NoteCreationDraft? forkDraft,
 }) async {
   final router = GoRouter(
     routes: [
@@ -108,7 +150,7 @@ Future<void> _pumpScreen(
               ref.watch(authStateProvider);
               return child!;
             },
-            child: const NoteCreationScreen(),
+            child: NoteCreationScreen(forkDraft: forkDraft),
           );
         },
       ),
@@ -177,6 +219,8 @@ class _RecordingPlaceRepository implements PlaceRepository {
   int createNoteCallCount = 0;
   double? latitude;
   double? longitude;
+  String? title;
+  String? subtitle;
 
   @override
   Future<String> createNote({
@@ -194,6 +238,8 @@ class _RecordingPlaceRepository implements PlaceRepository {
     createNoteCallCount += 1;
     this.latitude = latitude;
     this.longitude = longitude;
+    this.title = title;
+    this.subtitle = subtitle;
     return 'place-1';
   }
 
