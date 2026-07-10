@@ -8,6 +8,7 @@ import '../../../domain/policies/note_permissions.dart';
 import '../../providers/providers.dart';
 import '../../widgets/my_notes_notification_controls.dart';
 import '../../widgets/note/note_list_card.dart';
+import '../note/note_creation_screen.dart';
 import 'nearby_notifications_view.dart';
 
 class MyNotesScreen extends ConsumerWidget {
@@ -70,7 +71,8 @@ class _MyNotesListView extends ConsumerWidget {
         title: const Text('Archive this note?'),
         content: const Text(
           'It will disappear from the map, become read-only, and free one '
-          'note slot. Archived notes cannot be restored.',
+          'note slot. You cannot restore the archived note, but you can '
+          'create a new note from its title, description, and location later.',
         ),
         actions: [
           TextButton(
@@ -189,7 +191,16 @@ class _ArchivedNotesListView extends ConsumerWidget {
             physics: const AlwaysScrollableScrollPhysics(),
             itemCount: places.length,
             separatorBuilder: (context, index) => const SizedBox(height: 10),
-            itemBuilder: (context, index) => _MyNoteCard(place: places[index]),
+            itemBuilder: (context, index) {
+              final place = places[index];
+              return _MyNoteCard(
+                place: place,
+                onCreateFromArchive: () => context.push(
+                  '/note/create',
+                  extra: NoteCreationDraft.fromPlace(place),
+                ),
+              );
+            },
           );
         },
       ),
@@ -238,8 +249,13 @@ class _NoteLimitSummary extends StatelessWidget {
 class _MyNoteCard extends StatelessWidget {
   final PlaceEntity place;
   final VoidCallback? onArchive;
+  final VoidCallback? onCreateFromArchive;
 
-  const _MyNoteCard({required this.place, this.onArchive});
+  const _MyNoteCard({
+    required this.place,
+    this.onArchive,
+    this.onCreateFromArchive,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -278,6 +294,15 @@ class _MyNoteCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             _MessageCountBadge(count: place.messageCount),
+            if (onCreateFromArchive != null) ...[
+              const SizedBox(width: 4),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                tooltip: 'Create new note from archive',
+                onPressed: onCreateFromArchive,
+                icon: const Icon(Icons.add_location_alt_outlined, size: 20),
+              ),
+            ],
             if (onArchive != null) ...[
               const SizedBox(width: 4),
               IconButton(

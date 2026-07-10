@@ -21,6 +21,7 @@ import '../../widgets/note/message_bubble.dart';
 import '../../widgets/note/message_creation_overlay.dart';
 import '../../widgets/note/note_lock_setup_dialog.dart';
 import '../../widgets/note/visitor_map_overlay.dart';
+import 'note_creation_screen.dart';
 
 // ---------------------------------------------------------------------------
 // Screen
@@ -272,7 +273,8 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
         title: const Text('Archive this note?'),
         content: const Text(
           'It will disappear from the map, become read-only, and free one '
-          'note slot. Archived notes cannot be restored.',
+          'note slot. You cannot restore the archived note, but you can '
+          'create a new note from its title, description, and location later.',
         ),
         actions: [
           TextButton(
@@ -827,6 +829,16 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                           icon: const Icon(Icons.star_outline),
                           tooltip: 'Go PRO',
                           onPressed: () => context.push('/subscription'),
+                        ),
+                      if (place.isArchived &&
+                          place.isMaintainedBy(currentUser?.id))
+                        IconButton(
+                          icon: const Icon(Icons.add_location_alt_outlined),
+                          tooltip: 'Create new note from archive',
+                          onPressed: () => context.push(
+                            '/note/create',
+                            extra: NoteCreationDraft.fromPlace(place),
+                          ),
                         ),
                       if (permissions.canSubscribeNearbyAlerts)
                         IconButton(

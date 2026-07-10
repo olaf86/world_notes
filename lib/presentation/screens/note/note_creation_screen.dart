@@ -33,8 +33,38 @@ enum _PublicationPreset {
 
 enum _PinMarkerStyle { icon, image }
 
+/// Values copied from an archived note when creating a new note from it.
+class NoteCreationDraft {
+  final double latitude;
+  final double longitude;
+  final String title;
+  final String? subtitle;
+  final String colorHex;
+  final String icon;
+
+  const NoteCreationDraft({
+    required this.latitude,
+    required this.longitude,
+    required this.title,
+    this.subtitle,
+    required this.colorHex,
+    required this.icon,
+  });
+
+  factory NoteCreationDraft.fromPlace(PlaceEntity place) => NoteCreationDraft(
+    latitude: place.latitude,
+    longitude: place.longitude,
+    title: place.title,
+    subtitle: place.subtitle,
+    colorHex: place.colorHex,
+    icon: place.icon,
+  );
+}
+
 class NoteCreationScreen extends ConsumerStatefulWidget {
-  const NoteCreationScreen({super.key});
+  final NoteCreationDraft? forkDraft;
+
+  const NoteCreationScreen({super.key, this.forkDraft});
 
   @override
   ConsumerState<NoteCreationScreen> createState() => _NoteCreationScreenState();
@@ -90,6 +120,20 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
     ('photo', Icons.photo_camera),
     ('music', Icons.music_note),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    final draft = widget.forkDraft;
+    if (draft == null) return;
+
+    _titleController.text = draft.title;
+    _subtitleController.text = draft.subtitle ?? '';
+    _selectedColor = parsePlaceColor(draft.colorHex);
+    if (_icons.any((item) => item.$1 == draft.icon)) {
+      _selectedIcon = draft.icon;
+    }
+  }
 
   DateTime _defaultCustomPublishAt() {
     final now = DateTime.now();
@@ -289,6 +333,17 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
     }
   }
 
+  Future<({double latitude, double longitude})?> _coordinatesForCreate() async {
+    final draft = widget.forkDraft;
+    if (draft != null) {
+      return (latitude: draft.latitude, longitude: draft.longitude);
+    }
+
+    final position = await _currentPositionForCreate();
+    if (position == null) return null;
+    return (latitude: position.latitude, longitude: position.longitude);
+  }
+
   Future<void> _reportPinImageUploadError({
     required String placeId,
     required Object error,
@@ -326,8 +381,8 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
     try {
       final user = ref.read(authStateProvider).valueOrNull;
       if (user == null) throw Exception('Not signed in');
-      final position = await _currentPositionForCreate();
-      if (position == null) return;
+      final coordinates = await _coordinatesForCreate();
+      if (coordinates == null) return;
 
       // Flutter 3.27+: Color.r/g/b return double (0.0–1.0), multiply by 255.
       final r = (_selectedColor.r * 255)
@@ -355,8 +410,8 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
       final placeId = await ref
           .read(placeRepositoryProvider)
           .createNote(
-            latitude: position.latitude,
-            longitude: position.longitude,
+            latitude: coordinates.latitude,
+            longitude: coordinates.longitude,
             title: title,
             subtitle: _subtitleController.text.trim().isEmpty
                 ? null
@@ -436,6 +491,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final forkDraft = widget.forkDraft;
     return Scaffold(
       appBar: AppBar(title: const Text('New Note')),
       body: Form(
@@ -461,6 +517,10 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
               ),
               maxLines: 3,
             ),
+            if (forkDraft != null) ...[
+              const SizedBox(height: 16),
+              const _ForkLocationNotice(),
+            ],
             const SizedBox(height: 24),
             Text('Pin color', style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 8),
@@ -633,6 +693,42 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Text('Create Note'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ForkLocationNotice extends StatelessWidget {
+  const _ForkLocationNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          children: [
+            Icon(
+              Icons.add_location_alt_outlined,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'This new note will use the archived note\'s location.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
             ),
           ],
         ),
