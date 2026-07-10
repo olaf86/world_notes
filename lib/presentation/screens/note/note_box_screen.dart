@@ -934,11 +934,13 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                       if (widget.readOnly) const _ReadOnlyBanner(),
                       if (!place.canAcceptMessagesAt(now))
                         _ThreadStatusBanner(place: place, now: now),
-                      StaticNoteMiniMap(place: place),
-                      VisitorPreview(
-                        placeId: widget.placeId,
-                        footprintEnabled: place.footprintEnabled,
-                        visitorCount: place.visitorCount,
+                      StaticNoteMiniMap(
+                        place: place,
+                        topRightOverlay: VisitorPreview.mapOverlay(
+                          placeId: widget.placeId,
+                          footprintEnabled: place.footprintEnabled,
+                          visitorCount: place.visitorCount,
+                        ),
                       ),
                       Expanded(
                         child: messagesAsync.when(

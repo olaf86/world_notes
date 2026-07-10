@@ -15,8 +15,13 @@ import '../../providers/providers.dart';
 
 class StaticNoteMiniMap extends ConsumerStatefulWidget {
   final PlaceEntity place;
+  final Widget? topRightOverlay;
 
-  const StaticNoteMiniMap({super.key, required this.place});
+  const StaticNoteMiniMap({
+    super.key,
+    required this.place,
+    this.topRightOverlay,
+  });
 
   @override
   ConsumerState<StaticNoteMiniMap> createState() => _StaticNoteMiniMapState();
@@ -212,6 +217,12 @@ class _StaticNoteMiniMapState extends ConsumerState<StaticNoteMiniMap> {
                   child: const SizedBox.expand(),
                 ),
               ),
+              if (widget.topRightOverlay != null)
+                PositionedDirectional(
+                  top: 10,
+                  end: 10,
+                  child: widget.topRightOverlay!,
+                ),
             ],
           ),
         ),
