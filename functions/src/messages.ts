@@ -18,11 +18,14 @@ import {
   REGION,
 } from "./constants";
 import {
+  type AppModerationRiskSignal,
   type InternalModerationResult,
   OPENAI_API_KEY,
   applyModerationToUser,
   assertUserCanCreateContent,
   createModerationNoticeIfNeeded,
+  detectAppModerationRiskSignals,
+  hasReviewRecommendedRiskSignal,
   moderationAuditFields,
   moderateTextContent,
   moderationFields,
@@ -71,6 +74,7 @@ interface CreateMessageParams {
   profile: SendMessageProfile;
   tokenPicture: unknown;
   moderationResult: InternalModerationResult;
+  riskSignals: AppModerationRiskSignal[];
   nowMs: number;
 }
 
@@ -246,6 +250,7 @@ function messageDocumentData({
   publishAt,
   isPubliclyVisible,
   moderationResult,
+  riskSignals,
 }: {
   placeId: string;
   uid: string;
@@ -256,6 +261,7 @@ function messageDocumentData({
   publishAt: Timestamp;
   isPubliclyVisible: boolean;
   moderationResult: InternalModerationResult;
+  riskSignals: AppModerationRiskSignal[];
 }): Record<string, unknown> {
   const removedByModeration = isModerationRemoval(moderationResult);
   return {
@@ -275,6 +281,7 @@ function messageDocumentData({
       null,
     deletedReason: removedByModeration ? "moderation" : null,
     ...moderationFields(moderationResult),
+    ...(riskSignals.length > 0 ? {moderationRiskSignals: riskSignals} : {}),
     isPubliclyVisible,
     reportCount: 0,
   };
@@ -285,6 +292,7 @@ function moderationReviewDocumentData({
   placeId,
   messageId,
   moderationResult,
+  riskSignals,
   submittedContent,
   submittedImageStoragePaths,
 }: {
@@ -292,6 +300,7 @@ function moderationReviewDocumentData({
   placeId: string;
   messageId: string;
   moderationResult: InternalModerationResult;
+  riskSignals: AppModerationRiskSignal[];
   submittedContent: string;
   submittedImageStoragePaths: string[];
 }): Record<string, unknown> {
@@ -302,6 +311,11 @@ function moderationReviewDocumentData({
     messagePath: `places/${placeId}/messages/${messageId}`,
     content: submittedContent,
     imageStoragePaths: submittedImageStoragePaths,
+    reviewSource: moderationResult.action !== "allow" &&
+      moderationResult.action !== "pending" ?
+      "provider" :
+      "riskSignal",
+    ...(riskSignals.length > 0 ? {riskSignals} : {}),
     status: "open",
     createdAt: FieldValue.serverTimestamp(),
     ...moderationAuditFields(moderationResult),
@@ -310,9 +324,12 @@ function moderationReviewDocumentData({
 
 function shouldCreateModerationReview(
   moderationResult: InternalModerationResult,
+  riskSignals: AppModerationRiskSignal[],
 ): boolean {
-  return moderationResult.action !== "allow" &&
-    moderationResult.action !== "pending";
+  return (
+    moderationResult.action !== "allow" &&
+      moderationResult.action !== "pending"
+  ) || hasReviewRecommendedRiskSignal(riskSignals);
 }
 
 function hasValidMembership(
@@ -431,6 +448,7 @@ async function createMessageInTransaction({
   profile,
   tokenPicture,
   moderationResult,
+  riskSignals,
   nowMs,
 }: CreateMessageParams): Promise<CreateMessageResult> {
   let notifyImmediately = false;
@@ -526,17 +544,19 @@ async function createMessageInTransaction({
         publishAt,
         isPubliclyVisible: isImmediate,
         moderationResult,
+        riskSignals,
       }),
       placeAggregateAppliedAt: isImmediate ?
         FieldValue.serverTimestamp() :
         null,
     });
-    if (shouldCreateModerationReview(moderationResult)) {
+    if (shouldCreateModerationReview(moderationResult, riskSignals)) {
       tx.set(refs.moderationReviewRef, moderationReviewDocumentData({
         uid,
         placeId: input.placeId,
         messageId: input.messageId,
         moderationResult,
+        riskSignals,
         submittedContent: input.trimmedContent,
         submittedImageStoragePaths: input.trimmedImageStoragePaths,
       }));
@@ -677,6 +697,7 @@ export const sendMessage = onCall<SendMessageData>(
     if (existingResult) return existingResult;
 
     const moderationResult = await moderateTextContent(input.trimmedContent);
+    const riskSignals = detectAppModerationRiskSignals(input.trimmedContent);
     const profile = await profileForMember(
       uid,
       req.auth?.token.name,
@@ -689,6 +710,7 @@ export const sendMessage = onCall<SendMessageData>(
       profile,
       tokenPicture: req.auth?.token.picture,
       moderationResult,
+      riskSignals,
       nowMs,
     });
     await runSendMessageSideEffects({

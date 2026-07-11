@@ -25,10 +25,11 @@
 ## New path
 
 - `moderationReviews/{placeId}_{messageId}`: flat administrator review queue
-  for non-allow moderation decisions only. Stores `userId`, `placeId`,
-  `messageId`, submitted content, optional submitted image storage path,
-  provider scores, derived action, and review status. Client access is denied;
-  administrator tooling should use trusted server APIs.
+  for non-allow moderation decisions and high-confidence app risk signals such
+  as contact information. Stores `userId`, `placeId`, `messageId`, submitted
+  content, optional submitted image storage path, provider scores, derived
+  action, review source, risk signals, and review status. Client access is
+  denied; administrator tooling should use trusted server APIs.
 - `users/{uid}/notices/{noticeId}`: app inbox items for moderation warnings,
   account restrictions, bans, report outcomes, and future developer messages.
   Owner may read and mark read. Creation, deletion, and content changes are

@@ -36,6 +36,8 @@ type InternalCategory =
   "weapons" |
   "sensitiveTopic";
 type ModerationSeverity = "low" | "medium" | "high" | "critical";
+type AppModerationRiskSignalCategory = "email" | "phoneNumber";
+type AppModerationRiskSignalSeverity = "medium" | "high";
 
 interface ModerationCategoryScore {
   category: InternalCategory;
@@ -53,6 +55,12 @@ export interface InternalModerationResult {
   maxScore: number;
   categories: ModerationCategoryScore[];
   providerResultId?: string;
+}
+
+export interface AppModerationRiskSignal {
+  category: AppModerationRiskSignalCategory;
+  severity: AppModerationRiskSignalSeverity;
+  reviewRecommended: boolean;
 }
 
 export interface OpenAiModerationResponse {
@@ -102,6 +110,11 @@ const CRITICAL_CATEGORIES = new Set<InternalCategory>([
 
 const USER_CONTENT_BLOCKED_MESSAGE =
   "Your account is temporarily restricted from posting.";
+
+const EMAIL_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
+const SEPARATED_PHONE_PATTERN =
+  /(?:\+81[-\s]?)?0?\d{1,4}[-\s]\d{1,4}[-\s]\d{3,4}/;
+const MOBILE_PHONE_PATTERN = /\b(?:070|080|090)\d{8}\b/;
 
 function scoreOf(value: unknown): number {
   return typeof value === "number" && isFinite(value) ?
@@ -244,6 +257,42 @@ export async function moderateTextContent(
   return normalizeOpenAiModeration(
     await response.json() as OpenAiModerationResponse,
   );
+}
+
+function riskSignal(
+  category: AppModerationRiskSignalCategory,
+  severity: AppModerationRiskSignalSeverity = "high",
+): AppModerationRiskSignal {
+  return {
+    category,
+    severity,
+    reviewRecommended: true,
+  };
+}
+
+export function detectAppModerationRiskSignals(
+  content: string,
+): AppModerationRiskSignal[] {
+  const normalized = content.replace(/\s+/g, " ").trim();
+  if (normalized.length === 0) return [];
+
+  const signals: AppModerationRiskSignal[] = [];
+  if (EMAIL_PATTERN.test(normalized)) {
+    signals.push(riskSignal("email"));
+  }
+  if (
+    SEPARATED_PHONE_PATTERN.test(normalized) ||
+    MOBILE_PHONE_PATTERN.test(normalized)
+  ) {
+    signals.push(riskSignal("phoneNumber"));
+  }
+  return signals;
+}
+
+export function hasReviewRecommendedRiskSignal(
+  signals: AppModerationRiskSignal[],
+): boolean {
+  return signals.some((signal) => signal.reviewRecommended);
 }
 
 export function moderationFields(

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  detectAppModerationRiskSignals,
   type OpenAiModerationResponse,
   moderationFields,
   normalizeOpenAiModeration,
@@ -120,4 +121,36 @@ test("hides matched sexual-minors results even with low scores", () => {
   assert.equal(result.action, "hidden");
   assert.equal(sexualMinors?.matched, true);
   assert.equal(sexualMinors?.severity, "critical");
+});
+
+test("detects email addresses as app moderation risk signals", () => {
+  const signals = detectAppModerationRiskSignals(
+    "Contact me at user@example.com later.",
+  );
+
+  assert.deepEqual(signals, [{
+    category: "email",
+    severity: "high",
+    reviewRecommended: true,
+  }]);
+});
+
+test("detects Japanese phone numbers as app moderation risk signals", () => {
+  const signals = detectAppModerationRiskSignals(
+    "LINEできないなら 09012345678 に電話して",
+  );
+
+  assert.deepEqual(signals, [{
+    category: "phoneNumber",
+    severity: "high",
+    reviewRecommended: true,
+  }]);
+});
+
+test("does not emit app moderation risk signals for ordinary text", () => {
+  const signals = detectAppModerationRiskSignals(
+    "今日は駅前のカフェがとても混んでいました。",
+  );
+
+  assert.deepEqual(signals, []);
 });
