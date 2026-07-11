@@ -31,6 +31,8 @@ class AdminModerationReviewEntity {
   final List<String> imageStoragePaths;
   final String status;
   final List<String> reviewSources;
+  final int? reportCount;
+  final List<String> reportReasonsSummary;
   final List<AdminModerationRiskSignal> riskSignals;
   final String? action;
   final double? maxScore;
@@ -55,6 +57,8 @@ class AdminModerationReviewEntity {
     required this.imageStoragePaths,
     required this.status,
     required this.reviewSources,
+    required this.reportCount,
+    required this.reportReasonsSummary,
     required this.riskSignals,
     required this.action,
     required this.maxScore,
@@ -81,6 +85,8 @@ class AdminModerationReviewEntity {
       imageStoragePaths: _stringList(json['imageStoragePaths']),
       status: json['status'] as String? ?? 'open',
       reviewSources: _stringList(json['reviewSources']),
+      reportCount: _int(json['reportCount']),
+      reportReasonsSummary: _stringList(json['reportReasonsSummary']),
       riskSignals: _riskSignals(json['riskSignals']),
       action: json['action'] as String?,
       maxScore: _double(json['maxScore']),
@@ -122,6 +128,12 @@ Map<String, dynamic> _stringKeyed(Map<dynamic, dynamic> map) {
 double? _double(Object? value) {
   if (value is int) return value.toDouble();
   if (value is double) return value;
+  return null;
+}
+
+int? _int(Object? value) {
+  if (value is int) return value;
+  if (value is double) return value.round();
   return null;
 }
 

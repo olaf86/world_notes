@@ -45,12 +45,24 @@ interface SendMessageData {
   publishAtMillis?: unknown;
 }
 
+interface ReportMessageData {
+  placeId?: unknown;
+  messageId?: unknown;
+  reason?: unknown;
+}
+
 interface ValidatedSendMessageInput {
   messageId: string;
   placeId: string;
   trimmedContent: string;
   trimmedImageStoragePaths: string[];
   publishAtMillis?: unknown;
+}
+
+interface ValidatedReportMessageInput {
+  placeId: string;
+  messageId: string;
+  reason: string;
 }
 
 interface SendMessageRefs {
@@ -66,7 +78,7 @@ interface SendMessageProfile {
   displayName: string | null;
 }
 
-type ModerationReviewSource = "provider" | "riskSignal";
+type ModerationReviewSource = "provider" | "riskSignal" | "userReport";
 
 interface CreateMessageParams {
   db: Firestore;
@@ -97,6 +109,9 @@ interface CancelScheduledMessageData {
   placeId?: unknown;
   messageId?: unknown;
 }
+
+const MAX_REPORT_REASON_LENGTH = 500;
+const MAX_REPORT_DOCUMENT_ID_LENGTH = 200;
 
 function stringOrNull(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ?
@@ -178,6 +193,38 @@ function validateSendMessageInput(
     trimmedContent,
     trimmedImageStoragePaths,
     publishAtMillis,
+  };
+}
+
+function requiredString(value: unknown, fieldName: string): string {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new HttpsError("invalid-argument", `${fieldName} is required.`);
+  }
+  return value.trim();
+}
+
+function requiredDocumentId(value: unknown, fieldName: string): string {
+  const id = requiredString(value, fieldName);
+  if (
+    id.length > MAX_REPORT_DOCUMENT_ID_LENGTH ||
+    id.includes("/")
+  ) {
+    throw new HttpsError("invalid-argument", `Invalid ${fieldName}.`);
+  }
+  return id;
+}
+
+function validateReportMessageInput(
+  data: ReportMessageData | undefined,
+): ValidatedReportMessageInput {
+  const reason = requiredString(data?.reason, "reason");
+  if (reason.length > MAX_REPORT_REASON_LENGTH) {
+    throw new HttpsError("invalid-argument", "reason is too long.");
+  }
+  return {
+    placeId: requiredDocumentId(data?.placeId, "placeId"),
+    messageId: requiredDocumentId(data?.messageId, "messageId"),
+    reason,
   };
 }
 
@@ -733,6 +780,108 @@ export const sendMessage = onCall<SendMessageData>(
     return {
       messageId: refs.messageRef.id,
       publishAtMillis: result.publishAtMillis,
+    };
+  },
+);
+
+/**
+ * Records a user report and queues the message for administrator review.
+ */
+export const reportMessage = onCall<ReportMessageData>(
+  {enforceAppCheck: true, region: REGION},
+  async (req) => {
+    const uid = req.auth?.uid;
+    if (!uid) {
+      throw new HttpsError("unauthenticated", "Sign in required.");
+    }
+    const input = validateReportMessageInput(req.data);
+    const db = getFirestore();
+    const placeRef = db.collection("places").doc(input.placeId);
+    const memberRef = placeRef.collection("members").doc(uid);
+    const messageRef = placeRef.collection("messages").doc(input.messageId);
+    const reportRef = db
+      .collection("reports")
+      .doc(`${input.placeId}_${input.messageId}_${uid}`);
+    const moderationReviewRef = db
+      .collection("moderationReviews")
+      .doc(`${input.placeId}_${input.messageId}`);
+
+    await db.runTransaction(async (tx) => {
+      const [placeSnap, memberSnap, messageSnap, reportSnap, reviewSnap] =
+        await Promise.all([
+          tx.get(placeRef),
+          tx.get(memberRef),
+          tx.get(messageRef),
+          tx.get(reportRef),
+          tx.get(moderationReviewRef),
+        ]);
+      if (!placeSnap.exists) {
+        throw new HttpsError("not-found", "Note not found.");
+      }
+      if (!messageSnap.exists) {
+        throw new HttpsError("not-found", "Message not found.");
+      }
+      if (!canAccessNote(placeSnap, memberSnap, uid)) {
+        throw new HttpsError(
+          "permission-denied",
+          "You cannot report this message.",
+        );
+      }
+      if (messageSnap.get("userId") === uid) {
+        throw new HttpsError(
+          "failed-precondition",
+          "You cannot report your own message.",
+        );
+      }
+      if (
+        messageSnap.get("isVisible") !== true ||
+        messageSnap.get("isPubliclyVisible") !== true ||
+        messageSnap.get("isDeleted") === true
+      ) {
+        throw new HttpsError(
+          "failed-precondition",
+          "This message is not reportable.",
+        );
+      }
+      if (reportSnap.exists) {
+        return;
+      }
+
+      tx.set(reportRef, {
+        placeId: input.placeId,
+        messageId: input.messageId,
+        messagePath: `places/${input.placeId}/messages/${input.messageId}`,
+        reporterId: uid,
+        reportedUserId: messageSnap.get("userId") ?? null,
+        reason: input.reason,
+        status: "open",
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      tx.update(messageRef, {
+        reportCount: FieldValue.increment(1),
+      });
+      tx.set(moderationReviewRef, {
+        userId: messageSnap.get("userId") ?? null,
+        placeId: input.placeId,
+        messageId: input.messageId,
+        messagePath: `places/${input.placeId}/messages/${input.messageId}`,
+        content: messageSnap.get("content") ?? "",
+        imageStoragePaths: storedImagePaths(
+          messageSnap.get("imageStoragePaths"),
+        ),
+        reviewSources: FieldValue.arrayUnion("userReport"),
+        reportCount: FieldValue.increment(1),
+        reportReasonsSummary: FieldValue.arrayUnion(input.reason),
+        lastReportedAt: FieldValue.serverTimestamp(),
+        status: "open",
+        ...(reviewSnap.exists ? {} : {createdAt: FieldValue.serverTimestamp()}),
+      }, {merge: true});
+    });
+
+    return {
+      ok: true,
+      placeId: input.placeId,
+      messageId: input.messageId,
     };
   },
 );

@@ -12,7 +12,9 @@ void main() {
         'content': 'hello',
         'imageStoragePaths': ['a.webp'],
         'status': 'open',
-        'reviewSources': ['provider', 'riskSignal'],
+        'reviewSources': ['provider', 'riskSignal', 'userReport'],
+        'reportCount': 3,
+        'reportReasonsSummary': ['Spam or advertising'],
         'riskSignals': [
           {'category': 'email', 'severity': 'high', 'reviewRecommended': true},
         ],
@@ -28,7 +30,9 @@ void main() {
 
       expect(review.id, 'place-1_message-1');
       expect(review.canReview, isTrue);
-      expect(review.reviewSources, ['provider', 'riskSignal']);
+      expect(review.reviewSources, ['provider', 'riskSignal', 'userReport']);
+      expect(review.reportCount, 3);
+      expect(review.reportReasonsSummary, ['Spam or advertising']);
       expect(review.riskSignals.single.category, 'email');
       expect(review.maxScore, 0.92);
       expect(review.hasImages, isTrue);
@@ -45,6 +49,8 @@ void main() {
       expect(review.content, '');
       expect(review.status, 'open');
       expect(review.reviewSources, isEmpty);
+      expect(review.reportCount, isNull);
+      expect(review.reportReasonsSummary, isEmpty);
       expect(review.riskSignals, isEmpty);
       expect(review.canReview, isFalse);
     });

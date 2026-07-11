@@ -241,6 +241,12 @@ class _ReviewCard extends StatelessWidget {
                     label: Text('image'),
                     visualDensity: VisualDensity.compact,
                   ),
+                if (review.reportCount != null && review.reportCount! > 0)
+                  Chip(
+                    avatar: const Icon(Icons.flag_outlined, size: 16),
+                    label: Text('${review.reportCount} report(s)'),
+                    visualDensity: VisualDensity.compact,
+                  ),
               ],
             ),
             const SizedBox(height: 10),
@@ -257,6 +263,11 @@ class _ReviewCard extends StatelessWidget {
                 text: review.riskSignals
                     .map((signal) => '${signal.category}:${signal.severity}')
                     .join(', '),
+              ),
+            if (review.reportReasonsSummary.isNotEmpty)
+              _MetaLine(
+                icon: Icons.flag_outlined,
+                text: review.reportReasonsSummary.join(', '),
               ),
             _MetaLine(
               icon: Icons.place_outlined,

@@ -77,8 +77,9 @@
       "collectionGroup": "reports",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "placeId", "order": "ASCENDING" },
         { "fieldPath": "messageId", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        { "fieldPath": "status", "order": "ASCENDING" }
       ]
     },
     {

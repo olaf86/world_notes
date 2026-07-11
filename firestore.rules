@@ -111,41 +111,6 @@ service cloud.firestore {
                  || message.userId == request.auth.uid);
     }
 
-    function getMessage(placeId, messageId) {
-      return get(/databases/$(database)/documents/places/$(placeId)/messages/$(messageId)).data;
-    }
-
-    function isValidReport(report) {
-      return report.keys().hasOnly([
-               'messageId',
-               'placeId',
-               'reporterId',
-               'reason',
-               'status',
-               'createdAt'
-             ])
-             && report.messageId is string
-             && report.messageId.size() > 0
-             && report.messageId.size() <= 200
-             && report.placeId is string
-             && report.placeId.size() > 0
-             && report.placeId.size() <= 200
-             && report.reporterId == request.auth.uid
-             && report.reason is string
-             && report.reason.size() > 0
-             && report.reason.size() <= 500
-             && report.status == 'pending'
-             && report.createdAt == request.time;
-    }
-
-    function canCreateReport(report) {
-      let message = getMessage(report.placeId, report.messageId);
-      return isSignedIn()
-             && isValidReport(report)
-             && canReadMessage(report.placeId, message)
-             && message.userId != request.auth.uid;
-    }
-
     // ── users ─────────────────────────────────────────────────────────────────
     match /users/{uid} {
       allow read: if isCurrentUser(uid);
@@ -290,15 +255,9 @@ service cloud.firestore {
         // update happen in one transaction.
         allow create: if false;
 
-        // Any member can report another user's readable message — but only a
-        // monotonic +1 to reportCount, so a user can't reset counts.
-        allow update: if canReadMessage(placeId, resource.data)
-                      && resource.data.userId != request.auth.uid
-                      && request.resource.data.diff(resource.data).affectedKeys()
-                          .hasOnly(['reportCount'])
-                      && request.resource.data.reportCount is int
-                      && request.resource.data.reportCount
-                          == resource.data.reportCount + 1;
+        // Reports are submitted through the reportMessage callable so the
+        // report event and moderation review queue stay in sync.
+        allow update: if false;
 
         allow delete: if false;
       }
@@ -327,8 +286,7 @@ service cloud.firestore {
 
     // ── reports ───────────────────────────────────────────────────────────────
     match /reports/{reportId} {
-      allow create: if canCreateReport(request.resource.data);
-      allow read, update, delete: if false;
+      allow read, write: if false;
     }
   }
 }

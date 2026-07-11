@@ -37,7 +37,6 @@ abstract class MessageRepository {
   Future<void> reportMessage({
     required String messageId,
     required String placeId,
-    required String reporterId,
     required String reason,
   });
 }

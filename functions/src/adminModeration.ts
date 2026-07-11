@@ -193,6 +193,8 @@ function reviewListItemFromDoc(
     imageStoragePaths: data.imageStoragePaths ?? [],
     status: data.status ?? null,
     reviewSources: data.reviewSources ?? [],
+    reportCount: data.reportCount ?? null,
+    reportReasonsSummary: data.reportReasonsSummary ?? [],
     riskSignals: data.riskSignals ?? [],
     action: data.action ?? null,
     maxScore: data.maxScore ?? null,
@@ -265,11 +267,19 @@ export const adminReviewMessage = onCall<AdminReviewMessageData>(
       .doc(`${input.placeId}_${input.messageId}`);
     const auditRef = db.collection("moderationAuditLogs").doc();
     let imageStoragePathsToDelete: string[] = [];
+    const reportResolutionStatus =
+      input.action === "allow" ? "rejected" : "accepted";
 
     await db.runTransaction(async (tx) => {
-      const [messageSnap, reviewSnap] = await Promise.all([
+      const reportsQuery = db
+        .collection("reports")
+        .where("placeId", "==", input.placeId)
+        .where("messageId", "==", input.messageId)
+        .where("status", "==", "open");
+      const [messageSnap, reviewSnap, reportsSnap] = await Promise.all([
         tx.get(messageRef),
         tx.get(reviewRef),
+        tx.get(reportsQuery),
       ]);
       if (!messageSnap.exists) {
         throw new HttpsError("not-found", "Message not found.");
@@ -326,6 +336,16 @@ export const adminReviewMessage = onCall<AdminReviewMessageData>(
         previousDeletedReason: deletedReason ?? null,
         previousIsSensitive: messageSnap.get("isSensitive") ?? null,
         createdAt: FieldValue.serverTimestamp(),
+      });
+      reportsSnap.docs.forEach((reportDoc) => {
+        tx.update(reportDoc.ref, {
+          status: reportResolutionStatus,
+          resolvedAt: FieldValue.serverTimestamp(),
+          resolvedBy: uid,
+          moderationReviewId: reviewRef.id,
+          moderationDecision: input.action,
+          moderationReason: input.reason,
+        });
       });
     });
 

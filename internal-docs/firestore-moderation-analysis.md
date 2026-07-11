@@ -19,8 +19,9 @@
   `moderationAction: "pending"` when provider-side moderation is temporarily
   unavailable; pending messages remain visible and should be re-evaluated by a
   future scheduled function.
-- `reports/{reportId}`: currently client-created; planned to move behind a
-  callable function in a later moderation phase.
+- `reports/{placeId}_{messageId}_{reporterId}`: server-created user report
+  events. The document id makes repeat reports by the same user for the same
+  message idempotent.
 
 ## New path
 
@@ -28,8 +29,9 @@
   for non-allow moderation decisions and high-confidence app risk signals such
   as contact information. Stores `userId`, `placeId`, `messageId`, submitted
   content, optional submitted image storage path, provider scores, derived
-  action, review sources, risk signals, and review status. Client access is
-  denied; administrator tooling should use trusted server APIs.
+  action, review sources, risk signals, report count/summary, and review
+  status. Client access is denied; administrator tooling should use trusted
+  server APIs.
 - `moderationAuditLogs/{logId}`: server-only append log for administrator
   moderation decisions. Stores the administrator uid, reviewed message path,
   action, reason, previous moderation fields, and timestamp.
@@ -85,3 +87,20 @@ npm run admin:unset -- --email admin@example.com
 
 The target user must refresh their ID token or sign in again after the claim
 changes.
+
+## User report flow
+
+User reports are submitted through the `reportMessage` callable. Clients do not
+write `reports` directly and cannot update message `reportCount` directly.
+
+`reportMessage` writes the report event and upserts
+`moderationReviews/{placeId}_{messageId}` with:
+
+- `reviewSources: arrayUnion("userReport")`
+- `reportCount: increment(1)`
+- `reportReasonsSummary: arrayUnion(reason)`
+- `status: "open"`
+
+When an administrator resolves the message through `adminReviewMessage`, open
+reports for the same `placeId`/`messageId` are closed as `accepted` for
+`sensitive`/`hidden` decisions or `rejected` for `allow` decisions.
