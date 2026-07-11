@@ -19,6 +19,7 @@ abstract class NoteMapAdapter {
 
   Widget buildMap({
     required Position anchor,
+    required MapCameraSnapshot? initialCamera,
     required ColorScheme colorScheme,
     required MapStyle mapStyle,
     required String styleUrl,
@@ -37,6 +38,8 @@ abstract class NoteMapAdapter {
   Future<void> setTrackingEnabled(bool enabled);
 
   Future<void> changeStyle(MapStyle style, String apiKey);
+
+  void detach();
 
   void dispose();
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -82,6 +83,7 @@ class NoteMapController {
 
   // ── Internal state ────────────────────────────────────────────────────────
   MapLibreMapController? _map;
+  MyLocationTrackingMode _trackingMode = MyLocationTrackingMode.none;
   bool _sourceReady = false;
   final Map<String, PinSummary> _pinById = {};
   final Set<String> _registeredMarkerIds = {};
@@ -103,6 +105,15 @@ class NoteMapController {
 
   void attach(MapLibreMapController map) {
     _map = map;
+    unawaited(setTrackingMode(_trackingMode));
+  }
+
+  void detach() {
+    _map = null;
+    _sourceReady = false;
+    _selectedSymbol = null;
+    _animatingSymbol = null;
+    _pinScaleController.reset();
   }
 
   void dispose() {
@@ -112,6 +123,7 @@ class NoteMapController {
   // ── Map operations exposed to the widget ──────────────────────────────────
 
   Future<void> setTrackingMode(MyLocationTrackingMode mode) async {
+    _trackingMode = mode;
     await _map?.updateMyLocationTrackingMode(mode);
   }
 

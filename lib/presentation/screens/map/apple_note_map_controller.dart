@@ -71,6 +71,7 @@ class AppleNoteMapController implements NoteMapAdapter {
   @override
   Widget buildMap({
     required Position anchor,
+    required MapCameraSnapshot? initialCamera,
     required ColorScheme colorScheme,
     required MapStyle mapStyle,
     required String styleUrl,
@@ -89,8 +90,11 @@ class AppleNoteMapController implements NoteMapAdapter {
               builder: (context, currentCircles, _) {
                 return apple.AppleMap(
                   initialCameraPosition: apple.CameraPosition(
-                    target: apple.LatLng(anchor.latitude, anchor.longitude),
-                    zoom: AppConfig.defaultZoom,
+                    target: apple.LatLng(
+                      initialCamera?.center.lat ?? anchor.latitude,
+                      initialCamera?.center.lng ?? anchor.longitude,
+                    ),
+                    zoom: initialCamera?.zoom ?? AppConfig.defaultZoom,
                   ),
                   myLocationEnabled: true,
                   myLocationButtonEnabled: false,
@@ -115,6 +119,11 @@ class AppleNoteMapController implements NoteMapAdapter {
     annotations.dispose();
     trackingMode.dispose();
     accessAreaCircles.dispose();
+  }
+
+  @override
+  void detach() {
+    _map = null;
   }
 
   @override
