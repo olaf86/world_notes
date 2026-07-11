@@ -147,6 +147,26 @@ test("detects Japanese phone numbers as app moderation risk signals", () => {
   }]);
 });
 
+test("detects international phone numbers as risk signals", () => {
+  const signals = detectAppModerationRiskSignals(
+    "Call me at +1 415 555 2671 tomorrow.",
+  );
+
+  assert.deepEqual(signals, [{
+    category: "phoneNumber",
+    severity: "high",
+    reviewRecommended: true,
+  }]);
+});
+
+test("does not treat order-like numbers as phone risk signals", () => {
+  const signals = detectAppModerationRiskSignals(
+    "注文番号 202607110001 を確認してください。",
+  );
+
+  assert.deepEqual(signals, []);
+});
+
 test("does not emit app moderation risk signals for ordinary text", () => {
   const signals = detectAppModerationRiskSignals(
     "今日は駅前のカフェがとても混んでいました。",

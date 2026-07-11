@@ -1,4 +1,8 @@
 /* eslint-disable require-jsdoc */
+import {
+  type CountryCode,
+  findPhoneNumbersInText,
+} from "libphonenumber-js";
 import {defineSecret} from "firebase-functions/params";
 import {HttpsError} from "firebase-functions/v2/https";
 import {
@@ -111,10 +115,8 @@ const CRITICAL_CATEGORIES = new Set<InternalCategory>([
 const USER_CONTENT_BLOCKED_MESSAGE =
   "Your account is temporarily restricted from posting.";
 
+const DEFAULT_PHONE_NUMBER_COUNTRY: CountryCode = "JP";
 const EMAIL_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
-const SEPARATED_PHONE_PATTERN =
-  /(?:\+81[-\s]?)?0?\d{1,4}[-\s]\d{1,4}[-\s]\d{3,4}/;
-const MOBILE_PHONE_PATTERN = /\b(?:070|080|090)\d{8}\b/;
 
 function scoreOf(value: unknown): number {
   return typeof value === "number" && isFinite(value) ?
@@ -280,10 +282,10 @@ export function detectAppModerationRiskSignals(
   if (EMAIL_PATTERN.test(normalized)) {
     signals.push(riskSignal("email"));
   }
-  if (
-    SEPARATED_PHONE_PATTERN.test(normalized) ||
-    MOBILE_PHONE_PATTERN.test(normalized)
-  ) {
+  const phoneNumbers = findPhoneNumbersInText(normalized, {
+    defaultCountry: DEFAULT_PHONE_NUMBER_COUNTRY,
+  });
+  if (phoneNumbers.some((match) => match.number.isValid())) {
     signals.push(riskSignal("phoneNumber"));
   }
   return signals;
