@@ -19,9 +19,9 @@
   `moderationAction: "pending"` when provider-side moderation is temporarily
   unavailable; pending messages remain visible and should be re-evaluated by a
   future scheduled function.
-- `reports/{placeId}_{messageId}_{reporterId}`: server-created user report
-  events. The document id makes repeat reports by the same user for the same
-  message idempotent.
+- `reports/{autoId}`: server-created user report events. A user can submit
+  multiple reports for the same message, subject to a short server-side
+  cooldown.
 
 ## New path
 
@@ -92,6 +92,7 @@ changes.
 
 User reports are submitted through the `reportMessage` callable. Clients do not
 write `reports` directly and cannot update message `reportCount` directly.
+The server applies a short per-user cooldown before accepting another report.
 
 `reportMessage` writes the report event and upserts
 `moderationReviews/{placeId}_{messageId}` with:

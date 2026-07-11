@@ -112,6 +112,7 @@ interface CancelScheduledMessageData {
 
 const MAX_REPORT_REASON_LENGTH = 500;
 const MAX_REPORT_DOCUMENT_ID_LENGTH = 200;
+const REPORT_COOLDOWN_MILLIS = 30_000;
 
 function stringOrNull(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ?
@@ -226,6 +227,24 @@ function validateReportMessageInput(
     messageId: requiredDocumentId(data?.messageId, "messageId"),
     reason,
   };
+}
+
+function assertReportCooldown(
+  rateLimitSnap: DocumentSnapshot,
+  now: Timestamp,
+) {
+  if (!rateLimitSnap.exists) return;
+  const lastCreatedAt =
+    rateLimitSnap.get("lastCreatedAt") as Timestamp | undefined;
+  if (
+    lastCreatedAt &&
+    now.toMillis() - lastCreatedAt.toMillis() < REPORT_COOLDOWN_MILLIS
+  ) {
+    throw new HttpsError(
+      "resource-exhausted",
+      "Please wait before submitting another report.",
+    );
+  }
 }
 
 function sendMessageRefs(
@@ -799,22 +818,27 @@ export const reportMessage = onCall<ReportMessageData>(
     const placeRef = db.collection("places").doc(input.placeId);
     const memberRef = placeRef.collection("members").doc(uid);
     const messageRef = placeRef.collection("messages").doc(input.messageId);
-    const reportRef = db
-      .collection("reports")
-      .doc(`${input.placeId}_${input.messageId}_${uid}`);
+    const reportRef = db.collection("reports").doc();
     const moderationReviewRef = db
       .collection("moderationReviews")
       .doc(`${input.placeId}_${input.messageId}`);
+    const rateLimitRef = db
+      .collection("users")
+      .doc(uid)
+      .collection("rateLimits")
+      .doc("reportMessage");
+    const reportCreatedAt = Timestamp.now();
 
     await db.runTransaction(async (tx) => {
-      const [placeSnap, memberSnap, messageSnap, reportSnap, reviewSnap] =
+      const [placeSnap, memberSnap, messageSnap, reviewSnap, rateLimitSnap] =
         await Promise.all([
           tx.get(placeRef),
           tx.get(memberRef),
           tx.get(messageRef),
-          tx.get(reportRef),
           tx.get(moderationReviewRef),
+          tx.get(rateLimitRef),
         ]);
+      assertReportCooldown(rateLimitSnap, reportCreatedAt);
       if (!placeSnap.exists) {
         throw new HttpsError("not-found", "Note not found.");
       }
@@ -843,9 +867,6 @@ export const reportMessage = onCall<ReportMessageData>(
           "This message is not reportable.",
         );
       }
-      if (reportSnap.exists) {
-        return;
-      }
 
       tx.set(reportRef, {
         placeId: input.placeId,
@@ -855,8 +876,13 @@ export const reportMessage = onCall<ReportMessageData>(
         reportedUserId: messageSnap.get("userId") ?? null,
         reason: input.reason,
         status: "open",
-        createdAt: FieldValue.serverTimestamp(),
+        createdAt: reportCreatedAt,
       });
+      tx.set(rateLimitRef, {
+        lastCreatedAt: reportCreatedAt,
+        lastPlaceId: input.placeId,
+        lastMessageId: input.messageId,
+      }, {merge: true});
       tx.update(messageRef, {
         reportCount: FieldValue.increment(1),
       });
