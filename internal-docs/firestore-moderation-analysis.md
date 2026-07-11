@@ -47,7 +47,9 @@ composite index is expected.
 
 Future administrator tooling can query `moderationReviews` by `status`,
 `createdAt`, `userId`, `placeId`, or `action`. The initial administrator queue
-uses `status == "open"` ordered by `createdAt`.
+uses `status == "open"` ordered by `createdAt`; the Flutter administrator
+screen reads open/resolved queues through `adminListModerationReviews`, not
+direct Firestore client reads.
 
 Future delayed moderation tooling can use a collection group query over
 `messages` where `moderationAction == "pending"`. Add the required index when
@@ -69,6 +71,10 @@ Moderation administrator access is controlled by Firebase Auth custom claims.
 The callables `adminListModerationReviews` and `adminReviewMessage` require
 `admin: true`; hiding the Flutter UI is only a convenience, not the
 authorization boundary.
+
+The Flutter profile screen only links to `/admin/moderation` when the current
+ID token contains `admin: true`. The screen still calls the same trusted
+callables, so direct route access by a normal user fails at the backend.
 
 Set or remove the claim from `functions/`:
 

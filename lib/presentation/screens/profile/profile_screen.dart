@@ -87,6 +87,7 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final userAsync = ref.watch(authStateProvider);
     final isPremiumAsync = ref.watch(isPremiumProvider);
+    final adminClaim = ref.watch(adminClaimProvider);
 
     return Semantics(
       identifier: 'screen-profile',
@@ -201,6 +202,23 @@ class ProfileScreen extends ConsumerWidget {
                     onTap: () => RevenueCatUI.presentCustomerCenter(),
                   ),
                 ],
+                adminClaim.maybeWhen(
+                  data: (isAdmin) {
+                    if (!isAdmin) return const SizedBox.shrink();
+                    return Column(
+                      children: [
+                        const Divider(),
+                        ListTile(
+                          leading: const Icon(Icons.admin_panel_settings),
+                          title: const Text('Moderation'),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => context.push('/admin/moderation'),
+                        ),
+                      ],
+                    );
+                  },
+                  orElse: () => const SizedBox.shrink(),
+                ),
                 const Divider(),
                 ListTile(
                   leading: Icon(

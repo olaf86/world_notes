@@ -19,6 +19,7 @@ import '../../data/repositories/message_repository_impl.dart';
 import '../../data/repositories/notice_repository_impl.dart';
 import '../../data/repositories/place_repository_impl.dart';
 import '../../domain/entities/nearby_notification_entity.dart';
+import '../../domain/entities/admin_moderation_review_entity.dart';
 import '../../domain/entities/message_entity.dart';
 import '../../domain/entities/note_visitor_entity.dart';
 import '../../domain/entities/notice_entity.dart';
@@ -30,6 +31,7 @@ import '../../domain/repositories/message_repository.dart';
 import '../../domain/repositories/notice_repository.dart';
 import '../../domain/repositories/place_repository.dart';
 import '../../services/location_service.dart';
+import '../../services/admin_moderation_service.dart';
 import '../../services/message_image_service.dart';
 import '../../services/my_notes_notification_service.dart';
 import '../../services/native_geofence_service.dart';
@@ -131,6 +133,12 @@ final nearbyNotificationServiceProvider = Provider<NearbyNotificationService>((
   return service;
 });
 
+final adminModerationServiceProvider = Provider<AdminModerationService>((ref) {
+  return AdminModerationService(
+    functions: ref.watch(firebaseFunctionsProvider),
+  );
+});
+
 final nativeGeofenceServiceProvider = Provider<NativeGeofenceService>((ref) {
   final service = NativeGeofenceService();
   ref.onDispose(service.dispose);
@@ -175,6 +183,16 @@ final noticeRepositoryProvider = Provider<NoticeRepository>((ref) {
 
 final authStateProvider = StreamProvider<UserEntity?>((ref) {
   return ref.watch(authRepositoryProvider).authStateChanges;
+});
+
+final adminClaimProvider = FutureProvider<bool>((ref) async {
+  final user = await ref.watch(authStateProvider.future);
+  if (user == null) return false;
+  final token = await ref
+      .watch(firebaseAuthProvider)
+      .currentUser
+      ?.getIdTokenResult();
+  return token?.claims?['admin'] == true;
 });
 
 // --- Notifications ---
@@ -500,6 +518,16 @@ final messagesProvider = StreamProvider.autoDispose
       return ref
           .watch(messageRepositoryProvider)
           .watchMessages(placeId: placeId, currentUserId: user.id);
+    });
+
+final adminModerationReviewsProvider = FutureProvider.autoDispose
+    .family<List<AdminModerationReviewEntity>, AdminModerationReviewStatus>((
+      ref,
+      status,
+    ) {
+      return ref
+          .watch(adminModerationServiceProvider)
+          .listReviews(status: status);
     });
 
 // --- PRO subscription ---

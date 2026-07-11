@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../presentation/providers/providers.dart';
+import '../presentation/screens/admin/admin_moderation_screen.dart';
 import '../presentation/screens/auth/sign_in_screen.dart';
 import '../presentation/screens/invite/invite_claim_screen.dart';
 import '../presentation/screens/map/map_notes_screen.dart';
@@ -177,6 +178,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => CustomTransitionPage<void>(
           key: state.pageKey,
           child: const SettingsScreen(),
+          opaque: false,
+          transitionsBuilder: _slideTransition,
+        ),
+      ),
+      GoRoute(
+        path: '/admin/moderation',
+        pageBuilder: (context, state) => CustomTransitionPage<void>(
+          key: state.pageKey,
+          child: const AdminModerationScreen(),
           opaque: false,
           transitionsBuilder: _slideTransition,
         ),
