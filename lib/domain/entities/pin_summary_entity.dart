@@ -19,6 +19,7 @@ class PinSummary {
   final String? pinImageStoragePath;
   final String creatorName;
   final int messageCount;
+  final int likeCount;
   final int visitorCount;
   final DateTime createdAt;
   final DateTime lastActivityAt;
@@ -39,6 +40,7 @@ class PinSummary {
     this.pinImageStoragePath,
     required this.creatorName,
     required this.messageCount,
+    required this.likeCount,
     required this.visitorCount,
     required this.createdAt,
     required this.lastActivityAt,

@@ -12,6 +12,7 @@ void main() {
       'colorHex': '#4CAF50',
       'icon': 'place',
       'messageCount': 2,
+      'likeCount': 4,
       'visitorCount': 3,
       'createdAtMillis': 1000,
       'lastActivityAtMillis': 2000,
@@ -28,10 +29,16 @@ void main() {
       expect(model.toEntity().creatorName, 'Alice');
     });
 
-    test('uses a safe fallback for legacy responses', () {
+    test('uses a safe fallback for legacy creator name', () {
       final model = PinSummaryModel.fromJson(json);
 
       expect(model.toEntity().creatorName, 'Unknown user');
+    });
+
+    test('reads the like count', () {
+      final model = PinSummaryModel.fromJson({...json, 'likeCount': 7});
+
+      expect(model.toEntity().likeCount, 7);
     });
 
     test('reads an optional pin image storage path', () {

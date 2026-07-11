@@ -15,6 +15,7 @@ void main() {
       icon: 'place',
       creatorName: 'Alice',
       messageCount: 0,
+      likeCount: 0,
       visitorCount: 0,
       createdAt: now,
       lastActivityAt: now,

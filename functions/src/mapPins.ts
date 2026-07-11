@@ -72,6 +72,7 @@ interface PinResult {
   pinImageStoragePath: string | null;
   creatorName: string;
   messageCount: number;
+  likeCount: number;
   visitorCount: number;
   createdAtMillis: number;
   lastActivityAtMillis: number;
@@ -276,6 +277,7 @@ function pinFromDoc(
         storedCreatorName.trim() :
         "Unknown user",
     messageCount: (doc.get("messageCount") as number | undefined) ?? 0,
+    likeCount: doc.get("likeCount") as number,
     visitorCount: (doc.get("visitorCount") as number | undefined) ?? 0,
     createdAtMillis: createdAt?.toMillis() ?? nowMillis,
     lastActivityAtMillis:

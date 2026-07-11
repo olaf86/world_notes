@@ -102,6 +102,15 @@ abstract class PlaceRepository {
     required String userId,
   });
 
+  // ── Likes (Cloud Functions + per-user Firestore state) ───────────────────
+
+  /// Live stream of the current user's like state for a note.
+  Stream<bool> watchNoteLike({required String placeId, required String userId});
+
+  /// Sets the current user's final desired like state via `setNoteLike`.
+  /// The function is idempotent: sending the already-stored state is a no-op.
+  Future<void> setNoteLike({required String placeId, required bool liked});
+
   // ── Invitations (Cloud Functions) ─────────────────────────────────────────
 
   /// Maintainer-only: returns the note's reusable invite token if one is

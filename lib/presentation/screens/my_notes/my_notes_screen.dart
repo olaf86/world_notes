@@ -278,6 +278,8 @@ class _MyNoteCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             _MessageCountBadge(count: place.messageCount),
+            const SizedBox(width: 8),
+            _LikeCountBadge(count: place.likeCount),
             if (onArchive != null) ...[
               const SizedBox(width: 4),
               IconButton(
@@ -324,6 +326,36 @@ class _MessageCountBadge extends StatelessWidget {
       children: [
         Icon(
           Icons.chat_bubble_outline,
+          size: 14,
+          color: colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(width: 3),
+        Text(
+          '$count',
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LikeCountBadge extends StatelessWidget {
+  final int count;
+
+  const _LikeCountBadge({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.favorite_border,
           size: 14,
           color: colorScheme.onSurfaceVariant,
         ),

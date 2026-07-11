@@ -114,7 +114,11 @@ class _NoteMarkerBottomSheetState extends State<NoteMarkerBottomSheet> {
             children: [
               _MetaChip(
                 icon: Icons.chat_bubble_outline,
-                label: '${pin.messageCount} messages',
+                label: _countLabel(pin.messageCount, 'message'),
+              ),
+              _MetaChip(
+                icon: Icons.favorite_border,
+                label: _countLabel(pin.likeCount, 'like'),
               ),
               _MetaChip(
                 icon: Icons.directions_walk,
@@ -176,6 +180,9 @@ class _NoteMarkerBottomSheetState extends State<NoteMarkerBottomSheet> {
     );
   }
 }
+
+String _countLabel(int count, String singular) =>
+    '$count $singular${count == 1 ? '' : 's'}';
 
 /// Compact icon + label chip used for note metadata (message count, status,
 /// remaining lifetime). [color] tints both icon and text; defaults to the

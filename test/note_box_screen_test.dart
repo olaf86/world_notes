@@ -58,6 +58,7 @@ void main() {
       createdAt: now,
       publishAt: now.subtract(const Duration(days: 1)),
       expiresAt: now.add(const Duration(days: 7)),
+      likeCount: 0,
     );
 
     await tester.pumpWidget(

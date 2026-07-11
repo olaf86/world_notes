@@ -49,6 +49,9 @@ export {listMapPins, validateNoteAccess} from "./mapPins";
 // Footprint visitor tracking.
 export {recordNoteVisit, setFootprintEnabled} from "./visitors";
 
+// Note likes.
+export {setNoteLike} from "./likes";
+
 // Note lifecycle and metadata functions. Region set in their own options.
 export {createNote, setNotePinImage, archiveNote, archiveExpiredNotes}
   from "./notes";

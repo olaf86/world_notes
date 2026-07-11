@@ -278,6 +278,14 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // Per-user like state. Clients may read only their own state; all
+      // writes and the public places.likeCount aggregate are maintained by
+      // Cloud Functions so the count cannot be forged or drift from the edge.
+      match /likes/{likeUid} {
+        allow read: if isCurrentUser(likeUid) && canAccessNote(placeId);
+        allow write: if false;
+      }
+
       // ── messages (subcollection) ──────────────────────────────────────
       // Nested under the place so reads can be gated on the parent note's
       // visibility + membership. For private notes, only maintainers and

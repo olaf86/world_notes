@@ -11,6 +11,7 @@ class PinSummaryModel {
   final String? pinImageStoragePath;
   final String creatorName;
   final int messageCount;
+  final int likeCount;
   final int visitorCount;
   final DateTime createdAt;
   final DateTime lastActivityAt;
@@ -31,6 +32,7 @@ class PinSummaryModel {
     this.pinImageStoragePath,
     required this.creatorName,
     required this.messageCount,
+    required this.likeCount,
     required this.visitorCount,
     required this.createdAt,
     required this.lastActivityAt,
@@ -57,6 +59,7 @@ class PinSummaryModel {
       pinImageStoragePath: json['pinImageStoragePath'] as String?,
       creatorName: json['creatorName'] as String? ?? 'Unknown user',
       messageCount: json['messageCount'] as int,
+      likeCount: json['likeCount'] as int,
       visitorCount: json['visitorCount'] as int,
       createdAt: DateTime.fromMillisecondsSinceEpoch(createdAtMillis),
       lastActivityAt: DateTime.fromMillisecondsSinceEpoch(lastActivityAtMillis),
@@ -81,6 +84,7 @@ class PinSummaryModel {
     pinImageStoragePath: pinImageStoragePath,
     creatorName: creatorName,
     messageCount: messageCount,
+    likeCount: likeCount,
     visitorCount: visitorCount,
     createdAt: createdAt,
     lastActivityAt: lastActivityAt,
