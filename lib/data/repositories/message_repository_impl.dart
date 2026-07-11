@@ -232,25 +232,12 @@ class MessageRepositoryImpl implements MessageRepository {
   Future<void> reportMessage({
     required String messageId,
     required String placeId,
-    required String reporterId,
     required String reason,
   }) async {
-    final batch = _firestore.batch();
-
-    final reportRef = _firestore.collection('reports').doc();
-    batch.set(reportRef, {
+    await _functions.httpsCallable('reportMessage').call<Map<String, dynamic>>({
       'messageId': messageId,
       'placeId': placeId,
-      'reporterId': reporterId,
       'reason': reason,
-      'status': 'pending',
-      'createdAt': FieldValue.serverTimestamp(),
     });
-
-    batch.update(_messagesOf(placeId).doc(messageId), {
-      'reportCount': FieldValue.increment(1),
-    });
-
-    await batch.commit();
   }
 }

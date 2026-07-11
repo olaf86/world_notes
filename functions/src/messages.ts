@@ -18,11 +18,14 @@ import {
   REGION,
 } from "./constants";
 import {
+  type AppModerationRiskSignal,
   type InternalModerationResult,
   OPENAI_API_KEY,
   applyModerationToUser,
   assertUserCanCreateContent,
   createModerationNoticeIfNeeded,
+  detectAppModerationRiskSignals,
+  hasReviewRecommendedRiskSignal,
   moderationAuditFields,
   moderateTextContent,
   moderationFields,
@@ -42,12 +45,24 @@ interface SendMessageData {
   publishAtMillis?: unknown;
 }
 
+interface ReportMessageData {
+  placeId?: unknown;
+  messageId?: unknown;
+  reason?: unknown;
+}
+
 interface ValidatedSendMessageInput {
   messageId: string;
   placeId: string;
   trimmedContent: string;
   trimmedImageStoragePaths: string[];
   publishAtMillis?: unknown;
+}
+
+interface ValidatedReportMessageInput {
+  placeId: string;
+  messageId: string;
+  reason: string;
 }
 
 interface SendMessageRefs {
@@ -63,6 +78,8 @@ interface SendMessageProfile {
   displayName: string | null;
 }
 
+type ModerationReviewSource = "provider" | "riskSignal" | "userReport";
+
 interface CreateMessageParams {
   db: Firestore;
   refs: SendMessageRefs;
@@ -71,6 +88,7 @@ interface CreateMessageParams {
   profile: SendMessageProfile;
   tokenPicture: unknown;
   moderationResult: InternalModerationResult;
+  riskSignals: AppModerationRiskSignal[];
   nowMs: number;
 }
 
@@ -91,6 +109,10 @@ interface CancelScheduledMessageData {
   placeId?: unknown;
   messageId?: unknown;
 }
+
+const MAX_REPORT_REASON_LENGTH = 500;
+const MAX_REPORT_DOCUMENT_ID_LENGTH = 200;
+const REPORT_COOLDOWN_MILLIS = 30_000;
 
 function stringOrNull(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ?
@@ -175,6 +197,56 @@ function validateSendMessageInput(
   };
 }
 
+function requiredString(value: unknown, fieldName: string): string {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new HttpsError("invalid-argument", `${fieldName} is required.`);
+  }
+  return value.trim();
+}
+
+function requiredDocumentId(value: unknown, fieldName: string): string {
+  const id = requiredString(value, fieldName);
+  if (
+    id.length > MAX_REPORT_DOCUMENT_ID_LENGTH ||
+    id.includes("/")
+  ) {
+    throw new HttpsError("invalid-argument", `Invalid ${fieldName}.`);
+  }
+  return id;
+}
+
+function validateReportMessageInput(
+  data: ReportMessageData | undefined,
+): ValidatedReportMessageInput {
+  const reason = requiredString(data?.reason, "reason");
+  if (reason.length > MAX_REPORT_REASON_LENGTH) {
+    throw new HttpsError("invalid-argument", "reason is too long.");
+  }
+  return {
+    placeId: requiredDocumentId(data?.placeId, "placeId"),
+    messageId: requiredDocumentId(data?.messageId, "messageId"),
+    reason,
+  };
+}
+
+function assertReportCooldown(
+  rateLimitSnap: DocumentSnapshot,
+  now: Timestamp,
+) {
+  if (!rateLimitSnap.exists) return;
+  const lastCreatedAt =
+    rateLimitSnap.get("lastCreatedAt") as Timestamp | undefined;
+  if (
+    lastCreatedAt &&
+    now.toMillis() - lastCreatedAt.toMillis() < REPORT_COOLDOWN_MILLIS
+  ) {
+    throw new HttpsError(
+      "resource-exhausted",
+      "Please wait before submitting another report.",
+    );
+  }
+}
+
 function sendMessageRefs(
   db: Firestore,
   input: ValidatedSendMessageInput,
@@ -246,6 +318,7 @@ function messageDocumentData({
   publishAt,
   isPubliclyVisible,
   moderationResult,
+  riskSignals,
 }: {
   placeId: string;
   uid: string;
@@ -256,6 +329,7 @@ function messageDocumentData({
   publishAt: Timestamp;
   isPubliclyVisible: boolean;
   moderationResult: InternalModerationResult;
+  riskSignals: AppModerationRiskSignal[];
 }): Record<string, unknown> {
   const removedByModeration = isModerationRemoval(moderationResult);
   return {
@@ -275,6 +349,7 @@ function messageDocumentData({
       null,
     deletedReason: removedByModeration ? "moderation" : null,
     ...moderationFields(moderationResult),
+    ...(riskSignals.length > 0 ? {moderationRiskSignals: riskSignals} : {}),
     isPubliclyVisible,
     reportCount: 0,
   };
@@ -285,6 +360,7 @@ function moderationReviewDocumentData({
   placeId,
   messageId,
   moderationResult,
+  riskSignals,
   submittedContent,
   submittedImageStoragePaths,
 }: {
@@ -292,9 +368,19 @@ function moderationReviewDocumentData({
   placeId: string;
   messageId: string;
   moderationResult: InternalModerationResult;
+  riskSignals: AppModerationRiskSignal[];
   submittedContent: string;
   submittedImageStoragePaths: string[];
 }): Record<string, unknown> {
+  const reviewSources: ModerationReviewSource[] = [
+    ...(moderationResult.action !== "allow" &&
+      moderationResult.action !== "pending" ?
+      ["provider" as const] :
+      []),
+    ...(hasReviewRecommendedRiskSignal(riskSignals) ?
+      ["riskSignal" as const] :
+      []),
+  ];
   return {
     userId: uid,
     placeId,
@@ -302,6 +388,8 @@ function moderationReviewDocumentData({
     messagePath: `places/${placeId}/messages/${messageId}`,
     content: submittedContent,
     imageStoragePaths: submittedImageStoragePaths,
+    reviewSources,
+    ...(riskSignals.length > 0 ? {riskSignals} : {}),
     status: "open",
     createdAt: FieldValue.serverTimestamp(),
     ...moderationAuditFields(moderationResult),
@@ -310,9 +398,12 @@ function moderationReviewDocumentData({
 
 function shouldCreateModerationReview(
   moderationResult: InternalModerationResult,
+  riskSignals: AppModerationRiskSignal[],
 ): boolean {
-  return moderationResult.action !== "allow" &&
-    moderationResult.action !== "pending";
+  return (
+    moderationResult.action !== "allow" &&
+      moderationResult.action !== "pending"
+  ) || hasReviewRecommendedRiskSignal(riskSignals);
 }
 
 function hasValidMembership(
@@ -431,6 +522,7 @@ async function createMessageInTransaction({
   profile,
   tokenPicture,
   moderationResult,
+  riskSignals,
   nowMs,
 }: CreateMessageParams): Promise<CreateMessageResult> {
   let notifyImmediately = false;
@@ -526,17 +618,19 @@ async function createMessageInTransaction({
         publishAt,
         isPubliclyVisible: isImmediate,
         moderationResult,
+        riskSignals,
       }),
       placeAggregateAppliedAt: isImmediate ?
         FieldValue.serverTimestamp() :
         null,
     });
-    if (shouldCreateModerationReview(moderationResult)) {
+    if (shouldCreateModerationReview(moderationResult, riskSignals)) {
       tx.set(refs.moderationReviewRef, moderationReviewDocumentData({
         uid,
         placeId: input.placeId,
         messageId: input.messageId,
         moderationResult,
+        riskSignals,
         submittedContent: input.trimmedContent,
         submittedImageStoragePaths: input.trimmedImageStoragePaths,
       }));
@@ -677,6 +771,7 @@ export const sendMessage = onCall<SendMessageData>(
     if (existingResult) return existingResult;
 
     const moderationResult = await moderateTextContent(input.trimmedContent);
+    const riskSignals = detectAppModerationRiskSignals(input.trimmedContent);
     const profile = await profileForMember(
       uid,
       req.auth?.token.name,
@@ -689,6 +784,7 @@ export const sendMessage = onCall<SendMessageData>(
       profile,
       tokenPicture: req.auth?.token.picture,
       moderationResult,
+      riskSignals,
       nowMs,
     });
     await runSendMessageSideEffects({
@@ -703,6 +799,115 @@ export const sendMessage = onCall<SendMessageData>(
     return {
       messageId: refs.messageRef.id,
       publishAtMillis: result.publishAtMillis,
+    };
+  },
+);
+
+/**
+ * Records a user report and queues the message for administrator review.
+ */
+export const reportMessage = onCall<ReportMessageData>(
+  {enforceAppCheck: true, region: REGION},
+  async (req) => {
+    const uid = req.auth?.uid;
+    if (!uid) {
+      throw new HttpsError("unauthenticated", "Sign in required.");
+    }
+    const input = validateReportMessageInput(req.data);
+    const db = getFirestore();
+    const placeRef = db.collection("places").doc(input.placeId);
+    const memberRef = placeRef.collection("members").doc(uid);
+    const messageRef = placeRef.collection("messages").doc(input.messageId);
+    const reportRef = db.collection("reports").doc();
+    const moderationReviewRef = db
+      .collection("moderationReviews")
+      .doc(`${input.placeId}_${input.messageId}`);
+    const rateLimitRef = db
+      .collection("users")
+      .doc(uid)
+      .collection("rateLimits")
+      .doc("reportMessage");
+    const reportCreatedAt = Timestamp.now();
+
+    await db.runTransaction(async (tx) => {
+      const [placeSnap, memberSnap, messageSnap, reviewSnap, rateLimitSnap] =
+        await Promise.all([
+          tx.get(placeRef),
+          tx.get(memberRef),
+          tx.get(messageRef),
+          tx.get(moderationReviewRef),
+          tx.get(rateLimitRef),
+        ]);
+      assertReportCooldown(rateLimitSnap, reportCreatedAt);
+      if (!placeSnap.exists) {
+        throw new HttpsError("not-found", "Note not found.");
+      }
+      if (!messageSnap.exists) {
+        throw new HttpsError("not-found", "Message not found.");
+      }
+      if (!canAccessNote(placeSnap, memberSnap, uid)) {
+        throw new HttpsError(
+          "permission-denied",
+          "You cannot report this message.",
+        );
+      }
+      if (messageSnap.get("userId") === uid) {
+        throw new HttpsError(
+          "failed-precondition",
+          "You cannot report your own message.",
+        );
+      }
+      if (
+        messageSnap.get("isVisible") !== true ||
+        messageSnap.get("isPubliclyVisible") !== true ||
+        messageSnap.get("isDeleted") === true
+      ) {
+        throw new HttpsError(
+          "failed-precondition",
+          "This message is not reportable.",
+        );
+      }
+
+      tx.set(reportRef, {
+        placeId: input.placeId,
+        messageId: input.messageId,
+        messagePath: `places/${input.placeId}/messages/${input.messageId}`,
+        reporterId: uid,
+        reportedUserId: messageSnap.get("userId") ?? null,
+        reason: input.reason,
+        status: "open",
+        createdAt: reportCreatedAt,
+      });
+      tx.set(rateLimitRef, {
+        lastCreatedAt: reportCreatedAt,
+        lastPlaceId: input.placeId,
+        lastMessageId: input.messageId,
+      }, {merge: true});
+      tx.update(messageRef, {
+        reportCount: FieldValue.increment(1),
+      });
+      tx.set(moderationReviewRef, {
+        userId: messageSnap.get("userId") ?? null,
+        placeId: input.placeId,
+        messageId: input.messageId,
+        messagePath: `places/${input.placeId}/messages/${input.messageId}`,
+        content: messageSnap.get("content") ?? "",
+        imageStoragePaths: storedImagePaths(
+          messageSnap.get("imageStoragePaths"),
+        ),
+        reviewSources: FieldValue.arrayUnion("userReport"),
+        reportCount: FieldValue.increment(1),
+        reportReasonsSummary: FieldValue.arrayUnion(input.reason),
+        lastReportedAt: FieldValue.serverTimestamp(),
+        status: "open",
+        ...(reviewSnap.exists ? {} : {createdAt: FieldValue.serverTimestamp()}),
+      }, {merge: true});
+    });
+
+    return {
+      ok: true,
+      placeId: input.placeId,
+      messageId: input.messageId,
     };
   },
 );

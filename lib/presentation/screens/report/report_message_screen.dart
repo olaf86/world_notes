@@ -34,9 +34,6 @@ class _ReportMessageScreenState extends ConsumerState<ReportMessageScreen> {
     final reason = _selectedReason;
     if (reason == null || _submitting) return;
 
-    final currentUser = ref.read(authStateProvider).valueOrNull;
-    if (currentUser == null) return;
-
     setState(() => _submitting = true);
     try {
       await ref
@@ -44,7 +41,6 @@ class _ReportMessageScreenState extends ConsumerState<ReportMessageScreen> {
           .reportMessage(
             messageId: widget.messageId,
             placeId: widget.placeId,
-            reporterId: currentUser.id,
             reason: reason,
           );
       if (mounted) Navigator.of(context).pop(true);

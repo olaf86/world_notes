@@ -1,4 +1,8 @@
 /* eslint-disable require-jsdoc */
+import {
+  type CountryCode,
+  findPhoneNumbersInText,
+} from "libphonenumber-js";
 import {defineSecret} from "firebase-functions/params";
 import {HttpsError} from "firebase-functions/v2/https";
 import {
@@ -36,6 +40,8 @@ type InternalCategory =
   "weapons" |
   "sensitiveTopic";
 type ModerationSeverity = "low" | "medium" | "high" | "critical";
+type AppModerationRiskSignalCategory = "email" | "phoneNumber";
+type AppModerationRiskSignalSeverity = "medium" | "high";
 
 interface ModerationCategoryScore {
   category: InternalCategory;
@@ -55,7 +61,13 @@ export interface InternalModerationResult {
   providerResultId?: string;
 }
 
-interface OpenAiModerationResponse {
+export interface AppModerationRiskSignal {
+  category: AppModerationRiskSignalCategory;
+  severity: AppModerationRiskSignalSeverity;
+  reviewRecommended: boolean;
+}
+
+export interface OpenAiModerationResponse {
   id?: string;
   model?: string;
   results?: Array<{
@@ -102,6 +114,9 @@ const CRITICAL_CATEGORIES = new Set<InternalCategory>([
 
 const USER_CONTENT_BLOCKED_MESSAGE =
   "Your account is temporarily restricted from posting.";
+
+const DEFAULT_PHONE_NUMBER_COUNTRY: CountryCode = "JP";
+const EMAIL_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
 
 function scoreOf(value: unknown): number {
   return typeof value === "number" && isFinite(value) ?
@@ -170,7 +185,7 @@ function canDeferModeration(status: number): boolean {
   return status === 429 || status >= 500;
 }
 
-function normalizeOpenAiModeration(
+export function normalizeOpenAiModeration(
   response: OpenAiModerationResponse,
 ): InternalModerationResult {
   const result = response.results?.[0] ?? {};
@@ -244,6 +259,42 @@ export async function moderateTextContent(
   return normalizeOpenAiModeration(
     await response.json() as OpenAiModerationResponse,
   );
+}
+
+function riskSignal(
+  category: AppModerationRiskSignalCategory,
+  severity: AppModerationRiskSignalSeverity = "high",
+): AppModerationRiskSignal {
+  return {
+    category,
+    severity,
+    reviewRecommended: true,
+  };
+}
+
+export function detectAppModerationRiskSignals(
+  content: string,
+): AppModerationRiskSignal[] {
+  const normalized = content.replace(/\s+/g, " ").trim();
+  if (normalized.length === 0) return [];
+
+  const signals: AppModerationRiskSignal[] = [];
+  if (EMAIL_PATTERN.test(normalized)) {
+    signals.push(riskSignal("email"));
+  }
+  const phoneNumbers = findPhoneNumbersInText(normalized, {
+    defaultCountry: DEFAULT_PHONE_NUMBER_COUNTRY,
+  });
+  if (phoneNumbers.some((match) => match.number.isValid())) {
+    signals.push(riskSignal("phoneNumber"));
+  }
+  return signals;
+}
+
+export function hasReviewRecommendedRiskSignal(
+  signals: AppModerationRiskSignal[],
+): boolean {
+  return signals.some((signal) => signal.reviewRecommended);
 }
 
 export function moderationFields(
