@@ -61,3 +61,20 @@ that scheduled function is implemented.
   authoritative server content.
 - Deny client create/delete.
 - Deny all client access to `moderationReviews`.
+- Deny all client access to `moderationAuditLogs`.
+
+## Administrator access
+
+Moderation administrator access is controlled by Firebase Auth custom claims.
+The callable `adminReviewMessage` requires `admin: true`; hiding the Flutter UI
+is only a convenience, not the authorization boundary.
+
+Set or remove the claim from `functions/`:
+
+```bash
+npm run admin:set -- --email admin@example.com
+npm run admin:unset -- --email admin@example.com
+```
+
+The target user must refresh their ID token or sign in again after the claim
+changes.
