@@ -2,6 +2,8 @@ import 'package:cloud_functions/cloud_functions.dart';
 
 import '../domain/entities/admin_moderation_review_entity.dart';
 
+const defaultAdminModerationReviewListLimit = 20;
+
 class AdminModerationService {
   final FirebaseFunctions _functions;
 
@@ -10,7 +12,7 @@ class AdminModerationService {
 
   Future<List<AdminModerationReviewEntity>> listReviews({
     required AdminModerationReviewStatus status,
-    int limit = 20,
+    int limit = defaultAdminModerationReviewListLimit,
   }) async {
     final result = await _functions
         .httpsCallable('adminListModerationReviews')
