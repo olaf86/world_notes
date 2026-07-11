@@ -28,7 +28,6 @@ class MapLibreNoteMapAdapter implements NoteMapAdapter {
   @override
   Widget buildMap({
     required Position anchor,
-    required MapCameraSnapshot? initialCamera,
     required ColorScheme colorScheme,
     required MapStyle mapStyle,
     required String styleUrl,
@@ -37,11 +36,8 @@ class MapLibreNoteMapAdapter implements NoteMapAdapter {
     return maplibre.MapLibreMap(
       styleString: styleUrl,
       initialCameraPosition: maplibre.CameraPosition(
-        target: maplibre.LatLng(
-          initialCamera?.center.lat ?? anchor.latitude,
-          initialCamera?.center.lng ?? anchor.longitude,
-        ),
-        zoom: initialCamera?.zoom ?? AppConfig.defaultZoom,
+        target: maplibre.LatLng(anchor.latitude, anchor.longitude),
+        zoom: AppConfig.defaultZoom,
       ),
       myLocationEnabled: true,
       myLocationTrackingMode: maplibre.MyLocationTrackingMode.none,
@@ -96,11 +92,6 @@ class MapLibreNoteMapAdapter implements NoteMapAdapter {
   @override
   Future<void> changeStyle(MapStyle style, String apiKey) {
     return _controller.changeStyle(style.styleUrl(apiKey));
-  }
-
-  @override
-  void detach() {
-    _controller.detach();
   }
 
   @override

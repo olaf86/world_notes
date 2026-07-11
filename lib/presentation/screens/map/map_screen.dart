@@ -7,7 +7,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../config/app_config.dart';
-import '../../../config/route_observer.dart';
 import '../../../core/map_style.dart';
 import '../../../core/utils/image_upload_util.dart';
 import '../../../domain/entities/pin_summary_entity.dart';
@@ -48,13 +47,10 @@ class MapScreen extends ConsumerStatefulWidget {
 }
 
 class _MapScreenState extends ConsumerState<MapScreen>
-    with SingleTickerProviderStateMixin, RouteAware {
+    with SingleTickerProviderStateMixin {
   late final NoteMapAdapter _mapAdapter;
-  PageRoute<dynamic>? _observedRoute;
   bool _refreshingMapNotes = false;
-  bool _coveredByPageRoute = false;
   String? _activePinPreviewPlaceId;
-  MapCameraSnapshot? _lastCameraSnapshot;
 
   @override
   void initState() {
@@ -67,44 +63,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final route = ModalRoute.of(context);
-    if (route is! PageRoute<dynamic> || identical(route, _observedRoute)) {
-      return;
-    }
-    if (_observedRoute != null) {
-      appRouteObserver.unsubscribe(this);
-    }
-    _observedRoute = route;
-    appRouteObserver.subscribe(this, route);
-  }
-
-  @override
-  void didPushNext() {
-    _setCoveredByPageRoute(true);
-  }
-
-  @override
-  void didPopNext() {
-    _setCoveredByPageRoute(false);
-  }
-
-  void _setCoveredByPageRoute(bool covered) {
-    if (_coveredByPageRoute == covered) return;
-    if (covered) {
-      _mapAdapter.detach();
-    }
-    if (mounted) {
-      setState(() => _coveredByPageRoute = covered);
-    } else {
-      _coveredByPageRoute = covered;
-    }
-  }
-
-  @override
   void dispose() {
-    appRouteObserver.unsubscribe(this);
     _mapAdapter.dispose();
     super.dispose();
   }
@@ -317,7 +276,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   void _onCameraIdle(MapCameraSnapshot camera) {
-    _lastCameraSnapshot = camera;
     final center = camera.center;
     final radiusKm = MapPinSearchRadius.forZoom(camera.zoom);
     final current = ref.read(mapSearchCenterProvider);
@@ -407,6 +365,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
       ),
     );
 
+    pinsAsync?.whenData(_mapAdapter.updateMarkers);
+
     if (_mapAdapter.supportsMapStyle) {
       ref.listen<MapStyle>(mapStyleProvider, (_, next) {
         _mapAdapter.changeStyle(
@@ -416,18 +376,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
       });
     }
 
-    if (_coveredByPageRoute) {
-      return const _MapRouteCoveredView();
-    }
-
-    pinsAsync?.whenData(_mapAdapter.updateMarkers);
-
     if (anchor != null) {
       final currentPosition = positionAsync.valueOrNull ?? anchor;
       return _MapView(
         anchor: anchor,
         currentPosition: currentPosition,
-        initialCamera: _lastCameraSnapshot,
         mapAdapter: _mapAdapter,
         isTracking: isTracking,
         isAccessAreaVisible: isAccessAreaVisible,
@@ -463,19 +416,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 }
 
-class _MapRouteCoveredView extends StatelessWidget {
-  const _MapRouteCoveredView();
-
-  @override
-  Widget build(BuildContext context) {
-    return ColoredBox(color: Theme.of(context).colorScheme.surface);
-  }
-}
-
 class _MapView extends ConsumerWidget {
   final Position anchor;
   final Position currentPosition;
-  final MapCameraSnapshot? initialCamera;
   final NoteMapAdapter mapAdapter;
   final bool isTracking;
   final bool isAccessAreaVisible;
@@ -493,7 +436,6 @@ class _MapView extends ConsumerWidget {
   const _MapView({
     required this.anchor,
     required this.currentPosition,
-    required this.initialCamera,
     required this.mapAdapter,
     required this.isTracking,
     required this.isAccessAreaVisible,
@@ -531,7 +473,6 @@ class _MapView extends ConsumerWidget {
             onPointerDown: (_) => onPointerDown(),
             child: mapAdapter.buildMap(
               anchor: anchor,
-              initialCamera: initialCamera,
               colorScheme: colorScheme,
               mapStyle: mapStyle,
               styleUrl: styleUrl,
