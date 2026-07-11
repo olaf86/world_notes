@@ -10,6 +10,9 @@ import * as logger from "firebase-functions/logger";
 
 import {REGION} from "./constants";
 
+const DEFAULT_REVIEW_LIST_LIMIT = 20;
+const MAX_REVIEW_LIST_LIMIT = 50;
+
 type AdminModerationAction = "allow" | "sensitive" | "hidden";
 type AdminModerationReviewStatus = "open" | "resolved";
 
@@ -47,12 +50,15 @@ function assertAdmin(uid: string | undefined, adminClaim: unknown) {
 }
 
 function validateLimit(value: unknown): number {
-  if (value == null) return 20;
+  if (value == null) return DEFAULT_REVIEW_LIST_LIMIT;
   if (typeof value !== "number" || !Number.isInteger(value)) {
     throw new HttpsError("invalid-argument", "limit must be an integer.");
   }
-  if (value < 1 || value > 50) {
-    throw new HttpsError("invalid-argument", "limit must be 1-50.");
+  if (value < 1 || value > MAX_REVIEW_LIST_LIMIT) {
+    throw new HttpsError(
+      "invalid-argument",
+      `limit must be 1-${MAX_REVIEW_LIST_LIMIT}.`,
+    );
   }
   return value;
 }
