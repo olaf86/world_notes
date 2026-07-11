@@ -66,6 +66,8 @@ interface SendMessageProfile {
   displayName: string | null;
 }
 
+type ModerationReviewSource = "provider" | "riskSignal";
+
 interface CreateMessageParams {
   db: Firestore;
   refs: SendMessageRefs;
@@ -304,15 +306,11 @@ function moderationReviewDocumentData({
   submittedContent: string;
   submittedImageStoragePaths: string[];
 }): Record<string, unknown> {
-  const reviewSources = [
-    ...(moderationResult.action !== "allow" &&
+  const reviewSource: ModerationReviewSource =
+    moderationResult.action !== "allow" &&
       moderationResult.action !== "pending" ?
-      ["openAiModeration"] :
-      []),
-    ...(hasReviewRecommendedRiskSignal(riskSignals) ?
-      ["appRiskSignal"] :
-      []),
-  ];
+      "provider" :
+      "riskSignal";
   return {
     userId: uid,
     placeId,
@@ -320,7 +318,7 @@ function moderationReviewDocumentData({
     messagePath: `places/${placeId}/messages/${messageId}`,
     content: submittedContent,
     imageStoragePaths: submittedImageStoragePaths,
-    reviewSources,
+    reviewSource,
     ...(riskSignals.length > 0 ? {riskSignals} : {}),
     status: "open",
     createdAt: FieldValue.serverTimestamp(),
