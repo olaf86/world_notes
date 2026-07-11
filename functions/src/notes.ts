@@ -263,6 +263,7 @@ export const createNote = onCall<CreateNoteData>(
         createdAt: FieldValue.serverTimestamp(),
         publishAt,
         messageCount: 0,
+        likeCount: 0,
         visitorCount: 0,
         lastMessageAt: publishAt,
         visibility,

@@ -19,6 +19,7 @@ void main() {
         createdAt: now,
         publishAt: now,
         expiresAt: now.add(const Duration(days: 7)),
+        likeCount: 0,
       );
 
       expect(place.isMaintainedBy('creator-1'), isTrue);
@@ -42,6 +43,7 @@ void main() {
         createdAt: now,
         publishAt: now,
         expiresAt: now.add(const Duration(days: 7)),
+        likeCount: 0,
       );
 
       expect(

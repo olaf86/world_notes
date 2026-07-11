@@ -317,6 +317,32 @@ class PlaceRepositoryImpl implements PlaceRepository {
         });
   }
 
+  // ── Likes ────────────────────────────────────────────────────────────────
+
+  @override
+  Stream<bool> watchNoteLike({
+    required String placeId,
+    required String userId,
+  }) {
+    return _places
+        .doc(placeId)
+        .collection('likes')
+        .doc(userId)
+        .snapshots()
+        .map((doc) => doc.data()?['liked'] == true);
+  }
+
+  @override
+  Future<void> setNoteLike({
+    required String placeId,
+    required bool liked,
+  }) async {
+    await _functions.httpsCallable('setNoteLike').call<Map<String, dynamic>>({
+      'placeId': placeId,
+      'liked': liked,
+    });
+  }
+
   // ── Invitations ───────────────────────────────────────────────────────────
 
   @override

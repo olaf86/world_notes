@@ -78,6 +78,7 @@ class PlaceEntity {
   /// Publicly visible message count. Scheduled messages are counted only after
   /// they are published.
   final int messageCount;
+  final int likeCount;
   final DateTime? lastMessageAt;
 
   // ── Axis 1: Visibility ──────────────────────────────────────────────────
@@ -135,6 +136,7 @@ class PlaceEntity {
     required this.publishAt,
     required this.expiresAt,
     this.messageCount = 0,
+    required this.likeCount,
     this.lastMessageAt,
     this.visibility = PlaceVisibility.public,
     this.passwordVersion = 0,

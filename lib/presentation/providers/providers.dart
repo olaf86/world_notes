@@ -416,6 +416,17 @@ final noteMembershipProvider = StreamProvider.family<NoteMembership?, String>((
       .watchMembership(placeId: placeId, userId: user.id);
 });
 
+/// Current user's like state for a note. The note screen only watches this
+/// after content access has been granted, so private-note rules stay aligned
+/// with the message stream behavior.
+final noteLikeProvider = StreamProvider.family<bool, String>((ref, placeId) {
+  final user = ref.watch(authStateProvider).valueOrNull;
+  if (user == null) return Stream.value(false);
+  return ref
+      .watch(placeRepositoryProvider)
+      .watchNoteLike(placeId: placeId, userId: user.id);
+});
+
 /// Maintainer view of a private note's access list.
 final noteMembersProvider = StreamProvider.family<List<NoteMember>, String>((
   ref,

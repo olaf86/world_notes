@@ -26,6 +26,7 @@ void main() {
         createdAt: now.subtract(const Duration(days: 1)),
         publishAt: now.subtract(const Duration(hours: 1)),
         expiresAt: now.add(const Duration(days: 1)),
+        likeCount: 0,
         visibility: visibility,
         isOpen: isOpen,
         closedReason: closedReason,
@@ -44,6 +45,7 @@ void main() {
       expect(permissions.role, NoteRole.creator);
       expect(permissions.canReadContent, isTrue);
       expect(permissions.canPostMessage, isTrue);
+      expect(permissions.canLikeNote, isFalse);
       expect(permissions.canCreateInviteLink, isTrue);
       expect(permissions.canRevokeInviteLink, isTrue);
       expect(permissions.canPromoteMaintainers, isTrue);
@@ -63,6 +65,7 @@ void main() {
       expect(permissions.role, NoteRole.maintainer);
       expect(permissions.canReadContent, isTrue);
       expect(permissions.canPostMessage, isTrue);
+      expect(permissions.canLikeNote, isTrue);
       expect(permissions.canCloseThread, isTrue);
       expect(permissions.canCreateInviteLink, isTrue);
       expect(permissions.canRemoveMemberAccess, isTrue);
@@ -84,6 +87,7 @@ void main() {
       expect(permissions.role, NoteRole.member);
       expect(permissions.canReadContent, isTrue);
       expect(permissions.canPostMessage, isTrue);
+      expect(permissions.canLikeNote, isTrue);
       expect(permissions.canManageAccess, isFalse);
       expect(permissions.canCreateInviteLink, isFalse);
       expect(permissions.canCloseThread, isFalse);
@@ -101,6 +105,7 @@ void main() {
       expect(permissions.role, NoteRole.visitor);
       expect(permissions.canReadContent, isTrue);
       expect(permissions.canPostMessage, isTrue);
+      expect(permissions.canLikeNote, isTrue);
       expect(permissions.canManageAccess, isFalse);
     });
 
@@ -113,8 +118,50 @@ void main() {
       );
 
       expect(permissions.canPostMessage, isFalse);
+      expect(permissions.canLikeNote, isTrue);
       expect(permissions.canCloseThread, isTrue);
       expect(permissions.canCreateInviteLink, isTrue);
+    });
+
+    test('expired and archived notes cannot be liked', () {
+      final expired = PlaceEntity(
+        id: 'expired',
+        latitude: 35.0,
+        longitude: 139.0,
+        geohash: 'xn76u',
+        title: 'Expired note',
+        colorHex: '#336699',
+        icon: 'note',
+        createdByUserId: 'creator-1',
+        createdAt: now.subtract(const Duration(days: 2)),
+        publishAt: now.subtract(const Duration(days: 2)),
+        expiresAt: now.subtract(const Duration(days: 1)),
+        likeCount: 0,
+      );
+      final archived = place(isArchived: true);
+
+      expect(
+        expired
+            .permissionsFor(
+              uid: 'visitor-1',
+              membership: null,
+              readOnly: false,
+              now: now,
+            )
+            .canLikeNote,
+        isFalse,
+      );
+      expect(
+        archived
+            .permissionsFor(
+              uid: 'visitor-1',
+              membership: null,
+              readOnly: false,
+              now: now,
+            )
+            .canLikeNote,
+        isFalse,
+      );
     });
 
     test('member row actions follow actor permissions and target role', () {

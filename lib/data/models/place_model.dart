@@ -16,6 +16,7 @@ class PlaceModel {
   final DateTime createdAt;
   final DateTime publishAt;
   final int messageCount;
+  final int likeCount;
   final DateTime? lastMessageAt;
   final PlaceVisibility visibility;
   final int passwordVersion;
@@ -46,6 +47,7 @@ class PlaceModel {
     required this.publishAt,
     required this.expiresAt,
     this.messageCount = 0,
+    required this.likeCount,
     this.lastMessageAt,
     this.visibility = PlaceVisibility.public,
     this.passwordVersion = 0,
@@ -89,6 +91,7 @@ class PlaceModel {
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       publishAt: (data['publishAt'] as Timestamp).toDate(),
       messageCount: data['messageCount'] as int,
+      likeCount: data['likeCount'] as int,
       lastMessageAt: (data['lastMessageAt'] as Timestamp?)?.toDate(),
       visibility: PlaceVisibility.fromJson(data['visibility'] as String),
       passwordVersion: data['passwordVersion'] as int,
@@ -123,6 +126,7 @@ class PlaceModel {
       'createdAt': FieldValue.serverTimestamp(),
       'publishAt': Timestamp.fromDate(publishAt),
       'messageCount': messageCount,
+      'likeCount': likeCount,
       'lastMessageAt': lastMessageAt != null
           ? Timestamp.fromDate(lastMessageAt!)
           : FieldValue.serverTimestamp(),
@@ -156,6 +160,7 @@ class PlaceModel {
     createdAt: createdAt,
     publishAt: publishAt,
     messageCount: messageCount,
+    likeCount: likeCount,
     lastMessageAt: lastMessageAt,
     visibility: visibility,
     passwordVersion: passwordVersion,

@@ -216,6 +216,7 @@ function placeData(
     createdAt: timestamp(hoursBefore(now, place.createdHoursAgo)),
     publishAt: timestamp(hoursBefore(now, place.publishHoursAgo ?? 1)),
     messageCount: place.messages.length,
+    likeCount: 0,
     lastMessageAt: timestamp(hoursBefore(now, place.lastMessageHoursAgo)),
     visibility: place.visibility || "public",
     passwordVersion: place.visibility === "private" ? 1 : 0,

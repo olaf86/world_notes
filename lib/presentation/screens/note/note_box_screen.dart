@@ -954,6 +954,12 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                           visitorCount: place.visitorCount,
                         ),
                       ),
+                      _NoteLikeRow(
+                        placeId: widget.placeId,
+                        serverLikeCount: place.likeCount,
+                        canLike: permissions.canLikeNote,
+                        isOwnNote: currentUser?.id == place.createdByUserId,
+                      ),
                       Expanded(
                         child: messagesAsync.when(
                           loading: () =>
@@ -1085,6 +1091,213 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                 ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NoteLikeRow extends ConsumerStatefulWidget {
+  final String placeId;
+  final int serverLikeCount;
+  final bool canLike;
+  final bool isOwnNote;
+
+  const _NoteLikeRow({
+    required this.placeId,
+    required this.serverLikeCount,
+    required this.canLike,
+    required this.isOwnNote,
+  });
+
+  @override
+  ConsumerState<_NoteLikeRow> createState() => _NoteLikeRowState();
+}
+
+class _NoteLikeRowState extends ConsumerState<_NoteLikeRow> {
+  static const _debounceDuration = Duration(milliseconds: 800);
+
+  Timer? _debounce;
+  bool _initialized = false;
+  bool _serverLiked = false;
+  bool _displayLiked = false;
+  int _displayLikeCount = 0;
+  bool _hasLocalOverride = false;
+  bool _sending = false;
+  bool _flushAfterSend = false;
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    if (_hasLocalOverride && _displayLiked != _serverLiked) {
+      unawaited(
+        ref
+            .read(placeRepositoryProvider)
+            .setNoteLike(placeId: widget.placeId, liked: _displayLiked),
+      );
+    }
+    super.dispose();
+  }
+
+  /// Applies the latest Firestore state to the optimistic display state.
+  ///
+  /// While a tap is pending or being sent, the local display wins so the heart
+  /// does not flicker. Once Firestore confirms both the like state and count,
+  /// the local override is cleared and later server changes drive the display.
+  void _applyServerLikeState({
+    required bool serverLiked,
+    required int serverCount,
+  }) {
+    _serverLiked = serverLiked;
+    if (!_initialized) {
+      _initialized = true;
+      _displayLiked = serverLiked;
+      _displayLikeCount = serverCount;
+      return;
+    }
+    if (!_hasLocalOverride && !_sending && _debounce == null) {
+      _displayLiked = serverLiked;
+      _displayLikeCount = serverCount;
+      return;
+    }
+    if (_hasLocalOverride &&
+        !_sending &&
+        _debounce == null &&
+        _displayLiked == serverLiked &&
+        _displayLikeCount == serverCount) {
+      _hasLocalOverride = false;
+    }
+  }
+
+  void _toggleLike() {
+    if (!widget.canLike) return;
+    final nextLiked = !_displayLiked;
+    final countDelta = nextLiked ? 1 : -1;
+    setState(() {
+      _displayLiked = nextLiked;
+      final nextCount = _displayLikeCount + countDelta;
+      _displayLikeCount = nextCount < 0 ? 0 : nextCount;
+      _hasLocalOverride = true;
+    });
+    _scheduleFlush();
+  }
+
+  void _scheduleFlush() {
+    _debounce?.cancel();
+    _debounce = Timer(_debounceDuration, () {
+      _debounce = null;
+      unawaited(_flushLike());
+    });
+  }
+
+  Future<void> _flushLike() async {
+    if (!mounted) return;
+    if (_sending) {
+      _flushAfterSend = true;
+      return;
+    }
+    final desiredLiked = _displayLiked;
+    if (desiredLiked == _serverLiked) {
+      setState(() {
+        _hasLocalOverride = false;
+        _displayLikeCount = widget.serverLikeCount;
+      });
+      return;
+    }
+
+    setState(() {
+      _sending = true;
+      _flushAfterSend = false;
+    });
+    try {
+      await ref
+          .read(placeRepositoryProvider)
+          .setNoteLike(placeId: widget.placeId, liked: desiredLiked);
+      if (!mounted) return;
+      setState(() {
+        _sending = false;
+      });
+      if (_flushAfterSend || _displayLiked != desiredLiked) {
+        _flushAfterSend = false;
+        _scheduleFlush();
+      }
+    } on FirebaseFunctionsException catch (error) {
+      if (!mounted) return;
+      _showFailure(error.message ?? 'Could not update like.');
+    } catch (_) {
+      if (!mounted) return;
+      _showFailure('Could not update like. Check your connection.');
+    }
+  }
+
+  void _showFailure(String message) {
+    setState(() {
+      _sending = false;
+      _flushAfterSend = false;
+      _hasLocalOverride = false;
+      _displayLiked = _serverLiked;
+      _displayLikeCount = widget.serverLikeCount;
+    });
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final likedAsync = ref.watch(noteLikeProvider(widget.placeId));
+    final serverLiked = likedAsync.valueOrNull ?? false;
+    _applyServerLikeState(
+      serverLiked: serverLiked,
+      serverCount: widget.serverLikeCount,
+    );
+
+    final icon = _displayLiked ? Icons.favorite : Icons.favorite_border;
+    final color = _displayLiked
+        ? colorScheme.error
+        : colorScheme.onSurfaceVariant;
+    final tooltip = widget.canLike
+        ? (_displayLiked ? 'Unlike note' : 'Like note')
+        : widget.isOwnNote
+        ? 'You cannot like your own note'
+        : 'Like unavailable';
+
+    return Material(
+      color: colorScheme.surface,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+        child: Row(
+          children: [
+            Semantics(
+              identifier: 'action-toggle-note-like',
+              button: true,
+              toggled: _displayLiked,
+              child: IconButton(
+                tooltip: tooltip,
+                onPressed: widget.canLike ? _toggleLike : null,
+                icon: Icon(icon, color: widget.canLike ? color : null),
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              '$_displayLikeCount like${_displayLikeCount == 1 ? '' : 's'}',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+            if (_sending) ...[
+              const SizedBox(width: 8),
+              SizedBox.square(
+                dimension: 12,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );

@@ -254,18 +254,12 @@ class _MapNoteTile extends StatelessWidget {
       trailing: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.chat_bubble_outline,
-            size: 14,
-            color: colorScheme.onSurfaceVariant,
+          _SummaryCount(
+            icon: Icons.chat_bubble_outline,
+            count: pin.messageCount,
           ),
-          const SizedBox(height: 2),
-          Text(
-            '${pin.messageCount}',
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
+          const SizedBox(height: 6),
+          _SummaryCount(icon: Icons.favorite_border, count: pin.likeCount),
         ],
       ),
       onTap: () => _openPin(context),
@@ -304,6 +298,32 @@ class _MapNoteTile extends StatelessWidget {
     if (!context.mounted) return;
     context.push(
       '/note/${pin.placeId}?title=${Uri.encodeComponent(pin.title)}',
+    );
+  }
+}
+
+class _SummaryCount extends StatelessWidget {
+  final IconData icon;
+  final int count;
+
+  const _SummaryCount({required this.icon, required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: colorScheme.onSurfaceVariant),
+        const SizedBox(height: 2),
+        Text(
+          '$count',
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
     );
   }
 }
