@@ -30,6 +30,9 @@
   content, optional submitted image storage path, provider scores, derived
   action, review sources, risk signals, and review status. Client access is
   denied; administrator tooling should use trusted server APIs.
+- `moderationAuditLogs/{logId}`: server-only append log for administrator
+  moderation decisions. Stores the administrator uid, reviewed message path,
+  action, reason, previous moderation fields, and timestamp.
 - `users/{uid}/notices/{noticeId}`: app inbox items for moderation warnings,
   account restrictions, bans, report outcomes, and future developer messages.
   Owner may read and mark read. Creation, deletion, and content changes are
