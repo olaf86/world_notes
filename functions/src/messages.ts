@@ -304,6 +304,15 @@ function moderationReviewDocumentData({
   submittedContent: string;
   submittedImageStoragePaths: string[];
 }): Record<string, unknown> {
+  const reviewSources = [
+    ...(moderationResult.action !== "allow" &&
+      moderationResult.action !== "pending" ?
+      ["openAiModeration"] :
+      []),
+    ...(hasReviewRecommendedRiskSignal(riskSignals) ?
+      ["appRiskSignal"] :
+      []),
+  ];
   return {
     userId: uid,
     placeId,
@@ -311,10 +320,7 @@ function moderationReviewDocumentData({
     messagePath: `places/${placeId}/messages/${messageId}`,
     content: submittedContent,
     imageStoragePaths: submittedImageStoragePaths,
-    reviewSource: moderationResult.action !== "allow" &&
-      moderationResult.action !== "pending" ?
-      "provider" :
-      "riskSignal",
+    reviewSources,
     ...(riskSignals.length > 0 ? {riskSignals} : {}),
     status: "open",
     createdAt: FieldValue.serverTimestamp(),
