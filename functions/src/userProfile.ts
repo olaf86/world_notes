@@ -72,6 +72,13 @@ export const updateDisplayName = onCall<{displayName?: unknown}>(
         },
         {merge: true},
       ),
+      db.collection("publicProfiles").doc(uid).set(
+        {
+          displayName,
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        {merge: true},
+      ),
       getAuth().updateUser(uid, {displayName}),
     ]);
 

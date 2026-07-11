@@ -62,6 +62,9 @@ export {recordNoteVisit, setFootprintEnabled} from "./visitors";
 // Note likes.
 export {setNoteLike} from "./likes";
 
+// User following.
+export {setUserFollow} from "./social";
+
 // Note lifecycle and metadata functions. Region set in their own options.
 export {createNote, setNotePinImage, archiveNote, archiveExpiredNotes}
   from "./notes";

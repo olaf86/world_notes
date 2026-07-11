@@ -15,9 +15,11 @@ import '../../config/regions.dart';
 import '../../config/runtime_mode.dart';
 import '../../core/map_style.dart';
 import '../../data/repositories/auth_repository_impl.dart';
+import '../../data/repositories/follow_repository_impl.dart';
 import '../../data/repositories/message_repository_impl.dart';
 import '../../data/repositories/notice_repository_impl.dart';
 import '../../data/repositories/place_repository_impl.dart';
+import '../../domain/entities/follow_entity.dart';
 import '../../domain/entities/nearby_notification_entity.dart';
 import '../../domain/entities/admin_moderation_review_entity.dart';
 import '../../domain/entities/message_thread_item.dart';
@@ -25,8 +27,10 @@ import '../../domain/entities/note_visitor_entity.dart';
 import '../../domain/entities/notice_entity.dart';
 import '../../domain/entities/pin_summary_entity.dart';
 import '../../domain/entities/place_entity.dart';
+import '../../domain/entities/public_profile_entity.dart';
 import '../../domain/entities/user_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
+import '../../domain/repositories/follow_repository.dart';
 import '../../domain/repositories/message_repository.dart';
 import '../../domain/repositories/notice_repository.dart';
 import '../../domain/repositories/place_repository.dart';
@@ -175,6 +179,13 @@ final messageRepositoryProvider = Provider<MessageRepository>((ref) {
   );
 });
 
+final followRepositoryProvider = Provider<FollowRepository>((ref) {
+  return FollowRepositoryImpl(
+    firestore: ref.watch(firestoreProvider),
+    functions: ref.watch(firebaseFunctionsProvider),
+  );
+});
+
 final noticeRepositoryProvider = Provider<NoticeRepository>((ref) {
   return NoticeRepositoryImpl(firestore: ref.watch(firestoreProvider));
 });
@@ -229,6 +240,50 @@ final adminClaimProvider = FutureProvider<bool>((ref) async {
       ?.getIdTokenResult();
   return token?.claims?['admin'] == true;
 });
+
+// --- Social profiles and follows ---
+
+final publicProfileProvider = StreamProvider.family<PublicProfile?, String>((
+  ref,
+  userId,
+) {
+  return ref.watch(followRepositoryProvider).watchPublicProfile(userId);
+});
+
+final isFollowingUserProvider = StreamProvider.family<bool, String>((
+  ref,
+  followeeUid,
+) {
+  final user = ref.watch(authStateProvider).valueOrNull;
+  if (user == null || user.id == followeeUid) return Stream.value(false);
+  return ref
+      .watch(followRepositoryProvider)
+      .watchIsFollowing(followerUid: user.id, followeeUid: followeeUid);
+});
+
+class FollowListRequest {
+  final String userId;
+  final bool followers;
+
+  const FollowListRequest({required this.userId, required this.followers});
+
+  @override
+  bool operator ==(Object other) =>
+      other is FollowListRequest &&
+      other.userId == userId &&
+      other.followers == followers;
+
+  @override
+  int get hashCode => Object.hash(userId, followers);
+}
+
+final followFirstPageProvider =
+    FutureProvider.family<FollowPage, FollowListRequest>((ref, request) {
+      final repository = ref.watch(followRepositoryProvider);
+      return request.followers
+          ? repository.listFollowers(userId: request.userId)
+          : repository.listFollowing(userId: request.userId);
+    });
 
 // --- Notifications ---
 

@@ -10,6 +10,7 @@ import '../../services/message_image_service.dart';
 import '../../services/my_notes_notification_service.dart';
 import '../../services/subscription_service.dart';
 import '../models/user_model.dart';
+import '../models/public_profile_model.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   final FirebaseAuth _auth;
@@ -142,7 +143,22 @@ class AuthRepositoryImpl implements AuthRepository {
       entity = newUser.toEntity();
     }
 
+    await _syncPublicProfile(entity);
     await _subscriptionService.identifyUser(entity.id);
     return entity;
+  }
+
+  Future<void> _syncPublicProfile(UserEntity entity) async {
+    final profileRef = _firestore.collection('publicProfiles').doc(entity.id);
+    final profile = PublicProfileModel(
+      id: entity.id,
+      displayName: entity.name,
+      photoUrl: entity.photoUrl,
+    );
+    final existing = await profileRef.get();
+    await profileRef.set(
+      profile.toOwnerFirestore(includeCounts: !existing.exists),
+      SetOptions(merge: true),
+    );
   }
 }

@@ -105,6 +105,55 @@ service cloud.firestore {
              && (notice.readAt == null || notice.readAt is timestamp);
     }
 
+    function isValidPublicProfile(profile) {
+      return profile.keys().hasOnly([
+               'displayName',
+               'photoUrl',
+               'followerCount',
+               'followingCount',
+               'createdAt',
+               'updatedAt'
+             ])
+             && profile.displayName is string
+             && profile.displayName.size() > 0
+             && profile.displayName.size() <= 20
+             && (profile.photoUrl == null
+                 || (profile.photoUrl is string
+                     && profile.photoUrl.size() <= 2000))
+             && (!('followerCount' in profile)
+                 || (profile.followerCount is int
+                     && profile.followerCount >= 0))
+             && (!('followingCount' in profile)
+                 || (profile.followingCount is int
+                     && profile.followingCount >= 0))
+             && (!('createdAt' in profile)
+                 || profile.createdAt is timestamp)
+             && (!('updatedAt' in profile)
+                 || profile.updatedAt is timestamp);
+    }
+
+    function createsOwnPublicProfile(uid) {
+      return isCurrentUser(uid)
+             && isValidPublicProfile(request.resource.data)
+             && (!('followerCount' in request.resource.data)
+                 || request.resource.data.followerCount == 0)
+             && (!('followingCount' in request.resource.data)
+                 || request.resource.data.followingCount == 0);
+    }
+
+    function updatesOwnPublicProfile(uid) {
+      return isCurrentUser(uid)
+             && isValidPublicProfile(resource.data)
+             && isValidPublicProfile(request.resource.data)
+             && request.resource.data.diff(resource.data)
+                 .affectedKeys()
+                 .hasOnly(['displayName', 'photoUrl', 'updatedAt'])
+             && request.resource.data.followerCount ==
+                 resource.data.followerCount
+             && request.resource.data.followingCount ==
+                 resource.data.followingCount;
+    }
+
     function canReadMessage(placeId, message) {
       return canAccessNote(placeId)
              && (isPubliclyVisibleMessage(message)
@@ -166,6 +215,22 @@ service cloud.firestore {
                       && request.resource.data.readAt == request.time;
         allow delete: if false;
       }
+    }
+
+    // ── public profiles ─────────────────────────────────────────────────────
+    match /publicProfiles/{uid} {
+      allow read: if isSignedIn();
+      allow create: if createsOwnPublicProfile(uid);
+      allow update: if updatesOwnPublicProfile(uid);
+      allow delete: if false;
+    }
+
+    // Flat, graph-ready user-following edges. Clients may read relationship
+    // pages, but all writes and public profile counters are maintained by the
+    // setUserFollow Cloud Function.
+    match /socialEdges/{edgeId} {
+      allow read: if isSignedIn();
+      allow write: if false;
     }
 
     // ── places ────────────────────────────────────────────────────────────────

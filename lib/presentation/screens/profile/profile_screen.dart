@@ -107,6 +107,10 @@ class ProfileScreen extends ConsumerWidget {
           error: (e, _) => Center(child: Text('Error: $e')),
           data: (user) {
             if (user == null) return const SizedBox();
+            final publicProfileAsync = ref.watch(
+              publicProfileProvider(user.id),
+            );
+            final publicProfile = publicProfileAsync.valueOrNull;
 
             return ListView(
               padding: const EdgeInsets.all(16),
@@ -150,6 +154,15 @@ class ProfileScreen extends ConsumerWidget {
                                 ).colorScheme.onSurfaceVariant,
                               ),
                         ),
+                      const SizedBox(height: 16),
+                      _ProfileSocialCounts(
+                        followerCount: publicProfile?.followerCount ?? 0,
+                        followingCount: publicProfile?.followingCount ?? 0,
+                        onFollowersTap: () =>
+                            context.push('/users/${user.id}/followers'),
+                        onFollowingTap: () =>
+                            context.push('/users/${user.id}/following'),
+                      ),
                       const SizedBox(height: 8),
                       isPremiumAsync.when(
                         loading: () => const SizedBox(),
@@ -239,6 +252,80 @@ class ProfileScreen extends ConsumerWidget {
               ],
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileSocialCounts extends StatelessWidget {
+  final int followerCount;
+  final int followingCount;
+  final VoidCallback onFollowersTap;
+  final VoidCallback onFollowingTap;
+
+  const _ProfileSocialCounts({
+    required this.followerCount,
+    required this.followingCount,
+    required this.onFollowersTap,
+    required this.onFollowingTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _ProfileCountButton(
+          label: 'Followers',
+          value: followerCount,
+          onTap: onFollowersTap,
+        ),
+        const SizedBox(width: 24),
+        _ProfileCountButton(
+          label: 'Following',
+          value: followingCount,
+          onTap: onFollowingTap,
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileCountButton extends StatelessWidget {
+  final String label;
+  final int value;
+  final VoidCallback onTap;
+
+  const _ProfileCountButton({
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Column(
+          children: [
+            Text(
+              '$value',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
         ),
       ),
     );
