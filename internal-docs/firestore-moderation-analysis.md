@@ -46,8 +46,8 @@ This is a single-collection query scoped under the signed-in user, so no
 composite index is expected.
 
 Future administrator tooling can query `moderationReviews` by `status`,
-`createdAt`, `userId`, `placeId`, or `action`; those indexes should be added
-when the admin surface is implemented.
+`createdAt`, `userId`, `placeId`, or `action`. The initial administrator queue
+uses `status == "open"` ordered by `createdAt`.
 
 Future delayed moderation tooling can use a collection group query over
 `messages` where `moderationAction == "pending"`. Add the required index when
@@ -66,8 +66,9 @@ that scheduled function is implemented.
 ## Administrator access
 
 Moderation administrator access is controlled by Firebase Auth custom claims.
-The callable `adminReviewMessage` requires `admin: true`; hiding the Flutter UI
-is only a convenience, not the authorization boundary.
+The callables `adminListModerationReviews` and `adminReviewMessage` require
+`admin: true`; hiding the Flutter UI is only a convenience, not the
+authorization boundary.
 
 Set or remove the claim from `functions/`:
 

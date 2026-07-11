@@ -11,6 +11,12 @@ import * as logger from "firebase-functions/logger";
 import {REGION} from "./constants";
 
 type AdminModerationAction = "allow" | "sensitive" | "hidden";
+type AdminModerationReviewStatus = "open" | "resolved";
+
+interface AdminListModerationReviewsData {
+  limit?: unknown;
+  status?: unknown;
+}
 
 interface AdminReviewMessageData {
   placeId?: unknown;
@@ -26,6 +32,11 @@ interface ValidatedAdminReviewMessageInput {
   reason: string | null;
 }
 
+interface ValidatedAdminListModerationReviewsInput {
+  limit: number;
+  status: AdminModerationReviewStatus;
+}
+
 function assertAdmin(uid: string | undefined, adminClaim: unknown) {
   if (!uid) {
     throw new HttpsError("unauthenticated", "Sign in required.");
@@ -33,6 +44,32 @@ function assertAdmin(uid: string | undefined, adminClaim: unknown) {
   if (adminClaim !== true) {
     throw new HttpsError("permission-denied", "Admin only.");
   }
+}
+
+function validateLimit(value: unknown): number {
+  if (value == null) return 20;
+  if (typeof value !== "number" || !Number.isInteger(value)) {
+    throw new HttpsError("invalid-argument", "limit must be an integer.");
+  }
+  if (value < 1 || value > 50) {
+    throw new HttpsError("invalid-argument", "limit must be 1-50.");
+  }
+  return value;
+}
+
+function reviewStatus(value: unknown): AdminModerationReviewStatus {
+  if (value == null || value === "open") return "open";
+  if (value === "resolved") return "resolved";
+  throw new HttpsError("invalid-argument", "Invalid review status.");
+}
+
+function validateAdminListModerationReviewsInput(
+  data: AdminListModerationReviewsData | undefined,
+): ValidatedAdminListModerationReviewsInput {
+  return {
+    limit: validateLimit(data?.limit),
+    status: reviewStatus(data?.status),
+  };
 }
 
 function requiredString(value: unknown, fieldName: string): string {
@@ -132,6 +169,42 @@ function messageUpdateForAction({
   }
 }
 
+function timestampMillis(value: unknown): number | null {
+  return value instanceof Timestamp ? value.toMillis() : null;
+}
+
+function reviewListItemFromDoc(
+  doc: FirebaseFirestore.QueryDocumentSnapshot,
+): Record<string, unknown> {
+  const data = doc.data();
+  return {
+    id: doc.id,
+    userId: data.userId ?? null,
+    placeId: data.placeId ?? null,
+    messageId: data.messageId ?? null,
+    messagePath: data.messagePath ?? null,
+    content: data.content ?? "",
+    imageStoragePaths: data.imageStoragePaths ?? [],
+    status: data.status ?? null,
+    reviewSources: data.reviewSources ?? [],
+    riskSignals: data.riskSignals ?? [],
+    action: data.action ?? null,
+    maxScore: data.maxScore ?? null,
+    categories: data.categories ?? [],
+    provider: data.provider ?? null,
+    providerModel: data.providerModel ?? null,
+    policyVersion: data.policyVersion ?? null,
+    flagged: data.flagged ?? null,
+    providerResultId: data.providerResultId ?? null,
+    createdAtMillis: timestampMillis(data.createdAt),
+    checkedAtMillis: timestampMillis(data.checkedAt),
+    humanDecision: data.humanDecision ?? null,
+    decisionReason: data.decisionReason ?? null,
+    reviewedAtMillis: timestampMillis(data.reviewedAt),
+    reviewedBy: data.reviewedBy ?? null,
+  };
+}
+
 async function deleteStoredImages(storagePaths: string[]): Promise<void> {
   if (storagePaths.length === 0) return;
   const bucket = getStorage().bucket();
@@ -143,6 +216,30 @@ async function deleteStoredImages(storagePaths: string[]): Promise<void> {
     }
   }));
 }
+
+/**
+ * Lists moderation review queue items for trusted administrators.
+ */
+export const adminListModerationReviews =
+  onCall<AdminListModerationReviewsData>(
+    {enforceAppCheck: true, region: REGION},
+    async (req) => {
+      const token = req.auth?.token as Record<string, unknown> | undefined;
+      assertAdmin(req.auth?.uid, token?.admin);
+      const input = validateAdminListModerationReviewsInput(req.data);
+      const snap = await getFirestore()
+        .collection("moderationReviews")
+        .where("status", "==", input.status)
+        .orderBy("createdAt", "asc")
+        .limit(input.limit)
+        .get();
+
+      return {
+        status: input.status,
+        reviews: snap.docs.map(reviewListItemFromDoc),
+      };
+    },
+  );
 
 /**
  * Applies a trusted administrator moderation decision to a queued message.

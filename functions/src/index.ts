@@ -14,7 +14,10 @@ export {setNotePassword, unlockNote} from "./notePassword";
 // public at publishAt. Region set in their own options.
 export {sendMessage, deleteMessage, cancelScheduledMessage} from "./messages";
 export {aggregatePublishedMessages} from "./messageTriggers";
-export {adminReviewMessage} from "./adminModeration";
+export {
+  adminListModerationReviews,
+  adminReviewMessage,
+} from "./adminModeration";
 
 // Invite-link functions (share-link access to private notes). Region set in
 // their own options.
