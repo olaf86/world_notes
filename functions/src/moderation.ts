@@ -55,7 +55,7 @@ export interface InternalModerationResult {
   providerResultId?: string;
 }
 
-interface OpenAiModerationResponse {
+export interface OpenAiModerationResponse {
   id?: string;
   model?: string;
   results?: Array<{
@@ -170,7 +170,7 @@ function canDeferModeration(status: number): boolean {
   return status === 429 || status >= 500;
 }
 
-function normalizeOpenAiModeration(
+export function normalizeOpenAiModeration(
   response: OpenAiModerationResponse,
 ): InternalModerationResult {
   const result = response.results?.[0] ?? {};
