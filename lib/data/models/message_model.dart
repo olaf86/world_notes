@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../domain/entities/message_entity.dart';
-import '../../domain/entities/message_thread_item.dart';
 import '../../domain/entities/user_entity.dart';
 
 class MessageModel {
@@ -83,14 +82,4 @@ class MessageModel {
     isSensitive: isSensitive,
     reviewRequired: reviewRequired,
   );
-
-  MessageThreadItem toThreadItem({bool likedByCurrentUser = false}) {
-    return MessageThreadItem(
-      message: toEntity(),
-      likeState: MessageLikeState(
-        count: likeCount,
-        likedByCurrentUser: likedByCurrentUser,
-      ),
-    );
-  }
 }

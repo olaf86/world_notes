@@ -122,15 +122,30 @@ class MessageRepositoryImpl implements MessageRepository {
     final likedMessageIds = _likedMessageIds(ownLikes);
     final byId = <String, MessageThreadItem>{};
     for (final doc in [...published.docs, ...ownScheduled.docs]) {
-      final item = MessageModel.fromFirestore(
+      final item = _threadItemFromDoc(
         doc,
-      ).toThreadItem(likedByCurrentUser: likedMessageIds.contains(doc.id));
+        likedByCurrentUser: likedMessageIds.contains(doc.id),
+      );
       final message = item.message;
       if (!message.isVisible) continue;
       if (message.isDeleted && message.author.id != currentUserId) continue;
       byId[message.id] = item;
     }
     return byId.values.toList()..sort(_compareThreadItems);
+  }
+
+  MessageThreadItem _threadItemFromDoc(
+    QueryDocumentSnapshot doc, {
+    required bool likedByCurrentUser,
+  }) {
+    final model = MessageModel.fromFirestore(doc);
+    return MessageThreadItem(
+      message: model.toEntity(),
+      likeState: MessageLikeState(
+        count: model.likeCount,
+        likedByCurrentUser: likedByCurrentUser,
+      ),
+    );
   }
 
   Set<String> _likedMessageIds(QuerySnapshot snap) {
@@ -164,7 +179,7 @@ class MessageRepositoryImpl implements MessageRepository {
         .get();
 
     return snap.docs
-        .map((doc) => MessageModel.fromFirestore(doc).toThreadItem())
+        .map((doc) => _threadItemFromDoc(doc, likedByCurrentUser: false))
         .toList();
   }
 
