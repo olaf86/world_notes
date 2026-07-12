@@ -18,7 +18,7 @@ class PublicProfileModel {
   });
 
   factory PublicProfileModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>? ?? const {};
+    final data = doc.data()! as Map<String, dynamic>;
     return PublicProfileModel.fromFirestoreData(doc.id, data);
   }
 
@@ -28,10 +28,10 @@ class PublicProfileModel {
   ) {
     return PublicProfileModel(
       id: id,
-      displayName: data['displayName'] as String? ?? id,
+      displayName: data['displayName'] as String,
       photoUrl: data['photoUrl'] as String?,
-      followerCount: data['followerCount'] as int? ?? 0,
-      followingCount: data['followingCount'] as int? ?? 0,
+      followerCount: data['followerCount'] as int,
+      followingCount: data['followingCount'] as int,
     );
   }
 

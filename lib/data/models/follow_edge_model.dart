@@ -16,12 +16,12 @@ class FollowEdgeModel {
   });
 
   factory FollowEdgeModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>? ?? const {};
+    final data = doc.data()! as Map<String, dynamic>;
     return FollowEdgeModel(
       id: doc.id,
-      followerUid: data['followerUid'] as String? ?? '',
-      followeeUid: data['followeeUid'] as String? ?? '',
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      followerUid: data['followerUid'] as String,
+      followeeUid: data['followeeUid'] as String,
+      createdAt: (data['createdAt'] as Timestamp).toDate(),
     );
   }
 

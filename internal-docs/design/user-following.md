@@ -2,10 +2,10 @@
 
 ## Goal
 
-Issue #24 adds one-way user following plus screens for a user's followers and
-following lists. The first version should stay small, keep Firestore as the
-source of truth, and avoid data shapes that make a later move to SQL Connect or
-Neo4j awkward.
+Add one-way user following plus screens for a user's followers and following
+lists. The first version should stay small, keep Firestore as the source of
+truth, and avoid data shapes that make a later move to SQL Connect or Neo4j
+awkward.
 
 ## Storage Strategy
 
@@ -108,5 +108,5 @@ If social queries outgrow Firestore, move in phases:
 - Sharded counters are not needed at launch. If a popular account receives many
   follows per second, replace direct `publicProfiles` counter updates with
   sharded counters or async aggregation.
-- Recommendation feeds and multi-hop graph queries are out of scope for Issue
-  #24.
+- Recommendation feeds and multi-hop graph queries are out of the initial
+  scope.

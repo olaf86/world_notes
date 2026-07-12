@@ -22,6 +22,7 @@ interface PublicProfileData {
 }
 
 const MAX_UID_LENGTH = 128;
+const UNKNOWN_USER_DISPLAY_NAME = "Unknown user";
 
 /**
  * Builds a stable edge document id without relying on uid delimiter safety.
@@ -174,14 +175,14 @@ export const setUserFollow = onCall<SetUserFollowData>(
         upsertPublicProfile(
           tx,
           followerProfileRef,
-          publicProfileFromUser(followerUserSnap, "Unknown user"),
+          publicProfileFromUser(followerUserSnap, UNKNOWN_USER_DISPLAY_NAME),
           0,
           0,
         );
         upsertPublicProfile(
           tx,
           followeeProfileRef,
-          publicProfileFromUser(followeeUserSnap, "Unknown user"),
+          publicProfileFromUser(followeeUserSnap, UNKNOWN_USER_DISPLAY_NAME),
           0,
           0,
         );
@@ -190,7 +191,7 @@ export const setUserFollow = onCall<SetUserFollowData>(
           createdFollow: false,
           followerName: publicProfileFromUser(
             followerUserSnap,
-            "Unknown user",
+            UNKNOWN_USER_DISPLAY_NAME,
           ).displayName,
         };
       }
@@ -199,14 +200,14 @@ export const setUserFollow = onCall<SetUserFollowData>(
         upsertPublicProfile(
           tx,
           followerProfileRef,
-          publicProfileFromUser(followerUserSnap, "Unknown user"),
+          publicProfileFromUser(followerUserSnap, UNKNOWN_USER_DISPLAY_NAME),
           0,
           1,
         );
         upsertPublicProfile(
           tx,
           followeeProfileRef,
-          publicProfileFromUser(followeeUserSnap, "Unknown user"),
+          publicProfileFromUser(followeeUserSnap, UNKNOWN_USER_DISPLAY_NAME),
           1,
           0,
         );
@@ -219,14 +220,14 @@ export const setUserFollow = onCall<SetUserFollowData>(
         upsertPublicProfile(
           tx,
           followerProfileRef,
-          publicProfileFromUser(followerUserSnap, "Unknown user"),
+          publicProfileFromUser(followerUserSnap, UNKNOWN_USER_DISPLAY_NAME),
           0,
           -1,
         );
         upsertPublicProfile(
           tx,
           followeeProfileRef,
-          publicProfileFromUser(followeeUserSnap, "Unknown user"),
+          publicProfileFromUser(followeeUserSnap, UNKNOWN_USER_DISPLAY_NAME),
           -1,
           0,
         );
@@ -238,7 +239,7 @@ export const setUserFollow = onCall<SetUserFollowData>(
         createdFollow: desiredFollowing,
         followerName: publicProfileFromUser(
           followerUserSnap,
-          "Unknown user",
+          UNKNOWN_USER_DISPLAY_NAME,
         ).displayName,
       };
     });

@@ -20,14 +20,27 @@ void main() {
   });
 
   group('PublicProfileModel', () {
-    test('defaults missing counters to zero', () {
+    test('parses required profile fields', () {
       final model = PublicProfileModel.fromFirestoreData('user-1', {
         'displayName': 'Olaf',
+        'photoUrl': null,
+        'followerCount': 0,
+        'followingCount': 0,
       });
 
       expect(model.toEntity().displayName, 'Olaf');
       expect(model.toEntity().followerCount, 0);
       expect(model.toEntity().followingCount, 0);
+    });
+
+    test('rejects a profile with missing counters', () {
+      expect(
+        () => PublicProfileModel.fromFirestoreData('user-1', {
+          'displayName': 'Olaf',
+          'photoUrl': null,
+        }),
+        throwsA(isA<TypeError>()),
+      );
     });
   });
 }

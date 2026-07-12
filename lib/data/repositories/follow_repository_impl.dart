@@ -104,8 +104,6 @@ class FollowRepositoryImpl implements FollowRepository {
     final edges = snap.docs
         .map(FollowEdgeModel.fromFirestore)
         .map((model) => model.toEntity())
-        .where((edge) => edge.followerUid.isNotEmpty)
-        .where((edge) => edge.followeeUid.isNotEmpty)
         .toList();
     final profileIds = {for (final edge in edges) profileIdFor(edge)};
     final profiles = await _loadProfiles(profileIds);
