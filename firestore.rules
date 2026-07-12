@@ -2,7 +2,8 @@ rules_version = '2';
 
 // Assumed data ownership model:
 // - users/{uid}: private account and entitlement data; owner-readable.
-// - publicProfiles/{uid}: authenticated-readable display data and counters.
+// - publicProfiles/{uid}: authenticated-readable display data; displayName,
+//   nullable photoUrl, counters, createdAt and updatedAt are required.
 // - socialEdges/{edgeId}: authenticated-readable, server-managed follow edge.
 // - users/{uid}/notificationSettings: owner-readable, server-managed settings.
 // - users/{uid}/fcmTokens: sensitive server-managed delivery endpoints.
@@ -121,7 +122,15 @@ service cloud.firestore {
     }
 
     function isValidPublicProfile(profile) {
-      return profile.keys().hasOnly([
+      return profile.keys().hasAll([
+               'displayName',
+               'photoUrl',
+               'followerCount',
+               'followingCount',
+               'createdAt',
+               'updatedAt'
+             ])
+             && profile.keys().hasOnly([
                'displayName',
                'photoUrl',
                'followerCount',
@@ -134,26 +143,23 @@ service cloud.firestore {
              && profile.displayName.size() <= 20
              && (profile.photoUrl == null
                  || (profile.photoUrl is string
+                     && profile.photoUrl.size() > 0
                      && profile.photoUrl.size() <= 2000))
-             && (!('followerCount' in profile)
-                 || (profile.followerCount is int
-                     && profile.followerCount >= 0))
-             && (!('followingCount' in profile)
-                 || (profile.followingCount is int
-                     && profile.followingCount >= 0))
-             && (!('createdAt' in profile)
-                 || profile.createdAt is timestamp)
-             && (!('updatedAt' in profile)
-                 || profile.updatedAt is timestamp);
+             && profile.followerCount is int
+             && profile.followerCount >= 0
+             && profile.followingCount is int
+             && profile.followingCount >= 0
+             && profile.createdAt is timestamp
+             && profile.updatedAt is timestamp;
     }
 
     function createsOwnPublicProfile(uid) {
       return isCurrentUser(uid)
              && isValidPublicProfile(request.resource.data)
-             && (!('followerCount' in request.resource.data)
-                 || request.resource.data.followerCount == 0)
-             && (!('followingCount' in request.resource.data)
-                 || request.resource.data.followingCount == 0);
+             && request.resource.data.followerCount == 0
+             && request.resource.data.followingCount == 0
+             && request.resource.data.createdAt == request.time
+             && request.resource.data.updatedAt == request.time;
     }
 
     function updatesOwnPublicProfile(uid) {
@@ -163,10 +169,12 @@ service cloud.firestore {
              && request.resource.data.diff(resource.data)
                  .affectedKeys()
                  .hasOnly(['displayName', 'photoUrl', 'updatedAt'])
+             && request.resource.data.createdAt == resource.data.createdAt
              && request.resource.data.followerCount ==
                  resource.data.followerCount
              && request.resource.data.followingCount ==
-                 resource.data.followingCount;
+                 resource.data.followingCount
+             && request.resource.data.updatedAt == request.time;
     }
 
     function canReadMessage(placeId, message) {

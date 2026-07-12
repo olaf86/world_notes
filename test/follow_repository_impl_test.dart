@@ -22,13 +22,13 @@ void main() {
   group('PublicProfileModel', () {
     test('parses required profile fields', () {
       final model = PublicProfileModel.fromFirestoreData('user-1', {
-        'displayName': 'Olaf',
+        'displayName': 'Test User',
         'photoUrl': null,
         'followerCount': 0,
         'followingCount': 0,
       });
 
-      expect(model.toEntity().displayName, 'Olaf');
+      expect(model.toEntity().displayName, 'Test User');
       expect(model.toEntity().followerCount, 0);
       expect(model.toEntity().followingCount, 0);
     });
@@ -36,7 +36,7 @@ void main() {
     test('rejects a profile with missing counters', () {
       expect(
         () => PublicProfileModel.fromFirestoreData('user-1', {
-          'displayName': 'Olaf',
+          'displayName': 'Test User',
           'photoUrl': null,
         }),
         throwsA(isA<TypeError>()),

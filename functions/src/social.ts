@@ -5,6 +5,7 @@ import {
   DocumentSnapshot,
   FieldValue,
   getFirestore,
+  Timestamp,
   Transaction,
 } from "firebase-admin/firestore";
 
@@ -104,6 +105,7 @@ function publicProfileFromUser(
  *
  * @param {Transaction} tx The active transaction.
  * @param {DocumentReference} profileRef Public profile ref.
+ * @param {DocumentSnapshot} profileSnap Current public profile snapshot.
  * @param {PublicProfileData} profile Public display fields.
  * @param {number} followerCountDelta Change to apply to followerCount.
  * @param {number} followingCountDelta Change to apply to followingCount.
@@ -111,21 +113,66 @@ function publicProfileFromUser(
 function upsertPublicProfile(
   tx: Transaction,
   profileRef: DocumentReference,
+  profileSnap: DocumentSnapshot,
   profile: PublicProfileData,
   followerCountDelta: number,
   followingCountDelta: number,
 ): void {
+  const followerCount = publicProfileCounter(profileSnap, "followerCount") +
+    followerCountDelta;
+  const followingCount = publicProfileCounter(profileSnap, "followingCount") +
+    followingCountDelta;
+  if (followerCount < 0 || followingCount < 0) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Public profile counters are inconsistent.",
+    );
+  }
+
+  const storedCreatedAt = profileSnap.exists ?
+    profileSnap.get("createdAt") :
+    null;
+  if (profileSnap.exists && !(storedCreatedAt instanceof Timestamp)) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Public profile timestamps are incomplete.",
+    );
+  }
   tx.set(
     profileRef,
     {
       displayName: profile.displayName,
       photoUrl: profile.photoUrl,
-      followerCount: FieldValue.increment(followerCountDelta),
-      followingCount: FieldValue.increment(followingCountDelta),
+      followerCount,
+      followingCount,
+      createdAt: profileSnap.exists ?
+        storedCreatedAt :
+        FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     },
-    {merge: true},
   );
+}
+
+/**
+ * Returns a validated social counter from an existing public profile.
+ *
+ * @param {DocumentSnapshot} profileSnap Existing public profile.
+ * @param {string} field Counter field to read.
+ * @return {number} Current non-negative counter value.
+ */
+function publicProfileCounter(
+  profileSnap: DocumentSnapshot,
+  field: "followerCount" | "followingCount",
+): number {
+  if (!profileSnap.exists) return 0;
+  const value = profileSnap.get(field);
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Public profile counters are incomplete.",
+    );
+  }
+  return value;
 }
 
 /**
@@ -156,10 +203,18 @@ export const setUserFollow = onCall<SetUserFollowData>(
       .doc(socialEdgeId(uid, targetUserId));
 
     const result = await db.runTransaction(async (tx) => {
-      const [followerUserSnap, followeeUserSnap, edgeSnap] =
+      const [
+        followerUserSnap,
+        followeeUserSnap,
+        followerProfileSnap,
+        followeeProfileSnap,
+        edgeSnap,
+      ] =
         await Promise.all([
           tx.get(followerUserRef),
           tx.get(followeeUserRef),
+          tx.get(followerProfileRef),
+          tx.get(followeeProfileRef),
           tx.get(edgeRef),
         ]);
 
@@ -175,6 +230,7 @@ export const setUserFollow = onCall<SetUserFollowData>(
         upsertPublicProfile(
           tx,
           followerProfileRef,
+          followerProfileSnap,
           publicProfileFromUser(followerUserSnap, UNKNOWN_USER_DISPLAY_NAME),
           0,
           0,
@@ -182,6 +238,7 @@ export const setUserFollow = onCall<SetUserFollowData>(
         upsertPublicProfile(
           tx,
           followeeProfileRef,
+          followeeProfileSnap,
           publicProfileFromUser(followeeUserSnap, UNKNOWN_USER_DISPLAY_NAME),
           0,
           0,
@@ -200,6 +257,7 @@ export const setUserFollow = onCall<SetUserFollowData>(
         upsertPublicProfile(
           tx,
           followerProfileRef,
+          followerProfileSnap,
           publicProfileFromUser(followerUserSnap, UNKNOWN_USER_DISPLAY_NAME),
           0,
           1,
@@ -207,6 +265,7 @@ export const setUserFollow = onCall<SetUserFollowData>(
         upsertPublicProfile(
           tx,
           followeeProfileRef,
+          followeeProfileSnap,
           publicProfileFromUser(followeeUserSnap, UNKNOWN_USER_DISPLAY_NAME),
           1,
           0,
@@ -220,6 +279,7 @@ export const setUserFollow = onCall<SetUserFollowData>(
         upsertPublicProfile(
           tx,
           followerProfileRef,
+          followerProfileSnap,
           publicProfileFromUser(followerUserSnap, UNKNOWN_USER_DISPLAY_NAME),
           0,
           -1,
@@ -227,6 +287,7 @@ export const setUserFollow = onCall<SetUserFollowData>(
         upsertPublicProfile(
           tx,
           followeeProfileRef,
+          followeeProfileSnap,
           publicProfileFromUser(followeeUserSnap, UNKNOWN_USER_DISPLAY_NAME),
           -1,
           0,

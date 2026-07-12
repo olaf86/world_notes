@@ -75,6 +75,8 @@ Direct client writes to `socialEdges` are denied. Clients may create/update
 only their own public display fields in `publicProfiles`; social counters are
 server-managed.
 
+All public-profile fields are required except that `photoUrl` may be `null`.
+
 ## Migration Path
 
 The flat edge document maps directly to SQL and graph relationships.
