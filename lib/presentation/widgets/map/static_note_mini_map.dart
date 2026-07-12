@@ -12,18 +12,19 @@ import '../../../core/utils/marker_image.dart';
 import '../../../core/utils/place_icon.dart';
 import '../../../domain/entities/place_entity.dart';
 import '../../providers/providers.dart';
-import '../note/note_pin_avatar.dart';
 
 class StaticNoteMiniMap extends ConsumerStatefulWidget {
   final PlaceEntity place;
+  final Widget? topLeftOverlay;
   final Widget? topRightOverlay;
-  final Widget? markerBadge;
+  final bool showTopLeftConnector;
 
   const StaticNoteMiniMap({
     super.key,
     required this.place,
+    this.topLeftOverlay,
     this.topRightOverlay,
-    this.markerBadge,
+    this.showTopLeftConnector = false,
   });
 
   @override
@@ -57,8 +58,7 @@ class _StaticNoteMiniMapState extends ConsumerState<StaticNoteMiniMap> {
         oldWidget.place.colorHex != widget.place.colorHex ||
         oldWidget.place.icon != widget.place.icon ||
         oldWidget.place.pinImageStoragePath !=
-            widget.place.pinImageStoragePath ||
-        (oldWidget.markerBadge == null) != (widget.markerBadge == null)) {
+            widget.place.pinImageStoragePath) {
       if (_usesAppleMaps) {
         unawaited(_renderAppleMarker());
       } else {
@@ -79,10 +79,6 @@ class _StaticNoteMiniMapState extends ConsumerState<StaticNoteMiniMap> {
   Future<void> _renderMapLibreMarker() async {
     final map = _map;
     if (!_styleLoaded || map == null) return;
-    if (widget.markerBadge != null) {
-      await map.clearSymbols();
-      return;
-    }
 
     final place = widget.place;
     final color = parsePlaceColor(place.colorHex);
@@ -107,13 +103,6 @@ class _StaticNoteMiniMapState extends ConsumerState<StaticNoteMiniMap> {
   }
 
   Future<void> _renderAppleMarker() async {
-    if (widget.markerBadge != null) {
-      _appleMarkerRevision++;
-      if (!mounted) return;
-      setState(() => _appleMarkerIcon = null);
-      return;
-    }
-
     final revision = ++_appleMarkerRevision;
     final place = widget.place;
     final imageBytes = await _pinImageBytes(place.pinImageStoragePath);
@@ -163,7 +152,6 @@ class _StaticNoteMiniMapState extends ConsumerState<StaticNoteMiniMap> {
     final mapStyle = ref.watch(mapStyleProvider).effectiveForCurrentPlatform;
     final styleUrl = mapStyle.styleUrl(AppConfig.stadiaApiKey);
     final place = widget.place;
-    final markerBadge = widget.markerBadge;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -180,7 +168,7 @@ class _StaticNoteMiniMapState extends ConsumerState<StaticNoteMiniMap> {
                     target: apple.LatLng(place.latitude, place.longitude),
                     zoom: 14,
                   ),
-                  annotations: markerBadge != null || _appleMarkerIcon == null
+                  annotations: _appleMarkerIcon == null
                       ? const <apple.Annotation>{}
                       : {
                           apple.Annotation(
@@ -224,16 +212,13 @@ class _StaticNoteMiniMapState extends ConsumerState<StaticNoteMiniMap> {
                   onMapCreated: _onMapCreated,
                   onStyleLoadedCallback: _onStyleLoaded,
                 ),
-              if (markerBadge != null)
+              if (widget.showTopLeftConnector)
                 IgnorePointer(
-                  child: Center(
-                    child: NotePinAvatar(
-                      color: parsePlaceColor(place.colorHex),
-                      icon: placeIconData(place.icon),
-                      storagePath: place.pinImageStoragePath,
-                      radius: 26,
-                      badge: markerBadge,
+                  child: CustomPaint(
+                    painter: _TopLeftConnectorPainter(
+                      color: theme.colorScheme.outline.withValues(alpha: 0.7),
                     ),
+                    child: const SizedBox.expand(),
                   ),
                 ),
               IgnorePointer(
@@ -251,10 +236,57 @@ class _StaticNoteMiniMapState extends ConsumerState<StaticNoteMiniMap> {
                   end: 10,
                   child: widget.topRightOverlay!,
                 ),
+              if (widget.topLeftOverlay != null)
+                Positioned(top: 10, left: 10, child: widget.topLeftOverlay!),
             ],
           ),
         ),
       ),
     );
   }
+}
+
+/// Links the creator label in the upper left to the stationary map pin.
+///
+/// The map remains a native platform view, so the line is drawn in Flutter
+/// above it and stays consistent on both the Apple Maps and MapLibre paths.
+class _TopLeftConnectorPainter extends CustomPainter {
+  final Color color;
+
+  const _TopLeftConnectorPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final start = const Offset(48, 28);
+    final end = Offset(size.width / 2, size.height / 2);
+    final vector = end - start;
+    final length = vector.distance;
+    if (length == 0) return;
+
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round;
+    final direction = vector / length;
+    const dashLength = 5.0;
+    const gapLength = 4.0;
+    for (
+      var distance = 0.0;
+      distance < length;
+      distance += dashLength + gapLength
+    ) {
+      final dashEnd = distance + dashLength < length
+          ? distance + dashLength
+          : length;
+      canvas.drawLine(
+        start + direction * distance,
+        start + direction * dashEnd,
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _TopLeftConnectorPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
