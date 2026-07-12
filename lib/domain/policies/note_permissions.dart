@@ -8,7 +8,6 @@ class NotePermissions {
   final bool canReadContent;
   final bool canPostMessage;
   final bool canLikeMessages;
-  final bool canSubscribeNearbyAlerts;
   final bool canLikeNote;
   final bool canCloseThread;
   final bool canReopenThread;
@@ -26,7 +25,6 @@ class NotePermissions {
     required this.canReadContent,
     required this.canPostMessage,
     required this.canLikeMessages,
-    required this.canSubscribeNearbyAlerts,
     required this.canLikeNote,
     required this.canCloseThread,
     required this.canReopenThread,
@@ -106,7 +104,6 @@ extension NotePermissionPolicy on PlaceEntity {
       canPostMessage:
           hasUser && canReadContent && !readOnly && canAcceptMessages,
       canLikeMessages: canLikeMessages,
-      canSubscribeNearbyAlerts: hasUser && !readOnly && !isMaintainer,
       canLikeNote: canLikeMessages && !isCreator,
       canCloseThread: isMaintainer && !isArchived && isOpen,
       canReopenThread: isMaintainer && !isArchived && canReopen,

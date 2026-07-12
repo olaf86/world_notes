@@ -16,17 +16,6 @@ void main() {
     expect(route?.location, '/note/place-1?readOnly=true');
   });
 
-  test('FCM message data maps nearby notifications to normal note routes', () {
-    final route = MyNotesNotificationService.placeRouteFromMessageData({
-      'type': 'nearby_note_message',
-      'placeId': 'place-1',
-    });
-
-    expect(route?.placeId, 'place-1');
-    expect(route?.readOnly, isFalse);
-    expect(route?.location, '/note/place-1');
-  });
-
   testWidgets('notification navigation pushes note over map', (tester) async {
     final router = GoRouter(
       initialLocation: '/map',

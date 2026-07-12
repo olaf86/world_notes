@@ -34,7 +34,6 @@ import {
 import {profileForMember} from "./userProfile";
 import {
   sendMyNotesMessageNotifications,
-  sendNearbyInRangeMessageNotifications,
 } from "./notifications";
 import {
   assertLiked,
@@ -90,6 +89,7 @@ interface ValidatedSetMessageLikeInput {
 interface SendMessageRefs {
   placeRef: DocumentReference;
   userRef: DocumentReference;
+  noteStateRef: DocumentReference;
   memberRef: DocumentReference;
   counterRef: DocumentReference;
   messageRef: DocumentReference;
@@ -296,6 +296,11 @@ function sendMessageRefs(
   return {
     placeRef,
     userRef: db.collection("users").doc(uid),
+    noteStateRef: db
+      .collection("users")
+      .doc(uid)
+      .collection("noteStates")
+      .doc(input.placeId),
     memberRef: placeRef.collection("members").doc(uid),
     counterRef: placeRef.collection("counters").doc("messageSlots"),
     messageRef: placeRef.collection("messages").doc(input.messageId),
@@ -692,6 +697,17 @@ async function createMessageInTransaction({
     if (Object.keys(placeUpdate).length > 0) {
       tx.update(refs.placeRef, placeUpdate);
     }
+    tx.set(
+      refs.noteStateRef,
+      {
+        lastSeenMessageCount: isImmediate ? publicCount + 1 : publicCount,
+        lastOpenedAt: FieldValue.serverTimestamp(),
+        discoverySeenAt: FieldValue.serverTimestamp(),
+        participatedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      {merge: true},
+    );
     tx.set(refs.messageRef, {
       ...messageDocumentData({
         placeId: input.placeId,
@@ -781,15 +797,6 @@ async function sendMessageNotificationsSafely({
   } catch (error) {
     logger.error(
       "sendMessage: failed to send My Notes notification for " +
-        `places/${placeId}/messages/${messageId}.`,
-      error,
-    );
-  }
-  try {
-    await sendNearbyInRangeMessageNotifications(db, placeId, messageId, uid);
-  } catch (error) {
-    logger.error(
-      "sendMessage: failed to send nearby notification for " +
         `places/${placeId}/messages/${messageId}.`,
       error,
     );

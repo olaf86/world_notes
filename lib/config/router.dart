@@ -12,7 +12,9 @@ import '../presentation/screens/note/note_box_screen.dart';
 import '../presentation/screens/note/note_creation_screen.dart';
 import '../presentation/screens/note/note_visitors_screen.dart';
 import '../presentation/screens/notices/notices_screen.dart';
+import '../presentation/screens/profile/follow_list_screen.dart';
 import '../presentation/screens/profile/profile_screen.dart';
+import '../presentation/screens/profile/user_profile_screen.dart';
 import '../presentation/screens/report/report_message_screen.dart';
 import '../presentation/screens/settings/settings_screen.dart';
 import '../presentation/screens/subscription/subscription_screen.dart';
@@ -156,6 +158,39 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
+      GoRoute(
+        path: '/users/:userId',
+        pageBuilder: (context, state) => CustomTransitionPage<void>(
+          key: state.pageKey,
+          child: UserProfileScreen(userId: state.pathParameters['userId']!),
+          opaque: false,
+          transitionsBuilder: _slideTransition,
+        ),
+      ),
+      GoRoute(
+        path: '/users/:userId/followers',
+        pageBuilder: (context, state) => CustomTransitionPage<void>(
+          key: state.pageKey,
+          child: FollowListScreen(
+            userId: state.pathParameters['userId']!,
+            followers: true,
+          ),
+          opaque: false,
+          transitionsBuilder: _slideTransition,
+        ),
+      ),
+      GoRoute(
+        path: '/users/:userId/following',
+        pageBuilder: (context, state) => CustomTransitionPage<void>(
+          key: state.pageKey,
+          child: FollowListScreen(
+            userId: state.pathParameters['userId']!,
+            followers: false,
+          ),
+          opaque: false,
+          transitionsBuilder: _slideTransition,
+        ),
+      ),
       // Invite deep link: worldnotes.asobo.dev/i/{token}. Reachable logged out
       // (see redirect) so the claim screen can prompt sign-in.
       GoRoute(
@@ -280,7 +315,7 @@ class _BottomNav extends ConsumerWidget {
         NavigationDestination(
           icon: _NoticeNavIcon(count: unreadCount),
           selectedIcon: _NoticeNavIcon(count: unreadCount, selected: true),
-          label: 'Notices',
+          label: 'Notifications',
         ),
         const NavigationDestination(
           icon: Icon(Icons.person_outline),

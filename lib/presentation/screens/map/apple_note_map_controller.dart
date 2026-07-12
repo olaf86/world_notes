@@ -305,6 +305,7 @@ class AppleNoteMapController implements NoteMapAdapter {
         iconName: pin.icon,
         colorHex: pin.colorHex,
         imageStoragePath: imageStoragePath,
+        variant: pin.markerVariantKey,
       );
 
   Future<apple.BitmapDescriptor> _markerIcon(PinSummary pin) async {
@@ -326,6 +327,8 @@ class AppleNoteMapController implements NoteMapAdapter {
           iconData: placeIconData(pin.icon),
           color: parsePlaceColor(pin.colorHex),
           imageBytes: photoBytes,
+          showFollowedAuthorRing: pin.isFromFollowedAuthor,
+          showUnseenDot: pin.hasUnseenMessages,
         );
         final descriptor = apple.BitmapDescriptor.fromBytes(bytes);
         _iconsByMarkerId[photoId!] = descriptor;
@@ -341,6 +344,8 @@ class AppleNoteMapController implements NoteMapAdapter {
     final bytes = await MarkerImage.render(
       iconData: placeIconData(pin.icon),
       color: parsePlaceColor(pin.colorHex),
+      showFollowedAuthorRing: pin.isFromFollowedAuthor,
+      showUnseenDot: pin.hasUnseenMessages,
     );
     final descriptor = apple.BitmapDescriptor.fromBytes(bytes);
     _iconsByMarkerId[fallbackId] = descriptor;

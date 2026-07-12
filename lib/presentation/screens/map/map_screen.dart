@@ -134,9 +134,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
     if (!mounted) return false;
     try {
       unawaited(
-        context.push(
-          '/note/${pin.placeId}?title=${Uri.encodeComponent(pin.title)}',
-        ),
+        context
+            .push(
+              '/note/${pin.placeId}?title=${Uri.encodeComponent(pin.title)}',
+            )
+            .then((_) => _refreshMapNotes()),
       );
       return true;
     } catch (error, stack) {

@@ -26,8 +26,10 @@ class MarkerImage {
     required String iconName,
     required String colorHex,
     String? imageStoragePath,
+    String variant = 'normal',
   }) {
-    final base = '${namespace}_${iconName}_${colorHex.replaceAll('#', '')}';
+    final base =
+        '${namespace}_${iconName}_${colorHex.replaceAll('#', '')}_$variant';
     final imagePath = imageStoragePath?.trim();
     if (imagePath == null || imagePath.isEmpty) return base;
 
@@ -42,6 +44,8 @@ class MarkerImage {
     required Color color,
     Uint8List? imageBytes,
     double scale = 1.0,
+    bool showFollowedAuthorRing = false,
+    bool showUnseenDot = false,
   }) async {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
@@ -70,6 +74,14 @@ class MarkerImage {
 
     // Head circle.
     canvas.drawCircle(center, _circleRadius, fillPaint);
+
+    if (showFollowedAuthorRing) {
+      final discoveryPaint = Paint()
+        ..color = const Color(0xFFFFC857)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 5;
+      canvas.drawCircle(center, _circleRadius + 3, discoveryPaint);
+    }
 
     if (imageBytes == null) {
       // White ring inside the circle for contrast.
@@ -124,6 +136,12 @@ class MarkerImage {
         ..style = PaintingStyle.stroke
         ..strokeWidth = 4;
       canvas.drawCircle(center, _photoRadius + 2, photoRingPaint);
+    }
+
+    if (showUnseenDot) {
+      const dotCenter = Offset(78, 13);
+      canvas.drawCircle(dotCenter, 11, Paint()..color = Colors.white);
+      canvas.drawCircle(dotCenter, 7, Paint()..color = const Color(0xFFE5484D));
     }
 
     final picture = recorder.endRecording();

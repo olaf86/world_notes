@@ -1,7 +1,9 @@
 /* eslint-disable require-jsdoc */
 import {onCall, HttpsError} from "firebase-functions/v2/https";
+import * as logger from "firebase-functions/logger";
 import {
   DocumentSnapshot,
+  FieldPath,
   Firestore,
   QuerySnapshot,
   Timestamp,
@@ -61,6 +63,8 @@ interface PrefixQuery {
   geohashes: string[];
 }
 
+type MarkerFlag = "followedAuthorNew" | "unseenMessages";
+
 interface PinResult {
   placeId: string;
   latitude: number;
@@ -81,11 +85,19 @@ interface PinResult {
   isClosed: boolean;
   footprintEnabled: boolean;
   access: "openable" | "distanceLocked";
+  markerFlags: MarkerFlag[];
+}
+
+interface PinCandidate extends PinResult {
+  creatorUid: string;
+  publishAtMillis: number;
 }
 
 const RATE_LIMIT_CAPACITY = 80;
 const RATE_LIMIT_REFILL_PER_SECOND = 2;
 const GEOHASH_IN_BATCH_SIZE = 10;
+const VIEWER_STATE_QUERY_BATCH_SIZE = 10;
+const FOLLOWED_NOTE_NEW_WINDOW_MILLIS = 7 * 24 * 60 * 60 * 1000;
 // Keep the pins a user just saw around zoom 14 visible when they zoom out.
 const ZOOMED_OUT_LOCAL_RADIUS_KM = 3;
 const buckets = new Map<string, Bucket>();
@@ -251,10 +263,11 @@ function pinFromDoc(
   user: Coordinates,
   noteAccessRadiusKm: number,
   nowMillis: number,
-): PinResult {
+): PinCandidate {
   const coords = placeCoordinates(doc);
   const lastMessageAt = doc.get("lastMessageAt") as Timestamp | undefined;
   const createdAt = doc.get("createdAt") as Timestamp | undefined;
+  const publishAt = doc.get("publishAt") as Timestamp;
   const expiresAt = doc.get("expiresAt") as Timestamp;
   const storedCreatorName = doc.get("creatorName");
   const storedPinImageStoragePath = doc.get("pinImageStoragePath");
@@ -289,6 +302,9 @@ function pinFromDoc(
     access: canOpenFrom(user, coords, noteAccessRadiusKm) ?
       "openable" :
       "distanceLocked",
+    markerFlags: [],
+    creatorUid: doc.get("createdByUserId") as string,
+    publishAtMillis: publishAt.toMillis(),
   };
 }
 
@@ -298,8 +314,8 @@ function collectPins(
   noteAccessRadiusKm: number,
   nowMillis: number,
   seen: Set<string>,
-): PinResult[] {
-  const pins: PinResult[] = [];
+): PinCandidate[] {
+  const pins: PinCandidate[] = [];
   for (const snap of snapshots) {
     for (const doc of snap.docs) {
       if (seen.has(doc.id) || !isPublishedPlace(doc, nowMillis)) continue;
@@ -311,9 +327,93 @@ function collectPins(
   return pins;
 }
 
+function chunksOf<T>(values: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let index = 0; index < values.length; index += size) {
+    chunks.push(values.slice(index, index + size));
+  }
+  return chunks;
+}
+
+async function addMarkerFlagsToPins(
+  db: Firestore,
+  uid: string,
+  pins: PinCandidate[],
+  nowMillis: number,
+): Promise<PinResult[]> {
+  if (pins.length === 0) return [];
+
+  const placeIds = [...new Set(pins.map((pin) => pin.placeId))];
+  const creatorUids = [...new Set(
+    pins
+      .map((pin) => pin.creatorUid)
+      .filter((creatorUid) => creatorUid.length > 0 && creatorUid !== uid),
+  )];
+  const noteStatesRef = db
+    .collection("users")
+    .doc(uid)
+    .collection("noteStates");
+
+  const [noteStateSnapshots, followSnapshots] = await Promise.all([
+    Promise.all(
+      chunksOf(placeIds, VIEWER_STATE_QUERY_BATCH_SIZE).map((placeIdChunk) =>
+        noteStatesRef
+          .where(FieldPath.documentId(), "in", placeIdChunk)
+          .get(),
+      ),
+    ),
+    Promise.all(
+      chunksOf(creatorUids, VIEWER_STATE_QUERY_BATCH_SIZE).map(
+        (creatorUidChunk) => db
+          .collection("socialEdges")
+          .where("followerUid", "==", uid)
+          .where("followeeUid", "in", creatorUidChunk)
+          .get(),
+      ),
+    ),
+  ]);
+
+  const noteStateByPlaceId = new Map<string, DocumentSnapshot>();
+  for (const snapshot of noteStateSnapshots) {
+    for (const doc of snapshot.docs) noteStateByPlaceId.set(doc.id, doc);
+  }
+  const followedCreatorUids = new Set<string>();
+  for (const snapshot of followSnapshots) {
+    for (const doc of snapshot.docs) {
+      const followeeUid = doc.get("followeeUid");
+      if (typeof followeeUid === "string") followedCreatorUids.add(followeeUid);
+    }
+  }
+
+  return pins.map((pin) => {
+    const noteState = noteStateByPlaceId.get(pin.placeId);
+    const lastSeenMessageCount =
+      (noteState?.get("lastSeenMessageCount") as number | undefined) ?? 0;
+    const discoverySeenAt =
+      noteState?.get("discoverySeenAt") as Timestamp | undefined;
+    const hasUnseenMessages =
+      noteState != null && pin.messageCount > lastSeenMessageCount;
+    const followedAuthorNew =
+      !pin.isPrivate &&
+      followedCreatorUids.has(pin.creatorUid) &&
+      pin.publishAtMillis >= nowMillis - FOLLOWED_NOTE_NEW_WINDOW_MILLIS &&
+      (discoverySeenAt == null ||
+        discoverySeenAt.toMillis() < pin.publishAtMillis);
+    const markerFlags: MarkerFlag[] = [];
+    if (followedAuthorNew) markerFlags.push("followedAuthorNew");
+    if (hasUnseenMessages) markerFlags.push("unseenMessages");
+    const {creatorUid: _creatorUid, publishAtMillis: _publishAt, ...result} =
+      pin;
+    void _creatorUid;
+    void _publishAt;
+    return {...result, markerFlags};
+  });
+}
+
 export const listMapPins = onCall<ListMapPinsData>(
   {enforceAppCheck: true, region: REGION},
   async (req) => {
+    const startedAt = Date.now();
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
     consumeRateLimit(uid);
@@ -407,8 +507,16 @@ export const listMapPins = onCall<ListMapPinsData>(
       nowMillis,
       seen,
     );
-    const pins = [...localPins, ...prefixPins];
-    return {pins: pins.slice(0, resultLimit)};
+    const pins = [...localPins, ...prefixPins].slice(0, resultLimit);
+    const basePinsReadyAt = Date.now();
+    const enrichedPins = await addMarkerFlagsToPins(db, uid, pins, nowMillis);
+    logger.debug("listMapPins: composed viewer marker states.", {
+      pinCount: enrichedPins.length,
+      baseQueryMillis: basePinsReadyAt - startedAt,
+      viewerStateMillis: Date.now() - basePinsReadyAt,
+      totalMillis: Date.now() - startedAt,
+    });
+    return {pins: enrichedPins};
   },
 );
 

@@ -1,6 +1,7 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/time_format.dart';
 import '../../../domain/entities/note_visitor_entity.dart';
@@ -118,8 +119,12 @@ class _NoteVisitorsScreenState extends ConsumerState<NoteVisitorsScreen> {
                     crossAxisSpacing: 12,
                   ),
                   itemCount: visitors.length,
-                  itemBuilder: (context, index) =>
-                      _VisitorTile(visitor: visitors[index], sort: _sort),
+                  itemBuilder: (context, index) => _VisitorTile(
+                    visitor: visitors[index],
+                    sort: _sort,
+                    onTap: () =>
+                        context.push('/users/${visitors[index].userId}'),
+                  ),
                 );
               },
             ),
@@ -193,8 +198,13 @@ class _FootprintSettingsHeader extends StatelessWidget {
 class _VisitorTile extends StatelessWidget {
   final NoteVisitor visitor;
   final NoteVisitorSort sort;
+  final VoidCallback onTap;
 
-  const _VisitorTile({required this.visitor, required this.sort});
+  const _VisitorTile({
+    required this.visitor,
+    required this.sort,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -213,47 +223,53 @@ class _VisitorTile extends StatelessWidget {
 
     return Card(
       margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircleAvatar(
-              radius: 28,
-              backgroundImage: photoUrl == null ? null : NetworkImage(photoUrl),
-              child: photoUrl == null ? Text(_initial(visitor.label)) : null,
-            ),
-            const SizedBox(height: 10),
-            Text(
-              visitor.label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.titleSmall,
-            ),
-            if (visitor.isMaintainer)
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircleAvatar(
+                radius: 28,
+                backgroundImage: photoUrl == null
+                    ? null
+                    : NetworkImage(photoUrl),
+                child: photoUrl == null ? Text(_initial(visitor.label)) : null,
+              ),
+              const SizedBox(height: 10),
               Text(
-                'Maintainer',
+                visitor.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleSmall,
+              ),
+              if (visitor.isMaintainer)
+                Text(
+                  'Maintainer',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              Text(
+                primaryDetail,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.primary,
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-            Text(
-              primaryDetail,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+              Text(
+                secondaryDetail,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
-            ),
-            Text(
-              secondaryDetail,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

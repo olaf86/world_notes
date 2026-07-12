@@ -175,9 +175,6 @@ async function resetSeedData(user: ScreenshotUser): Promise<void> {
   }
 
   await deleteCollectionDocs(
-    db.collection("users").doc(user.uid).collection("nearbyNotificationPlaces"),
-  );
-  await deleteCollectionDocs(
     db.collection("users").doc(user.uid).collection("notificationSettings"),
   );
 }
@@ -304,35 +301,6 @@ async function seedPlace(
       isMaintainer: visitor.userId === user.uid,
     });
   }
-}
-
-async function seedNearbyAlert(
-  user: ScreenshotUser,
-  now: Date,
-  place: PlaceSeed,
-): Promise<void> {
-  await db
-    .collection("users")
-    .doc(user.uid)
-    .collection("nearbyNotificationPlaces")
-    .doc(place.id)
-    .set({
-      placeId: place.id,
-      title: place.title,
-      colorHex: place.colorHex,
-      icon: place.icon,
-      latitude: place.latitude,
-      longitude: place.longitude,
-      radiusMeters: 1000,
-      expiresAt: timestamp(daysFrom(now, place.expiresInDays)),
-      enabled: true,
-      state: "active",
-      lastReadMessageAt: timestamp(hoursBefore(now, 10)),
-      lastNotifiedMessageAt: timestamp(hoursBefore(now, 3)),
-      inRange: true,
-      inRangeUntil: timestamp(hoursBefore(now, -1)),
-      updatedAt: FieldValue.serverTimestamp(),
-    });
 }
 
 function screenshotPlaces(user: ScreenshotUser): PlaceSeed[] {
@@ -491,7 +459,6 @@ async function main(): Promise<void> {
   for (const place of places) {
     await seedPlace(user, now, place);
   }
-  await seedNearbyAlert(user, now, places[0]);
 
   console.log("Seed completed for World Notes screenshot mode.");
   console.log(`projectId: ${projectId}`);

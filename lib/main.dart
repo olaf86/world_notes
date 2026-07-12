@@ -123,7 +123,6 @@ class WorldNotesApp extends ConsumerStatefulWidget {
 
 class _WorldNotesAppState extends ConsumerState<WorldNotesApp> {
   StreamSubscription<NotificationPlaceRoute>? _notificationOpenSubscription;
-  StreamSubscription<String>? _nearbyNotificationOpenSubscription;
   StreamSubscription<String>? _noticeOpenSubscription;
 
   @override
@@ -143,22 +142,12 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp> {
       _noticeOpenSubscription = noticeService.openedNoticeIds.listen(
         _openNoticesFromNotification,
       );
-      final nearbyService = ref.read(nearbyNotificationServiceProvider);
-      nearbyService.initialize();
-      nearbyService.initialPlaceIdFromLaunch().then(
-        _openNearbyPlaceFromNotification,
-      );
-      _nearbyNotificationOpenSubscription = nearbyService.openedPlaceIds.listen(
-        _openNearbyPlaceFromNotification,
-      );
-      ref.read(nearbyProximityMonitorProvider);
     });
   }
 
   @override
   void dispose() {
     _notificationOpenSubscription?.cancel();
-    _nearbyNotificationOpenSubscription?.cancel();
     _noticeOpenSubscription?.cancel();
     super.dispose();
   }
@@ -166,14 +155,6 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp> {
   void _openPlaceFromNotification(NotificationPlaceRoute? route) {
     if (!mounted) return;
     openNotificationPlace(ref.read(routerProvider), route);
-  }
-
-  void _openNearbyPlaceFromNotification(String? placeId) {
-    _openPlaceFromNotification(
-      placeId == null || placeId.isEmpty
-          ? null
-          : NotificationPlaceRoute(placeId: placeId),
-    );
   }
 
   void _openNoticesFromNotification(String? noticeId) {

@@ -304,7 +304,6 @@ class MyNotesNotificationService {
         placeId: placeId,
         readOnly: true,
       ),
-      'nearby_note_message' => NotificationPlaceRoute(placeId: placeId),
       _ => null,
     };
   }

@@ -1,5 +1,10 @@
 import {getAuth} from "firebase-admin/auth";
-import {getFirestore, FieldValue} from "firebase-admin/firestore";
+import {
+  DocumentSnapshot,
+  FieldValue,
+  getFirestore,
+  Timestamp,
+} from "firebase-admin/firestore";
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 
 import {REGION} from "./constants";
@@ -39,6 +44,28 @@ function stringOrNull(value: unknown): string | null {
 }
 
 /**
+ * Returns a required counter from an existing public profile.
+ *
+ * @param {DocumentSnapshot} profileSnap Existing public profile.
+ * @param {string} field Counter field to read.
+ * @return {number} Current non-negative counter value.
+ */
+function publicProfileCounter(
+  profileSnap: DocumentSnapshot,
+  field: "followerCount" | "followingCount",
+): number {
+  if (!profileSnap.exists) return 0;
+  const value = profileSnap.get(field);
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Public profile counters are incomplete.",
+    );
+  }
+  return value;
+}
+
+/**
  * Updates the caller's nickname and refreshes access-list display names.
  */
 export const updateDisplayName = onCall<{displayName?: unknown}>(
@@ -64,14 +91,57 @@ export const updateDisplayName = onCall<{displayName?: unknown}>(
     }
 
     const db = getFirestore();
+    const userRef = db.collection("users").doc(uid);
+    const publicProfileRef = db.collection("publicProfiles").doc(uid);
     await Promise.all([
-      db.collection("users").doc(uid).set(
-        {
+      db.runTransaction(async (tx) => {
+        const [userSnap, publicProfileSnap] = await Promise.all([
+          tx.get(userRef),
+          tx.get(publicProfileRef),
+        ]);
+        if (!userSnap.exists) {
+          throw new HttpsError("failed-precondition", "User profile missing.");
+        }
+        const storedCreatedAt = publicProfileSnap.exists ?
+          publicProfileSnap.get("createdAt") :
+          null;
+        if (
+          publicProfileSnap.exists &&
+          !(storedCreatedAt instanceof Timestamp)
+        ) {
+          throw new HttpsError(
+            "failed-precondition",
+            "Public profile timestamps are incomplete.",
+          );
+        }
+        const profilePhotoUrl = publicProfileSnap.exists ?
+          stringOrNull(publicProfileSnap.get("photoUrl")) :
+          stringOrNull(userSnap.get("photoUrl"));
+        tx.set(
+          userRef,
+          {
+            displayName,
+            updatedAt: FieldValue.serverTimestamp(),
+          },
+          {merge: true},
+        );
+        tx.set(publicProfileRef, {
           displayName,
+          photoUrl: profilePhotoUrl,
+          followerCount: publicProfileCounter(
+            publicProfileSnap,
+            "followerCount",
+          ),
+          followingCount: publicProfileCounter(
+            publicProfileSnap,
+            "followingCount",
+          ),
+          createdAt: publicProfileSnap.exists ?
+            storedCreatedAt :
+            FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
-        },
-        {merge: true},
-      ),
+        });
+      }),
       getAuth().updateUser(uid, {displayName}),
     ]);
 

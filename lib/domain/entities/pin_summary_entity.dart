@@ -8,6 +8,17 @@ enum PinAccess {
   };
 }
 
+enum PinMarkerFlag {
+  followedAuthorNew,
+  unseenMessages;
+
+  static PinMarkerFlag? fromJson(String value) => switch (value) {
+    'followedAuthorNew' => followedAuthorNew,
+    'unseenMessages' => unseenMessages,
+    _ => null,
+  };
+}
+
 class PinSummary {
   final String placeId;
   final double latitude;
@@ -28,6 +39,7 @@ class PinSummary {
   final bool isClosed;
   final bool footprintEnabled;
   final PinAccess access;
+  final Set<PinMarkerFlag> markerFlags;
 
   const PinSummary({
     required this.placeId,
@@ -49,7 +61,16 @@ class PinSummary {
     required this.isClosed,
     required this.footprintEnabled,
     required this.access,
+    this.markerFlags = const <PinMarkerFlag>{},
   });
 
   bool get canOpen => access == PinAccess.openable;
+  bool get isFromFollowedAuthor =>
+      markerFlags.contains(PinMarkerFlag.followedAuthorNew);
+  bool get hasUnseenMessages =>
+      markerFlags.contains(PinMarkerFlag.unseenMessages);
+  String get markerVariantKey {
+    final names = markerFlags.map((flag) => flag.name).toList()..sort();
+    return names.isEmpty ? 'normal' : names.join('_');
+  }
 }

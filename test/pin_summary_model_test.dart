@@ -49,5 +49,22 @@ void main() {
 
       expect(model.toEntity().pinImageStoragePath, 'images/pins/place-1.webp');
     });
+
+    test('reads the server-computed marker state', () {
+      final model = PinSummaryModel.fromJson({
+        ...json,
+        'markerFlags': ['followedAuthorNew', 'unseenMessages'],
+      });
+
+      final pin = model.toEntity();
+      expect(pin.isFromFollowedAuthor, isTrue);
+      expect(pin.hasUnseenMessages, isTrue);
+    });
+
+    test('uses a normal marker for legacy responses', () {
+      final model = PinSummaryModel.fromJson(json);
+
+      expect(model.toEntity().markerFlags, isEmpty);
+    });
   });
 }

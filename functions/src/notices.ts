@@ -13,6 +13,7 @@ type NoticeCategory =
   "report" |
   "ban" |
   "developer" |
+  "social" |
   "system";
 
 type NoticeSeverity = "info" | "warning" | "critical";

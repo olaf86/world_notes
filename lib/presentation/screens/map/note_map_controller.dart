@@ -412,6 +412,7 @@ class NoteMapController {
         iconName: pin.icon,
         colorHex: pin.colorHex,
         imageStoragePath: imageStoragePath,
+        variant: pin.markerVariantKey,
       );
 
   Future<String> _ensureMarkerImage(PinSummary pin) async {
@@ -436,6 +437,8 @@ class NoteMapController {
           iconData: placeIconData(pin.icon),
           color: parsePlaceColor(pin.colorHex),
           imageBytes: photoBytes,
+          showFollowedAuthorRing: pin.isFromFollowedAuthor,
+          showUnseenDot: pin.hasUnseenMessages,
         );
         await map.addImage(photoId!, bytes);
         _registeredMarkerIds.add(photoId);
@@ -450,6 +453,8 @@ class NoteMapController {
     final bytes = await MarkerImage.render(
       iconData: placeIconData(pin.icon),
       color: parsePlaceColor(pin.colorHex),
+      showFollowedAuthorRing: pin.isFromFollowedAuthor,
+      showUnseenDot: pin.hasUnseenMessages,
     );
     await map.addImage(fallbackId, bytes);
     _registeredMarkerIds.add(fallbackId);
