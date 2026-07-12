@@ -768,10 +768,13 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                         _ThreadStatusBanner(place: place, now: now),
                       StaticNoteMiniMap(
                         place: place,
-                        markerBadge: UserAvatarBadge(
+                        topLeftOverlay: _CreatorMapOverlay(
                           name: creator?.name,
                           photoUrl: creator?.photoUrl,
+                          onTap: () =>
+                              context.push('/users/${place.createdByUserId}'),
                         ),
+                        showTopLeftConnector: true,
                         topRightOverlay: VisitorMapOverlay(
                           placeId: widget.placeId,
                           footprintEnabled: place.footprintEnabled,
@@ -919,6 +922,79 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                   ),
                 ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CreatorMapOverlay extends StatelessWidget {
+  final String? name;
+  final String? photoUrl;
+  final VoidCallback onTap;
+
+  const _CreatorMapOverlay({
+    required this.name,
+    required this.photoUrl,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final displayName = name?.trim().isNotEmpty == true
+        ? name!.trim()
+        : UserAvatarBadge.defaultName;
+
+    return Semantics(
+      button: true,
+      label: 'View $displayName\'s profile',
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          key: const ValueKey('creator-map-overlay'),
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.all(2),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox.square(
+                  dimension: 32,
+                  child: UserAvatarBadge(name: name, photoUrl: photoUrl),
+                ),
+                const SizedBox(height: 3),
+                Container(
+                  constraints: const BoxConstraints(maxWidth: 92),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface.withValues(alpha: 0.94),
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.16),
+                        blurRadius: 3,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    displayName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
