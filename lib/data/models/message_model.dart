@@ -12,6 +12,7 @@ class MessageModel {
   final List<String> imageStoragePaths;
   final DateTime createdAt;
   final DateTime publishAt;
+  final int likeCount;
   final bool isDeleted;
   final DateTime? deletedAt;
   final String? deletedReason;
@@ -30,6 +31,7 @@ class MessageModel {
     this.imageStoragePaths = const [],
     required this.createdAt,
     required this.publishAt,
+    this.likeCount = 0,
     this.isDeleted = false,
     this.deletedAt,
     this.deletedReason,
@@ -54,6 +56,7 @@ class MessageModel {
       ),
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       publishAt: (data['publishAt'] as Timestamp).toDate(),
+      likeCount: (data['likeCount'] as num?)?.toInt() ?? 0,
       isDeleted: data['isDeleted'] as bool,
       deletedAt: (data['deletedAt'] as Timestamp?)?.toDate(),
       deletedReason: data['deletedReason'] as String?,
@@ -64,7 +67,7 @@ class MessageModel {
     );
   }
 
-  MessageEntity toEntity() => MessageEntity(
+  MessageEntity toEntity({bool isLikedByCurrentUser = false}) => MessageEntity(
     id: id,
     placeId: placeId,
     author: UserEntity(id: userId, name: userName, photoUrl: userPhotoUrl),
@@ -72,6 +75,8 @@ class MessageModel {
     imageStoragePaths: imageStoragePaths,
     createdAt: createdAt,
     publishAt: publishAt,
+    likeCount: likeCount,
+    isLikedByCurrentUser: isLikedByCurrentUser,
     isDeleted: isDeleted,
     deletedAt: deletedAt,
     deletedReason: deletedReason,

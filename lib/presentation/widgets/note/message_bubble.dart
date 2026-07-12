@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,8 +12,10 @@ import 'image_grid_layout.dart';
 class MessageBubble extends StatefulWidget {
   final MessageEntity message;
   final bool isOwn;
+  final bool canLike;
   final bool isAuthorHighlighted;
   final ValueChanged<String>? onAuthorTap;
+  final Future<void> Function(bool liked)? onLikeChanged;
   final VoidCallback? onDelete;
   final VoidCallback? onReport;
 
@@ -19,8 +23,10 @@ class MessageBubble extends StatefulWidget {
     super.key,
     required this.message,
     required this.isOwn,
+    this.canLike = false,
     this.isAuthorHighlighted = false,
     this.onAuthorTap,
+    this.onLikeChanged,
     this.onDelete,
     this.onReport,
   });
@@ -30,9 +36,50 @@ class MessageBubble extends StatefulWidget {
 }
 
 class _MessageBubbleState extends State<MessageBubble> {
+  static const _likeDebounceDuration = Duration(milliseconds: 800);
+
   /// Whether the user has chosen to reveal flagged content for this bubble.
   /// Resets to false each time the screen is re-entered (not persisted).
   bool _flaggedContentRevealed = false;
+  Timer? _likeDebounce;
+  bool _initializedLikeState = false;
+  bool _serverLiked = false;
+  int _serverLikeCount = 0;
+  bool _displayLiked = false;
+  int _displayLikeCount = 0;
+  bool _hasLocalLikeOverride = false;
+  bool _sendingLike = false;
+  bool _flushLikeAfterSend = false;
+
+  @override
+  void didUpdateWidget(covariant MessageBubble oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.message.id != widget.message.id) {
+      _likeDebounce?.cancel();
+      _likeDebounce = null;
+      _initializedLikeState = false;
+      _serverLiked = false;
+      _serverLikeCount = 0;
+      _displayLiked = false;
+      _displayLikeCount = 0;
+      _hasLocalLikeOverride = false;
+      _sendingLike = false;
+      _flushLikeAfterSend = false;
+      return;
+    }
+  }
+
+  @override
+  void dispose() {
+    _likeDebounce?.cancel();
+    final onLikeChanged = widget.onLikeChanged;
+    if (_hasLocalLikeOverride &&
+        _displayLiked != _serverLiked &&
+        onLikeChanged != null) {
+      unawaited(onLikeChanged(_displayLiked).catchError((_) {}));
+    }
+    super.dispose();
+  }
 
   // ── Full-screen image viewer ──────────────────────────────────────────────
 
@@ -147,10 +194,104 @@ class _MessageBubbleState extends State<MessageBubble> {
     );
   }
 
+  /// Applies Firestore-backed like state without letting in-flight taps flicker.
+  void _applyServerLikeState({
+    required bool serverLiked,
+    required int serverCount,
+  }) {
+    _serverLiked = serverLiked;
+    _serverLikeCount = serverCount;
+    if (!_initializedLikeState) {
+      _initializedLikeState = true;
+      _displayLiked = serverLiked;
+      _displayLikeCount = serverCount;
+      return;
+    }
+    if (!_hasLocalLikeOverride && !_sendingLike && _likeDebounce == null) {
+      _displayLiked = serverLiked;
+      _displayLikeCount = serverCount;
+      return;
+    }
+    if (_hasLocalLikeOverride &&
+        !_sendingLike &&
+        _likeDebounce == null &&
+        _displayLiked == serverLiked &&
+        _displayLikeCount == serverCount) {
+      _hasLocalLikeOverride = false;
+    }
+  }
+
+  void _toggleLike() {
+    if (!widget.canLike || widget.onLikeChanged == null) return;
+    final nextLiked = !_displayLiked;
+    final nextCount = (_displayLikeCount + (nextLiked ? 1 : -1))
+        .clamp(0, 1 << 31)
+        .toInt();
+    setState(() {
+      _displayLiked = nextLiked;
+      _displayLikeCount = nextCount;
+      _hasLocalLikeOverride = true;
+    });
+    _scheduleLikeFlush();
+  }
+
+  void _scheduleLikeFlush() {
+    _likeDebounce?.cancel();
+    _likeDebounce = Timer(_likeDebounceDuration, () {
+      _likeDebounce = null;
+      unawaited(_flushLike());
+    });
+  }
+
+  Future<void> _flushLike() async {
+    if (!mounted) return;
+    if (_sendingLike) {
+      _flushLikeAfterSend = true;
+      return;
+    }
+    final onLikeChanged = widget.onLikeChanged;
+    if (onLikeChanged == null) return;
+    final desiredLiked = _displayLiked;
+    if (desiredLiked == _serverLiked) {
+      setState(() {
+        _hasLocalLikeOverride = false;
+        _displayLikeCount = _serverLikeCount;
+      });
+      return;
+    }
+
+    setState(() {
+      _sendingLike = true;
+      _flushLikeAfterSend = false;
+    });
+    try {
+      await onLikeChanged(desiredLiked);
+      if (!mounted) return;
+      setState(() => _sendingLike = false);
+      if (_flushLikeAfterSend || _displayLiked != desiredLiked) {
+        _flushLikeAfterSend = false;
+        _scheduleLikeFlush();
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _sendingLike = false;
+        _flushLikeAfterSend = false;
+        _hasLocalLikeOverride = false;
+        _displayLiked = _serverLiked;
+        _displayLikeCount = _serverLikeCount;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final message = widget.message;
+    _applyServerLikeState(
+      serverLiked: message.isLikedByCurrentUser,
+      serverCount: message.likeCount,
+    );
 
     // ── Deleted tombstone ─────────────────────────────────────────────────
     if (message.isDeleted) {
@@ -413,10 +554,16 @@ class _MessageBubbleState extends State<MessageBubble> {
                         ),
                       ),
                     ),
-                  if (!widget.isOwn && widget.onReport != null) ...[
-                    const SizedBox(height: 8),
-                    _ReportInlineAction(onPressed: widget.onReport!),
-                  ],
+                  const SizedBox(height: 8),
+                  _MessageActionRow(
+                    messageId: message.id,
+                    liked: _displayLiked,
+                    likeCount: _displayLikeCount,
+                    canLike: widget.canLike,
+                    isSendingLike: _sendingLike,
+                    onLikePressed: _toggleLike,
+                    onReportPressed: !widget.isOwn ? widget.onReport : null,
+                  ),
                 ],
               ),
             ),
@@ -427,40 +574,87 @@ class _MessageBubbleState extends State<MessageBubble> {
   }
 }
 
-class _ReportInlineAction extends StatelessWidget {
-  final VoidCallback onPressed;
+class _MessageActionRow extends StatelessWidget {
+  final String messageId;
+  final bool liked;
+  final int likeCount;
+  final bool canLike;
+  final bool isSendingLike;
+  final VoidCallback onLikePressed;
+  final VoidCallback? onReportPressed;
 
-  const _ReportInlineAction({required this.onPressed});
+  const _MessageActionRow({
+    required this.messageId,
+    required this.liked,
+    required this.likeCount,
+    required this.canLike,
+    required this.isSendingLike,
+    required this.onLikePressed,
+    this.onReportPressed,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(4),
-        onTap: onPressed,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 3),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.flag_outlined,
-                size: 13,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                'Report',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
+    final likeColor = liked
+        ? theme.colorScheme.error
+        : theme.colorScheme.onSurfaceVariant;
+    return Row(
+      children: [
+        Semantics(
+          identifier: 'action-toggle-message-like-$messageId',
+          button: true,
+          toggled: liked,
+          child: IconButton(
+            tooltip: liked ? 'Unlike message' : 'Like message',
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+            padding: EdgeInsets.zero,
+            onPressed: canLike ? onLikePressed : null,
+            icon: Icon(
+              liked ? Icons.favorite : Icons.favorite_border,
+              size: 18,
+              color: canLike ? likeColor : null,
+            ),
           ),
         ),
-      ),
+        const SizedBox(width: 2),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 140),
+          child: Text(
+            '$likeCount',
+            key: ValueKey(likeCount),
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: liked
+                  ? theme.colorScheme.error
+                  : theme.colorScheme.onSurfaceVariant,
+              fontWeight: liked ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
+        ),
+        if (isSendingLike) ...[
+          const SizedBox(width: 8),
+          SizedBox.square(
+            dimension: 12,
+            child: CircularProgressIndicator(strokeWidth: 2, color: likeColor),
+          ),
+        ],
+        if (onReportPressed != null) ...[
+          const SizedBox(width: 14),
+          IconButton(
+            tooltip: 'Report message',
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+            padding: EdgeInsets.zero,
+            onPressed: onReportPressed,
+            icon: Icon(
+              Icons.flag_outlined,
+              size: 17,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

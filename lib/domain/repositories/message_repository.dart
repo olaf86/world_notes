@@ -39,4 +39,11 @@ abstract class MessageRepository {
     required String placeId,
     required String reason,
   });
+
+  /// Sets the current user's final desired like state for a message.
+  Future<void> setMessageLike({
+    required String placeId,
+    required String messageId,
+    required bool liked,
+  });
 }

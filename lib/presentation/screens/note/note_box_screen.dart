@@ -217,6 +217,34 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     );
   }
 
+  Future<void> _setMessageLike(MessageEntity message, bool liked) async {
+    try {
+      await ref
+          .read(messageRepositoryProvider)
+          .setMessageLike(
+            placeId: widget.placeId,
+            messageId: message.id,
+            liked: liked,
+          );
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.message ?? 'Could not update like.')),
+        );
+      }
+      rethrow;
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not update like. Check your connection.'),
+          ),
+        );
+      }
+      rethrow;
+    }
+  }
+
   // ── Maintainer thread controls ────────────────────────────────────────────
 
   Future<void> _closeThread() async {
@@ -985,9 +1013,20 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                                       final message = messages[index];
                                       final isOwn =
                                           message.author.id == currentUser?.id;
+                                      final canLikeMessage =
+                                          currentUser != null &&
+                                          permissions.canReadContent &&
+                                          place.isPublishedAt(now) &&
+                                          !place.isExpiredAt(now) &&
+                                          !place.isArchived &&
+                                          message.isPublished;
                                       return MessageBubble(
+                                        key: ValueKey(message.id),
                                         message: message,
                                         isOwn: isOwn,
+                                        canLike: canLikeMessage,
+                                        onLikeChanged: (liked) =>
+                                            _setMessageLike(message, liked),
                                         isAuthorHighlighted:
                                             _highlightedAuthorId ==
                                             message.author.id,

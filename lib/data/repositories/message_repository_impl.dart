@@ -55,17 +55,36 @@ class MessageRepositoryImpl implements MessageRepository {
     late final StreamController<List<MessageEntity>> controller;
     QuerySnapshot? publishedSnap;
     QuerySnapshot? ownScheduledSnap;
+    QuerySnapshot? ownLikesSnap;
     StreamSubscription<QuerySnapshot>? publishedSub;
     StreamSubscription<QuerySnapshot>? ownScheduledSub;
+    StreamSubscription<QuerySnapshot>? ownLikesSub;
+
+    final ownLikesStream = _firestore
+        .collectionGroup('messageLikes')
+        .where('placeId', isEqualTo: placeId)
+        .where('userId', isEqualTo: currentUserId)
+        .where('liked', isEqualTo: true)
+        .snapshots();
 
     void emitIfReady() {
       final published = publishedSnap;
       final ownScheduled = ownScheduledSnap;
-      if (published == null || ownScheduled == null) return;
+      final ownLikes = ownLikesSnap;
+      if (published == null || ownScheduled == null || ownLikes == null) {
+        return;
+      }
+
+      final likedMessageIds = ownLikes.docs
+          .map((doc) => doc.get('messageId') as String?)
+          .whereType<String>()
+          .toSet();
 
       final byId = <String, MessageEntity>{};
       for (final doc in [...published.docs, ...ownScheduled.docs]) {
-        final message = MessageModel.fromFirestore(doc).toEntity();
+        final message = MessageModel.fromFirestore(
+          doc,
+        ).toEntity(isLikedByCurrentUser: likedMessageIds.contains(doc.id));
         if (!message.isVisible) continue;
         if (message.isDeleted && message.author.id != currentUserId) continue;
         byId[message.id] = message;
@@ -90,11 +109,16 @@ class MessageRepositoryImpl implements MessageRepository {
           ownScheduledSnap = snap;
           emitIfReady();
         }, onError: controller.addError);
+        ownLikesSub = ownLikesStream.listen((snap) {
+          ownLikesSnap = snap;
+          emitIfReady();
+        }, onError: controller.addError);
       },
       onCancel: () async {
         await Future.wait([
           if (publishedSub != null) publishedSub!.cancel(),
           if (ownScheduledSub != null) ownScheduledSub!.cancel(),
+          if (ownLikesSub != null) ownLikesSub!.cancel(),
         ]);
       },
     );
@@ -239,5 +263,16 @@ class MessageRepositoryImpl implements MessageRepository {
       'placeId': placeId,
       'reason': reason,
     });
+  }
+
+  @override
+  Future<void> setMessageLike({
+    required String placeId,
+    required String messageId,
+    required bool liked,
+  }) async {
+    await _functions.httpsCallable('setMessageLike').call<Map<String, dynamic>>(
+      {'placeId': placeId, 'messageId': messageId, 'liked': liked},
+    );
   }
 }

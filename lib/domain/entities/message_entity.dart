@@ -8,6 +8,8 @@ class MessageEntity {
   final List<String> imageStoragePaths;
   final DateTime createdAt;
   final DateTime publishAt;
+  final int likeCount;
+  final bool isLikedByCurrentUser;
 
   /// True for optimistic messages that haven't been confirmed by Firestore yet.
   final bool isPending;
@@ -31,6 +33,8 @@ class MessageEntity {
     this.imageStoragePaths = const [],
     required this.createdAt,
     required this.publishAt,
+    this.likeCount = 0,
+    this.isLikedByCurrentUser = false,
     this.isPending = false,
     this.isDeleted = false,
     this.deletedAt,

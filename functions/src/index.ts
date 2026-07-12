@@ -17,6 +17,7 @@ export {
   deleteMessage,
   cancelScheduledMessage,
   reportMessage,
+  setMessageLike,
 } from "./messages";
 export {aggregatePublishedMessages} from "./messageTriggers";
 export {
