@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 import '../../config/app_config.dart';
 import '../../core/utils/image_upload_util.dart';
 import '../../domain/entities/message_entity.dart';
+import '../../domain/entities/message_thread_item.dart';
 import '../../domain/repositories/message_repository.dart';
 import '../models/message_model.dart';
 
@@ -35,7 +36,7 @@ class MessageRepositoryImpl implements MessageRepository {
       _firestore.collection('places').doc(placeId).collection('messages');
 
   @override
-  Stream<List<MessageEntity>> watchMessages({
+  Stream<List<MessageThreadItem>> watchMessages({
     required String placeId,
     required String currentUserId,
   }) {
@@ -51,50 +52,60 @@ class MessageRepositoryImpl implements MessageRepository {
         .orderBy('publishAt')
         .limit(AppConfig.messagesPageSize)
         .snapshots();
+    final ownLikesStream = _firestore
+        .collectionGroup('messageLikes')
+        .where('placeId', isEqualTo: placeId)
+        .where('userId', isEqualTo: currentUserId)
+        .where('liked', isEqualTo: true)
+        .snapshots();
 
-    late final StreamController<List<MessageEntity>> controller;
+    late final StreamController<List<MessageThreadItem>> controller;
     QuerySnapshot? publishedSnap;
     QuerySnapshot? ownScheduledSnap;
-    StreamSubscription<QuerySnapshot>? publishedSub;
-    StreamSubscription<QuerySnapshot>? ownScheduledSub;
+    QuerySnapshot? ownLikesSnap;
+    StreamSubscription<QuerySnapshot>? publishedSubscription;
+    StreamSubscription<QuerySnapshot>? ownScheduledSubscription;
+    StreamSubscription<QuerySnapshot>? ownLikesSubscription;
 
     void emitIfReady() {
       final published = publishedSnap;
       final ownScheduled = ownScheduledSnap;
-      if (published == null || ownScheduled == null) return;
-
-      final byId = <String, MessageEntity>{};
-      for (final doc in [...published.docs, ...ownScheduled.docs]) {
-        final message = MessageModel.fromFirestore(doc).toEntity();
-        if (!message.isVisible) continue;
-        if (message.isDeleted && message.author.id != currentUserId) continue;
-        byId[message.id] = message;
+      final ownLikes = ownLikesSnap;
+      if (published == null || ownScheduled == null || ownLikes == null) {
+        return;
       }
 
-      final messages = byId.values.toList()
-        ..sort((a, b) {
-          final publishOrder = b.publishAt.compareTo(a.publishAt);
-          if (publishOrder != 0) return publishOrder;
-          return b.createdAt.compareTo(a.createdAt);
-        });
-      controller.add(messages);
+      controller.add(
+        _threadItemsFromSnapshots(
+          published: published,
+          ownScheduled: ownScheduled,
+          ownLikes: ownLikes,
+          currentUserId: currentUserId,
+        ),
+      );
     }
 
-    controller = StreamController<List<MessageEntity>>(
+    controller = StreamController<List<MessageThreadItem>>(
       onListen: () {
-        publishedSub = publishedStream.listen((snap) {
+        publishedSubscription = publishedStream.listen((snap) {
           publishedSnap = snap;
           emitIfReady();
         }, onError: controller.addError);
-        ownScheduledSub = ownScheduledStream.listen((snap) {
+        ownScheduledSubscription = ownScheduledStream.listen((snap) {
           ownScheduledSnap = snap;
+          emitIfReady();
+        }, onError: controller.addError);
+        ownLikesSubscription = ownLikesStream.listen((snap) {
+          ownLikesSnap = snap;
           emitIfReady();
         }, onError: controller.addError);
       },
       onCancel: () async {
         await Future.wait([
-          if (publishedSub != null) publishedSub!.cancel(),
-          if (ownScheduledSub != null) ownScheduledSub!.cancel(),
+          if (publishedSubscription != null) publishedSubscription!.cancel(),
+          if (ownScheduledSubscription != null)
+            ownScheduledSubscription!.cancel(),
+          if (ownLikesSubscription != null) ownLikesSubscription!.cancel(),
         ]);
       },
     );
@@ -102,8 +113,56 @@ class MessageRepositoryImpl implements MessageRepository {
     return controller.stream;
   }
 
+  List<MessageThreadItem> _threadItemsFromSnapshots({
+    required QuerySnapshot published,
+    required QuerySnapshot ownScheduled,
+    required QuerySnapshot ownLikes,
+    required String currentUserId,
+  }) {
+    final likedMessageIds = _likedMessageIds(ownLikes);
+    final byId = <String, MessageThreadItem>{};
+    for (final doc in [...published.docs, ...ownScheduled.docs]) {
+      final item = _threadItemFromDoc(
+        doc,
+        likedByCurrentUser: likedMessageIds.contains(doc.id),
+      );
+      final message = item.message;
+      if (!message.isVisible) continue;
+      if (message.isDeleted && message.author.id != currentUserId) continue;
+      byId[message.id] = item;
+    }
+    return byId.values.toList()..sort(_compareThreadItems);
+  }
+
+  MessageThreadItem _threadItemFromDoc(
+    QueryDocumentSnapshot doc, {
+    required bool likedByCurrentUser,
+  }) {
+    final model = MessageModel.fromFirestore(doc);
+    return MessageThreadItem(
+      message: model.toEntity(),
+      likeState: MessageLikeState(
+        count: model.likeCount,
+        likedByCurrentUser: likedByCurrentUser,
+      ),
+    );
+  }
+
+  Set<String> _likedMessageIds(QuerySnapshot snap) {
+    return snap.docs
+        .map((doc) => doc.get('messageId') as String?)
+        .whereType<String>()
+        .toSet();
+  }
+
+  int _compareThreadItems(MessageThreadItem a, MessageThreadItem b) {
+    final publishOrder = b.message.publishAt.compareTo(a.message.publishAt);
+    if (publishOrder != 0) return publishOrder;
+    return b.message.createdAt.compareTo(a.message.createdAt);
+  }
+
   @override
-  Future<List<MessageEntity>> getOlderMessages({
+  Future<List<MessageThreadItem>> getOlderMessages({
     required String placeId,
     required String beforeMessageId,
     required int limit,
@@ -120,7 +179,7 @@ class MessageRepositoryImpl implements MessageRepository {
         .get();
 
     return snap.docs
-        .map((doc) => MessageModel.fromFirestore(doc).toEntity())
+        .map((doc) => _threadItemFromDoc(doc, likedByCurrentUser: false))
         .toList();
   }
 
@@ -239,5 +298,16 @@ class MessageRepositoryImpl implements MessageRepository {
       'placeId': placeId,
       'reason': reason,
     });
+  }
+
+  @override
+  Future<void> setMessageLike({
+    required String placeId,
+    required String messageId,
+    required bool liked,
+  }) async {
+    await _functions.httpsCallable('setMessageLike').call<Map<String, dynamic>>(
+      {'placeId': placeId, 'messageId': messageId, 'liked': liked},
+    );
   }
 }

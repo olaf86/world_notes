@@ -6,6 +6,7 @@ import {
   FieldValue,
   Firestore,
   Timestamp,
+  Transaction,
   getFirestore,
 } from "firebase-admin/firestore";
 import {getStorage} from "firebase-admin/storage";
@@ -35,6 +36,15 @@ import {
   sendMyNotesMessageNotifications,
   sendNearbyInRangeMessageNotifications,
 } from "./notifications";
+import {
+  assertLiked,
+  hasValidMembership,
+  isPublishedReadablePlace,
+  type LikeMutationResult,
+  likeEdgeData,
+  likedStateOf,
+  nextLikeCount,
+} from "./likeHelpers";
 import {canMaintainNote} from "./noteMaintenance";
 
 interface SendMessageData {
@@ -51,6 +61,12 @@ interface ReportMessageData {
   reason?: unknown;
 }
 
+interface SetMessageLikeData {
+  placeId?: unknown;
+  messageId?: unknown;
+  liked?: unknown;
+}
+
 interface ValidatedSendMessageInput {
   messageId: string;
   placeId: string;
@@ -65,6 +81,12 @@ interface ValidatedReportMessageInput {
   reason: string;
 }
 
+interface ValidatedSetMessageLikeInput {
+  placeId: string;
+  messageId: string;
+  liked: boolean;
+}
+
 interface SendMessageRefs {
   placeRef: DocumentReference;
   userRef: DocumentReference;
@@ -72,6 +94,13 @@ interface SendMessageRefs {
   counterRef: DocumentReference;
   messageRef: DocumentReference;
   moderationReviewRef: DocumentReference;
+}
+
+interface MessageLikeRefs {
+  placeRef: DocumentReference;
+  memberRef: DocumentReference;
+  messageRef: DocumentReference;
+  likeRef: DocumentReference;
 }
 
 interface SendMessageProfile {
@@ -229,6 +258,16 @@ function validateReportMessageInput(
   };
 }
 
+function validateSetMessageLikeInput(
+  data: SetMessageLikeData | undefined,
+): ValidatedSetMessageLikeInput {
+  return {
+    placeId: requiredDocumentId(data?.placeId, "placeId"),
+    messageId: requiredDocumentId(data?.messageId, "messageId"),
+    liked: assertLiked(data?.liked),
+  };
+}
+
 function assertReportCooldown(
   rateLimitSnap: DocumentSnapshot,
   now: Timestamp,
@@ -262,6 +301,21 @@ function sendMessageRefs(
     moderationReviewRef: db
       .collection("moderationReviews")
       .doc(`${input.placeId}_${input.messageId}`),
+  };
+}
+
+function messageLikeRefs(
+  db: Firestore,
+  input: ValidatedSetMessageLikeInput,
+  uid: string,
+): MessageLikeRefs {
+  const placeRef = db.collection("places").doc(input.placeId);
+  const messageRef = placeRef.collection("messages").doc(input.messageId);
+  return {
+    placeRef,
+    memberRef: placeRef.collection("members").doc(uid),
+    messageRef,
+    likeRef: messageRef.collection("messageLikes").doc(uid),
   };
 }
 
@@ -352,6 +406,7 @@ function messageDocumentData({
     ...(riskSignals.length > 0 ? {moderationRiskSignals: riskSignals} : {}),
     isPubliclyVisible,
     reportCount: 0,
+    likeCount: 0,
   };
 }
 
@@ -406,15 +461,6 @@ function shouldCreateModerationReview(
   ) || hasReviewRecommendedRiskSignal(riskSignals);
 }
 
-function hasValidMembership(
-  placeSnap: DocumentSnapshot,
-  memberSnap: DocumentSnapshot | null,
-): boolean {
-  if (!memberSnap?.exists) return false;
-  return memberSnap.get("invited") === true ||
-    memberSnap.get("viaPasswordVersion") === placeSnap.get("passwordVersion");
-}
-
 function canAccessNote(
   placeSnap: DocumentSnapshot,
   memberSnap: DocumentSnapshot | null,
@@ -423,6 +469,20 @@ function canAccessNote(
   if (placeSnap.get("visibility") !== "private") return true;
   if (canMaintainNote(placeSnap, uid)) return true;
   return hasValidMembership(placeSnap, memberSnap);
+}
+
+function canLikeMessage(
+  placeSnap: DocumentSnapshot,
+  memberSnap: DocumentSnapshot | null,
+  messageSnap: DocumentSnapshot,
+  uid: string,
+  nowMs: number,
+): boolean {
+  return isPublishedReadablePlace(placeSnap, nowMs) &&
+    canAccessNote(placeSnap, memberSnap, uid) &&
+    messageSnap.get("isVisible") === true &&
+    messageSnap.get("isPubliclyVisible") === true &&
+    messageSnap.get("isDeleted") !== true;
 }
 
 function messageSlotCount(
@@ -909,6 +969,78 @@ export const reportMessage = onCall<ReportMessageData>(
       placeId: input.placeId,
       messageId: input.messageId,
     };
+  },
+);
+
+async function applyMessageLikeState(
+  tx: Transaction,
+  refs: MessageLikeRefs,
+  input: ValidatedSetMessageLikeInput,
+  uid: string,
+  nowMs: number,
+): Promise<LikeMutationResult> {
+  const [placeSnap, messageSnap] = await Promise.all([
+    tx.get(refs.placeRef),
+    tx.get(refs.messageRef),
+  ]);
+  if (!placeSnap.exists || !messageSnap.exists) {
+    throw new HttpsError("not-found", "Message not found.");
+  }
+  const memberSnap =
+    placeSnap.get("visibility") === "private" &&
+      !canMaintainNote(placeSnap, uid) ?
+      await tx.get(refs.memberRef) :
+      null;
+  if (!canLikeMessage(placeSnap, memberSnap, messageSnap, uid, nowMs)) {
+    throw new HttpsError(
+      "permission-denied",
+      "You cannot like this message.",
+    );
+  }
+
+  const likeSnap = await tx.get(refs.likeRef);
+  const result = nextLikeCount({
+    currentCount: (messageSnap.get("likeCount") as number | undefined) ?? 0,
+    currentlyLiked: likedStateOf(likeSnap),
+    desiredLiked: input.liked,
+  });
+  if (!result.changed) {
+    return {liked: input.liked, likeCount: result.likeCount};
+  }
+
+  tx.set(
+    refs.likeRef,
+    likeEdgeData({
+      uid,
+      liked: input.liked,
+      extra: {
+        placeId: input.placeId,
+        messageId: input.messageId,
+      },
+    }),
+    {merge: true},
+  );
+  tx.update(refs.messageRef, {likeCount: result.likeCount});
+  return {liked: input.liked, likeCount: result.likeCount};
+}
+
+/**
+ * Sets the caller's final desired like state for a published message.
+ */
+export const setMessageLike = onCall<SetMessageLikeData>(
+  {enforceAppCheck: true, region: REGION},
+  async (req) => {
+    const uid = req.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+
+    const input = validateSetMessageLikeInput(req.data);
+    const db = getFirestore();
+    const refs = messageLikeRefs(db, input, uid);
+    const nowMs = Date.now();
+
+    return db.runTransaction((tx) =>
+      applyMessageLikeState(tx, refs, input, uid, nowMs),
+    );
   },
 );
 

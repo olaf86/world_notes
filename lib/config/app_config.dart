@@ -74,6 +74,9 @@ class AppConfig {
   // Message pagination
   static const int messagesPageSize = 20;
 
+  /// Delay used before sending optimistic like toggles to Cloud Functions.
+  static const Duration likeDebounceDuration = Duration(milliseconds: 800);
+
   // ── Application constraints ───────────────────────────────────────────────
 
   /// Maximum number of messages allowed per note thread.

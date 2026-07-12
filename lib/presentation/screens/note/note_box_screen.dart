@@ -12,6 +12,7 @@ import '../../../config/app_config.dart';
 import '../../../core/utils/password_util.dart';
 import '../../../core/utils/pattern_lock_util.dart';
 import '../../../domain/entities/message_entity.dart';
+import '../../../domain/entities/message_thread_item.dart';
 import '../../../domain/entities/place_entity.dart';
 import '../../../domain/policies/note_permissions.dart';
 import '../../providers/providers.dart';
@@ -216,6 +217,34 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
         ),
       ),
     );
+  }
+
+  Future<void> _setMessageLike(MessageEntity message, bool liked) async {
+    try {
+      await ref
+          .read(messageRepositoryProvider)
+          .setMessageLike(
+            placeId: widget.placeId,
+            messageId: message.id,
+            liked: liked,
+          );
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.message ?? 'Could not update like.')),
+        );
+      }
+      rethrow;
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not update like. Check your connection.'),
+          ),
+        );
+      }
+      rethrow;
+    }
   }
 
   // ── Maintainer thread controls ────────────────────────────────────────────
@@ -467,11 +496,11 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
 
   void _markNearbyNotificationReadIfNeeded({
     required bool nearbyEnabled,
-    required List<MessageEntity> messages,
+    required List<MessageThreadItem> messages,
   }) {
     if (!nearbyEnabled || messages.isEmpty) return;
     final latest = messages
-        .map((message) => message.publishAt)
+        .map((item) => item.message.publishAt)
         .reduce((a, b) => a.isAfter(b) ? a : b);
     final previous = _lastNearbyReadMarkedAt;
     if (previous != null && !latest.isAfter(previous)) return;
@@ -990,12 +1019,21 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                                     ),
                                     itemCount: messages.length,
                                     itemBuilder: (context, index) {
-                                      final message = messages[index];
+                                      final item = messages[index];
+                                      final message = item.message;
                                       final isOwn =
                                           message.author.id == currentUser?.id;
                                       return MessageBubble(
+                                        key: ValueKey(message.id),
                                         message: message,
+                                        likeState: item.likeState,
                                         isOwn: isOwn,
+                                        canLike: permissions.canLikeMessage(
+                                          message,
+                                          now: now,
+                                        ),
+                                        onLikeChanged: (liked) =>
+                                            _setMessageLike(message, liked),
                                         isAuthorHighlighted:
                                             _highlightedAuthorId ==
                                             message.author.id,
@@ -1123,8 +1161,6 @@ class _NoteLikeRow extends ConsumerStatefulWidget {
 }
 
 class _NoteLikeRowState extends ConsumerState<_NoteLikeRow> {
-  static const _debounceDuration = Duration(milliseconds: 800);
-
   Timer? _debounce;
   bool _initialized = false;
   bool _serverLiked = false;
@@ -1192,7 +1228,7 @@ class _NoteLikeRowState extends ConsumerState<_NoteLikeRow> {
 
   void _scheduleFlush() {
     _debounce?.cancel();
-    _debounce = Timer(_debounceDuration, () {
+    _debounce = Timer(AppConfig.likeDebounceDuration, () {
       _debounce = null;
       unawaited(_flushLike());
     });

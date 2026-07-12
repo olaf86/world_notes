@@ -1,11 +1,12 @@
 import '../entities/message_entity.dart';
+import '../entities/message_thread_item.dart';
 
 abstract class MessageRepository {
-  Stream<List<MessageEntity>> watchMessages({
+  Stream<List<MessageThreadItem>> watchMessages({
     required String placeId,
     required String currentUserId,
   });
-  Future<List<MessageEntity>> getOlderMessages({
+  Future<List<MessageThreadItem>> getOlderMessages({
     required String placeId,
     required String beforeMessageId,
     required int limit,
@@ -38,5 +39,12 @@ abstract class MessageRepository {
     required String messageId,
     required String placeId,
     required String reason,
+  });
+
+  /// Sets the current user's final desired like state for a message.
+  Future<void> setMessageLike({
+    required String placeId,
+    required String messageId,
+    required bool liked,
   });
 }
