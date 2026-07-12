@@ -58,9 +58,10 @@ service cloud.firestore {
       let place = getPlace(placeId);
       return isSignedIn()
              && (isPlaceMaintainer(place)
-                 || (isPubliclyReadablePlace(place)
-                     && (place.visibility == 'public'
-                         || hasNoteMembership(placeId, place))));
+                 || (place.visibility == 'public'
+                     && isPubliclyReadablePlace(place))
+                 || (place.visibility == 'private'
+                     && hasNoteMembership(placeId, place)));
     }
 
     function isPubliclyReadablePlace(place) {
@@ -79,6 +80,9 @@ service cloud.firestore {
              && request.auth.uid in place.maintainerIds;
     }
 
+    // A signed-in visitor must read an active private note's display metadata
+    // (title, lock type, and hint) before they can unlock it. Message content
+    // remains protected separately by canAccessNote/canReadMessage.
     function canGetPlace(place) {
       return isPlaceMaintainer(place) || isPubliclyReadablePlace(place);
     }
@@ -361,19 +365,20 @@ service cloud.firestore {
 
         allow delete: if false;
 
-        // Per-user message like state. Clients may read only their own edge;
-        // writes and the public message.likeCount aggregate are maintained by
-        // Cloud Functions so counts cannot be forged.
-        match /messageLikes/{likeUid} {
-          allow read: if isSignedIn()
-                      && resource.data.userId == request.auth.uid
-                      && canReadMessage(
-                        placeId,
-                        get(/databases/$(database)/documents/places/$(placeId)/messages/$(messageId)).data
-                      );
-          allow write: if false;
-        }
       }
+
+    }
+
+    // Collection-group query support for the thread's own-like state. A
+    // collection-group query requires this root-level recursive match. A
+    // caller can list only edges whose stored owner is that caller; Cloud
+    // Functions are the only writer, so clients cannot forge `userId`.
+    // Keep `messageLikes` exclusive to this edge schema; a future unrelated
+    // collection must use a different name to avoid matching this rule.
+    // Individual document gets and all client writes remain denied by default.
+    match /{path=**}/messageLikes/{likeId} {
+      allow list: if isSignedIn()
+                  && resource.data.userId == request.auth.uid;
     }
 
     // Flat administrator review queue for non-allow moderation decisions.
