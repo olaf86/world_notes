@@ -18,12 +18,14 @@ import '../presentation/screens/profile/user_profile_screen.dart';
 import '../presentation/screens/report/report_message_screen.dart';
 import '../presentation/screens/settings/settings_screen.dart';
 import '../presentation/screens/subscription/subscription_screen.dart';
+import 'route_observer.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
 
   return GoRouter(
     initialLocation: '/map',
+    observers: [appRouteObserver],
     redirect: (context, state) {
       // While auth state is still resolving, don't redirect.
       if (authState.isLoading) return null;

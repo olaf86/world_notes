@@ -7,6 +7,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../config/app_config.dart';
+import '../../../config/route_observer.dart';
 import '../../../core/map_style.dart';
 import '../../../core/utils/image_upload_util.dart';
 import '../../../domain/entities/pin_summary_entity.dart';
@@ -16,6 +17,7 @@ import '../../widgets/map/location_checking_view.dart';
 import '../../widgets/map/location_permission_view.dart';
 import '../../widgets/map/note_marker_bottom_sheet.dart';
 import 'map_notes_error_messages.dart';
+import 'map_diagnostics.dart';
 import 'note_map_adapter.dart';
 import 'note_map_adapter_factory.dart';
 
@@ -47,14 +49,16 @@ class MapScreen extends ConsumerStatefulWidget {
 }
 
 class _MapScreenState extends ConsumerState<MapScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, RouteAware {
   late final NoteMapAdapter _mapAdapter;
+  PageRoute<dynamic>? _observedRoute;
   bool _refreshingMapNotes = false;
   String? _activePinPreviewPlaceId;
 
   @override
   void initState() {
     super.initState();
+    logMapDiagnostics('MapScreen.initState');
     _mapAdapter = createNoteMapAdapter(
       vsync: this,
       onPinSelected: _showPinPreview,
@@ -63,9 +67,46 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is! PageRoute<dynamic> || identical(route, _observedRoute)) {
+      return;
+    }
+    if (_observedRoute != null) {
+      appRouteObserver.unsubscribe(this);
+    }
+    _observedRoute = route;
+    appRouteObserver.subscribe(this, route);
+    logMapDiagnostics('MapScreen.subscribed route=${_routeLabel(route)}');
+  }
+
+  @override
+  void didPushNext() {
+    logMapDiagnostics(
+      'MapScreen.didPushNext tracking=${ref.read(isTrackingProvider)}',
+    );
+  }
+
+  @override
+  void didPopNext() {
+    logMapDiagnostics(
+      'MapScreen.didPopNext tracking=${ref.read(isTrackingProvider)}',
+    );
+  }
+
+  @override
   void dispose() {
+    logMapDiagnostics('MapScreen.dispose');
+    appRouteObserver.unsubscribe(this);
     _mapAdapter.dispose();
     super.dispose();
+  }
+
+  String _routeLabel(Route<dynamic> route) {
+    final name = route.settings.name;
+    if (name == null || name.isEmpty) return route.runtimeType.toString();
+    return name;
   }
 
   // ── Pin tap → bottom sheet ────────────────────────────────────────────────
@@ -161,6 +202,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
   Future<void> _toggleTracking() async {
     final notifier = ref.read(isTrackingProvider.notifier);
     final next = !notifier.state;
+    logMapDiagnostics('MapScreen.toggleTracking next=$next');
     notifier.state = next;
     final anchor = ref.read(anchorPositionProvider);
     if (next && anchor != null) {
@@ -172,11 +214,19 @@ class _MapScreenState extends ConsumerState<MapScreen>
           MapPinSearchRadius.forZoom(AppConfig.defaultZoom);
     }
     await _mapAdapter.setTrackingEnabled(next);
+    logMapDiagnostics('MapScreen.toggleTracking applied next=$next');
   }
 
-  void _onUserPanned() {
-    if (!ref.read(isTrackingProvider)) return;
+  void _onUserPanned(PointerDownEvent event) {
+    final wasTracking = ref.read(isTrackingProvider);
+    logMapDiagnostics(
+      'MapScreen.pointerDown kind=${event.kind} '
+      'position=${event.position.dx.toStringAsFixed(1)},'
+      '${event.position.dy.toStringAsFixed(1)} tracking=$wasTracking',
+    );
+    if (!wasTracking) return;
     ref.read(isTrackingProvider.notifier).state = false;
+    logMapDiagnostics('MapScreen.pointerDown disables tracking');
     _mapAdapter.setTrackingEnabled(false);
   }
 
@@ -239,6 +289,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     }
 
     if (!mounted) return;
+    logMapDiagnostics('MapScreen.push note/create');
     context.push('/note/create');
   }
 
@@ -279,6 +330,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final center = camera.center;
     final radiusKm = MapPinSearchRadius.forZoom(camera.zoom);
     final current = ref.read(mapSearchCenterProvider);
+    logMapDiagnostics(
+      'MapScreen.cameraIdle center=${center.lat.toStringAsFixed(6)},'
+      '${center.lng.toStringAsFixed(6)} zoom=${camera.zoom.toStringAsFixed(2)}',
+    );
     if (current != null) {
       final distance = Geolocator.distanceBetween(
         current.lat,
@@ -291,11 +346,16 @@ class _MapScreenState extends ConsumerState<MapScreen>
       // radius so panning feels smooth and the map-pins API is not refreshed
       // for sub-cell jitter.
       if (distance < MapPinSearchRadius.refreshThresholdMeters(radiusKm)) {
+        logMapDiagnostics(
+          'MapScreen.cameraIdle ignored distance=${distance.toStringAsFixed(1)}m '
+          'radiusKm=$radiusKm',
+        );
         return;
       }
     }
     ref.read(mapSearchCenterProvider.notifier).state = center;
     ref.read(mapSearchRadiusKmProvider.notifier).state = radiusKm;
+    logMapDiagnostics('MapScreen.cameraIdle updates search center');
   }
 
   Future<void> _showLimitReachedDialog({
@@ -423,7 +483,7 @@ class _MapView extends ConsumerWidget {
   final bool isTracking;
   final bool isAccessAreaVisible;
   final int noteAccessRadiusMeters;
-  final VoidCallback onPointerDown;
+  final ValueChanged<PointerDownEvent> onPointerDown;
   final VoidCallback onTrackingToggle;
   final VoidCallback onAccessAreaToggle;
   final VoidCallback onRefresh;
@@ -470,7 +530,7 @@ class _MapView extends ConsumerWidget {
       child: Stack(
         children: [
           Listener(
-            onPointerDown: (_) => onPointerDown(),
+            onPointerDown: onPointerDown,
             child: mapAdapter.buildMap(
               anchor: anchor,
               colorScheme: colorScheme,

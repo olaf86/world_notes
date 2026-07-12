@@ -11,6 +11,7 @@ import '../../../core/utils/marker_image.dart';
 import '../../../core/utils/place_icon.dart';
 import '../../../domain/entities/pin_summary_entity.dart';
 import '../../providers/providers.dart';
+import 'map_diagnostics.dart';
 import 'note_map_adapter.dart';
 
 /// Adapter between the places domain and Apple's native MapKit view.
@@ -59,9 +60,11 @@ class AppleNoteMapController implements NoteMapAdapter {
   String? _selectedPlaceId;
   int _markerRevision = 0;
   int _selectionRevision = 0;
+  int _cameraMoveEventsSinceIdle = 0;
 
   void attach(apple.AppleMapController map) {
     _map = map;
+    logMapDiagnostics('AppleMap.attach');
     _applyAppearanceMode(_appearanceMode);
   }
 
@@ -87,6 +90,12 @@ class AppleNoteMapController implements NoteMapAdapter {
             return ValueListenableBuilder<Set<apple.Circle>>(
               valueListenable: accessAreaCircles,
               builder: (context, currentCircles, _) {
+                logMapDiagnostics(
+                  'AppleMap.build tracking=$currentTrackingMode '
+                  'annotations=${currentAnnotations.length} '
+                  'circles=${currentCircles.length} '
+                  'appearance=$_appearanceMode',
+                );
                 return apple.AppleMap(
                   initialCameraPosition: apple.CameraPosition(
                     target: apple.LatLng(anchor.latitude, anchor.longitude),
@@ -112,6 +121,7 @@ class AppleNoteMapController implements NoteMapAdapter {
 
   @override
   void dispose() {
+    logMapDiagnostics('AppleMap.dispose');
     annotations.dispose();
     trackingMode.dispose();
     accessAreaCircles.dispose();
@@ -153,6 +163,7 @@ class AppleNoteMapController implements NoteMapAdapter {
 
   @override
   Future<void> setTrackingEnabled(bool enabled) async {
+    logMapDiagnostics('AppleMap.setTrackingEnabled enabled=$enabled');
     trackingMode.value = enabled
         ? apple.TrackingMode.follow
         : apple.TrackingMode.none;
@@ -167,6 +178,9 @@ class AppleNoteMapController implements NoteMapAdapter {
 
   Future<void> _applyAppearanceMode(apple.MapAppearanceMode mode) async {
     try {
+      logMapDiagnostics(
+        'AppleMap.applyAppearance mode=$mode hasMap=${_map != null}',
+      );
       await _map?.setAppearanceMode(mode);
     } catch (error, stack) {
       debugPrint('Failed to apply Apple map appearance: $error\n$stack');
@@ -183,6 +197,7 @@ class AppleNoteMapController implements NoteMapAdapter {
 
   @override
   Future<void> updateMarkers(List<PinSummary> pins) async {
+    logMapDiagnostics('AppleMap.updateMarkers count=${pins.length}');
     _latestPins = pins;
     if (_selectedPlaceId != null &&
         !pins.any((pin) => pin.placeId == _selectedPlaceId)) {
@@ -192,12 +207,27 @@ class AppleNoteMapController implements NoteMapAdapter {
   }
 
   void _onCameraMove(apple.CameraPosition position) {
+    _cameraMoveEventsSinceIdle += 1;
+    if (_cameraMoveEventsSinceIdle <= 3 ||
+        _cameraMoveEventsSinceIdle % 10 == 0) {
+      logMapDiagnostics(
+        'AppleMap.cameraMove #$_cameraMoveEventsSinceIdle '
+        'target=${position.target.latitude.toStringAsFixed(6)},'
+        '${position.target.longitude.toStringAsFixed(6)} '
+        'zoom=${position.zoom.toStringAsFixed(2)}',
+      );
+    }
     _lastCameraTarget = position.target;
     _lastCameraZoom = position.zoom;
     _setClusteringEnabled(position.zoom < _clusterMaxZoom);
   }
 
   void _onCameraIdle() {
+    logMapDiagnostics(
+      'AppleMap.cameraIdle moves=$_cameraMoveEventsSinceIdle '
+      'hasTarget=${_lastCameraTarget != null}',
+    );
+    _cameraMoveEventsSinceIdle = 0;
     final target = _lastCameraTarget;
     if (target != null) {
       _onCameraIdleChanged?.call(
@@ -218,17 +248,20 @@ class AppleNoteMapController implements NoteMapAdapter {
 
   void _setClusteringEnabled(bool enabled) {
     if (_clusteringEnabled == enabled) return;
+    logMapDiagnostics('AppleMap.clustering enabled=$enabled');
     _clusteringEnabled = enabled;
     unawaited(_rebuildAnnotations());
   }
 
   Future<void> _showSelectedPin(PinSummary pin) async {
+    logMapDiagnostics('AppleMap.pinTap placeId=${pin.placeId}');
     final revision = ++_selectionRevision;
     _selectedPlaceId = pin.placeId;
     final annotationId = _annotationIdFor(pin.placeId);
     await _animateAnnotationScale(annotationId, _selectedMarkerScale);
 
     await onPinSelected(pin);
+    logMapDiagnostics('AppleMap.pinSheetClosed placeId=${pin.placeId}');
     if (revision != _selectionRevision) return;
 
     await _deselectAnnotation(annotationId);
