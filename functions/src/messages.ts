@@ -40,6 +40,7 @@ import {
   assertLiked,
   hasValidMembership,
   isPublishedReadablePlace,
+  type LikeMutationResult,
   likeEdgeData,
   likedStateOf,
   nextLikeCount,
@@ -977,7 +978,7 @@ async function applyMessageLikeState(
   input: ValidatedSetMessageLikeInput,
   uid: string,
   nowMs: number,
-): Promise<{liked: boolean; likeCount: number}> {
+): Promise<LikeMutationResult> {
   const [placeSnap, messageSnap] = await Promise.all([
     tx.get(refs.placeRef),
     tx.get(refs.messageRef),

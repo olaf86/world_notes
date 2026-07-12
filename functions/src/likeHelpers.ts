@@ -18,6 +18,16 @@ interface NextLikeCountParams {
   desiredLiked: boolean;
 }
 
+export interface LikeMutationResult {
+  liked: boolean;
+  likeCount: number;
+}
+
+export interface LikeCountResult {
+  changed: boolean;
+  likeCount: number;
+}
+
 export function assertLiked(value: unknown): boolean {
   if (typeof value !== "boolean") {
     throw new HttpsError("invalid-argument", "liked must be a boolean.");
@@ -55,7 +65,7 @@ export function nextLikeCount({
   currentCount,
   currentlyLiked,
   desiredLiked,
-}: NextLikeCountParams): {changed: boolean; likeCount: number} {
+}: NextLikeCountParams): LikeCountResult {
   if (currentlyLiked === desiredLiked) {
     return {changed: false, likeCount: currentCount};
   }

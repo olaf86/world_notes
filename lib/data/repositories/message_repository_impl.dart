@@ -52,6 +52,12 @@ class MessageRepositoryImpl implements MessageRepository {
         .orderBy('publishAt')
         .limit(AppConfig.messagesPageSize)
         .snapshots();
+    final ownLikesStream = _firestore
+        .collectionGroup('messageLikes')
+        .where('placeId', isEqualTo: placeId)
+        .where('userId', isEqualTo: currentUserId)
+        .where('liked', isEqualTo: true)
+        .snapshots();
 
     late final StreamController<List<MessageThreadItem>> controller;
     QuerySnapshot? publishedSnap;
@@ -61,13 +67,6 @@ class MessageRepositoryImpl implements MessageRepository {
     StreamSubscription<QuerySnapshot>? ownScheduledSubscription;
     StreamSubscription<QuerySnapshot>? ownLikesSubscription;
 
-    final ownLikesStream = _firestore
-        .collectionGroup('messageLikes')
-        .where('placeId', isEqualTo: placeId)
-        .where('userId', isEqualTo: currentUserId)
-        .where('liked', isEqualTo: true)
-        .snapshots();
-
     void emitIfReady() {
       final published = publishedSnap;
       final ownScheduled = ownScheduledSnap;
@@ -76,31 +75,14 @@ class MessageRepositoryImpl implements MessageRepository {
         return;
       }
 
-      final likedMessageIds = ownLikes.docs
-          .map((doc) => doc.get('messageId') as String?)
-          .whereType<String>()
-          .toSet();
-
-      final byId = <String, MessageThreadItem>{};
-      for (final doc in [...published.docs, ...ownScheduled.docs]) {
-        final item = MessageModel.fromFirestore(
-          doc,
-        ).toThreadItem(likedByCurrentUser: likedMessageIds.contains(doc.id));
-        final message = item.message;
-        if (!message.isVisible) continue;
-        if (message.isDeleted && message.author.id != currentUserId) continue;
-        byId[message.id] = item;
-      }
-
-      final messages = byId.values.toList()
-        ..sort((a, b) {
-          final publishOrder = b.message.publishAt.compareTo(
-            a.message.publishAt,
-          );
-          if (publishOrder != 0) return publishOrder;
-          return b.message.createdAt.compareTo(a.message.createdAt);
-        });
-      controller.add(messages);
+      controller.add(
+        _threadItemsFromSnapshots(
+          published: published,
+          ownScheduled: ownScheduled,
+          ownLikes: ownLikes,
+          currentUserId: currentUserId,
+        ),
+      );
     }
 
     controller = StreamController<List<MessageThreadItem>>(
@@ -129,6 +111,39 @@ class MessageRepositoryImpl implements MessageRepository {
     );
 
     return controller.stream;
+  }
+
+  List<MessageThreadItem> _threadItemsFromSnapshots({
+    required QuerySnapshot published,
+    required QuerySnapshot ownScheduled,
+    required QuerySnapshot ownLikes,
+    required String currentUserId,
+  }) {
+    final likedMessageIds = _likedMessageIds(ownLikes);
+    final byId = <String, MessageThreadItem>{};
+    for (final doc in [...published.docs, ...ownScheduled.docs]) {
+      final item = MessageModel.fromFirestore(
+        doc,
+      ).toThreadItem(likedByCurrentUser: likedMessageIds.contains(doc.id));
+      final message = item.message;
+      if (!message.isVisible) continue;
+      if (message.isDeleted && message.author.id != currentUserId) continue;
+      byId[message.id] = item;
+    }
+    return byId.values.toList()..sort(_compareThreadItems);
+  }
+
+  Set<String> _likedMessageIds(QuerySnapshot snap) {
+    return snap.docs
+        .map((doc) => doc.get('messageId') as String?)
+        .whereType<String>()
+        .toSet();
+  }
+
+  int _compareThreadItems(MessageThreadItem a, MessageThreadItem b) {
+    final publishOrder = b.message.publishAt.compareTo(a.message.publishAt);
+    if (publishOrder != 0) return publishOrder;
+    return b.message.createdAt.compareTo(a.message.createdAt);
   }
 
   @override
