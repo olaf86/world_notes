@@ -9,6 +9,9 @@ class MessageEntity {
   final DateTime createdAt;
   final DateTime publishAt;
 
+  /// Whether this message was configured for scheduled publication.
+  final bool isScheduled;
+
   /// True for optimistic messages that haven't been confirmed by Firestore yet.
   final bool isPending;
 
@@ -31,6 +34,7 @@ class MessageEntity {
     this.imageStoragePaths = const [],
     required this.createdAt,
     required this.publishAt,
+    this.isScheduled = false,
     this.isPending = false,
     this.isDeleted = false,
     this.deletedAt,

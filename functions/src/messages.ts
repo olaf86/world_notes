@@ -125,6 +125,7 @@ interface CreateMessageResult {
   created: boolean;
   notifyImmediately: boolean;
   publishAtMillis: number;
+  isScheduled: boolean;
   moderationNoticePoints: number;
   imageStoragePathsToDelete: string[];
 }
@@ -337,7 +338,25 @@ async function existingMessageResult(
   return {
     messageId: messageRef.id,
     publishAtMillis: existingPublishAt?.toMillis() ?? nowMs,
+    isScheduled: isScheduledMessage(existingMessageSnap),
   };
+}
+
+/**
+ * Reads the required scheduling flag from a message document.
+ *
+ * @param {DocumentSnapshot} messageSnap Message document to read.
+ * @return {boolean} Whether scheduled publication was selected.
+ */
+function isScheduledMessage(messageSnap: DocumentSnapshot): boolean {
+  const storedIsScheduled = messageSnap.get("isScheduled");
+  if (typeof storedIsScheduled !== "boolean") {
+    throw new HttpsError(
+      "failed-precondition",
+      "Message scheduling metadata is missing.",
+    );
+  }
+  return storedIsScheduled;
 }
 
 function isModerationRemoval(
@@ -370,6 +389,7 @@ function messageDocumentData({
   content,
   imageStoragePaths,
   publishAt,
+  isScheduled,
   isPubliclyVisible,
   moderationResult,
   riskSignals,
@@ -381,6 +401,7 @@ function messageDocumentData({
   content: string;
   imageStoragePaths: string[];
   publishAt: Timestamp;
+  isScheduled: boolean;
   isPubliclyVisible: boolean;
   moderationResult: InternalModerationResult;
   riskSignals: AppModerationRiskSignal[];
@@ -397,6 +418,7 @@ function messageDocumentData({
       {}),
     createdAt: FieldValue.serverTimestamp(),
     publishAt,
+    isScheduled,
     isDeleted: removedByModeration,
     deletedAt: removedByModeration ?
       FieldValue.serverTimestamp() :
@@ -588,6 +610,7 @@ async function createMessageInTransaction({
   let notifyImmediately = false;
   let created = false;
   let publishAtMillis = nowMs;
+  let isScheduled = false;
   let moderationNoticePoints = 0;
   let imageStoragePathsToDelete: string[] = [];
 
@@ -609,6 +632,7 @@ async function createMessageInTransaction({
       const existingPublishAt =
         messageSnap.get("publishAt") as Timestamp | undefined;
       publishAtMillis = existingPublishAt?.toMillis() ?? nowMs;
+      isScheduled = isScheduledMessage(messageSnap);
       return;
     }
 
@@ -640,6 +664,7 @@ async function createMessageInTransaction({
       placeSnap,
     );
     const isImmediate = publishAt.toMillis() <= nowMs;
+    isScheduled = !isImmediate;
     const removedByModeration = isModerationRemoval(moderationResult);
     notifyImmediately = isImmediate && !removedByModeration;
     publishAtMillis = publishAt.toMillis();
@@ -676,6 +701,7 @@ async function createMessageInTransaction({
         content: input.trimmedContent,
         imageStoragePaths: input.trimmedImageStoragePaths,
         publishAt,
+        isScheduled,
         isPubliclyVisible: isImmediate,
         moderationResult,
         riskSignals,
@@ -704,6 +730,7 @@ async function createMessageInTransaction({
     created,
     notifyImmediately,
     publishAtMillis,
+    isScheduled,
     moderationNoticePoints,
     imageStoragePathsToDelete,
   };
@@ -859,6 +886,7 @@ export const sendMessage = onCall<SendMessageData>(
     return {
       messageId: refs.messageRef.id,
       publishAtMillis: result.publishAtMillis,
+      isScheduled: result.isScheduled,
     };
   },
 );

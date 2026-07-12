@@ -280,6 +280,7 @@ async function seedPlace(
       imageStoragePaths: [],
       createdAt: timestamp(messageTime),
       publishAt: timestamp(messageTime),
+      isScheduled: false,
       isDeleted: false,
       deletedAt: null,
       deletedReason: null,

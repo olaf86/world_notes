@@ -389,8 +389,11 @@ class _MessageBubbleState extends State<MessageBubble> {
     //   • A subtle primaryContainer background tint
     //   • Author name rendered in primary colour
     //   • A small "You" badge next to the name
-    final isScheduled = widget.isOwn && !message.isPublished;
-    final timeStr = _messageTimeLabel(message, isScheduled: isScheduled);
+    final isAwaitingPublication = widget.isOwn && !message.isPublished;
+    final timeStr = _messageTimeLabel(
+      message,
+      isScheduled: isAwaitingPublication,
+    );
     final imageStoragePaths = message.imageStoragePaths;
     final hasActions =
         (widget.isOwn && widget.onDelete != null) ||
@@ -495,7 +498,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                                 ),
                                 const SizedBox(width: 4),
                               ],
-                              if (isScheduled) ...[
+                              if (isAwaitingPublication) ...[
                                 Icon(
                                   Icons.schedule_send_outlined,
                                   size: 13,
@@ -507,11 +510,11 @@ class _MessageBubbleState extends State<MessageBubble> {
                                 child: Text(
                                   message.isPending
                                       ? 'Sending…'
-                                      : isScheduled
+                                      : isAwaitingPublication
                                       ? 'Scheduled $timeStr'
                                       : timeStr,
                                   style: theme.textTheme.labelSmall?.copyWith(
-                                    color: isScheduled
+                                    color: isAwaitingPublication
                                         ? theme.colorScheme.tertiary
                                         : theme.colorScheme.onSurfaceVariant,
                                   ),
@@ -527,6 +530,10 @@ class _MessageBubbleState extends State<MessageBubble> {
                   ),
                   const SizedBox(height: 4),
                   // ── Text content (X style: text first, image after) ──
+                  if (message.isScheduled) ...[
+                    _ScheduledMessageBadge(),
+                    const SizedBox(height: 6),
+                  ],
                   if (message.content.isNotEmpty) ...[
                     Text(
                       message.content,
@@ -567,6 +574,41 @@ class _MessageBubbleState extends State<MessageBubble> {
                     onReportPressed: !widget.isOwn ? widget.onReport : null,
                   ),
                 ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ScheduledMessageBadge extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Semantics(
+      label: 'Scheduled message',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.tertiaryContainer,
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.schedule_send_outlined,
+              size: 12,
+              color: theme.colorScheme.onTertiaryContainer,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'Scheduled',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onTertiaryContainer,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ],

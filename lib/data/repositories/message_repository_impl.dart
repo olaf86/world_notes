@@ -248,6 +248,10 @@ class MessageRepositoryImpl implements MessageRepository {
             'publishAtMillis': publishAt.millisecondsSinceEpoch,
         });
     final confirmedMessageId = result.data['messageId'] as String? ?? messageId;
+    final confirmedPublishAtMillis = result.data['publishAtMillis'] as int?;
+    final confirmedPublishAt = confirmedPublishAtMillis == null
+        ? publishAt ?? now
+        : DateTime.fromMillisecondsSinceEpoch(confirmedPublishAtMillis);
     final model = MessageModel(
       id: confirmedMessageId,
       placeId: placeId,
@@ -257,7 +261,8 @@ class MessageRepositoryImpl implements MessageRepository {
       content: content,
       imageStoragePaths: imageStoragePaths,
       createdAt: now,
-      publishAt: publishAt ?? now,
+      publishAt: confirmedPublishAt,
+      isScheduled: result.data['isScheduled'] as bool,
     );
 
     return model.toEntity();

@@ -152,15 +152,15 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
   // ── Delete ────────────────────────────────────────────────────────────────
 
   Future<void> _confirmDeleteMessage(MessageEntity message) async {
-    final isScheduled = !message.isPublished;
+    final isAwaitingPublication = !message.isPublished;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(
-          isScheduled ? 'Cancel scheduled message' : 'Delete message',
+          isAwaitingPublication ? 'Cancel scheduled message' : 'Delete message',
         ),
         content: Text(
-          isScheduled
+          isAwaitingPublication
               ? 'Cancel this scheduled message? Its reserved slot will be freed.'
               : 'Are you sure you want to delete this message? '
                     'It will appear as deleted to all users.',
@@ -175,7 +175,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
             style: TextButton.styleFrom(
               foregroundColor: Theme.of(context).colorScheme.error,
             ),
-            child: Text(isScheduled ? 'Cancel message' : 'Delete'),
+            child: Text(isAwaitingPublication ? 'Cancel message' : 'Delete'),
           ),
         ],
       ),
@@ -183,7 +183,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     if (confirmed != true || !mounted) return;
     try {
       final repository = ref.read(messageRepositoryProvider);
-      if (isScheduled) {
+      if (isAwaitingPublication) {
         await repository.cancelScheduledMessage(
           placeId: widget.placeId,
           messageId: message.id,

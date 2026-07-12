@@ -12,6 +12,7 @@ class MessageModel {
   final List<String> imageStoragePaths;
   final DateTime createdAt;
   final DateTime publishAt;
+  final bool isScheduled;
   final int likeCount;
   final bool isDeleted;
   final DateTime? deletedAt;
@@ -31,6 +32,7 @@ class MessageModel {
     this.imageStoragePaths = const [],
     required this.createdAt,
     required this.publishAt,
+    required this.isScheduled,
     this.likeCount = 0,
     this.isDeleted = false,
     this.deletedAt,
@@ -43,6 +45,8 @@ class MessageModel {
 
   factory MessageModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    final createdAt = (data['createdAt'] as Timestamp).toDate();
+    final publishAt = (data['publishAt'] as Timestamp).toDate();
     return MessageModel(
       id: doc.id,
       placeId: data['placeId'] as String,
@@ -54,8 +58,9 @@ class MessageModel {
         (data['imageStoragePaths'] as List<dynamic>? ?? const [])
             .whereType<String>(),
       ),
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-      publishAt: (data['publishAt'] as Timestamp).toDate(),
+      createdAt: createdAt,
+      publishAt: publishAt,
+      isScheduled: data['isScheduled'] as bool,
       likeCount: (data['likeCount'] as num?)?.toInt() ?? 0,
       isDeleted: data['isDeleted'] as bool,
       deletedAt: (data['deletedAt'] as Timestamp?)?.toDate(),
@@ -75,6 +80,7 @@ class MessageModel {
     imageStoragePaths: imageStoragePaths,
     createdAt: createdAt,
     publishAt: publishAt,
+    isScheduled: isScheduled,
     isDeleted: isDeleted,
     deletedAt: deletedAt,
     deletedReason: deletedReason,

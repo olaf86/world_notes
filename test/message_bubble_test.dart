@@ -21,6 +21,7 @@ void main() {
         content: 'Published later',
         createdAt: createdAt,
         publishAt: publishAt,
+        isScheduled: true,
       );
 
       await tester.pumpWidget(
@@ -37,6 +38,44 @@ void main() {
         find.text(DateFormat('HH:mm').format(createdAt.toLocal())),
         findsNothing,
       );
+      expect(find.text('Scheduled'), findsOneWidget);
+    });
+
+    testWidgets('does not show a scheduled badge for immediate messages', (
+      tester,
+    ) async {
+      final now = DateTime.now();
+      final message = MessageEntity(
+        id: 'message-1',
+        placeId: 'place-1',
+        author: const UserEntity(id: 'user-1', name: 'Aki'),
+        content: 'Published now',
+        createdAt: now,
+        publishAt: now,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: MessageBubble(message: message, isOwn: false)),
+        ),
+      );
+
+      expect(find.text('Scheduled'), findsNothing);
+    });
+
+    test('uses the recorded scheduling flag', () {
+      final now = DateTime.now();
+      final message = MessageEntity(
+        id: 'message-1',
+        placeId: 'place-1',
+        author: const UserEntity(id: 'user-1', name: 'Aki'),
+        content: 'Published now',
+        createdAt: now,
+        publishAt: now.add(const Duration(minutes: 1)),
+        isScheduled: false,
+      );
+
+      expect(message.isScheduled, isFalse);
     });
 
     testWidgets('debounces optimistic message likes', (tester) async {
