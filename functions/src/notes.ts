@@ -30,7 +30,6 @@ import {
 } from "./noteLock";
 import {assertUserCanCreateContent} from "./moderation";
 import {canMaintainNote} from "./noteMaintenance";
-import {updateNearbyNotificationPinImages} from "./notifications";
 
 interface CreateNoteData {
   latitude?: unknown;
@@ -222,6 +221,7 @@ export const createNote = onCall<CreateNoteData>(
     const db = getFirestore();
     const userRef = db.collection("users").doc(uid);
     const placeRef = db.collection("places").doc();
+    const noteStateRef = userRef.collection("noteStates").doc(placeRef.id);
 
     await db.runTransaction(async (tx) => {
       const userSnap = await tx.get(userRef);
@@ -281,6 +281,12 @@ export const createNote = onCall<CreateNoteData>(
       }
 
       tx.set(placeRef, placeData);
+      tx.set(noteStateRef, {
+        lastSeenMessageCount: 0,
+        lastOpenedAt: FieldValue.serverTimestamp(),
+        discoverySeenAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
       if (lock != null) {
         tx.set(placeRef.collection("secret").doc("auth"), {
           hash: lock.hash,
@@ -369,14 +375,6 @@ export const setNotePinImage = onCall<SetNotePinImageData>(
       } catch (error) {
         logger.warn(`Could not delete old pin image ${previousPath}.`, error);
       }
-    }
-    try {
-      await updateNearbyNotificationPinImages(placeId, pinImageStoragePath);
-    } catch (error) {
-      logger.warn(
-        `Could not update nearby notification pin images for ${placeId}.`,
-        error,
-      );
     }
   },
 );

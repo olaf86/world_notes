@@ -1,5 +1,20 @@
 rules_version = '2';
 
+// Assumed data ownership model:
+// - users/{uid}: private account and entitlement data; owner-readable.
+// - publicProfiles/{uid}: authenticated-readable display data and counters.
+// - socialEdges/{edgeId}: authenticated-readable, server-managed follow edge.
+// - users/{uid}/notificationSettings: owner-readable, server-managed settings.
+// - users/{uid}/fcmTokens: sensitive server-managed delivery endpoints.
+// - users/{uid}/noteStates/{placeId}: private server-managed map activity
+//   state (non-negative lastSeenMessageCount and server timestamps).
+// - users/{uid}/notices: server-created inbox; owner may only set readAt.
+// - places/{placeId}: server-created note metadata and aggregates.
+// - places/{placeId}/messages: server-created message content.
+// - place access, visitor, like, counter and secret subcollections are scoped
+//   by the parent note and otherwise server-managed as declared below.
+// - moderation, invite, report and audit collections are server-only.
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -160,6 +175,21 @@ service cloud.firestore {
                  || message.userId == request.auth.uid);
     }
 
+    function isValidClientThreadStateTransition() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let closesThread = request.resource.data.isOpen == false
+                         && request.resource.data.closedReason == 'owner'
+                         && request.resource.data.closedAt == request.time;
+      let reopensOwnerClosedThread = resource.data.isOpen == false
+                                     && resource.data.closedReason == 'owner'
+                                     && request.resource.data.isOpen == true
+                                     && !('closedReason' in request.resource.data)
+                                     && !('closedAt' in request.resource.data);
+      return changed.hasOnly(['isOpen', 'closedReason', 'closedAt'])
+             && request.resource.data.isOpen is bool
+             && (closesThread || reopensOwnerClosedThread);
+    }
+
     // ── users ─────────────────────────────────────────────────────────────────
     match /users/{uid} {
       allow read: if isCurrentUser(uid);
@@ -193,12 +223,10 @@ service cloud.firestore {
         allow read, write: if false;
       }
 
-      // User-facing mirror of nearby note alerts. Read-only for the account
-      // holder; all changes go through callable Cloud Functions so access,
-      // maintainer exclusion, and the 5-note cap stay server-enforced.
-      match /nearbyNotificationPlaces/{placeId} {
-        allow read: if isCurrentUser(uid);
-        allow write: if false;
+      // Private map activity state. It is read and written only by callable
+      // Cloud Functions so clients cannot forge seen counts or participation.
+      match /noteStates/{placeId} {
+        allow read, write: if false;
       }
 
       // User inbox. Notice content is server-managed, but the account holder
@@ -250,10 +278,7 @@ service cloud.firestore {
       //     closed manually by a maintainer; message-limit closes are
       //     permanent.
       allow update: if isPlaceMaintainer(resource.data)
-                    && request.resource.data.diff(resource.data).affectedKeys()
-                        .hasOnly(['isOpen', 'closedReason', 'closedAt'])
-                    && (request.resource.data.isOpen == false
-                        || resource.data.closedReason == 'owner');
+                    && isValidClientThreadStateTransition();
 
       // messageCount / lastMessageAt are maintained ONLY by Cloud Functions
       // (Admin SDK, bypasses these rules). Clients used to write them directly,
@@ -291,12 +316,6 @@ service cloud.firestore {
       // counters/messageSlots includes unpublished scheduled messages and must
       // not be readable because that would leak future activity.
       match /counters/{counterId} {
-        allow read, write: if false;
-      }
-
-      // Server-managed nearby-alert subscription state. Clients read their
-      // user mirror instead; Functions use this collection for message sends.
-      match /nearbyNotificationFollowers/{memberUid} {
         allow read, write: if false;
       }
 

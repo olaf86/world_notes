@@ -114,6 +114,14 @@
         { "fieldPath": "followeeUid", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "socialEdges",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "followerUid", "order": "ASCENDING" },
+        { "fieldPath": "followeeUid", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

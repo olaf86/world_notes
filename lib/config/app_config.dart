@@ -83,10 +83,6 @@ class AppConfig {
   /// Firestore rules enforce this server-side.
   static const int maxMessagesPerThread = 1000;
 
-  /// Maximum notes a user can register for nearby message alerts.
-  /// Must match NEARBY_NOTIFICATION_LIMIT in functions/src/constants.ts.
-  static const int nearbyNotificationLimit = 5;
-
   /// Maximum distance from a note at which its detail can be opened for
   /// non-PRO users.
   /// Must match NOTE_DETAIL_ACCESS_RADIUS_KM in functions/src/constants.ts.
@@ -102,18 +98,6 @@ class AppConfig {
         ? proNoteDetailAccessRadiusMeters
         : noteDetailAccessRadiusMeters;
   }
-
-  /// Nearby alerts use the same radius as note detail read/post access.
-  static const int nearbyNotificationRadiusMeters =
-      noteDetailAccessRadiusMeters;
-
-  /// PRO nearby alerts use the same extended radius as PRO note detail access.
-  static const int proNearbyNotificationRadiusMeters =
-      proNoteDetailAccessRadiusMeters;
-
-  /// Minimum interval between active in-range unread checks for a followed
-  /// nearby note while the app is running.
-  static const int nearbyNotificationCheckCooldownMinutes = 10;
 
   /// Maximum character length of a single message.
   static const int maxMessageLength = 2000;

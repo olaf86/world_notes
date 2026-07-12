@@ -81,21 +81,16 @@ export const recordNoteVisit = onCall<RecordNoteVisitData>(
     const db = getFirestore();
     const placeRef = db.collection("places").doc(placeId);
     const userRef = db.collection("users").doc(uid);
+    const noteStateRef = userRef.collection("noteStates").doc(placeId);
     const memberRef = placeRef.collection("members").doc(uid);
     const visitorRef = placeRef.collection("visitors").doc(uid);
     const nowMillis = Date.now();
 
     await db.runTransaction(async (tx) => {
-      const [placeSnap, userSnap, visitorSnap] = await Promise.all([
-        tx.get(placeRef),
-        tx.get(userRef),
-        tx.get(visitorRef),
-      ]);
+      const placeSnap = await tx.get(placeRef);
       if (!placeSnap.exists) {
         throw new HttpsError("not-found", "Note not found.");
       }
-      if (placeSnap.get("footprintEnabled") === false) return;
-
       const isMaintainer = canMaintainNote(placeSnap, uid);
       const memberSnap =
         placeSnap.get("visibility") === "private" && !isMaintainer ?
@@ -107,6 +102,24 @@ export const recordNoteVisit = onCall<RecordNoteVisitData>(
           "You cannot access this note.",
         );
       }
+
+      const footprintEnabled = placeSnap.get("footprintEnabled") !== false;
+      const [userSnap, visitorSnap] = footprintEnabled ?
+        await Promise.all([tx.get(userRef), tx.get(visitorRef)]) :
+        [null, null];
+
+      tx.set(
+        noteStateRef,
+        {
+          lastSeenMessageCount:
+            (placeSnap.get("messageCount") as number | undefined) ?? 0,
+          lastOpenedAt: FieldValue.serverTimestamp(),
+          discoverySeenAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        {merge: true},
+      );
+      if (!footprintEnabled || userSnap == null || visitorSnap == null) return;
 
       const token = (req.auth?.token ?? {}) as Record<string, unknown>;
       const displayName =

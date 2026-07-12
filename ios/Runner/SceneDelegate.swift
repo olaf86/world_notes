@@ -12,7 +12,6 @@ class SceneDelegate: FlutterSceneDelegate {
       return
     }
     NotificationLaunchManager.shared.configure(binaryMessenger: controller.binaryMessenger)
-    NativeGeofenceManager.shared.configure(binaryMessenger: controller.binaryMessenger)
     if let userInfo = connectionOptions.notificationResponse?.notification.request.content.userInfo {
       NotificationLaunchManager.shared.capture(userInfo: userInfo)
     }

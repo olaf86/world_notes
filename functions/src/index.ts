@@ -43,10 +43,6 @@ export {
   deleteFcmToken,
   setMyNotesNotificationEnabled,
   setMyNotesNotificationPreviewEnabled,
-  setNearbyNotification,
-  markNearbyNotificationRead,
-  markNearbyNotificationInRange,
-  checkNearbyUnread,
 } from "./notifications";
 
 // User profile updates. Nickname changes keep future posts using the new name

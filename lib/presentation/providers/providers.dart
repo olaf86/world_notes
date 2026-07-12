@@ -4,7 +4,6 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -20,7 +19,6 @@ import '../../data/repositories/message_repository_impl.dart';
 import '../../data/repositories/notice_repository_impl.dart';
 import '../../data/repositories/place_repository_impl.dart';
 import '../../domain/entities/follow_entity.dart';
-import '../../domain/entities/nearby_notification_entity.dart';
 import '../../domain/entities/admin_moderation_review_entity.dart';
 import '../../domain/entities/message_thread_item.dart';
 import '../../domain/entities/note_visitor_entity.dart';
@@ -38,9 +36,6 @@ import '../../services/location_service.dart';
 import '../../services/admin_moderation_service.dart';
 import '../../services/message_image_service.dart';
 import '../../services/my_notes_notification_service.dart';
-import '../../services/native_geofence_service.dart';
-import '../../services/nearby_notification_service.dart';
-import '../../services/nearby_proximity_monitor.dart';
 import '../../services/notice_notification_service.dart';
 import '../../services/subscription_service.dart';
 
@@ -64,10 +59,6 @@ final firebaseMessagingProvider = Provider<FirebaseMessaging>(
 
 final firebaseCrashlyticsProvider = Provider<FirebaseCrashlytics>(
   (_) => FirebaseCrashlytics.instance,
-);
-
-final localNotificationsProvider = Provider<FlutterLocalNotificationsPlugin>(
-  (_) => FlutterLocalNotificationsPlugin(),
 );
 
 // The client must target a region where the functions are actually deployed,
@@ -127,26 +118,10 @@ final noticeNotificationServiceProvider = Provider<NoticeNotificationService>((
   return service;
 });
 
-final nearbyNotificationServiceProvider = Provider<NearbyNotificationService>((
-  ref,
-) {
-  final service = NearbyNotificationService(
-    notifications: ref.watch(localNotificationsProvider),
-  );
-  ref.onDispose(service.dispose);
-  return service;
-});
-
 final adminModerationServiceProvider = Provider<AdminModerationService>((ref) {
   return AdminModerationService(
     functions: ref.watch(firebaseFunctionsProvider),
   );
-});
-
-final nativeGeofenceServiceProvider = Provider<NativeGeofenceService>((ref) {
-  final service = NativeGeofenceService();
-  ref.onDispose(service.dispose);
-  return service;
 });
 
 // --- Repositories ---
@@ -313,44 +288,6 @@ final myNotesNotificationPreviewEnabledProvider = StreamProvider<bool>((ref) {
       .map((snap) => snap.data()?['myNotesPreviewEnabled'] != false);
 });
 
-final nearbyNotificationPlacesProvider =
-    StreamProvider<List<NearbyNotificationPlace>>((ref) {
-      final user = ref.watch(authStateProvider).valueOrNull;
-      if (user == null) return Stream.value(const []);
-      return ref
-          .watch(placeRepositoryProvider)
-          .watchNearbyNotificationPlaces(user.id);
-    });
-
-final nearbyNotificationPlaceProvider =
-    StreamProvider.family<NearbyNotificationPlace?, String>((ref, placeId) {
-      final user = ref.watch(authStateProvider).valueOrNull;
-      if (user == null) return Stream.value(null);
-      return ref
-          .watch(placeRepositoryProvider)
-          .watchNearbyNotificationPlace(userId: user.id, placeId: placeId);
-    });
-
-/// Runtime view used by [NearbyProximityMonitor].
-///
-/// The geofence radius is not alert state: it is the current entitlement policy.
-/// Keeping it derived means PRO upgrades and downgrades take effect without
-/// rewriting every saved nearby-alert document.
-final _nearbyNotificationMonitorPlacesProvider =
-    Provider<List<NearbyNotificationPlace>>((ref) {
-      final places = ref.watch(nearbyNotificationPlacesProvider).valueOrNull;
-      if (places == null || places.isEmpty) return const [];
-      final radiusMeters = ref.watch(noteAccessRadiusMetersProvider);
-      return _withCurrentNearbyRadius(places, radiusMeters);
-    });
-
-List<NearbyNotificationPlace> _withCurrentNearbyRadius(
-  List<NearbyNotificationPlace> places,
-  int radiusMeters,
-) {
-  return [for (final place in places) place.withRadiusMeters(radiusMeters)];
-}
-
 final noticesProvider = StreamProvider<List<NoticeEntity>>((ref) {
   final user = ref.watch(authStateProvider).valueOrNull;
   if (user == null) return Stream.value(const []);
@@ -371,32 +308,6 @@ final unreadNoticeCountProvider = Provider<int>((ref) {
 final positionStreamProvider = StreamProvider<Position>((ref) {
   ref.keepAlive();
   return ref.watch(locationServiceProvider).watchPosition();
-});
-
-final _nearbySharedPositionProvider = Provider<AsyncValue<Position>?>((ref) {
-  final places = ref.watch(_nearbyNotificationMonitorPlacesProvider);
-  if (places.isEmpty) return null;
-  return ref.watch(positionStreamProvider);
-});
-
-final nearbyProximityMonitorProvider = Provider<void>((ref) {
-  ref.keepAlive();
-  final monitor = NearbyProximityMonitor(
-    crashlytics: ref.read(firebaseCrashlyticsProvider),
-    placeRepository: ref.read(placeRepositoryProvider),
-    nativeGeofenceService: ref.read(nativeGeofenceServiceProvider),
-    nearbyNotificationService: ref.read(nearbyNotificationServiceProvider),
-  )..start();
-
-  ref.listen<List<NearbyNotificationPlace>>(
-    _nearbyNotificationMonitorPlacesProvider,
-    (_, next) => monitor.updatePlaces(next),
-    fireImmediately: true,
-  );
-  ref.listen<AsyncValue<Position>?>(_nearbySharedPositionProvider, (_, next) {
-    next?.whenData(monitor.updatePosition);
-  });
-  ref.onDispose(monitor.dispose);
 });
 
 /// Anchor position used as the centre of the map's notes-query window.
@@ -604,7 +515,7 @@ final noteLimitProvider = Provider<int>((ref) {
   return isPremium ? AppConfig.proNoteLimit : AppConfig.freeNoteLimit;
 });
 
-/// The current note-detail and nearby-alert radius for the signed-in user.
+/// The current note-detail radius for the signed-in user.
 final noteAccessRadiusMetersProvider = Provider<int>((ref) {
   final isPremium = ref.watch(isPremiumProvider).valueOrNull ?? false;
   return AppConfig.noteDetailAccessRadiusMetersFor(isPremium: isPremium);

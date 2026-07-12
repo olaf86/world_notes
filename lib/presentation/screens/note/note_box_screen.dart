@@ -1,10 +1,8 @@
 import 'dart:async';
 
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
@@ -12,7 +10,6 @@ import '../../../config/app_config.dart';
 import '../../../core/utils/password_util.dart';
 import '../../../core/utils/pattern_lock_util.dart';
 import '../../../domain/entities/message_entity.dart';
-import '../../../domain/entities/message_thread_item.dart';
 import '../../../domain/entities/place_entity.dart';
 import '../../../domain/policies/note_permissions.dart';
 import '../../providers/providers.dart';
@@ -28,8 +25,6 @@ import 'note_creation_screen.dart';
 // ---------------------------------------------------------------------------
 // Screen
 // ---------------------------------------------------------------------------
-
-enum _NearbyLocationMode { whileUsingApp, background }
 
 class NoteBoxScreen extends ConsumerStatefulWidget {
   final String placeId;
@@ -70,9 +65,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
   late final AnimationController _messageEditorController;
   bool _isMessageEditorOpen = false;
   bool _preparingMessageEditor = false;
-  bool _nearbyNotificationBusy = false;
   String? _highlightedAuthorId;
-  DateTime? _lastNearbyReadMarkedAt;
   String? _visitRecordedForPlaceId;
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -340,186 +333,12 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     );
   }
 
-  Future<bool> _showSystemSettingsDialog({required String message}) async {
-    final openSettings = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.settings_outlined),
-        title: const Text('Open system settings'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Not now'),
-          ),
-          FilledButton.icon(
-            onPressed: () => Navigator.pop(ctx, true),
-            icon: const Icon(Icons.settings_outlined),
-            label: const Text('Open settings'),
-          ),
-        ],
-      ),
-    );
-    return openSettings ?? false;
-  }
-
-  Future<_NearbyLocationMode?> _chooseNearbyLocationMode() {
-    final backgroundPermissionLabel = switch (defaultTargetPlatform) {
-      TargetPlatform.iOS => '"Always"',
-      TargetPlatform.android => '"Allow all the time"',
-      _ => 'background location access',
-    };
-    return showDialog<_NearbyLocationMode>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.notifications_active_outlined),
-        title: const Text('Choose when alerts work'),
-        content: Text(
-          'Nearby alerts can use location only while ${AppConfig.appName} is '
-          'open. For alerts after you leave the app, set location access to '
-          '$backgroundPermissionLabel.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () =>
-                Navigator.pop(ctx, _NearbyLocationMode.whileUsingApp),
-            child: const Text('While using app'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, _NearbyLocationMode.background),
-            child: const Text('Background alerts'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _setNearbyNotification(bool enabled) async {
-    if (_nearbyNotificationBusy) return;
-    setState(() => _nearbyNotificationBusy = true);
-    var openLocationSettingsAfterEnable = false;
-    try {
-      if (enabled) {
-        final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Notify when nearby'),
-            content: Text(
-              '${AppConfig.appName} uses your location to notify you about new '
-              'messages when you are near this note.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Continue'),
-              ),
-            ],
-          ),
-        );
-        if (confirmed != true) return;
-        final notificationGranted = await ref
-            .read(nearbyNotificationServiceProvider)
-            .requestPermission();
-        if (!notificationGranted) {
-          if (!mounted) return;
-          final openSettings = await _showSystemSettingsDialog(
-            message:
-                'Notifications are not allowed. Open system settings and '
-                'enable notifications to receive nearby alerts.',
-          );
-          if (openSettings) await Geolocator.openAppSettings();
-          return;
-        }
-        await ref
-            .read(myNotesNotificationServiceProvider)
-            .registerCurrentToken();
-        final permission = await ref
-            .read(locationServiceProvider)
-            .ensurePermission();
-        if (permission != LocationPermission.always &&
-            permission != LocationPermission.whileInUse) {
-          if (!mounted) return;
-          final openSettings = await _showSystemSettingsDialog(
-            message:
-                'Location access is required for nearby alerts. Open system '
-                'settings and allow location while using '
-                '${AppConfig.appName}.',
-          );
-          if (openSettings) await Geolocator.openAppSettings();
-          return;
-        }
-        if (permission == LocationPermission.whileInUse) {
-          if (!mounted) return;
-          final mode = await _chooseNearbyLocationMode();
-          if (mode == null) return;
-          openLocationSettingsAfterEnable =
-              mode == _NearbyLocationMode.background;
-        }
-      }
-      await ref
-          .read(placeRepositoryProvider)
-          .setNearbyNotification(placeId: widget.placeId, enabled: enabled);
-      if (openLocationSettingsAfterEnable) {
-        await Geolocator.openAppSettings();
-      }
-    } on FirebaseFunctionsException catch (e) {
-      if (!mounted) return;
-      final message = switch (e.code) {
-        'resource-exhausted' =>
-          'Nearby alerts are limited to '
-              '${AppConfig.nearbyNotificationLimit} notes. '
-              'Turn one off first.',
-        'failed-precondition' =>
-          e.message ?? 'Nearby alerts are not available for this note.',
-        _ => e.message ?? 'Could not update nearby alerts.',
-      };
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.toString())));
-    } finally {
-      if (mounted) setState(() => _nearbyNotificationBusy = false);
-    }
-  }
-
-  void _markNearbyNotificationReadIfNeeded({
-    required bool nearbyEnabled,
-    required List<MessageThreadItem> messages,
-  }) {
-    if (!nearbyEnabled || messages.isEmpty) return;
-    final latest = messages
-        .map((item) => item.message.publishAt)
-        .reduce((a, b) => a.isAfter(b) ? a : b);
-    final previous = _lastNearbyReadMarkedAt;
-    if (previous != null && !latest.isAfter(previous)) return;
-    _lastNearbyReadMarkedAt = latest;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      ref
-          .read(placeRepositoryProvider)
-          .markNearbyNotificationRead(widget.placeId);
-    });
-  }
-
   void _recordVisitIfNeeded({
     required PlaceEntity place,
     required NotePermissions permissions,
     required String? currentUserId,
   }) {
     if (currentUserId == null ||
-        !place.footprintEnabled ||
         !permissions.canReadContent ||
         _visitRecordedForPlaceId == place.id) {
       return;
@@ -796,12 +615,6 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
       now: now,
     );
     final displayTitle = place.title;
-    final nearbyAlertAsync = ref.watch(
-      nearbyNotificationPlaceProvider(widget.placeId),
-    );
-    final nearbyAlert = nearbyAlertAsync.valueOrNull;
-    final nearbyAlertEnabled = nearbyAlert?.isActive ?? false;
-
     // Private-note access gate. If the membership grant is absent or stale,
     // show the locked view and DON'T subscribe to messages.
     if (place.isPrivate && !permissions.canReadContent) {
@@ -872,32 +685,6 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                             '/note/create',
                             extra: NoteCreationDraft.fromPlace(place),
                           ),
-                        ),
-                      if (permissions.canSubscribeNearbyAlerts)
-                        IconButton(
-                          icon:
-                              _nearbyNotificationBusy ||
-                                  nearbyAlertAsync.isLoading
-                              ? const SizedBox.square(
-                                  dimension: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : Icon(
-                                  nearbyAlertEnabled
-                                      ? Icons.notifications_active_outlined
-                                      : Icons.notifications_none_outlined,
-                                ),
-                          tooltip: nearbyAlertEnabled
-                              ? 'Turn off nearby alerts'
-                              : 'Notify when nearby',
-                          onPressed:
-                              _nearbyNotificationBusy ||
-                                  nearbyAlertAsync.isLoading
-                              ? null
-                              : () =>
-                                    _setNearbyNotification(!nearbyAlertEnabled),
                         ),
                       if (permissions.hasThreadActions)
                         PopupMenuButton<String>(
@@ -1003,10 +790,6 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                               const Center(child: CircularProgressIndicator()),
                           error: (e, _) => Center(child: Text('Error: $e')),
                           data: (messages) {
-                            _markNearbyNotificationReadIfNeeded(
-                              nearbyEnabled: nearbyAlertEnabled,
-                              messages: messages,
-                            );
                             return messages.isEmpty
                                 ? const _EmptyState()
                                 : ListView.builder(

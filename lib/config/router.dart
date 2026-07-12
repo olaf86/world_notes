@@ -315,7 +315,7 @@ class _BottomNav extends ConsumerWidget {
         NavigationDestination(
           icon: _NoticeNavIcon(count: unreadCount),
           selectedIcon: _NoticeNavIcon(count: unreadCount, selected: true),
-          label: 'Notices',
+          label: 'Notifications',
         ),
         const NavigationDestination(
           icon: Icon(Icons.person_outline),

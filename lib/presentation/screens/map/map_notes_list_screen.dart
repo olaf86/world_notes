@@ -165,6 +165,7 @@ class _PinList extends ConsumerWidget {
                 button: true,
                 child: _MapNoteTile(
                   pin: pin,
+                  request: request,
                   userLatitude: userLatitude,
                   userLongitude: userLongitude,
                 ),
@@ -195,11 +196,13 @@ class _ScrollableStatusView extends StatelessWidget {
 
 class _MapNoteTile extends StatelessWidget {
   final PinSummary pin;
+  final MapPinsRequest request;
   final double userLatitude;
   final double userLongitude;
 
   const _MapNoteTile({
     required this.pin,
+    required this.request,
     required this.userLatitude,
     required this.userLongitude,
   });
@@ -225,6 +228,18 @@ class _MapNoteTile extends StatelessWidget {
       title: pin.title,
       subtitle: pin.subtitle,
       metadata: [
+        if (pin.isFromFollowedAuthor)
+          NoteListMeta(
+            icon: Icons.person_pin_circle_outlined,
+            label: 'New from someone you follow',
+            color: colorScheme.tertiary,
+          ),
+        if (pin.hasUnseenMessages)
+          NoteListMeta(
+            icon: Icons.fiber_new_outlined,
+            label: 'New messages',
+            color: colorScheme.error,
+          ),
         NoteListMeta(
           icon: Icons.near_me_outlined,
           label: distanceLabel,
@@ -296,9 +311,11 @@ class _MapNoteTile extends StatelessWidget {
       return;
     }
     if (!context.mounted) return;
-    context.push(
+    await context.push<void>(
       '/note/${pin.placeId}?title=${Uri.encodeComponent(pin.title)}',
     );
+    if (!context.mounted) return;
+    container.invalidate(mapPinsProvider(request));
   }
 }
 

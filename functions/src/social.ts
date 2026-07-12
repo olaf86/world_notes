@@ -1,4 +1,5 @@
 import {onCall, HttpsError} from "firebase-functions/v2/https";
+import * as logger from "firebase-functions/logger";
 import {
   DocumentReference,
   DocumentSnapshot,
@@ -8,6 +9,7 @@ import {
 } from "firebase-admin/firestore";
 
 import {REGION} from "./constants";
+import {createUserNotice} from "./notices";
 
 interface SetUserFollowData {
   targetUserId?: unknown;
@@ -152,7 +154,7 @@ export const setUserFollow = onCall<SetUserFollowData>(
       .collection("socialEdges")
       .doc(socialEdgeId(uid, targetUserId));
 
-    return db.runTransaction(async (tx) => {
+    const result = await db.runTransaction(async (tx) => {
       const [followerUserSnap, followeeUserSnap, edgeSnap] =
         await Promise.all([
           tx.get(followerUserRef),
@@ -183,7 +185,14 @@ export const setUserFollow = onCall<SetUserFollowData>(
           0,
           0,
         );
-        return {following: desiredFollowing};
+        return {
+          following: desiredFollowing,
+          createdFollow: false,
+          followerName: publicProfileFromUser(
+            followerUserSnap,
+            "Unknown user",
+          ).displayName,
+        };
       }
 
       if (desiredFollowing) {
@@ -224,7 +233,36 @@ export const setUserFollow = onCall<SetUserFollowData>(
         tx.delete(edgeRef);
       }
 
-      return {following: desiredFollowing};
+      return {
+        following: desiredFollowing,
+        createdFollow: desiredFollowing,
+        followerName: publicProfileFromUser(
+          followerUserSnap,
+          "Unknown user",
+        ).displayName,
+      };
     });
+
+    if (result.createdFollow) {
+      try {
+        await createUserNotice(targetUserId, {
+          category: "social",
+          severity: "info",
+          title: "New follower",
+          body: `${result.followerName} followed you.`,
+          sourceType: "userFollow",
+          sourceId: uid,
+          push: true,
+        });
+      } catch (error) {
+        logger.error("setUserFollow: failed to create follower notice.", {
+          followerUid: uid,
+          followeeUid: targetUserId,
+          error,
+        });
+      }
+    }
+
+    return {following: result.following};
   },
 );

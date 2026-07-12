@@ -114,6 +114,18 @@ class _NoteMarkerBottomSheetState extends State<NoteMarkerBottomSheet> {
             runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
+              if (pin.isFromFollowedAuthor)
+                _MetaChip(
+                  icon: Icons.person_pin_circle_outlined,
+                  label: 'New from someone you follow',
+                  color: theme.colorScheme.tertiary,
+                ),
+              if (pin.hasUnseenMessages)
+                _MetaChip(
+                  icon: Icons.fiber_new_outlined,
+                  label: 'New messages',
+                  color: theme.colorScheme.error,
+                ),
               _MetaChip(
                 icon: Icons.chat_bubble_outline,
                 label: _countLabel(pin.messageCount, 'message'),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../domain/entities/notice_entity.dart';
@@ -12,13 +13,13 @@ class NoticesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final noticesAsync = ref.watch(noticesProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Notices')),
+      appBar: AppBar(title: const Text('Notifications')),
       body: noticesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
-            child: Text('Could not load notices.\n$error'),
+            child: Text('Could not load notifications.\n$error'),
           ),
         ),
         data: (notices) => notices.isEmpty
@@ -58,6 +59,10 @@ class NoticesScreen extends ConsumerWidget {
           .markRead(userId: user.id, noticeId: notice.id);
     }
     if (!context.mounted) return;
+    if (notice.category == 'social' && notice.sourceId?.isNotEmpty == true) {
+      await context.push<void>('/users/${notice.sourceId}');
+      return;
+    }
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -97,7 +102,7 @@ class _EmptyNotices extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'No notices yet.',
+              'No notifications yet.',
               style: theme.textTheme.titleMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -168,6 +173,7 @@ IconData _iconFor(NoticeEntity notice) {
   if (notice.isCritical) return Icons.priority_high_rounded;
   if (notice.isWarning) return Icons.warning_amber_rounded;
   return switch (notice.category) {
+    'social' => Icons.person_add_alt_1_outlined,
     'developer' => Icons.campaign_outlined,
     'report' => Icons.flag_outlined,
     'ban' => Icons.block_outlined,

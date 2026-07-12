@@ -53,8 +53,8 @@ class _MyNotesNotificationIconButtonState
 
     return IconButton(
       tooltip: enabled
-          ? 'Turn off My Notes notifications'
-          : 'Turn on My Notes notifications',
+          ? 'Turn off maintained-note notifications'
+          : 'Turn on maintained-note notifications',
       icon: Icon(
         enabled
             ? Icons.notifications_active_outlined
@@ -101,9 +101,9 @@ class _MyNotesNotificationSwitchTileState
 
     return SwitchListTile(
       contentPadding: EdgeInsets.zero,
-      title: const Text('My Notes'),
+      title: const Text('Maintained notes'),
       subtitle: const Text(
-        'Receive notifications when your notes get new messages.',
+        'Receive notifications when notes you maintain get new messages.',
       ),
       value: enabled,
       onChanged: _updating || enabledAsync.isLoading ? null : _setEnabled,
@@ -162,7 +162,7 @@ class _MyNotesNotificationPreviewSwitchTileState
     return SwitchListTile(
       contentPadding: EdgeInsets.zero,
       title: const Text('Message previews'),
-      subtitle: const Text('Show message text on My Notes notifications.'),
+      subtitle: const Text('Show message text in maintained-note alerts.'),
       value: previewEnabled,
       onChanged: disabled ? null : _setEnabled,
     );
@@ -197,8 +197,8 @@ void showMyNotesNotificationUpdateErrorSnackBar(
     SnackBar(
       content: Text(
         enabled
-            ? 'Could not enable My Notes notifications.'
-            : 'Could not disable My Notes notifications.',
+            ? 'Could not enable maintained-note notifications.'
+            : 'Could not disable maintained-note notifications.',
       ),
     ),
   );

@@ -56,12 +56,6 @@ export const NOTE_DETAIL_ACCESS_RADIUS_KM = 0.5;
 /** PRO radius from the user's current location that unlocks note details. */
 export const PRO_NOTE_DETAIL_ACCESS_RADIUS_KM = 1.0;
 
-/** Max notes a user can register for nearby message alerts. */
-export const NEARBY_NOTIFICATION_LIMIT = 5;
-
-/** How long an in-range presence remains valid without a refresh. */
-export const NEARBY_NOTIFICATION_IN_RANGE_TTL_MINUTES = 30;
-
 /**
  * Region the functions are DEPLOYED to (matches the default DB in Tokyo).
  * The client picks which deployed region to call via Regions/effectiveRegion

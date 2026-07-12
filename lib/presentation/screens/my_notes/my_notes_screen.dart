@@ -9,7 +9,6 @@ import '../../providers/providers.dart';
 import '../../widgets/my_notes_notification_controls.dart';
 import '../../widgets/note/note_list_card.dart';
 import '../note/note_creation_screen.dart';
-import 'nearby_notifications_view.dart';
 
 class MyNotesScreen extends ConsumerWidget {
   const MyNotesScreen({super.key});
@@ -19,15 +18,11 @@ class MyNotesScreen extends ConsumerWidget {
     return Semantics(
       identifier: 'screen-my-notes',
       child: const DefaultTabController(
-        length: 3,
+        length: 2,
         child: Scaffold(
           appBar: _NotesAppBar(),
           body: TabBarView(
-            children: [
-              _MyNotesListView(),
-              _ArchivedNotesListView(),
-              NearbyNotificationsView(),
-            ],
+            children: [_MyNotesListView(), _ArchivedNotesListView()],
           ),
         ),
       ),
@@ -50,7 +45,6 @@ class _NotesAppBar extends StatelessWidget implements PreferredSizeWidget {
         tabs: [
           Tab(text: 'My Notes'),
           Tab(text: 'Archived'),
-          Tab(text: 'Nearby Alerts'),
         ],
       ),
     );

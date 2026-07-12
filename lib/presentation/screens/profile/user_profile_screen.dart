@@ -26,6 +26,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
       await ref
           .read(followRepositoryProvider)
           .setFollowing(targetUserId: widget.userId, following: following);
+      ref.invalidate(mapPinsProvider);
     } on FirebaseFunctionsException catch (e) {
       _snack(e.message ?? 'Could not update follow state.');
     } catch (e) {

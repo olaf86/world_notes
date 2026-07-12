@@ -20,6 +20,7 @@ class PinSummaryModel {
   final bool isClosed;
   final bool footprintEnabled;
   final PinAccess access;
+  final Set<PinMarkerFlag> markerFlags;
 
   const PinSummaryModel({
     required this.placeId,
@@ -41,6 +42,7 @@ class PinSummaryModel {
     required this.isClosed,
     required this.footprintEnabled,
     required this.access,
+    this.markerFlags = const <PinMarkerFlag>{},
   });
 
   factory PinSummaryModel.fromJson(Map<String, dynamic> json) {
@@ -70,6 +72,7 @@ class PinSummaryModel {
       isClosed: json['isClosed'] as bool,
       footprintEnabled: json['footprintEnabled'] as bool,
       access: PinAccess.fromJson(json['access'] as String?),
+      markerFlags: _markerFlagsFromJson(json['markerFlags']),
     );
   }
 
@@ -93,5 +96,15 @@ class PinSummaryModel {
     isClosed: isClosed,
     footprintEnabled: footprintEnabled,
     access: access,
+    markerFlags: markerFlags,
   );
+}
+
+Set<PinMarkerFlag> _markerFlagsFromJson(Object? value) {
+  if (value is! List) return const <PinMarkerFlag>{};
+  return value
+      .whereType<String>()
+      .map(PinMarkerFlag.fromJson)
+      .whereType<PinMarkerFlag>()
+      .toSet();
 }

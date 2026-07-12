@@ -5,7 +5,6 @@ import {getFirestore, FieldValue, Timestamp} from "firebase-admin/firestore";
 import {MAX_MESSAGES_PER_THREAD, REGION} from "./constants";
 import {
   sendMyNotesMessageNotifications,
-  sendNearbyInRangeMessageNotifications,
 } from "./notifications";
 
 /**
@@ -119,20 +118,6 @@ export const aggregatePublishedMessages = onSchedule(
         } catch (error) {
           logger.error(
             "aggregatePublishedMessages: failed to send My Notes " +
-              `notification for places/${placeId}/messages/${messageId}.`,
-            error,
-          );
-        }
-        try {
-          await sendNearbyInRangeMessageNotifications(
-            db,
-            placeId,
-            messageId,
-            senderId,
-          );
-        } catch (error) {
-          logger.error(
-            "aggregatePublishedMessages: failed to send nearby " +
               `notification for places/${placeId}/messages/${messageId}.`,
             error,
           );
