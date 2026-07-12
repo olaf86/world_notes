@@ -52,13 +52,14 @@ class MessageRepositoryImpl implements MessageRepository {
         .orderBy('publishAt')
         .limit(AppConfig.messagesPageSize)
         .snapshots();
+    // A single collection-group query provides the current user's like state
+    // for this thread. Its list rule permits only edges owned by that user.
     final ownLikesStream = _firestore
         .collectionGroup('messageLikes')
         .where('placeId', isEqualTo: placeId)
         .where('userId', isEqualTo: currentUserId)
         .where('liked', isEqualTo: true)
         .snapshots();
-
     late final StreamController<List<MessageThreadItem>> controller;
     QuerySnapshot? publishedSnap;
     QuerySnapshot? ownScheduledSnap;
