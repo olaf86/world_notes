@@ -5,12 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../config/app_config.dart';
 import '../../../domain/entities/message_entity.dart';
+import '../../../domain/entities/message_thread_item.dart';
 import '../../providers/providers.dart';
 import 'image_grid_layout.dart';
 
 class MessageBubble extends StatefulWidget {
   final MessageEntity message;
+  final MessageLikeState likeState;
   final bool isOwn;
   final bool canLike;
   final bool isAuthorHighlighted;
@@ -22,6 +25,7 @@ class MessageBubble extends StatefulWidget {
   const MessageBubble({
     super.key,
     required this.message,
+    this.likeState = const MessageLikeState(),
     required this.isOwn,
     this.canLike = false,
     this.isAuthorHighlighted = false,
@@ -36,8 +40,6 @@ class MessageBubble extends StatefulWidget {
 }
 
 class _MessageBubbleState extends State<MessageBubble> {
-  static const _likeDebounceDuration = Duration(milliseconds: 800);
-
   /// Whether the user has chosen to reveal flagged content for this bubble.
   /// Resets to false each time the screen is re-entered (not persisted).
   bool _flaggedContentRevealed = false;
@@ -237,7 +239,7 @@ class _MessageBubbleState extends State<MessageBubble> {
 
   void _scheduleLikeFlush() {
     _likeDebounce?.cancel();
-    _likeDebounce = Timer(_likeDebounceDuration, () {
+    _likeDebounce = Timer(AppConfig.likeDebounceDuration, () {
       _likeDebounce = null;
       unawaited(_flushLike());
     });
@@ -289,8 +291,8 @@ class _MessageBubbleState extends State<MessageBubble> {
     final theme = Theme.of(context);
     final message = widget.message;
     _applyServerLikeState(
-      serverLiked: message.isLikedByCurrentUser,
-      serverCount: message.likeCount,
+      serverLiked: widget.likeState.likedByCurrentUser,
+      serverCount: widget.likeState.count,
     );
 
     // ── Deleted tombstone ─────────────────────────────────────────────────

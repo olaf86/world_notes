@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:world_notes/domain/entities/message_entity.dart';
+import 'package:world_notes/domain/entities/message_thread_item.dart';
 import 'package:world_notes/domain/entities/place_entity.dart';
 import 'package:world_notes/domain/entities/user_entity.dart';
 import 'package:world_notes/presentation/providers/providers.dart';
@@ -26,7 +26,7 @@ void main() {
             ),
             messagesProvider.overrideWith((ref, String placeId) {
               messageSubscriptionCount++;
-              return Stream<List<MessageEntity>>.value(const []);
+              return Stream<List<MessageThreadItem>>.value(const []);
             }),
           ],
           child: const MaterialApp(
@@ -73,7 +73,7 @@ void main() {
           ),
           messagesProvider.overrideWith(
             (ref, String placeId) =>
-                Stream<List<MessageEntity>>.value(const []),
+                Stream<List<MessageThreadItem>>.value(const []),
           ),
         ],
         child: const MaterialApp(

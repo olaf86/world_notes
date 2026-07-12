@@ -1,4 +1,5 @@
 import '../entities/place_entity.dart';
+import '../entities/message_entity.dart';
 
 enum NoteRole { creator, maintainer, member, visitor, signedOut }
 
@@ -6,6 +7,7 @@ class NotePermissions {
   final NoteRole role;
   final bool canReadContent;
   final bool canPostMessage;
+  final bool canLikeMessages;
   final bool canSubscribeNearbyAlerts;
   final bool canLikeNote;
   final bool canCloseThread;
@@ -23,6 +25,7 @@ class NotePermissions {
     required this.role,
     required this.canReadContent,
     required this.canPostMessage,
+    required this.canLikeMessages,
     required this.canSubscribeNearbyAlerts,
     required this.canLikeNote,
     required this.canCloseThread,
@@ -40,6 +43,8 @@ class NotePermissions {
   bool get isCreator => role == NoteRole.creator;
   bool get isMaintainer =>
       role == NoteRole.creator || role == NoteRole.maintainer;
+  bool canLikeMessage(MessageEntity message, {required DateTime now}) =>
+      canLikeMessages && message.isPublishedAt(now);
   bool get hasThreadActions =>
       canCloseThread ||
       canReopenThread ||
@@ -88,20 +93,21 @@ extension NotePermissionPolicy on PlaceEntity {
         role == NoteRole.creator || role == NoteRole.maintainer;
     final canReadContent = isAccessibleBy(uid, membership);
     final canAcceptMessages = canAcceptMessagesAt(now);
+    final canLikeMessages =
+        hasUser &&
+        canReadContent &&
+        isPublishedAt(now) &&
+        !isExpiredAt(now) &&
+        !isArchived;
 
     return NotePermissions(
       role: role,
       canReadContent: canReadContent,
       canPostMessage:
           hasUser && canReadContent && !readOnly && canAcceptMessages,
+      canLikeMessages: canLikeMessages,
       canSubscribeNearbyAlerts: hasUser && !readOnly && !isMaintainer,
-      canLikeNote:
-          hasUser &&
-          canReadContent &&
-          !isCreator &&
-          isPublishedAt(now) &&
-          !isExpiredAt(now) &&
-          !isArchived,
+      canLikeNote: canLikeMessages && !isCreator,
       canCloseThread: isMaintainer && !isArchived && isOpen,
       canReopenThread: isMaintainer && !isArchived && canReopen,
       canManageAccess: isMaintainer && !isArchived && isPrivate,

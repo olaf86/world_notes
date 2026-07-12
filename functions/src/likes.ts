@@ -2,12 +2,18 @@
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {
   DocumentSnapshot,
-  FieldValue,
-  Timestamp,
   getFirestore,
 } from "firebase-admin/firestore";
 
 import {REGION} from "./constants";
+import {
+  assertLiked,
+  hasValidMembership,
+  isPublishedReadablePlace,
+  likeEdgeData,
+  likedStateOf,
+  nextLikeCount,
+} from "./likeHelpers";
 import {canMaintainNote, isNoteCreator} from "./noteMaintenance";
 
 interface SetNoteLikeData {
@@ -20,35 +26,6 @@ function assertPlaceId(value: unknown): string {
     throw new HttpsError("invalid-argument", "placeId is required.");
   }
   return value.trim();
-}
-
-function assertLiked(value: unknown): boolean {
-  if (typeof value !== "boolean") {
-    throw new HttpsError("invalid-argument", "liked must be a boolean.");
-  }
-  return value;
-}
-
-function isPublishedReadablePlace(
-  placeSnap: DocumentSnapshot,
-  nowMs: number,
-): boolean {
-  const publishAt = placeSnap.get("publishAt") as Timestamp | undefined;
-  const expiresAt = placeSnap.get("expiresAt") as Timestamp | undefined;
-  return placeSnap.get("isArchived") !== true &&
-    publishAt != null &&
-    expiresAt != null &&
-    publishAt.toMillis() <= nowMs &&
-    expiresAt.toMillis() > nowMs;
-}
-
-function hasValidMembership(
-  placeSnap: DocumentSnapshot,
-  memberSnap: DocumentSnapshot | null,
-): boolean {
-  if (!memberSnap?.exists) return false;
-  return memberSnap.get("invited") === true ||
-    memberSnap.get("viaPasswordVersion") === placeSnap.get("passwordVersion");
 }
 
 function canLikeNote(
@@ -98,28 +75,28 @@ export const setNoteLike = onCall<SetNoteLikeData>(
       }
 
       const likeSnap = await tx.get(likeRef);
-      const currentlyLiked = likeSnap.exists &&
-        likeSnap.get("liked") === true;
+      const currentlyLiked = likedStateOf(likeSnap);
       const currentCount = placeSnap.get("likeCount") as number;
-      if (currentlyLiked === desiredLiked) {
-        return {liked: desiredLiked, likeCount: currentCount};
+      const result = nextLikeCount({
+        currentCount,
+        currentlyLiked,
+        desiredLiked,
+      });
+      if (!result.changed) {
+        return {liked: desiredLiked, likeCount: result.likeCount};
       }
 
-      const increment = desiredLiked ? 1 : -1;
-      const nextCount = Math.max(0, currentCount + increment);
       tx.set(
         likeRef,
-        {
-          userId: uid,
-          placeId,
+        likeEdgeData({
+          uid,
           liked: desiredLiked,
-          likedAt: desiredLiked ? FieldValue.serverTimestamp() : null,
-          updatedAt: FieldValue.serverTimestamp(),
-        },
+          extra: {placeId},
+        }),
         {merge: true},
       );
-      tx.update(placeRef, {likeCount: nextCount});
-      return {liked: desiredLiked, likeCount: nextCount};
+      tx.update(placeRef, {likeCount: result.likeCount});
+      return {liked: desiredLiked, likeCount: result.likeCount};
     });
   },
 );

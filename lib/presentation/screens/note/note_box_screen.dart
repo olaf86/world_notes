@@ -12,6 +12,7 @@ import '../../../config/app_config.dart';
 import '../../../core/utils/password_util.dart';
 import '../../../core/utils/pattern_lock_util.dart';
 import '../../../domain/entities/message_entity.dart';
+import '../../../domain/entities/message_thread_item.dart';
 import '../../../domain/entities/place_entity.dart';
 import '../../../domain/policies/note_permissions.dart';
 import '../../providers/providers.dart';
@@ -494,11 +495,11 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
 
   void _markNearbyNotificationReadIfNeeded({
     required bool nearbyEnabled,
-    required List<MessageEntity> messages,
+    required List<MessageThreadItem> messages,
   }) {
     if (!nearbyEnabled || messages.isEmpty) return;
     final latest = messages
-        .map((message) => message.publishAt)
+        .map((item) => item.message.publishAt)
         .reduce((a, b) => a.isAfter(b) ? a : b);
     final previous = _lastNearbyReadMarkedAt;
     if (previous != null && !latest.isAfter(previous)) return;
@@ -1010,21 +1011,19 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                                     ),
                                     itemCount: messages.length,
                                     itemBuilder: (context, index) {
-                                      final message = messages[index];
+                                      final item = messages[index];
+                                      final message = item.message;
                                       final isOwn =
                                           message.author.id == currentUser?.id;
-                                      final canLikeMessage =
-                                          currentUser != null &&
-                                          permissions.canReadContent &&
-                                          place.isPublishedAt(now) &&
-                                          !place.isExpiredAt(now) &&
-                                          !place.isArchived &&
-                                          message.isPublished;
                                       return MessageBubble(
                                         key: ValueKey(message.id),
                                         message: message,
+                                        likeState: item.likeState,
                                         isOwn: isOwn,
-                                        canLike: canLikeMessage,
+                                        canLike: permissions.canLikeMessage(
+                                          message,
+                                          now: now,
+                                        ),
                                         onLikeChanged: (liked) =>
                                             _setMessageLike(message, liked),
                                         isAuthorHighlighted:
@@ -1154,8 +1153,6 @@ class _NoteLikeRow extends ConsumerStatefulWidget {
 }
 
 class _NoteLikeRowState extends ConsumerState<_NoteLikeRow> {
-  static const _debounceDuration = Duration(milliseconds: 800);
-
   Timer? _debounce;
   bool _initialized = false;
   bool _serverLiked = false;
@@ -1223,7 +1220,7 @@ class _NoteLikeRowState extends ConsumerState<_NoteLikeRow> {
 
   void _scheduleFlush() {
     _debounce?.cancel();
-    _debounce = Timer(_debounceDuration, () {
+    _debounce = Timer(AppConfig.likeDebounceDuration, () {
       _debounce = null;
       unawaited(_flushLike());
     });

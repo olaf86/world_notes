@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
+import 'package:world_notes/config/app_config.dart';
 import 'package:world_notes/domain/entities/message_entity.dart';
+import 'package:world_notes/domain/entities/message_thread_item.dart';
 import 'package:world_notes/domain/entities/user_entity.dart';
 import 'package:world_notes/presentation/widgets/note/message_bubble.dart';
 
@@ -47,7 +49,6 @@ void main() {
         content: 'Likeable note',
         createdAt: now,
         publishAt: now,
-        likeCount: 2,
       );
 
       await tester.pumpWidget(
@@ -55,6 +56,7 @@ void main() {
           home: Scaffold(
             body: MessageBubble(
               message: message,
+              likeState: const MessageLikeState(count: 2),
               isOwn: false,
               canLike: true,
               onLikeChanged: (liked) async {
@@ -75,7 +77,9 @@ void main() {
       expect(find.byIcon(Icons.favorite), findsOneWidget);
       expect(find.text('3'), findsOneWidget);
 
-      await tester.pump(const Duration(milliseconds: 799));
+      await tester.pump(
+        AppConfig.likeDebounceDuration - const Duration(milliseconds: 1),
+      );
       expect(requestedLiked, isNull);
 
       await tester.pump(const Duration(milliseconds: 1));
@@ -94,7 +98,6 @@ void main() {
         content: 'Likeable note',
         createdAt: now,
         publishAt: now,
-        likeCount: 2,
       );
 
       await tester.pumpWidget(
@@ -102,6 +105,7 @@ void main() {
           home: Scaffold(
             body: MessageBubble(
               message: message,
+              likeState: const MessageLikeState(count: 2),
               isOwn: false,
               canLike: true,
               onLikeChanged: (_) async {
@@ -115,7 +119,7 @@ void main() {
       await tester.tap(find.byTooltip('Like message'));
       await tester.pump();
       await tester.tap(find.byTooltip('Unlike message'));
-      await tester.pump(const Duration(milliseconds: 800));
+      await tester.pump(AppConfig.likeDebounceDuration);
 
       expect(requestCount, 0);
       expect(find.byIcon(Icons.favorite_border), findsOneWidget);

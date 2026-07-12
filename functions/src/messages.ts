@@ -6,6 +6,7 @@ import {
   FieldValue,
   Firestore,
   Timestamp,
+  Transaction,
   getFirestore,
 } from "firebase-admin/firestore";
 import {getStorage} from "firebase-admin/storage";
@@ -35,6 +36,14 @@ import {
   sendMyNotesMessageNotifications,
   sendNearbyInRangeMessageNotifications,
 } from "./notifications";
+import {
+  assertLiked,
+  hasValidMembership,
+  isPublishedReadablePlace,
+  likeEdgeData,
+  likedStateOf,
+  nextLikeCount,
+} from "./likeHelpers";
 import {canMaintainNote} from "./noteMaintenance";
 
 interface SendMessageData {
@@ -71,6 +80,12 @@ interface ValidatedReportMessageInput {
   reason: string;
 }
 
+interface ValidatedSetMessageLikeInput {
+  placeId: string;
+  messageId: string;
+  liked: boolean;
+}
+
 interface SendMessageRefs {
   placeRef: DocumentReference;
   userRef: DocumentReference;
@@ -78,6 +93,13 @@ interface SendMessageRefs {
   counterRef: DocumentReference;
   messageRef: DocumentReference;
   moderationReviewRef: DocumentReference;
+}
+
+interface MessageLikeRefs {
+  placeRef: DocumentReference;
+  memberRef: DocumentReference;
+  messageRef: DocumentReference;
+  likeRef: DocumentReference;
 }
 
 interface SendMessageProfile {
@@ -235,6 +257,16 @@ function validateReportMessageInput(
   };
 }
 
+function validateSetMessageLikeInput(
+  data: SetMessageLikeData | undefined,
+): ValidatedSetMessageLikeInput {
+  return {
+    placeId: requiredDocumentId(data?.placeId, "placeId"),
+    messageId: requiredDocumentId(data?.messageId, "messageId"),
+    liked: assertLiked(data?.liked),
+  };
+}
+
 function assertReportCooldown(
   rateLimitSnap: DocumentSnapshot,
   now: Timestamp,
@@ -268,6 +300,21 @@ function sendMessageRefs(
     moderationReviewRef: db
       .collection("moderationReviews")
       .doc(`${input.placeId}_${input.messageId}`),
+  };
+}
+
+function messageLikeRefs(
+  db: Firestore,
+  input: ValidatedSetMessageLikeInput,
+  uid: string,
+): MessageLikeRefs {
+  const placeRef = db.collection("places").doc(input.placeId);
+  const messageRef = placeRef.collection("messages").doc(input.messageId);
+  return {
+    placeRef,
+    memberRef: placeRef.collection("members").doc(uid),
+    messageRef,
+    likeRef: messageRef.collection("messageLikes").doc(uid),
   };
 }
 
@@ -413,15 +460,6 @@ function shouldCreateModerationReview(
   ) || hasReviewRecommendedRiskSignal(riskSignals);
 }
 
-function hasValidMembership(
-  placeSnap: DocumentSnapshot,
-  memberSnap: DocumentSnapshot | null,
-): boolean {
-  if (!memberSnap?.exists) return false;
-  return memberSnap.get("invited") === true ||
-    memberSnap.get("viaPasswordVersion") === placeSnap.get("passwordVersion");
-}
-
 function canAccessNote(
   placeSnap: DocumentSnapshot,
   memberSnap: DocumentSnapshot | null,
@@ -430,26 +468,6 @@ function canAccessNote(
   if (placeSnap.get("visibility") !== "private") return true;
   if (canMaintainNote(placeSnap, uid)) return true;
   return hasValidMembership(placeSnap, memberSnap);
-}
-
-function isPublishedReadablePlace(
-  placeSnap: DocumentSnapshot,
-  nowMs: number,
-): boolean {
-  const publishAt = placeSnap.get("publishAt") as Timestamp | undefined;
-  const expiresAt = placeSnap.get("expiresAt") as Timestamp | undefined;
-  return placeSnap.get("isArchived") !== true &&
-    publishAt != null &&
-    expiresAt != null &&
-    publishAt.toMillis() <= nowMs &&
-    expiresAt.toMillis() > nowMs;
-}
-
-function assertLiked(value: unknown): boolean {
-  if (typeof value !== "boolean") {
-    throw new HttpsError("invalid-argument", "liked must be a boolean.");
-  }
-  return value;
 }
 
 function canLikeMessage(
@@ -953,6 +971,58 @@ export const reportMessage = onCall<ReportMessageData>(
   },
 );
 
+async function applyMessageLikeState(
+  tx: Transaction,
+  refs: MessageLikeRefs,
+  input: ValidatedSetMessageLikeInput,
+  uid: string,
+  nowMs: number,
+): Promise<{liked: boolean; likeCount: number}> {
+  const [placeSnap, messageSnap] = await Promise.all([
+    tx.get(refs.placeRef),
+    tx.get(refs.messageRef),
+  ]);
+  if (!placeSnap.exists || !messageSnap.exists) {
+    throw new HttpsError("not-found", "Message not found.");
+  }
+  const memberSnap =
+    placeSnap.get("visibility") === "private" &&
+      !canMaintainNote(placeSnap, uid) ?
+      await tx.get(refs.memberRef) :
+      null;
+  if (!canLikeMessage(placeSnap, memberSnap, messageSnap, uid, nowMs)) {
+    throw new HttpsError(
+      "permission-denied",
+      "You cannot like this message.",
+    );
+  }
+
+  const likeSnap = await tx.get(refs.likeRef);
+  const result = nextLikeCount({
+    currentCount: (messageSnap.get("likeCount") as number | undefined) ?? 0,
+    currentlyLiked: likedStateOf(likeSnap),
+    desiredLiked: input.liked,
+  });
+  if (!result.changed) {
+    return {liked: input.liked, likeCount: result.likeCount};
+  }
+
+  tx.set(
+    refs.likeRef,
+    likeEdgeData({
+      uid,
+      liked: input.liked,
+      extra: {
+        placeId: input.placeId,
+        messageId: input.messageId,
+      },
+    }),
+    {merge: true},
+  );
+  tx.update(refs.messageRef, {likeCount: result.likeCount});
+  return {liked: input.liked, likeCount: result.likeCount};
+}
+
 /**
  * Sets the caller's final desired like state for a published message.
  */
@@ -962,63 +1032,14 @@ export const setMessageLike = onCall<SetMessageLikeData>(
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
 
-    const placeId = requiredDocumentId(req.data?.placeId, "placeId");
-    const messageId = requiredDocumentId(req.data?.messageId, "messageId");
-    const desiredLiked = assertLiked(req.data?.liked);
-
+    const input = validateSetMessageLikeInput(req.data);
     const db = getFirestore();
-    const placeRef = db.collection("places").doc(placeId);
-    const memberRef = placeRef.collection("members").doc(uid);
-    const messageRef = placeRef.collection("messages").doc(messageId);
-    const likeRef = messageRef.collection("messageLikes").doc(uid);
+    const refs = messageLikeRefs(db, input, uid);
     const nowMs = Date.now();
 
-    return db.runTransaction(async (tx) => {
-      const [placeSnap, messageSnap] = await Promise.all([
-        tx.get(placeRef),
-        tx.get(messageRef),
-      ]);
-      if (!placeSnap.exists || !messageSnap.exists) {
-        throw new HttpsError("not-found", "Message not found.");
-      }
-      const memberSnap =
-        placeSnap.get("visibility") === "private" &&
-          !canMaintainNote(placeSnap, uid) ?
-          await tx.get(memberRef) :
-          null;
-      if (!canLikeMessage(placeSnap, memberSnap, messageSnap, uid, nowMs)) {
-        throw new HttpsError(
-          "permission-denied",
-          "You cannot like this message.",
-        );
-      }
-
-      const likeSnap = await tx.get(likeRef);
-      const currentlyLiked = likeSnap.exists &&
-        likeSnap.get("liked") === true;
-      const currentCount =
-        (messageSnap.get("likeCount") as number | undefined) ?? 0;
-      if (currentlyLiked === desiredLiked) {
-        return {liked: desiredLiked, likeCount: currentCount};
-      }
-
-      const increment = desiredLiked ? 1 : -1;
-      const nextCount = Math.max(0, currentCount + increment);
-      tx.set(
-        likeRef,
-        {
-          userId: uid,
-          placeId,
-          messageId,
-          liked: desiredLiked,
-          likedAt: desiredLiked ? FieldValue.serverTimestamp() : null,
-          updatedAt: FieldValue.serverTimestamp(),
-        },
-        {merge: true},
-      );
-      tx.update(messageRef, {likeCount: nextCount});
-      return {liked: desiredLiked, likeCount: nextCount};
-    });
+    return db.runTransaction((tx) =>
+      applyMessageLikeState(tx, refs, input, uid, nowMs),
+    );
   },
 );
 

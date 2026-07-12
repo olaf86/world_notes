@@ -20,7 +20,7 @@ import '../../data/repositories/notice_repository_impl.dart';
 import '../../data/repositories/place_repository_impl.dart';
 import '../../domain/entities/nearby_notification_entity.dart';
 import '../../domain/entities/admin_moderation_review_entity.dart';
-import '../../domain/entities/message_entity.dart';
+import '../../domain/entities/message_thread_item.dart';
 import '../../domain/entities/note_visitor_entity.dart';
 import '../../domain/entities/notice_entity.dart';
 import '../../domain/entities/pin_summary_entity.dart';
@@ -523,7 +523,7 @@ final noteAccessRadiusMetersProvider = Provider<int>((ref) {
 // --- Messages ---
 
 final messagesProvider = StreamProvider.autoDispose
-    .family<List<MessageEntity>, String>((ref, placeId) {
+    .family<List<MessageThreadItem>, String>((ref, placeId) {
       final user = ref.watch(authStateProvider).valueOrNull;
       if (user == null) return Stream.value(const []);
       return ref

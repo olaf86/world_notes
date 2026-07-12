@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../domain/entities/message_entity.dart';
+import '../../domain/entities/message_thread_item.dart';
 import '../../domain/entities/user_entity.dart';
 
 class MessageModel {
@@ -67,7 +68,7 @@ class MessageModel {
     );
   }
 
-  MessageEntity toEntity({bool isLikedByCurrentUser = false}) => MessageEntity(
+  MessageEntity toEntity() => MessageEntity(
     id: id,
     placeId: placeId,
     author: UserEntity(id: userId, name: userName, photoUrl: userPhotoUrl),
@@ -75,8 +76,6 @@ class MessageModel {
     imageStoragePaths: imageStoragePaths,
     createdAt: createdAt,
     publishAt: publishAt,
-    likeCount: likeCount,
-    isLikedByCurrentUser: isLikedByCurrentUser,
     isDeleted: isDeleted,
     deletedAt: deletedAt,
     deletedReason: deletedReason,
@@ -84,4 +83,14 @@ class MessageModel {
     isSensitive: isSensitive,
     reviewRequired: reviewRequired,
   );
+
+  MessageThreadItem toThreadItem({bool likedByCurrentUser = false}) {
+    return MessageThreadItem(
+      message: toEntity(),
+      likeState: MessageLikeState(
+        count: likeCount,
+        likedByCurrentUser: likedByCurrentUser,
+      ),
+    );
+  }
 }
