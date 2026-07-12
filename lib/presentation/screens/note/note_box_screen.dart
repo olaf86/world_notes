@@ -20,6 +20,7 @@ import '../../widgets/note/manage_access_sheet.dart';
 import '../../widgets/note/message_bubble.dart';
 import '../../widgets/note/message_creation_overlay.dart';
 import '../../widgets/note/note_lock_setup_dialog.dart';
+import '../../widgets/note/user_avatar_badge.dart';
 import '../../widgets/note/visitor_map_overlay.dart';
 import 'note_creation_screen.dart';
 
@@ -753,6 +754,9 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
       return _LoadingNoteView(title: widget.placeTitle);
     }
 
+    final creator = ref.watch(
+      noteCreatorProfileProvider(place.createdByUserId),
+    );
     final membership = place.isPrivate
         ? ref.watch(noteMembershipProvider(widget.placeId)).valueOrNull
         : null;
@@ -948,6 +952,10 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                         _ThreadStatusBanner(place: place, now: now),
                       StaticNoteMiniMap(
                         place: place,
+                        markerBadge: UserAvatarBadge(
+                          name: creator?.name,
+                          photoUrl: creator?.photoUrl,
+                        ),
                         topRightOverlay: VisitorMapOverlay(
                           placeId: widget.placeId,
                           footprintEnabled: place.footprintEnabled,

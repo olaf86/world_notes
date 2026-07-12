@@ -8,8 +8,8 @@ import '../../../domain/entities/note_visitor_entity.dart';
 import '../../providers/providers.dart';
 
 class VisitorMapOverlay extends ConsumerWidget {
-  static const double _avatarSize = 24;
-  static const double _avatarStep = 16;
+  static const double _avatarSize = 22;
+  static const double _avatarStep = 14;
   static const int _avatarMax = 3;
 
   final String placeId;
@@ -34,7 +34,7 @@ class VisitorMapOverlay extends ConsumerWidget {
         title: _title,
         avatars: const [],
         trailing: const SizedBox.square(
-          dimension: 14,
+          dimension: 12,
           child: CircularProgressIndicator(strokeWidth: 2),
         ),
         onTap: onTap,
@@ -42,7 +42,7 @@ class VisitorMapOverlay extends ConsumerWidget {
       error: (_, _) => _OverlayPreview(
         title: _title,
         avatars: const [],
-        trailing: const Icon(Icons.chevron_right, size: 18),
+        trailing: const Icon(Icons.chevron_right, size: 16),
         onTap: onTap,
       ),
       data: (items) => _OverlayPreview(
@@ -50,7 +50,7 @@ class VisitorMapOverlay extends ConsumerWidget {
         avatars: footprintEnabled ? items.take(_avatarMax).toList() : const [],
         avatarSize: _avatarSize,
         avatarStep: _avatarStep,
-        trailing: const Icon(Icons.chevron_right, size: 18),
+        trailing: const Icon(Icons.chevron_right, size: 16),
         onTap: onTap,
       ),
     );
@@ -85,8 +85,8 @@ class _OverlayPreview extends StatelessWidget {
     final theme = Theme.of(context);
     final borderRadius = BorderRadius.circular(999);
     final maxWidth = math.max(
-      120.0,
-      math.min(260.0, MediaQuery.sizeOf(context).width - 52),
+      104.0,
+      math.min(220.0, MediaQuery.sizeOf(context).width - 64),
     );
 
     return ConstrainedBox(
@@ -100,26 +100,26 @@ class _OverlayPreview extends StatelessWidget {
           borderRadius: borderRadius,
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(10, 7, 8, 7),
+            padding: const EdgeInsetsDirectional.fromSTEB(8, 5, 6, 5),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
                   Icons.directions_walk,
-                  size: 17,
+                  size: 15,
                   color: theme.colorScheme.primary,
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 5),
                 Flexible(
                   child: Text(
                     title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelLarge,
+                    style: theme.textTheme.labelMedium,
                   ),
                 ),
                 if (avatars.isNotEmpty) ...[
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   SizedBox(
                     width: avatarSize + (avatars.length - 1) * avatarStep,
                     height: avatarSize,

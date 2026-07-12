@@ -185,6 +185,41 @@ final authStateProvider = StreamProvider<UserEntity?>((ref) {
   return ref.watch(authRepositoryProvider).authStateChanges;
 });
 
+final userProfileProvider = StreamProvider.autoDispose
+    .family<UserEntity?, String>((ref, userId) {
+      final id = userId.trim();
+      if (id.isEmpty) return Stream.value(null);
+      return ref
+          .watch(firestoreProvider)
+          .collection('users')
+          .doc(id)
+          .snapshots()
+          .map((snap) {
+            final data = snap.data();
+            if (data == null) return null;
+            final displayName = (data['displayName'] as String?)?.trim();
+            return UserEntity(
+              id: snap.id,
+              name: displayName == null || displayName.isEmpty
+                  ? 'User'
+                  : displayName,
+              email: data['email'] as String?,
+              photoUrl: data['photoUrl'] as String?,
+              isPremium: data['isPremium'] as bool? ?? false,
+            );
+          });
+    });
+
+final noteCreatorProfileProvider = Provider.autoDispose
+    .family<UserEntity?, String>((ref, userId) {
+      final id = userId.trim();
+      if (id.isEmpty) return null;
+      final profile = ref.watch(userProfileProvider(id)).valueOrNull;
+      final currentUser = ref.watch(authStateProvider).valueOrNull;
+      if (profile != null) return profile;
+      return currentUser?.id == id ? currentUser : null;
+    });
+
 final adminClaimProvider = FutureProvider<bool>((ref) async {
   final user = await ref.watch(authStateProvider.future);
   if (user == null) return false;

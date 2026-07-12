@@ -71,6 +71,11 @@ void main() {
           placeProvider.overrideWith(
             (ref, String placeId) => Stream.value(place),
           ),
+          userProfileProvider.overrideWith(
+            (ref, String userId) => Stream<UserEntity?>.value(
+              const UserEntity(id: 'owner-1', name: 'Alice'),
+            ),
+          ),
           messagesProvider.overrideWith(
             (ref, String placeId) =>
                 Stream<List<MessageEntity>>.value(const []),

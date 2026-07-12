@@ -4,6 +4,7 @@ import '../../../core/utils/place_icon.dart';
 import '../../../core/utils/time_format.dart';
 import '../../../domain/entities/pin_summary_entity.dart';
 import '../note/note_pin_avatar.dart';
+import '../note/user_avatar_badge.dart';
 
 class NoteMarkerBottomSheet extends StatefulWidget {
   final PinSummary pin;
@@ -56,6 +57,7 @@ class _NoteMarkerBottomSheetState extends State<NoteMarkerBottomSheet> {
                 icon: placeIconData(pin.icon),
                 storagePath: pin.pinImageStoragePath,
                 radius: 20,
+                badge: UserAvatarBadge(name: pin.creatorName),
               ),
               const SizedBox(width: 12),
               Expanded(
