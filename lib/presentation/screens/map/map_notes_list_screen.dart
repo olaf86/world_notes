@@ -66,6 +66,13 @@ class MapNotesListScreen extends ConsumerWidget {
           NoteSortButton(
             selected: sort,
             provider: mapNotesSortProvider,
+            options: const [
+              NoteListSort.distance,
+              NoteListSort.lastActivity,
+              NoteListSort.mostLiked,
+              NoteListSort.newest,
+              NoteListSort.expiresSoonest,
+            ],
             semanticIdentifier: 'action-sort-map-notes',
           ),
         ],
@@ -153,6 +160,7 @@ class _PinList extends ConsumerWidget {
             pins,
             sort: sort,
             createdAt: (pin) => pin.createdAt,
+            lastActivityAt: (pin) => pin.lastActivityAt,
             expiresAt: (pin) => pin.expiresAt,
             likeCount: (pin) => pin.likeCount,
             id: (pin) => pin.placeId,

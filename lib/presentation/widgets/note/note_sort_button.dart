@@ -6,12 +6,14 @@ import '../../../domain/entities/note_list_sort.dart';
 class NoteSortButton extends ConsumerWidget {
   final NoteListSort selected;
   final StateProvider<NoteListSort> provider;
+  final List<NoteListSort> options;
   final String semanticIdentifier;
 
   const NoteSortButton({
     super.key,
     required this.selected,
     required this.provider,
+    required this.options,
     required this.semanticIdentifier,
   });
 
@@ -24,7 +26,7 @@ class NoteSortButton extends ConsumerWidget {
         tooltip: 'Sort notes: ${selected.label}',
         icon: const Icon(Icons.sort_outlined),
         onSelected: (sort) => ref.read(provider.notifier).state = sort,
-        itemBuilder: (context) => NoteListSort.values
+        itemBuilder: (context) => options
             .map(
               (sort) => PopupMenuItem(
                 value: sort,
@@ -52,15 +54,21 @@ class NoteSortButton extends ConsumerWidget {
 extension NoteListSortPresentation on NoteListSort {
   String get label => switch (this) {
     NoteListSort.distance => 'Distance',
+    NoteListSort.lastActivity => 'Last activity',
     NoteListSort.newest => 'Newest',
     NoteListSort.expiresSoonest => 'Expires soon',
     NoteListSort.mostLiked => 'Most liked',
+    NoteListSort.archivedNewest => 'Recently archived',
+    NoteListSort.archivedOldest => 'Oldest archived',
   };
 
   IconData get icon => switch (this) {
     NoteListSort.distance => Icons.near_me_outlined,
+    NoteListSort.lastActivity => Icons.forum_outlined,
     NoteListSort.newest => Icons.schedule_outlined,
     NoteListSort.expiresSoonest => Icons.event_outlined,
     NoteListSort.mostLiked => Icons.favorite_border,
+    NoteListSort.archivedNewest => Icons.archive_outlined,
+    NoteListSort.archivedOldest => Icons.unarchive_outlined,
   };
 }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/place_icon.dart';
@@ -41,13 +40,24 @@ class _NotesAppBar extends ConsumerWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final sort = ref.watch(myNotesSortProvider);
+    final isArchivedTab = DefaultTabController.of(context).index == 1;
+    final sortProvider = isArchivedTab
+        ? archivedMyNotesSortProvider
+        : myNotesSortProvider;
+    final sort = ref.watch(sortProvider);
     return AppBar(
       title: const Text('Notes'),
       actions: [
         NoteSortButton(
           selected: sort,
-          provider: myNotesSortProvider,
+          provider: sortProvider,
+          options: isArchivedTab
+              ? const [NoteListSort.archivedNewest, NoteListSort.archivedOldest]
+              : const [
+                  NoteListSort.lastActivity,
+                  NoteListSort.newest,
+                  NoteListSort.expiresSoonest,
+                ],
           semanticIdentifier: 'action-sort-my-notes',
         ),
         const MyNotesNotificationIconButton(),
@@ -109,9 +119,6 @@ class _MyNotesListView extends ConsumerWidget {
     final noteLimit = ref.watch(noteLimitProvider);
     final currentUser = ref.watch(authStateProvider).valueOrNull;
     final sort = ref.watch(myNotesSortProvider);
-    final position = sort == NoteListSort.distance
-        ? ref.watch(positionStreamProvider).valueOrNull
-        : null;
 
     return Column(
       children: [
@@ -139,12 +146,7 @@ class _MyNotesListView extends ConsumerWidget {
                   );
                 }
 
-                final sorted = _sortPlaces(
-                  places,
-                  sort: sort,
-                  latitude: position?.latitude,
-                  longitude: position?.longitude,
-                );
+                final sorted = _sortPlaces(places, sort: sort);
 
                 return ListView.separated(
                   padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
@@ -183,10 +185,7 @@ class _ArchivedNotesListView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final placesAsync = ref.watch(archivedMyPlacesProvider);
-    final sort = ref.watch(myNotesSortProvider);
-    final position = sort == NoteListSort.distance
-        ? ref.watch(positionStreamProvider).valueOrNull
-        : null;
+    final sort = ref.watch(archivedMyNotesSortProvider);
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -206,12 +205,7 @@ class _ArchivedNotesListView extends ConsumerWidget {
             );
           }
 
-          final sorted = _sortPlaces(
-            places,
-            sort: sort,
-            latitude: position?.latitude,
-            longitude: position?.longitude,
-          );
+          final sorted = _sortPlaces(places, sort: sort);
 
           return ListView.separated(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
@@ -238,24 +232,16 @@ class _ArchivedNotesListView extends ConsumerWidget {
 List<PlaceEntity> _sortPlaces(
   Iterable<PlaceEntity> places, {
   required NoteListSort sort,
-  double? latitude,
-  double? longitude,
 }) {
   return sortNoteList(
     places,
     sort: sort,
     createdAt: (place) => place.createdAt,
+    lastActivityAt: (place) => place.lastMessageAt ?? place.createdAt,
+    archivedAt: (place) => place.archivedAt,
     expiresAt: (place) => place.expiresAt,
     likeCount: (place) => place.likeCount,
     id: (place) => place.id,
-    distance: latitude == null || longitude == null
-        ? null
-        : (place) => Geolocator.distanceBetween(
-            latitude,
-            longitude,
-            place.latitude,
-            place.longitude,
-          ),
   );
 }
 

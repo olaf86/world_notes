@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../domain/entities/note_list_sort.dart';
 import '../../providers/providers.dart';
 import '../../widgets/note/note_sort_button.dart';
 import 'map_notes_error_messages.dart';
@@ -122,6 +123,13 @@ class _MapNotesList extends ConsumerWidget {
             NoteSortButton(
               selected: sort,
               provider: mapNotesSortProvider,
+              options: const [
+                NoteListSort.distance,
+                NoteListSort.lastActivity,
+                NoteListSort.mostLiked,
+                NoteListSort.newest,
+                NoteListSort.expiresSoonest,
+              ],
               semanticIdentifier: 'action-sort-map-notes',
             ),
             Semantics(

@@ -512,9 +512,14 @@ final archivedMyPlacesProvider = StreamProvider<List<PlaceEntity>>((ref) {
   return ref.watch(placeRepositoryProvider).watchArchivedMyPlaces(user.id);
 });
 
-/// Selected ordering shared by My Notes and Archived tabs.
+/// Selected ordering for the My Notes tab.
 final myNotesSortProvider = StateProvider<NoteListSort>(
   (_) => NoteListSort.newest,
+);
+
+/// Selected ordering for the Archived tab.
+final archivedMyNotesSortProvider = StateProvider<NoteListSort>(
+  (_) => NoteListSort.archivedNewest,
 );
 
 // --- Note creation limit ---

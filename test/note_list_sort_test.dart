@@ -10,6 +10,8 @@ void main() {
       expiresAt: now.add(const Duration(days: 3)),
       likes: 2,
       distance: 400,
+      lastActivityAt: now.subtract(const Duration(hours: 1)),
+      archivedAt: now.subtract(const Duration(days: 1)),
     ),
     _Note(
       id: 'popular',
@@ -17,6 +19,8 @@ void main() {
       expiresAt: now.add(const Duration(days: 1)),
       likes: 8,
       distance: 200,
+      lastActivityAt: now.subtract(const Duration(days: 2)),
+      archivedAt: now.subtract(const Duration(days: 3)),
     ),
     _Note(
       id: 'new',
@@ -24,6 +28,8 @@ void main() {
       expiresAt: now.add(const Duration(days: 7)),
       likes: 1,
       distance: 50,
+      lastActivityAt: now.subtract(const Duration(days: 4)),
+      archivedAt: now,
     ),
   ];
 
@@ -35,6 +41,8 @@ void main() {
       items,
       sort: sort,
       createdAt: (item) => item.createdAt,
+      lastActivityAt: (item) => item.lastActivityAt,
+      archivedAt: (item) => item.archivedAt,
       expiresAt: (item) => item.expiresAt,
       likeCount: (item) => item.likes,
       id: (item) => item.id,
@@ -45,8 +53,11 @@ void main() {
   test('orders notes by each requested criterion', () {
     expect(ids(NoteListSort.distance), ['new', 'popular', 'far']);
     expect(ids(NoteListSort.newest), ['new', 'far', 'popular']);
+    expect(ids(NoteListSort.lastActivity), ['far', 'popular', 'new']);
     expect(ids(NoteListSort.expiresSoonest), ['popular', 'far', 'new']);
     expect(ids(NoteListSort.mostLiked), ['popular', 'far', 'new']);
+    expect(ids(NoteListSort.archivedNewest), ['new', 'far', 'popular']);
+    expect(ids(NoteListSort.archivedOldest), ['popular', 'far', 'new']);
   });
 
   test('distance order falls back to newest when location is unavailable', () {
@@ -64,6 +75,8 @@ class _Note {
   final DateTime expiresAt;
   final int likes;
   final double distance;
+  final DateTime lastActivityAt;
+  final DateTime archivedAt;
 
   const _Note({
     required this.id,
@@ -71,5 +84,7 @@ class _Note {
     required this.expiresAt,
     required this.likes,
     required this.distance,
+    required this.lastActivityAt,
+    required this.archivedAt,
   });
 }

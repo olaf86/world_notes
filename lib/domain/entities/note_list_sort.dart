@@ -1,5 +1,13 @@
 /// The ordering options shared by note-list screens.
-enum NoteListSort { distance, newest, expiresSoonest, mostLiked }
+enum NoteListSort {
+  distance,
+  lastActivity,
+  newest,
+  expiresSoonest,
+  mostLiked,
+  archivedNewest,
+  archivedOldest,
+}
 
 /// Orders note-like values with consistent tie breakers.
 ///
@@ -13,6 +21,8 @@ List<T> sortNoteList<T>(
   required DateTime Function(T item) expiresAt,
   required int Function(T item) likeCount,
   required String Function(T item) id,
+  DateTime Function(T item)? lastActivityAt,
+  DateTime? Function(T item)? archivedAt,
   double Function(T item)? distance,
 }) {
   final sorted = items.toList();
@@ -22,9 +32,21 @@ List<T> sortNoteList<T>(
         distance?.call(a),
         distance?.call(b),
       ),
+      NoteListSort.lastActivity =>
+        (lastActivityAt?.call(b) ?? createdAt(b)).compareTo(
+          lastActivityAt?.call(a) ?? createdAt(a),
+        ),
       NoteListSort.newest => createdAt(b).compareTo(createdAt(a)),
       NoteListSort.expiresSoonest => expiresAt(a).compareTo(expiresAt(b)),
       NoteListSort.mostLiked => likeCount(b).compareTo(likeCount(a)),
+      NoteListSort.archivedNewest =>
+        (archivedAt?.call(b) ?? createdAt(b)).compareTo(
+          archivedAt?.call(a) ?? createdAt(a),
+        ),
+      NoteListSort.archivedOldest =>
+        (archivedAt?.call(a) ?? createdAt(a)).compareTo(
+          archivedAt?.call(b) ?? createdAt(b),
+        ),
     };
     if (primary != 0) return primary;
 
