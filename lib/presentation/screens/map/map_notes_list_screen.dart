@@ -173,7 +173,8 @@ class _PinList extends ConsumerWidget {
               final pin = sorted[index];
               return Semantics(
                 identifier: 'map-note-card-${pin.placeId}',
-                button: true,
+                button: pin.canOpen,
+                enabled: pin.canOpen,
                 child: _MapNoteTile(
                   pin: pin,
                   request: request,
@@ -205,7 +206,7 @@ class _ScrollableStatusView extends StatelessWidget {
   }
 }
 
-class _MapNoteTile extends StatelessWidget {
+class _MapNoteTile extends ConsumerStatefulWidget {
   final PinSummary pin;
   final MapPinsRequest request;
   final double userLatitude;
@@ -219,13 +220,21 @@ class _MapNoteTile extends StatelessWidget {
   });
 
   @override
+  ConsumerState<_MapNoteTile> createState() => _MapNoteTileState();
+}
+
+class _MapNoteTileState extends ConsumerState<_MapNoteTile> {
+  var _isOpening = false;
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final pin = widget.pin;
     final color = parsePlaceColor(pin.colorHex);
     final distanceM = Geolocator.distanceBetween(
-      userLatitude,
-      userLongitude,
+      widget.userLatitude,
+      widget.userLongitude,
       pin.latitude,
       pin.longitude,
     );
@@ -290,25 +299,22 @@ class _MapNoteTile extends StatelessWidget {
           _SummaryCount(icon: Icons.favorite_border, count: pin.likeCount),
         ],
       ),
-      onTap: () => _openPin(context),
+      onTap: pin.canOpen && !_isOpening ? _openPin : null,
     );
   }
 
-  Future<void> _openPin(BuildContext context) async {
-    if (!pin.canOpen) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Move closer to open this note.')),
-      );
-      return;
-    }
+  Future<void> _openPin() async {
+    if (_isOpening || !widget.pin.canOpen) return;
+    setState(() => _isOpening = true);
+
     final container = ProviderScope.containerOf(context, listen: false);
     try {
       await container
           .read(placeRepositoryProvider)
           .validateNoteAccess(
-            placeId: pin.placeId,
-            latitude: userLatitude,
-            longitude: userLongitude,
+            placeId: widget.pin.placeId,
+            latitude: widget.userLatitude,
+            longitude: widget.userLongitude,
           );
     } catch (error, stack) {
       await reportMapNotesError(
@@ -317,18 +323,23 @@ class _MapNoteTile extends StatelessWidget {
         error: error,
         stack: stack,
       );
-      if (!context.mounted) return;
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text(mapNoteOpenErrorMessage)));
+      setState(() => _isOpening = false);
       return;
     }
-    if (!context.mounted) return;
-    await context.push<void>(
-      '/note/${pin.placeId}?title=${Uri.encodeComponent(pin.title)}',
-    );
-    if (!context.mounted) return;
-    container.invalidate(mapPinsProvider(request));
+    if (!mounted) return;
+    try {
+      await context.push<void>(
+        '/note/${widget.pin.placeId}?title=${Uri.encodeComponent(widget.pin.title)}',
+      );
+      if (!mounted) return;
+      container.invalidate(mapPinsProvider(widget.request));
+    } finally {
+      if (mounted) setState(() => _isOpening = false);
+    }
   }
 }
 

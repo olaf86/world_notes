@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:go_router/go_router.dart';
 import 'package:world_notes/domain/entities/pin_summary_entity.dart';
+import 'package:world_notes/domain/repositories/place_repository.dart';
 import 'package:world_notes/presentation/providers/providers.dart';
 import 'package:world_notes/presentation/screens/map/map_notes_list_screen.dart';
 
@@ -56,6 +60,99 @@ void main() {
     expect(find.bySemanticsLabel('From a followed author.'), findsOneWidget);
     semantics.dispose();
   });
+
+  testWidgets('does not make distance-locked notes tappable', (tester) async {
+    final now = DateTime(2026, 7, 13, 12);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          positionStreamProvider.overrideWith(
+            (ref) => Stream.value(_position()),
+          ),
+          mapPinsProvider.overrideWith(
+            (ref, request) async => [
+              _pin(
+                placeId: 'locked',
+                now: now,
+                access: PinAccess.distanceLocked,
+              ),
+            ],
+          ),
+        ],
+        child: const MaterialApp(home: MapNotesListScreen()),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump();
+
+    final noteCardInkWell = find.descendant(
+      of: find.byType(Card),
+      matching: find.byType(InkWell),
+    );
+    expect(tester.widget<InkWell>(noteCardInkWell).onTap, isNull);
+    await tester.tap(find.text('Note locked'));
+    await tester.pump();
+    expect(find.byType(SnackBar), findsNothing);
+  });
+
+  testWidgets('opens an available note only once during rapid taps', (
+    tester,
+  ) async {
+    final now = DateTime(2026, 7, 13, 12);
+    final repository = _AccessRecordingPlaceRepository();
+    var navigationCount = 0;
+    final router = GoRouter(
+      initialLocation: '/list',
+      routes: [
+        GoRoute(path: '/list', builder: (_, _) => const MapNotesListScreen()),
+        GoRoute(
+          path: '/note/:placeId',
+          builder: (_, state) {
+            navigationCount += 1;
+            return Scaffold(
+              body: Text('Opened ${state.pathParameters['placeId']}'),
+            );
+          },
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          placeRepositoryProvider.overrideWithValue(repository),
+          positionStreamProvider.overrideWith(
+            (ref) => Stream.value(_position()),
+          ),
+          mapPinsProvider.overrideWith(
+            (ref, request) async => [
+              _pin(placeId: 'open', now: now, access: PinAccess.openable),
+            ],
+          ),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump();
+
+    final note = find.text('Note open');
+    await tester.tap(note);
+    await tester.tap(note);
+    await tester.tap(note);
+
+    expect(repository.validateCallCount, 1);
+
+    repository.completeValidation();
+    await tester.pumpAndSettle();
+
+    expect(navigationCount, 1);
+    expect(find.text('Opened open'), findsOneWidget);
+  });
 }
 
 Position _position() => Position(
@@ -96,3 +193,23 @@ PinSummary _pin({
   access: access,
   markerFlags: markerFlags,
 );
+
+class _AccessRecordingPlaceRepository implements PlaceRepository {
+  final _validationCompleter = Completer<void>();
+  var validateCallCount = 0;
+
+  @override
+  Future<void> validateNoteAccess({
+    required String placeId,
+    required double latitude,
+    required double longitude,
+  }) {
+    validateCallCount += 1;
+    return _validationCompleter.future;
+  }
+
+  void completeValidation() => _validationCompleter.complete();
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
