@@ -307,14 +307,14 @@ class _MapNoteTileState extends ConsumerState<_MapNoteTile> {
             color: colorScheme.tertiary,
           ),
       ],
-      trailing: Column(
+      trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           _SummaryCount(
             icon: Icons.chat_bubble_outline,
             count: pin.messageCount,
           ),
-          const SizedBox(height: 6),
+          const SizedBox(width: 8),
           _SummaryCount(icon: Icons.favorite_border, count: pin.likeCount),
         ],
       ),
@@ -410,11 +410,11 @@ class _SummaryCount extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    return Column(
+    return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, size: 14, color: colorScheme.onSurfaceVariant),
-        const SizedBox(height: 2),
+        const SizedBox(width: 3),
         Text(
           '$count',
           style: theme.textTheme.labelMedium?.copyWith(
