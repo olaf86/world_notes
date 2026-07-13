@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/providers.dart';
+import '../../widgets/note/note_sort_button.dart';
 import 'map_notes_error_messages.dart';
 import 'map_notes_list_screen.dart';
 import 'map_screen.dart';
@@ -72,6 +73,7 @@ class _MapNotesList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final anchor = ref.watch(anchorPositionProvider);
+    final sort = ref.watch(mapNotesSortProvider);
 
     Future<void> refresh() async {
       if (anchor == null) return;
@@ -117,6 +119,11 @@ class _MapNotesList extends ConsumerWidget {
           ),
           title: const Text('Map Notes'),
           actions: [
+            NoteSortButton(
+              selected: sort,
+              provider: mapNotesSortProvider,
+              semanticIdentifier: 'action-sort-map-notes',
+            ),
             Semantics(
               identifier: 'action-refresh-map-notes-list',
               button: true,

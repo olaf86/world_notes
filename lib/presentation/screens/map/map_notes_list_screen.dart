@@ -7,10 +7,12 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/time_format.dart';
 import '../../../core/utils/place_icon.dart';
+import '../../../domain/entities/note_list_sort.dart';
 import '../../../domain/entities/pin_summary_entity.dart';
 import '../../../services/location_service.dart';
 import '../../providers/providers.dart';
 import '../../widgets/note/note_list_card.dart';
+import '../../widgets/note/note_sort_button.dart';
 import 'map_notes_error_messages.dart';
 
 class MapNotesListScreen extends ConsumerWidget {
@@ -20,6 +22,7 @@ class MapNotesListScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final sort = ref.watch(mapNotesSortProvider);
     final anchor = ref.watch(anchorPositionProvider);
     final searchCenter = ref.watch(mapSearchCenterProvider);
     final searchRadiusKm = ref.watch(mapSearchRadiusKmProvider);
@@ -57,7 +60,16 @@ class MapNotesListScreen extends ConsumerWidget {
 
     if (embedded) return body;
     return Scaffold(
-      appBar: AppBar(title: const Text('Map Notes')),
+      appBar: AppBar(
+        title: const Text('Map Notes'),
+        actions: [
+          NoteSortButton(
+            selected: sort,
+            provider: mapNotesSortProvider,
+            semanticIdentifier: 'action-sort-map-notes',
+          ),
+        ],
+      ),
       body: body,
     );
   }
@@ -80,6 +92,7 @@ class _PinList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final sort = ref.watch(mapNotesSortProvider);
     final request = MapPinsRequest(
       center: center,
       user: latLng(userLatitude, userLongitude),
@@ -136,22 +149,20 @@ class _PinList extends ConsumerWidget {
             );
           }
 
-          final sorted = [...pins]
-            ..sort((a, b) {
-              final da = Geolocator.distanceBetween(
-                userLatitude,
-                userLongitude,
-                a.latitude,
-                a.longitude,
-              );
-              final db = Geolocator.distanceBetween(
-                userLatitude,
-                userLongitude,
-                b.latitude,
-                b.longitude,
-              );
-              return da.compareTo(db);
-            });
+          final sorted = sortNoteList(
+            pins,
+            sort: sort,
+            createdAt: (pin) => pin.createdAt,
+            expiresAt: (pin) => pin.expiresAt,
+            likeCount: (pin) => pin.likeCount,
+            id: (pin) => pin.placeId,
+            distance: (pin) => Geolocator.distanceBetween(
+              userLatitude,
+              userLongitude,
+              pin.latitude,
+              pin.longitude,
+            ),
+          );
 
           return ListView.separated(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),

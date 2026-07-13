@@ -23,6 +23,7 @@ import '../../domain/entities/admin_moderation_review_entity.dart';
 import '../../domain/entities/message_thread_item.dart';
 import '../../domain/entities/note_visitor_entity.dart';
 import '../../domain/entities/notice_entity.dart';
+import '../../domain/entities/note_list_sort.dart';
 import '../../domain/entities/pin_summary_entity.dart';
 import '../../domain/entities/place_entity.dart';
 import '../../domain/entities/public_profile_entity.dart';
@@ -414,6 +415,11 @@ final mapPinsProvider = FutureProvider.family<List<PinSummary>, MapPinsRequest>(
   },
 );
 
+/// Selected ordering for the list reached from the map.
+final mapNotesSortProvider = StateProvider<NoteListSort>(
+  (_) => NoteListSort.distance,
+);
+
 /// Live stream of a single place by id (null if it doesn't exist).
 final placeProvider = StreamProvider.family<PlaceEntity?, String>((
   ref,
@@ -505,6 +511,11 @@ final archivedMyPlacesProvider = StreamProvider<List<PlaceEntity>>((ref) {
   if (user == null) return Stream.value(const []);
   return ref.watch(placeRepositoryProvider).watchArchivedMyPlaces(user.id);
 });
+
+/// Selected ordering shared by My Notes and Archived tabs.
+final myNotesSortProvider = StateProvider<NoteListSort>(
+  (_) => NoteListSort.newest,
+);
 
 // --- Note creation limit ---
 
