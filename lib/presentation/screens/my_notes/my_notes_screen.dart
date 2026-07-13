@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/place_icon.dart';
+import '../../../domain/entities/note_list_sort.dart';
 import '../../../domain/entities/place_entity.dart';
 import '../../../domain/policies/note_permissions.dart';
 import '../../providers/providers.dart';
 import '../../widgets/my_notes_notification_controls.dart';
 import '../../widgets/note/note_list_card.dart';
+import '../../widgets/note/note_sort_button.dart';
 import '../note/note_creation_screen.dart';
 
 class MyNotesScreen extends ConsumerWidget {
@@ -30,17 +32,36 @@ class MyNotesScreen extends ConsumerWidget {
   }
 }
 
-class _NotesAppBar extends StatelessWidget implements PreferredSizeWidget {
+class _NotesAppBar extends ConsumerWidget implements PreferredSizeWidget {
   const _NotesAppBar();
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight + 48);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isArchivedTab = DefaultTabController.of(context).index == 1;
+    final sortProvider = isArchivedTab
+        ? archivedMyNotesSortProvider
+        : myNotesSortProvider;
+    final sort = ref.watch(sortProvider);
     return AppBar(
       title: const Text('Notes'),
-      actions: const [MyNotesNotificationIconButton()],
+      actions: [
+        NoteSortButton(
+          selected: sort,
+          provider: sortProvider,
+          options: isArchivedTab
+              ? const [NoteListSort.archivedNewest, NoteListSort.archivedOldest]
+              : const [
+                  NoteListSort.lastActivity,
+                  NoteListSort.newest,
+                  NoteListSort.expiresSoonest,
+                ],
+          semanticIdentifier: 'action-sort-my-notes',
+        ),
+        const MyNotesNotificationIconButton(),
+      ],
       bottom: const TabBar(
         tabs: [
           Tab(text: 'My Notes'),
@@ -97,6 +118,7 @@ class _MyNotesListView extends ConsumerWidget {
     final placesAsync = ref.watch(myPlacesProvider);
     final noteLimit = ref.watch(noteLimitProvider);
     final currentUser = ref.watch(authStateProvider).valueOrNull;
+    final sort = ref.watch(myNotesSortProvider);
 
     return Column(
       children: [
@@ -104,6 +126,7 @@ class _MyNotesListView extends ConsumerWidget {
           currentCount: placesAsync.valueOrNull?.length ?? 0,
           limit: noteLimit,
         ),
+        NoteSortStatus(sort: sort, semanticIdentifier: 'my-notes-sort-status'),
         Expanded(
           child: RefreshIndicator(
             onRefresh: () async {
@@ -124,14 +147,16 @@ class _MyNotesListView extends ConsumerWidget {
                   );
                 }
 
+                final sorted = _sortPlaces(places, sort: sort);
+
                 return ListView.separated(
                   padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
                   physics: const AlwaysScrollableScrollPhysics(),
-                  itemCount: places.length,
+                  itemCount: sorted.length,
                   separatorBuilder: (context, index) =>
                       const SizedBox(height: 10),
                   itemBuilder: (context, index) {
-                    final place = places[index];
+                    final place = sorted[index];
                     final permissions = place.permissionsFor(
                       uid: currentUser?.id,
                       membership: null,
@@ -161,45 +186,76 @@ class _ArchivedNotesListView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final placesAsync = ref.watch(archivedMyPlacesProvider);
+    final sort = ref.watch(archivedMyNotesSortProvider);
 
-    return RefreshIndicator(
-      onRefresh: () async {
-        ref.invalidate(archivedMyPlacesProvider);
-        await ref.read(archivedMyPlacesProvider.future);
-      },
-      child: placesAsync.when(
-        loading: () => const _ScrollableStatusView(
-          child: Center(child: CircularProgressIndicator()),
+    return Column(
+      children: [
+        NoteSortStatus(
+          sort: sort,
+          semanticIdentifier: 'archived-notes-sort-status',
         ),
-        error: (e, _) =>
-            _ScrollableStatusView(child: Center(child: Text('Error: $e'))),
-        data: (places) {
-          if (places.isEmpty) {
-            return const _ScrollableStatusView(
-              child: _EmptyArchivedNotesView(),
-            );
-          }
-
-          return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
-            physics: const AlwaysScrollableScrollPhysics(),
-            itemCount: places.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 10),
-            itemBuilder: (context, index) {
-              final place = places[index];
-              return _MyNoteCard(
-                place: place,
-                onCreateFromArchive: () => context.push(
-                  '/note/create',
-                  extra: NoteCreationDraft.fromPlace(place),
-                ),
-              );
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(archivedMyPlacesProvider);
+              await ref.read(archivedMyPlacesProvider.future);
             },
-          );
-        },
-      ),
+            child: placesAsync.when(
+              loading: () => const _ScrollableStatusView(
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              error: (e, _) => _ScrollableStatusView(
+                child: Center(child: Text('Error: $e')),
+              ),
+              data: (places) {
+                if (places.isEmpty) {
+                  return const _ScrollableStatusView(
+                    child: _EmptyArchivedNotesView(),
+                  );
+                }
+
+                final sorted = _sortPlaces(places, sort: sort);
+
+                return ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  itemCount: sorted.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 10),
+                  itemBuilder: (context, index) {
+                    final place = sorted[index];
+                    return _MyNoteCard(
+                      place: place,
+                      onCreateFromArchive: () => context.push(
+                        '/note/create',
+                        extra: NoteCreationDraft.fromPlace(place),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ),
+      ],
     );
   }
+}
+
+List<PlaceEntity> _sortPlaces(
+  Iterable<PlaceEntity> places, {
+  required NoteListSort sort,
+}) {
+  return sortNoteList(
+    places,
+    sort: sort,
+    createdAt: (place) => place.createdAt,
+    lastActivityAt: (place) => place.lastMessageAt ?? place.createdAt,
+    archivedAt: (place) => place.archivedAt,
+    expiresAt: (place) => place.expiresAt,
+    likeCount: (place) => place.likeCount,
+    id: (place) => place.id,
+  );
 }
 
 class _NoteLimitSummary extends StatelessWidget {
