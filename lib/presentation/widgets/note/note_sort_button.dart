@@ -51,6 +51,38 @@ class NoteSortButton extends ConsumerWidget {
   }
 }
 
+class NoteSortStatus extends StatelessWidget {
+  final NoteListSort sort;
+  final String semanticIdentifier;
+
+  const NoteSortStatus({
+    super.key,
+    required this.sort,
+    required this.semanticIdentifier,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Semantics(
+      identifier: semanticIdentifier,
+      label: 'Sorted by ${sort.label}',
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 2),
+        child: Align(
+          alignment: Alignment.centerRight,
+          child: Text(
+            'Sorted by: ${sort.label}',
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 extension NoteListSortPresentation on NoteListSort {
   String get label => switch (this) {
     NoteListSort.distance => 'Distance',

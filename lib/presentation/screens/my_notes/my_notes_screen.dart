@@ -126,6 +126,7 @@ class _MyNotesListView extends ConsumerWidget {
           currentCount: placesAsync.valueOrNull?.length ?? 0,
           limit: noteLimit,
         ),
+        NoteSortStatus(sort: sort, semanticIdentifier: 'my-notes-sort-status'),
         Expanded(
           child: RefreshIndicator(
             onRefresh: () async {
@@ -187,44 +188,56 @@ class _ArchivedNotesListView extends ConsumerWidget {
     final placesAsync = ref.watch(archivedMyPlacesProvider);
     final sort = ref.watch(archivedMyNotesSortProvider);
 
-    return RefreshIndicator(
-      onRefresh: () async {
-        ref.invalidate(archivedMyPlacesProvider);
-        await ref.read(archivedMyPlacesProvider.future);
-      },
-      child: placesAsync.when(
-        loading: () => const _ScrollableStatusView(
-          child: Center(child: CircularProgressIndicator()),
+    return Column(
+      children: [
+        NoteSortStatus(
+          sort: sort,
+          semanticIdentifier: 'archived-notes-sort-status',
         ),
-        error: (e, _) =>
-            _ScrollableStatusView(child: Center(child: Text('Error: $e'))),
-        data: (places) {
-          if (places.isEmpty) {
-            return const _ScrollableStatusView(
-              child: _EmptyArchivedNotesView(),
-            );
-          }
-
-          final sorted = _sortPlaces(places, sort: sort);
-
-          return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
-            physics: const AlwaysScrollableScrollPhysics(),
-            itemCount: sorted.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 10),
-            itemBuilder: (context, index) {
-              final place = sorted[index];
-              return _MyNoteCard(
-                place: place,
-                onCreateFromArchive: () => context.push(
-                  '/note/create',
-                  extra: NoteCreationDraft.fromPlace(place),
-                ),
-              );
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(archivedMyPlacesProvider);
+              await ref.read(archivedMyPlacesProvider.future);
             },
-          );
-        },
-      ),
+            child: placesAsync.when(
+              loading: () => const _ScrollableStatusView(
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              error: (e, _) => _ScrollableStatusView(
+                child: Center(child: Text('Error: $e')),
+              ),
+              data: (places) {
+                if (places.isEmpty) {
+                  return const _ScrollableStatusView(
+                    child: _EmptyArchivedNotesView(),
+                  );
+                }
+
+                final sorted = _sortPlaces(places, sort: sort);
+
+                return ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  itemCount: sorted.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 10),
+                  itemBuilder: (context, index) {
+                    final place = sorted[index];
+                    return _MyNoteCard(
+                      place: place,
+                      onCreateFromArchive: () => context.push(
+                        '/note/create',
+                        extra: NoteCreationDraft.fromPlace(place),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

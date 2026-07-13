@@ -122,77 +122,88 @@ class _PinList extends ConsumerWidget {
     });
     final pinsAsync = ref.watch(provider);
 
-    return RefreshIndicator(
-      onRefresh: onRefresh,
-      child: pinsAsync.when(
-        loading: () => const _ScrollableStatusView(
-          child: Center(child: CircularProgressIndicator()),
-        ),
-        error: (e, _) =>
-            const _ScrollableStatusView(child: _MapNotesLoadErrorView()),
-        data: (pins) {
-          if (pins.isEmpty) {
-            return _ScrollableStatusView(
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.location_off_outlined,
-                      size: 64,
-                      color: Theme.of(context).colorScheme.outlineVariant,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'No notes in this area.\nMove the map or drop one here!',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+    return Column(
+      children: [
+        NoteSortStatus(sort: sort, semanticIdentifier: 'map-notes-sort-status'),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: onRefresh,
+            child: pinsAsync.when(
+              loading: () => const _ScrollableStatusView(
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              error: (e, _) =>
+                  const _ScrollableStatusView(child: _MapNotesLoadErrorView()),
+              data: (pins) {
+                if (pins.isEmpty) {
+                  return _ScrollableStatusView(
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.location_off_outlined,
+                            size: 64,
+                            color: Theme.of(context).colorScheme.outlineVariant,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No notes in this area.\nMove the map or drop one here!',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                                ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
-              ),
-            );
-          }
+                  );
+                }
 
-          final sorted = sortNoteList(
-            pins,
-            sort: sort,
-            createdAt: (pin) => pin.createdAt,
-            lastActivityAt: (pin) => pin.lastActivityAt,
-            expiresAt: (pin) => pin.expiresAt,
-            likeCount: (pin) => pin.likeCount,
-            id: (pin) => pin.placeId,
-            distance: (pin) => Geolocator.distanceBetween(
-              userLatitude,
-              userLongitude,
-              pin.latitude,
-              pin.longitude,
+                final sorted = sortNoteList(
+                  pins,
+                  sort: sort,
+                  createdAt: (pin) => pin.createdAt,
+                  lastActivityAt: (pin) => pin.lastActivityAt,
+                  expiresAt: (pin) => pin.expiresAt,
+                  likeCount: (pin) => pin.likeCount,
+                  id: (pin) => pin.placeId,
+                  distance: (pin) => Geolocator.distanceBetween(
+                    userLatitude,
+                    userLongitude,
+                    pin.latitude,
+                    pin.longitude,
+                  ),
+                );
+
+                return ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  itemCount: sorted.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 10),
+                  itemBuilder: (context, index) {
+                    final pin = sorted[index];
+                    return Semantics(
+                      identifier: 'map-note-card-${pin.placeId}',
+                      button: true,
+                      child: _MapNoteTile(
+                        pin: pin,
+                        request: request,
+                        userLatitude: userLatitude,
+                        userLongitude: userLongitude,
+                      ),
+                    );
+                  },
+                );
+              },
             ),
-          );
-
-          return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
-            physics: const AlwaysScrollableScrollPhysics(),
-            itemCount: sorted.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 10),
-            itemBuilder: (context, index) {
-              final pin = sorted[index];
-              return Semantics(
-                identifier: 'map-note-card-${pin.placeId}',
-                button: true,
-                child: _MapNoteTile(
-                  pin: pin,
-                  request: request,
-                  userLatitude: userLatitude,
-                  userLongitude: userLongitude,
-                ),
-              );
-            },
-          );
-        },
-      ),
+          ),
+        ),
+      ],
     );
   }
 }
