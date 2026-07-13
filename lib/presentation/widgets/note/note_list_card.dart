@@ -8,6 +8,7 @@ class NoteListCard extends StatelessWidget {
   final String? avatarImageStoragePath;
   final String title;
   final String? subtitle;
+  final Widget? titleAccessory;
   final List<NoteListMeta> metadata;
   final Widget? trailing;
   final VoidCallback? onTap;
@@ -19,6 +20,7 @@ class NoteListCard extends StatelessWidget {
     this.avatarImageStoragePath,
     required this.title,
     this.subtitle,
+    this.titleAccessory,
     this.metadata = const [],
     this.trailing,
     this.onTap,
@@ -67,6 +69,10 @@ class NoteListCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                        if (titleAccessory != null) ...[
+                          const SizedBox(width: 8),
+                          titleAccessory!,
+                        ],
                         if (trailing != null) ...[
                           const SizedBox(width: 8),
                           trailing!,
@@ -110,9 +116,15 @@ class NoteListCard extends StatelessWidget {
 class NoteListMeta {
   final IconData icon;
   final String label;
+  final String? semanticLabel;
   final Color? color;
 
-  const NoteListMeta({required this.icon, required this.label, this.color});
+  const NoteListMeta({
+    required this.icon,
+    required this.label,
+    this.semanticLabel,
+    this.color,
+  });
 }
 
 class _NoteListMetaView extends StatelessWidget {
@@ -125,16 +137,22 @@ class _NoteListMetaView extends StatelessWidget {
     final theme = Theme.of(context);
     final color = item.color ?? theme.colorScheme.onSurfaceVariant;
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(item.icon, size: 13, color: color),
-        const SizedBox(width: 3),
-        Text(
-          item.label,
-          style: theme.textTheme.labelSmall?.copyWith(color: color),
+    return Semantics(
+      container: true,
+      label: item.semanticLabel ?? item.label,
+      child: ExcludeSemantics(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(item.icon, size: 13, color: color),
+            const SizedBox(width: 3),
+            Text(
+              item.label,
+              style: theme.textTheme.labelSmall?.copyWith(color: color),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
