@@ -190,6 +190,10 @@ class _ArchivedNotesListView extends ConsumerWidget {
 
     return Column(
       children: [
+        _ArchivedNotesSummary(
+          count: placesAsync.valueOrNull?.length,
+          isLoading: placesAsync.isLoading,
+        ),
         NoteSortStatus(
           sort: sort,
           semanticIdentifier: 'archived-notes-sort-status',
@@ -291,6 +295,64 @@ class _NoteLimitSummary extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ArchivedNotesSummary extends StatelessWidget {
+  final int? count;
+  final bool isLoading;
+
+  const _ArchivedNotesSummary({required this.count, required this.isLoading});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Semantics(
+      identifier: 'archived-notes-count',
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            Icon(Icons.archive_outlined, size: 18, color: colorScheme.primary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Archived notes',
+                style: theme.textTheme.bodyMedium,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (count != null)
+              Text(
+                '$count',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              )
+            else if (isLoading)
+              SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: colorScheme.primary,
+                ),
+              )
+            else
+              Text(
+                '—',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
