@@ -1,4 +1,5 @@
 import '../entities/note_visitor_entity.dart';
+import '../entities/note_list_sort.dart';
 import '../entities/place_entity.dart';
 import '../entities/pin_summary_entity.dart';
 
@@ -62,8 +63,16 @@ abstract class PlaceRepository {
   Stream<List<PlaceEntity>> watchMyPlaces(String userId);
   Future<List<PlaceEntity>> getMyPlaces(String userId);
 
-  /// Archived notes maintained by [userId], used by the archived My Notes view.
-  Stream<List<PlaceEntity>> watchArchivedMyPlaces(String userId);
+  /// Returns the total number of archived notes maintained by [userId].
+  Future<int> countArchivedMyPlaces(String userId);
+
+  /// Returns one ordered page of archived notes maintained by [userId].
+  Future<ArchivedPlacesPage> listArchivedMyPlaces({
+    required String userId,
+    required NoteListSort sort,
+    Object? cursor,
+    int limit = 50,
+  });
 
   /// Permanently moves an active note to the archived lifecycle state.
   Future<void> archivePlace(String placeId);

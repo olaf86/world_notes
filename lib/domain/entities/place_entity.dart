@@ -195,6 +195,22 @@ class PlaceEntity {
   }
 }
 
+/// One page of archived notes maintained by the current user.
+///
+/// [nextCursor] is repository-specific and is only passed back to the same
+/// repository method to load the following page.
+class ArchivedPlacesPage {
+  final List<PlaceEntity> places;
+  final Object? nextCursor;
+  final bool hasMore;
+
+  const ArchivedPlacesPage({
+    required this.places,
+    required this.nextCursor,
+    required this.hasMore,
+  });
+}
+
 /// A user's access grant to a private note (places/{id}/members/{uid}).
 class NoteMembership {
   /// Granted by a maintainer invitation (survives password changes).

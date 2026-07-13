@@ -504,12 +504,13 @@ final myPlacesProvider = StreamProvider<List<PlaceEntity>>((ref) {
   return ref.watch(placeRepositoryProvider).watchMyPlaces(user.id);
 });
 
-/// Archived notes owned by the current user; returns an empty stream while
-/// signed out.
-final archivedMyPlacesProvider = StreamProvider<List<PlaceEntity>>((ref) {
-  final user = ref.watch(authStateProvider).valueOrNull;
-  if (user == null) return Stream.value(const []);
-  return ref.watch(placeRepositoryProvider).watchArchivedMyPlaces(user.id);
+/// Total archived notes owned by the current user. The archived list itself is
+/// fetched in pages.
+final archivedMyPlacesCountProvider = FutureProvider<int?>((ref) {
+  final authState = ref.watch(authStateProvider);
+  final user = authState.valueOrNull;
+  if (user == null) return authState.isLoading ? null : 0;
+  return ref.watch(placeRepositoryProvider).countArchivedMyPlaces(user.id);
 });
 
 /// Selected ordering for the My Notes tab.

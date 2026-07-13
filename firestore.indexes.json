@@ -43,6 +43,15 @@
       "collectionGroup": "places",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "maintainerIds", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "isArchived", "order": "ASCENDING" },
+        { "fieldPath": "archivedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "places",
+      "queryScope": "COLLECTION",
+      "fields": [
         { "fieldPath": "isArchived", "order": "ASCENDING" },
         { "fieldPath": "expiresAt", "order": "ASCENDING" }
       ]

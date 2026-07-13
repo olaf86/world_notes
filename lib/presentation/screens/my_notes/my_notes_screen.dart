@@ -32,15 +32,42 @@ class MyNotesScreen extends ConsumerWidget {
   }
 }
 
-class _NotesAppBar extends ConsumerWidget implements PreferredSizeWidget {
+class _NotesAppBar extends ConsumerStatefulWidget
+    implements PreferredSizeWidget {
   const _NotesAppBar();
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight + 48);
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final isArchivedTab = DefaultTabController.of(context).index == 1;
+  ConsumerState<_NotesAppBar> createState() => _NotesAppBarState();
+}
+
+class _NotesAppBarState extends ConsumerState<_NotesAppBar> {
+  TabController? _tabController;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final tabController = DefaultTabController.of(context);
+    if (_tabController == tabController) return;
+    _tabController?.removeListener(_onTabChanged);
+    _tabController = tabController..addListener(_onTabChanged);
+  }
+
+  @override
+  void dispose() {
+    _tabController?.removeListener(_onTabChanged);
+    super.dispose();
+  }
+
+  void _onTabChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isArchivedTab = _tabController?.index == 1;
     final sortProvider = isArchivedTab
         ? archivedMyNotesSortProvider
         : myNotesSortProvider;
@@ -105,6 +132,7 @@ class _MyNotesListView extends ConsumerWidget {
 
     try {
       await ref.read(placeRepositoryProvider).archivePlace(place.id);
+      ref.invalidate(archivedMyPlacesCountProvider);
     } catch (error) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(
@@ -180,68 +208,200 @@ class _MyNotesListView extends ConsumerWidget {
   }
 }
 
-class _ArchivedNotesListView extends ConsumerWidget {
+class _ArchivedNotesListView extends ConsumerStatefulWidget {
   const _ArchivedNotesListView();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final placesAsync = ref.watch(archivedMyPlacesProvider);
+  ConsumerState<_ArchivedNotesListView> createState() =>
+      _ArchivedNotesListViewState();
+}
+
+class _ArchivedNotesListViewState
+    extends ConsumerState<_ArchivedNotesListView> {
+  static const _pageSize = 50;
+
+  final List<PlaceEntity> _places = [];
+  Object? _cursor;
+  bool _initialLoading = true;
+  bool _loadingMore = false;
+  bool _hasMore = false;
+  String? _error;
+  int _requestGeneration = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(_loadFirstPage);
+  }
+
+  Future<void> _loadFirstPage() async {
+    final requestGeneration = ++_requestGeneration;
+    final user = ref.read(authStateProvider).valueOrNull;
+    final sort = ref.read(archivedMyNotesSortProvider);
+    setState(() {
+      _initialLoading = true;
+      _loadingMore = false;
+      _error = null;
+      _places.clear();
+      _cursor = null;
+      _hasMore = false;
+    });
+    if (user == null) {
+      if (!mounted || requestGeneration != _requestGeneration) return;
+      setState(() {
+        _places.clear();
+        _cursor = null;
+        _hasMore = false;
+        _initialLoading = false;
+      });
+      return;
+    }
+
+    try {
+      final page = await ref
+          .read(placeRepositoryProvider)
+          .listArchivedMyPlaces(userId: user.id, sort: sort, limit: _pageSize);
+      if (!mounted || requestGeneration != _requestGeneration) return;
+      setState(() {
+        _places
+          ..clear()
+          ..addAll(page.places);
+        _cursor = page.nextCursor;
+        _hasMore = page.hasMore;
+        _initialLoading = false;
+      });
+    } catch (error) {
+      if (!mounted || requestGeneration != _requestGeneration) return;
+      setState(() {
+        _error = error.toString();
+        _initialLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_loadingMore || !_hasMore || _cursor == null) return;
+    final user = ref.read(authStateProvider).valueOrNull;
+    if (user == null) return;
+
+    final requestGeneration = _requestGeneration;
+    final sort = ref.read(archivedMyNotesSortProvider);
+    setState(() {
+      _loadingMore = true;
+      _error = null;
+    });
+    try {
+      final page = await ref
+          .read(placeRepositoryProvider)
+          .listArchivedMyPlaces(
+            userId: user.id,
+            sort: sort,
+            cursor: _cursor,
+            limit: _pageSize,
+          );
+      if (!mounted || requestGeneration != _requestGeneration) return;
+      setState(() {
+        _places.addAll(page.places);
+        _cursor = page.nextCursor;
+        _hasMore = page.hasMore;
+        _loadingMore = false;
+      });
+    } catch (error) {
+      if (!mounted || requestGeneration != _requestGeneration) return;
+      setState(() {
+        _error = error.toString();
+        _loadingMore = false;
+      });
+    }
+  }
+
+  Future<void> _refresh() async {
+    ref.invalidate(archivedMyPlacesCountProvider);
+    await Future.wait([
+      _loadFirstPage(),
+      ref.read(archivedMyPlacesCountProvider.future),
+    ]);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen<NoteListSort>(archivedMyNotesSortProvider, (previous, next) {
+      if (previous != next) _loadFirstPage();
+    });
+    ref.listen(authStateProvider, (previous, next) {
+      if (previous?.valueOrNull?.id != next.valueOrNull?.id) {
+        _loadFirstPage();
+      }
+    });
+
+    final countAsync = ref.watch(archivedMyPlacesCountProvider);
     final sort = ref.watch(archivedMyNotesSortProvider);
 
     return Column(
       children: [
         _ArchivedNotesSummary(
-          count: placesAsync.valueOrNull?.length,
-          isLoading: placesAsync.isLoading,
+          count: countAsync.valueOrNull,
+          isLoading: countAsync.isLoading,
         ),
         NoteSortStatus(
           sort: sort,
           semanticIdentifier: 'archived-notes-sort-status',
         ),
         Expanded(
-          child: RefreshIndicator(
-            onRefresh: () async {
-              ref.invalidate(archivedMyPlacesProvider);
-              await ref.read(archivedMyPlacesProvider.future);
-            },
-            child: placesAsync.when(
-              loading: () => const _ScrollableStatusView(
-                child: Center(child: CircularProgressIndicator()),
-              ),
-              error: (e, _) => _ScrollableStatusView(
-                child: Center(child: Text('Error: $e')),
-              ),
-              data: (places) {
-                if (places.isEmpty) {
-                  return const _ScrollableStatusView(
-                    child: _EmptyArchivedNotesView(),
-                  );
-                }
-
-                final sorted = _sortPlaces(places, sort: sort);
-
-                return ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  itemCount: sorted.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 10),
-                  itemBuilder: (context, index) {
-                    final place = sorted[index];
-                    return _MyNoteCard(
-                      place: place,
-                      onCreateFromArchive: () => context.push(
-                        '/note/create',
-                        extra: NoteCreationDraft.fromPlace(place),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
+          child: RefreshIndicator(onRefresh: _refresh, child: _buildList()),
         ),
       ],
+    );
+  }
+
+  Widget _buildList() {
+    if (_initialLoading) {
+      return const _ScrollableStatusView(
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (_error != null && _places.isEmpty) {
+      return _ScrollableStatusView(
+        child: Center(child: Text('Error: $_error')),
+      );
+    }
+    if (_places.isEmpty) {
+      return const _ScrollableStatusView(child: _EmptyArchivedNotesView());
+    }
+
+    final showsFooter = _hasMore || _loadingMore || _error != null;
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
+      physics: const AlwaysScrollableScrollPhysics(),
+      itemCount: _places.length + (showsFooter ? 1 : 0),
+      separatorBuilder: (context, index) => const SizedBox(height: 10),
+      itemBuilder: (context, index) {
+        if (index == _places.length) return _loadMoreFooter();
+        final place = _places[index];
+        return _MyNoteCard(
+          place: place,
+          onCreateFromArchive: () => context.push(
+            '/note/create',
+            extra: NoteCreationDraft.fromPlace(place),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _loadMoreFooter() {
+    if (_loadingMore) {
+      return const Padding(
+        padding: EdgeInsets.all(12),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    return Center(
+      child: TextButton.icon(
+        onPressed: _loadMore,
+        icon: const Icon(Icons.expand_more),
+        label: Text(_error == null ? 'Load more' : 'Retry loading more'),
+      ),
     );
   }
 }

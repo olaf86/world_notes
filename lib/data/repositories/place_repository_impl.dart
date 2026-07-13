@@ -9,6 +9,7 @@ import '../../config/runtime_mode.dart';
 import '../../core/utils/image_upload_util.dart';
 import '../../domain/entities/place_entity.dart'
     show
+        ArchivedPlacesPage,
         ClosedReason,
         NoteLockDraft,
         NoteLockType,
@@ -17,6 +18,7 @@ import '../../domain/entities/place_entity.dart'
         PlaceEntity,
         PlaceVisibility;
 import '../../domain/entities/note_visitor_entity.dart';
+import '../../domain/entities/note_list_sort.dart';
 import '../../domain/entities/pin_summary_entity.dart';
 import '../../domain/repositories/place_repository.dart';
 import '../models/note_visitor_model.dart';
@@ -190,19 +192,6 @@ class PlaceRepositoryImpl implements PlaceRepository {
     return places;
   }
 
-  List<PlaceEntity> _collectArchivedMyPlaces(QuerySnapshot snap) {
-    final places = snap.docs
-        .map((doc) => PlaceModel.fromFirestore(doc).toEntity())
-        .where((place) => place.isArchived)
-        .toList();
-    places.sort((a, b) {
-      final aTime = a.archivedAt ?? a.expiresAt;
-      final bTime = b.archivedAt ?? b.expiresAt;
-      return bTime.compareTo(aTime);
-    });
-    return places;
-  }
-
   @override
   Future<int> countUserActivePlaces(String userId) async {
     final snap = await _places
@@ -228,11 +217,42 @@ class PlaceRepositoryImpl implements PlaceRepository {
   }
 
   @override
-  Stream<List<PlaceEntity>> watchArchivedMyPlaces(String userId) {
-    return _maintainedPlacesQuery(
+  Future<int> countArchivedMyPlaces(String userId) async {
+    final snap = await _maintainedPlacesQuery(
       userId,
       isArchived: true,
-    ).snapshots().map(_collectArchivedMyPlaces);
+    ).count().get();
+    return snap.count ?? 0;
+  }
+
+  @override
+  Future<ArchivedPlacesPage> listArchivedMyPlaces({
+    required String userId,
+    required NoteListSort sort,
+    Object? cursor,
+    int limit = 50,
+  }) async {
+    assert(
+      sort == NoteListSort.archivedNewest ||
+          sort == NoteListSort.archivedOldest,
+    );
+
+    Query query = _maintainedPlacesQuery(userId, isArchived: true)
+        .orderBy('archivedAt', descending: sort == NoteListSort.archivedNewest)
+        .limit(limit + 1);
+    if (cursor != null) {
+      query = query.startAfterDocument(cursor as DocumentSnapshot);
+    }
+
+    final snap = await query.get();
+    final pageDocs = snap.docs.take(limit).toList();
+    return ArchivedPlacesPage(
+      places: pageDocs
+          .map((doc) => PlaceModel.fromFirestore(doc).toEntity())
+          .toList(),
+      nextCursor: pageDocs.isEmpty ? null : pageDocs.last,
+      hasMore: snap.docs.length > limit,
+    );
   }
 
   @override
