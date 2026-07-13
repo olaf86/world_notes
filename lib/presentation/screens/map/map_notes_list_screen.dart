@@ -189,7 +189,8 @@ class _PinList extends ConsumerWidget {
                     final pin = sorted[index];
                     return Semantics(
                       identifier: 'map-note-card-${pin.placeId}',
-                      button: true,
+                      button: pin.canOpen,
+                      enabled: pin.canOpen,
                       child: _MapNoteTile(
                         pin: pin,
                         request: request,
@@ -224,7 +225,7 @@ class _ScrollableStatusView extends StatelessWidget {
   }
 }
 
-class _MapNoteTile extends StatelessWidget {
+class _MapNoteTile extends ConsumerStatefulWidget {
   final PinSummary pin;
   final MapPinsRequest request;
   final double userLatitude;
@@ -238,13 +239,21 @@ class _MapNoteTile extends StatelessWidget {
   });
 
   @override
+  ConsumerState<_MapNoteTile> createState() => _MapNoteTileState();
+}
+
+class _MapNoteTileState extends ConsumerState<_MapNoteTile> {
+  var _isOpening = false;
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final pin = widget.pin;
     final color = parsePlaceColor(pin.colorHex);
     final distanceM = Geolocator.distanceBetween(
-      userLatitude,
-      userLongitude,
+      widget.userLatitude,
+      widget.userLongitude,
       pin.latitude,
       pin.longitude,
     );
@@ -257,11 +266,13 @@ class _MapNoteTile extends StatelessWidget {
       avatarImageStoragePath: pin.pinImageStoragePath,
       title: pin.title,
       subtitle: pin.subtitle,
+      titleAccessory: _AccessStatusSignal(canOpen: pin.canOpen),
       metadata: [
         if (pin.isFromFollowedAuthor)
           NoteListMeta(
             icon: Icons.person_pin_circle_outlined,
-            label: 'New from someone you follow',
+            label: 'From someone you follow',
+            semanticLabel: 'From a followed author.',
             color: colorScheme.tertiary,
           ),
         if (pin.hasUnseenMessages)
@@ -307,25 +318,22 @@ class _MapNoteTile extends StatelessWidget {
           _SummaryCount(icon: Icons.favorite_border, count: pin.likeCount),
         ],
       ),
-      onTap: () => _openPin(context),
+      onTap: pin.canOpen && !_isOpening ? _openPin : null,
     );
   }
 
-  Future<void> _openPin(BuildContext context) async {
-    if (!pin.canOpen) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Move closer to open this note.')),
-      );
-      return;
-    }
+  Future<void> _openPin() async {
+    if (_isOpening || !widget.pin.canOpen) return;
+    setState(() => _isOpening = true);
+
     final container = ProviderScope.containerOf(context, listen: false);
     try {
       await container
           .read(placeRepositoryProvider)
           .validateNoteAccess(
-            placeId: pin.placeId,
-            latitude: userLatitude,
-            longitude: userLongitude,
+            placeId: widget.pin.placeId,
+            latitude: widget.userLatitude,
+            longitude: widget.userLongitude,
           );
     } catch (error, stack) {
       await reportMapNotesError(
@@ -334,18 +342,61 @@ class _MapNoteTile extends StatelessWidget {
         error: error,
         stack: stack,
       );
-      if (!context.mounted) return;
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text(mapNoteOpenErrorMessage)));
+      setState(() => _isOpening = false);
       return;
     }
-    if (!context.mounted) return;
-    await context.push<void>(
-      '/note/${pin.placeId}?title=${Uri.encodeComponent(pin.title)}',
+    if (!mounted) return;
+    try {
+      await context.push<void>(
+        '/note/${widget.pin.placeId}?title=${Uri.encodeComponent(widget.pin.title)}',
+      );
+      if (!mounted) return;
+      container.invalidate(mapPinsProvider(widget.request));
+    } finally {
+      if (mounted) setState(() => _isOpening = false);
+    }
+  }
+}
+
+class _AccessStatusSignal extends StatelessWidget {
+  final bool canOpen;
+
+  const _AccessStatusSignal({required this.canOpen});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = canOpen
+        ? Colors.green.shade700
+        : Theme.of(context).colorScheme.error;
+    final label = canOpen
+        ? 'Within access range. You can open this note.'
+        : 'Outside access range. Move closer to open this note.';
+
+    return Semantics(
+      container: true,
+      label: label,
+      child: Tooltip(
+        message: canOpen ? 'Open now' : 'Move closer to open',
+        excludeFromSemantics: true,
+        child: ExcludeSemantics(
+          child: Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(color: color.withValues(alpha: 0.55), blurRadius: 8),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
-    if (!context.mounted) return;
-    container.invalidate(mapPinsProvider(request));
   }
 }
 
