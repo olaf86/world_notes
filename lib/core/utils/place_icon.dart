@@ -12,6 +12,14 @@ IconData placeIconData(String icon) {
     'star' => Icons.star,
     'photo' => Icons.photo_camera,
     'music' => Icons.music_note,
+    'coffee' => Icons.coffee,
+    'shopping' => Icons.shopping_bag,
+    'hotel' => Icons.hotel,
+    'directions' => Icons.directions_car,
+    'hiking' => Icons.hiking,
+    'pets' => Icons.pets,
+    'work' => Icons.work,
+    'favorite' => Icons.favorite,
     _ => Icons.place,
   };
 }
