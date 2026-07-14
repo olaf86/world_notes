@@ -123,7 +123,8 @@ void main() {
 
     await tester.tap(find.text('Open Note'));
     await tester.pump();
-    expect(openedPin?.access, PinAccess.openable);
+    expect(openedPin, same(pin));
+    expect(openedPin?.access, PinAccess.distanceLocked);
   });
 }
 

@@ -1,25 +1,27 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:world_notes/domain/entities/pin_summary_entity.dart';
-import 'package:world_notes/presentation/screens/map/map_pin_access.dart';
+import 'package:world_notes/presentation/screens/map/map_pin_display.dart';
 
 void main() {
-  test('updates the server snapshot with the live distance-based access', () {
+  test('combines the server pin with live distance-based access', () {
     final pin = _pin(access: PinAccess.distanceLocked);
 
-    final accessible = pinWithLiveAccess(
+    final accessible = mapPinDisplay(
       pin,
       position: _position(latitude: 35.001),
       accessRadiusMeters: 500,
     );
-    final locked = pinWithLiveAccess(
+    final locked = mapPinDisplay(
       pin,
       position: _position(),
       accessRadiusMeters: 500,
     );
 
-    expect(accessible.access, PinAccess.openable);
-    expect(locked.access, PinAccess.distanceLocked);
+    expect(accessible.pin, same(pin));
+    expect(accessible.canOpen, isTrue);
+    expect(locked.canOpen, isFalse);
+    expect(pin.access, PinAccess.distanceLocked);
   });
 }
 

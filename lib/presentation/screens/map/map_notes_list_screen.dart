@@ -14,7 +14,7 @@ import '../../providers/providers.dart';
 import '../../widgets/note/note_list_card.dart';
 import '../../widgets/note/note_sort_button.dart';
 import 'map_notes_error_messages.dart';
-import 'map_pin_access.dart';
+import 'map_pin_display.dart';
 
 class MapNotesListScreen extends ConsumerWidget {
   final bool embedded;
@@ -124,9 +124,9 @@ class _PinListState extends ConsumerState<_PinList> {
     }
   }
 
-  List<PinSummary> _orderedPins({
+  List<MapPinDisplay> _orderedPins({
     required List<PinSummary> sourcePins,
-    required List<PinSummary> currentPins,
+    required List<MapPinDisplay> currentPins,
     required NoteListSort sort,
   }) {
     // Location changes are intentionally excluded here: they update each
@@ -136,24 +136,21 @@ class _PinListState extends ConsumerState<_PinList> {
       _orderedPlaceIds = sortNoteList(
         currentPins,
         sort: sort,
-        createdAt: (pin) => pin.createdAt,
-        lastActivityAt: (pin) => pin.lastActivityAt,
-        expiresAt: (pin) => pin.expiresAt,
-        likeCount: (pin) => pin.likeCount,
-        id: (pin) => pin.placeId,
-        distance: (pin) => Geolocator.distanceBetween(
-          widget.currentPosition.latitude,
-          widget.currentPosition.longitude,
-          pin.latitude,
-          pin.longitude,
-        ),
-      ).map((pin) => pin.placeId).toList(growable: false);
+        createdAt: (display) => display.pin.createdAt,
+        lastActivityAt: (display) => display.pin.lastActivityAt,
+        expiresAt: (display) => display.pin.expiresAt,
+        likeCount: (display) => display.pin.likeCount,
+        id: (display) => display.pin.placeId,
+        distance: (display) => display.distanceMeters!,
+      ).map((display) => display.pin.placeId).toList(growable: false);
       _sourcePins = sourcePins;
       _sort = sort;
     }
 
-    final pinByPlaceId = {for (final pin in currentPins) pin.placeId: pin};
-    final ordered = <PinSummary>[
+    final pinByPlaceId = {
+      for (final display in currentPins) display.pin.placeId: display,
+    };
+    final ordered = <MapPinDisplay>[
       for (final placeId in _orderedPlaceIds) ?pinByPlaceId.remove(placeId),
     ];
     // A defensive fallback for a source update that mutates the same list
@@ -201,7 +198,7 @@ class _PinListState extends ConsumerState<_PinList> {
               error: (e, _) =>
                   const _ScrollableStatusView(child: _MapNotesLoadErrorView()),
               data: (pins) {
-                final currentPins = pinsWithLiveAccess(
+                final currentPins = mapPinDisplays(
                   pins,
                   position: widget.currentPosition,
                   accessRadiusMeters: noteAccessRadiusMeters.toDouble(),
@@ -247,21 +244,22 @@ class _PinListState extends ConsumerState<_PinList> {
                   findItemIndexCallback: (key) {
                     if (key is! ValueKey<String>) return null;
                     final index = sorted.indexWhere(
-                      (pin) => pin.placeId == key.value,
+                      (display) => display.pin.placeId == key.value,
                     );
                     return index == -1 ? null : index;
                   },
                   separatorBuilder: (context, index) =>
                       const SizedBox(height: 10),
                   itemBuilder: (context, index) {
-                    final pin = sorted[index];
+                    final display = sorted[index];
+                    final pin = display.pin;
                     return Semantics(
                       key: ValueKey(pin.placeId),
                       identifier: 'map-note-card-${pin.placeId}',
-                      button: pin.canOpen,
-                      enabled: pin.canOpen,
+                      button: display.canOpen,
+                      enabled: display.canOpen,
                       child: _MapNoteTile(
-                        pin: pin,
+                        display: display,
                         request: request,
                         userLatitude: widget.currentPosition.latitude,
                         userLongitude: widget.currentPosition.longitude,
@@ -295,13 +293,13 @@ class _ScrollableStatusView extends StatelessWidget {
 }
 
 class _MapNoteTile extends ConsumerStatefulWidget {
-  final PinSummary pin;
+  final MapPinDisplay display;
   final MapPinsRequest request;
   final double userLatitude;
   final double userLongitude;
 
   const _MapNoteTile({
-    required this.pin,
+    required this.display,
     required this.request,
     required this.userLatitude,
     required this.userLongitude,
@@ -318,14 +316,10 @@ class _MapNoteTileState extends ConsumerState<_MapNoteTile> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final pin = widget.pin;
+    final display = widget.display;
+    final pin = display.pin;
     final color = parsePlaceColor(pin.colorHex);
-    final distanceM = Geolocator.distanceBetween(
-      widget.userLatitude,
-      widget.userLongitude,
-      pin.latitude,
-      pin.longitude,
-    );
+    final distanceM = display.distanceMeters!;
     final distanceLabel = distanceM < 1000
         ? '${distanceM.round()} meters away'
         : '${(distanceM / 1000).toStringAsFixed(1)} km away';
@@ -335,7 +329,7 @@ class _MapNoteTileState extends ConsumerState<_MapNoteTile> {
       avatarImageStoragePath: pin.pinImageStoragePath,
       title: pin.title,
       subtitle: pin.subtitle,
-      titleAccessory: _AccessStatusSignal(canOpen: pin.canOpen),
+      titleAccessory: _AccessStatusSignal(canOpen: display.canOpen),
       metadata: [
         if (pin.isFromFollowedAuthor)
           NoteListMeta(
@@ -387,12 +381,12 @@ class _MapNoteTileState extends ConsumerState<_MapNoteTile> {
           _SummaryCount(icon: Icons.favorite_border, count: pin.likeCount),
         ],
       ),
-      onTap: pin.canOpen && !_isOpening ? _openPin : null,
+      onTap: display.canOpen && !_isOpening ? _openPin : null,
     );
   }
 
   Future<void> _openPin() async {
-    if (_isOpening || !widget.pin.canOpen) return;
+    if (_isOpening || !widget.display.canOpen) return;
     setState(() => _isOpening = true);
 
     final container = ProviderScope.containerOf(context, listen: false);
@@ -400,7 +394,7 @@ class _MapNoteTileState extends ConsumerState<_MapNoteTile> {
       await container
           .read(placeRepositoryProvider)
           .validateNoteAccess(
-            placeId: widget.pin.placeId,
+            placeId: widget.display.pin.placeId,
             latitude: widget.userLatitude,
             longitude: widget.userLongitude,
           );
@@ -421,7 +415,7 @@ class _MapNoteTileState extends ConsumerState<_MapNoteTile> {
     if (!mounted) return;
     try {
       await context.push<void>(
-        '/note/${widget.pin.placeId}?title=${Uri.encodeComponent(widget.pin.title)}',
+        '/note/${widget.display.pin.placeId}?title=${Uri.encodeComponent(widget.display.pin.title)}',
       );
       if (!mounted) return;
       container.invalidate(mapPinsProvider(widget.request));
