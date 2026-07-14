@@ -18,8 +18,9 @@ class MapPinDisplay {
     required this.canOpen,
   });
 
-  /// Falls back to the server snapshot before a local position is available.
-  factory MapPinDisplay.withServerAccess(PinSummary pin) =>
+  /// Creates display data from the server snapshot before a local position is
+  /// available.
+  factory MapPinDisplay.fromServerSnapshot(PinSummary pin) =>
       MapPinDisplay(pin: pin, distanceMeters: null, canOpen: pin.canOpen);
 }
 
@@ -27,7 +28,7 @@ class MapPinDisplay {
 /// Pin discovery is deliberately throttled by [anchorPositionProvider], but
 /// access affordances must react to the live GPS stream. Keeping this mapping
 /// local avoids a map-pins request for every location update.
-MapPinDisplay mapPinDisplay(
+MapPinDisplay deriveMapPinDisplay(
   PinSummary pin, {
   required Position position,
   required double accessRadiusMeters,
@@ -45,14 +46,14 @@ MapPinDisplay mapPinDisplay(
   );
 }
 
-List<MapPinDisplay> mapPinDisplays(
+List<MapPinDisplay> deriveMapPinDisplays(
   List<PinSummary> pins, {
   required Position position,
   required double accessRadiusMeters,
 }) {
   return [
     for (final pin in pins)
-      mapPinDisplay(
+      deriveMapPinDisplay(
         pin,
         position: position,
         accessRadiusMeters: accessRadiusMeters,

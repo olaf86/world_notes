@@ -7,12 +7,12 @@ void main() {
   test('combines the server pin with live distance-based access', () {
     final pin = _pin(access: PinAccess.distanceLocked);
 
-    final accessible = mapPinDisplay(
+    final accessible = deriveMapPinDisplay(
       pin,
       position: _position(latitude: 35.001),
       accessRadiusMeters: 500,
     );
-    final locked = mapPinDisplay(
+    final locked = deriveMapPinDisplay(
       pin,
       position: _position(),
       accessRadiusMeters: 500,
