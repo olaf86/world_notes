@@ -181,6 +181,7 @@ PinSummary _pin({
   colorHex: '#4CAF50',
   icon: 'place',
   creatorName: 'Alice',
+  creatorPhotoVersion: 1,
   messageCount: 0,
   likeCount: 0,
   visitorCount: 0,

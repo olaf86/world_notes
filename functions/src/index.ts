@@ -48,6 +48,7 @@ export {
 // User profile updates. Nickname changes keep future posts using the new name
 // and refresh note access-list member labels.
 export {updateDisplayName} from "./userProfile";
+export {syncCreatorPhotoSnapshot} from "./creatorProfileSnapshots";
 
 // Map exploration pin summaries and detail-entry proximity checks.
 export {listMapPins, validateNoteAccess} from "./mapPins";

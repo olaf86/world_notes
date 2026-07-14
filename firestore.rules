@@ -3,7 +3,8 @@ rules_version = '2';
 // Assumed data ownership model:
 // - users/{uid}: private account and entitlement data; owner-readable.
 // - publicProfiles/{uid}: authenticated-readable display data; displayName,
-//   nullable photoUrl, counters, createdAt and updatedAt are required.
+//   nullable photoUrl, photoVersion, counters, createdAt and updatedAt are
+//   required.
 // - socialEdges/{edgeId}: authenticated-readable, server-managed follow edge.
 // - users/{uid}/notificationSettings: owner-readable, server-managed settings.
 // - users/{uid}/fcmTokens: sensitive server-managed delivery endpoints.
@@ -129,6 +130,7 @@ service cloud.firestore {
       return profile.keys().hasAll([
                'displayName',
                'photoUrl',
+               'photoVersion',
                'followerCount',
                'followingCount',
                'createdAt',
@@ -137,6 +139,7 @@ service cloud.firestore {
              && profile.keys().hasOnly([
                'displayName',
                'photoUrl',
+               'photoVersion',
                'followerCount',
                'followingCount',
                'createdAt',
@@ -149,6 +152,8 @@ service cloud.firestore {
                  || (profile.photoUrl is string
                      && profile.photoUrl.size() > 0
                      && profile.photoUrl.size() <= 2000))
+             && profile.photoVersion is int
+             && profile.photoVersion > 0
              && profile.followerCount is int
              && profile.followerCount >= 0
              && profile.followingCount is int
@@ -172,7 +177,12 @@ service cloud.firestore {
              && isValidPublicProfile(request.resource.data)
              && request.resource.data.diff(resource.data)
                  .affectedKeys()
-                 .hasOnly(['displayName', 'photoUrl', 'updatedAt'])
+                 .hasOnly([
+                   'displayName',
+                   'photoUrl',
+                   'photoVersion',
+                   'updatedAt'
+                 ])
              && request.resource.data.createdAt == resource.data.createdAt
              && request.resource.data.followerCount ==
                  resource.data.followerCount

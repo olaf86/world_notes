@@ -11,6 +11,8 @@ void main() {
       'subtitle': null,
       'colorHex': '#4CAF50',
       'icon': 'place',
+      'creatorName': 'Alice',
+      'creatorPhotoVersion': 1,
       'messageCount': 2,
       'likeCount': 4,
       'visitorCount': 3,
@@ -29,10 +31,15 @@ void main() {
       expect(model.toEntity().creatorName, 'Alice');
     });
 
-    test('uses a safe fallback for legacy creator name', () {
-      final model = PinSummaryModel.fromJson(json);
+    test('reads an optional creator photo URL', () {
+      final model = PinSummaryModel.fromJson({
+        ...json,
+        'creatorPhotoUrl': 'https://example.com/alice.png',
+        'creatorPhotoVersion': 2,
+      });
 
-      expect(model.toEntity().creatorName, 'Unknown user');
+      expect(model.toEntity().creatorPhotoUrl, 'https://example.com/alice.png');
+      expect(model.toEntity().creatorPhotoVersion, 2);
     });
 
     test('reads the like count', () {
@@ -61,7 +68,7 @@ void main() {
       expect(pin.hasUnseenMessages, isTrue);
     });
 
-    test('uses a normal marker for legacy responses', () {
+    test('uses a normal marker when no marker flags are returned', () {
       final model = PinSummaryModel.fromJson(json);
 
       expect(model.toEntity().markerFlags, isEmpty);

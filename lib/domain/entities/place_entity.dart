@@ -71,6 +71,12 @@ class PlaceEntity {
   final String icon;
   final String? pinImageStoragePath;
   final String createdByUserId;
+
+  /// Denormalized public creator display fields used by map and list cards.
+  /// They avoid an additional profile read per visible place.
+  final String creatorName;
+  final String? creatorPhotoUrl;
+  final int creatorPhotoVersion;
   final List<String> maintainerIds;
   final DateTime createdAt;
   final DateTime publishAt;
@@ -131,6 +137,9 @@ class PlaceEntity {
     required this.icon,
     this.pinImageStoragePath,
     required this.createdByUserId,
+    required this.creatorName,
+    this.creatorPhotoUrl,
+    required this.creatorPhotoVersion,
     this.maintainerIds = const [],
     required this.createdAt,
     required this.publishAt,

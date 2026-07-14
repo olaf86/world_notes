@@ -137,7 +137,7 @@ class FollowRepositoryImpl implements FollowRepository {
   }
 
   PublicProfile _missingProfile(String userId) {
-    return PublicProfile(id: userId, displayName: userId);
+    return PublicProfile(id: userId, displayName: userId, photoVersion: 1);
   }
 }
 

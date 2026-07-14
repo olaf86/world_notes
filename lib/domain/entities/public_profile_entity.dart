@@ -2,6 +2,7 @@ class PublicProfile {
   final String id;
   final String displayName;
   final String? photoUrl;
+  final int photoVersion;
   final int followerCount;
   final int followingCount;
 
@@ -9,6 +10,7 @@ class PublicProfile {
     required this.id,
     required this.displayName,
     this.photoUrl,
+    required this.photoVersion,
     this.followerCount = 0,
     this.followingCount = 0,
   });
@@ -22,6 +24,7 @@ class PublicProfile {
     String? id,
     String? displayName,
     String? photoUrl,
+    int? photoVersion,
     int? followerCount,
     int? followingCount,
   }) {
@@ -29,6 +32,7 @@ class PublicProfile {
       id: id ?? this.id,
       displayName: displayName ?? this.displayName,
       photoUrl: photoUrl ?? this.photoUrl,
+      photoVersion: photoVersion ?? this.photoVersion,
       followerCount: followerCount ?? this.followerCount,
       followingCount: followingCount ?? this.followingCount,
     );

@@ -93,8 +93,8 @@ export const updateDisplayName = onCall<{displayName?: unknown}>(
     const db = getFirestore();
     const userRef = db.collection("users").doc(uid);
     const publicProfileRef = db.collection("publicProfiles").doc(uid);
-    await Promise.all([
-      db.runTransaction(async (tx) => {
+    const {profilePhotoUrl, photoVersion} = await db.runTransaction(
+      async (tx) => {
         const [userSnap, publicProfileSnap] = await Promise.all([
           tx.get(userRef),
           tx.get(publicProfileRef),
@@ -102,21 +102,21 @@ export const updateDisplayName = onCall<{displayName?: unknown}>(
         if (!userSnap.exists) {
           throw new HttpsError("failed-precondition", "User profile missing.");
         }
-        const storedCreatedAt = publicProfileSnap.exists ?
-          publicProfileSnap.get("createdAt") :
-          null;
-        if (
-          publicProfileSnap.exists &&
-          !(storedCreatedAt instanceof Timestamp)
-        ) {
+        if (!publicProfileSnap.exists) {
+          throw new HttpsError(
+            "failed-precondition",
+            "Public profile missing.",
+          );
+        }
+        const storedCreatedAt = publicProfileSnap.get("createdAt");
+        if (!(storedCreatedAt instanceof Timestamp)) {
           throw new HttpsError(
             "failed-precondition",
             "Public profile timestamps are incomplete.",
           );
         }
-        const profilePhotoUrl = publicProfileSnap.exists ?
-          stringOrNull(publicProfileSnap.get("photoUrl")) :
-          stringOrNull(userSnap.get("photoUrl"));
+        const profilePhotoUrl = stringOrNull(publicProfileSnap.get("photoUrl"));
+        const photoVersion = publicProfileSnap.get("photoVersion") as number;
         tx.set(
           userRef,
           {
@@ -128,6 +128,7 @@ export const updateDisplayName = onCall<{displayName?: unknown}>(
         tx.set(publicProfileRef, {
           displayName,
           photoUrl: profilePhotoUrl,
+          photoVersion,
           followerCount: publicProfileCounter(
             publicProfileSnap,
             "followerCount",
@@ -136,14 +137,13 @@ export const updateDisplayName = onCall<{displayName?: unknown}>(
             publicProfileSnap,
             "followingCount",
           ),
-          createdAt: publicProfileSnap.exists ?
-            storedCreatedAt :
-            FieldValue.serverTimestamp(),
+          createdAt: storedCreatedAt,
           updatedAt: FieldValue.serverTimestamp(),
         });
-      }),
-      getAuth().updateUser(uid, {displayName}),
-    ]);
+        return {profilePhotoUrl, photoVersion};
+      },
+    );
+    await getAuth().updateUser(uid, {displayName});
 
     const [members, activePlaces] = await Promise.all([
       db
@@ -168,7 +168,11 @@ export const updateDisplayName = onCall<{displayName?: unknown}>(
     for (let i = 0; i < activePlaces.docs.length; i += BATCH_WRITE_LIMIT) {
       const batch = db.batch();
       for (const doc of activePlaces.docs.slice(i, i + BATCH_WRITE_LIMIT)) {
-        batch.update(doc.ref, {creatorName: displayName});
+        batch.update(doc.ref, {
+          creatorName: displayName,
+          creatorPhotoUrl: profilePhotoUrl,
+          creatorPhotoVersion: photoVersion,
+        });
       }
       await batch.commit();
     }

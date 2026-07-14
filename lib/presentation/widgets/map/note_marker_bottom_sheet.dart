@@ -57,7 +57,11 @@ class _NoteMarkerBottomSheetState extends State<NoteMarkerBottomSheet> {
                 icon: placeIconData(pin.icon),
                 storagePath: pin.pinImageStoragePath,
                 radius: 20,
-                badge: UserAvatarBadge(name: pin.creatorName),
+                badge: UserAvatarBadge(
+                  name: pin.creatorName,
+                  photoUrl: pin.creatorPhotoUrl,
+                  photoVersion: pin.creatorPhotoVersion,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
