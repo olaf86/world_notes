@@ -153,8 +153,8 @@ class _MyNotesListView extends ConsumerWidget {
         _NoteLimitSummary(
           currentCount: placesAsync.valueOrNull?.length ?? 0,
           limit: noteLimit,
+          sort: sort,
         ),
-        NoteSortStatus(sort: sort, semanticIdentifier: 'my-notes-sort-status'),
         Expanded(
           child: RefreshIndicator(
             onRefresh: () async {
@@ -342,10 +342,7 @@ class _ArchivedNotesListViewState
         _ArchivedNotesSummary(
           count: countAsync.valueOrNull,
           isLoading: countAsync.isLoading,
-        ),
-        NoteSortStatus(
           sort: sort,
-          semanticIdentifier: 'archived-notes-sort-status',
         ),
         Expanded(
           child: RefreshIndicator(onRefresh: _refresh, child: _buildList()),
@@ -425,8 +422,13 @@ List<PlaceEntity> _sortPlaces(
 class _NoteLimitSummary extends StatelessWidget {
   final int currentCount;
   final int limit;
+  final NoteListSort sort;
 
-  const _NoteLimitSummary({required this.currentCount, required this.limit});
+  const _NoteLimitSummary({
+    required this.currentCount,
+    required this.limit,
+    required this.sort,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -454,6 +456,14 @@ class _NoteLimitSummary extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
+          const SizedBox(width: 12),
+          Flexible(
+            child: NoteSortStatus(
+              sort: sort,
+              semanticIdentifier: 'my-notes-sort-status',
+              inline: true,
+            ),
+          ),
         ],
       ),
     );
@@ -463,8 +473,13 @@ class _NoteLimitSummary extends StatelessWidget {
 class _ArchivedNotesSummary extends StatelessWidget {
   final int? count;
   final bool isLoading;
+  final NoteListSort sort;
 
-  const _ArchivedNotesSummary({required this.count, required this.isLoading});
+  const _ArchivedNotesSummary({
+    required this.count,
+    required this.isLoading,
+    required this.sort,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -511,6 +526,14 @@ class _ArchivedNotesSummary extends StatelessWidget {
                   color: colorScheme.onSurfaceVariant,
                 ),
               ),
+            const SizedBox(width: 12),
+            Flexible(
+              child: NoteSortStatus(
+                sort: sort,
+                semanticIdentifier: 'archived-notes-sort-status',
+                inline: true,
+              ),
+            ),
           ],
         ),
       ),

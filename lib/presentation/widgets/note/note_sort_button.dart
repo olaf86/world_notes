@@ -54,31 +54,44 @@ class NoteSortButton extends ConsumerWidget {
 class NoteSortStatus extends StatelessWidget {
   final NoteListSort sort;
   final String semanticIdentifier;
+  final bool inline;
 
   const NoteSortStatus({
     super.key,
     required this.sort,
     required this.semanticIdentifier,
+    this.inline = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final label = 'Sorted by: ${sort.label}';
     return Semantics(
       identifier: semanticIdentifier,
       label: 'Sorted by ${sort.label}',
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 2),
-        child: Align(
-          alignment: Alignment.centerRight,
-          child: Text(
-            'Sorted by: ${sort.label}',
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+      child: inline
+          ? Text(
+              label,
+              textAlign: TextAlign.end,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            )
+          : Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 2),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  label,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
             ),
-          ),
-        ),
-      ),
     );
   }
 }
