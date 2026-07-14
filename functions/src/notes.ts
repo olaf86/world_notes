@@ -233,13 +233,13 @@ export const createNote = onCall<CreateNoteData>(
       const isPremium = userSnap.get("isPremium") === true;
       const limit = isPremium ? PREMIUM_NOTE_LIMIT : FREE_NOTE_LIMIT;
       const activeCount = (userSnap.get("activeNoteCount") as number) ?? 0;
-      const creatorName = userSnap.get("displayName") as string;
       if (!publicProfileSnap.exists) {
         throw new HttpsError(
           "failed-precondition",
           "Public profile missing.",
         );
       }
+      const creatorName = publicProfileSnap.get("displayName") as string;
       const creatorPhotoUrl =
         publicProfileSnap.get("photoUrl") as string | null;
       const creatorPhotoVersion =

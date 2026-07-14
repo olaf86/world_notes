@@ -1,9 +1,7 @@
 import {getAuth} from "firebase-admin/auth";
 import {
-  DocumentSnapshot,
   FieldValue,
   getFirestore,
-  Timestamp,
 } from "firebase-admin/firestore";
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 
@@ -44,28 +42,6 @@ function stringOrNull(value: unknown): string | null {
 }
 
 /**
- * Returns a required counter from an existing public profile.
- *
- * @param {DocumentSnapshot} profileSnap Existing public profile.
- * @param {string} field Counter field to read.
- * @return {number} Current non-negative counter value.
- */
-function publicProfileCounter(
-  profileSnap: DocumentSnapshot,
-  field: "followerCount" | "followingCount",
-): number {
-  if (!profileSnap.exists) return 0;
-  const value = profileSnap.get(field);
-  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
-    throw new HttpsError(
-      "failed-precondition",
-      "Public profile counters are incomplete.",
-    );
-  }
-  return value;
-}
-
-/**
  * Updates the caller's nickname and refreshes access-list display names.
  */
 export const updateDisplayName = onCall<{displayName?: unknown}>(
@@ -93,8 +69,8 @@ export const updateDisplayName = onCall<{displayName?: unknown}>(
     const db = getFirestore();
     const userRef = db.collection("users").doc(uid);
     const publicProfileRef = db.collection("publicProfiles").doc(uid);
-    const {profilePhotoUrl, photoVersion} = await db.runTransaction(
-      async (tx) => {
+    await Promise.all([
+      db.runTransaction(async (tx) => {
         const [userSnap, publicProfileSnap] = await Promise.all([
           tx.get(userRef),
           tx.get(publicProfileRef),
@@ -108,15 +84,6 @@ export const updateDisplayName = onCall<{displayName?: unknown}>(
             "Public profile missing.",
           );
         }
-        const storedCreatedAt = publicProfileSnap.get("createdAt");
-        if (!(storedCreatedAt instanceof Timestamp)) {
-          throw new HttpsError(
-            "failed-precondition",
-            "Public profile timestamps are incomplete.",
-          );
-        }
-        const profilePhotoUrl = stringOrNull(publicProfileSnap.get("photoUrl"));
-        const photoVersion = publicProfileSnap.get("photoVersion") as number;
         tx.set(
           userRef,
           {
@@ -125,25 +92,13 @@ export const updateDisplayName = onCall<{displayName?: unknown}>(
           },
           {merge: true},
         );
-        tx.set(publicProfileRef, {
+        tx.update(publicProfileRef, {
           displayName,
-          photoUrl: profilePhotoUrl,
-          photoVersion,
-          followerCount: publicProfileCounter(
-            publicProfileSnap,
-            "followerCount",
-          ),
-          followingCount: publicProfileCounter(
-            publicProfileSnap,
-            "followingCount",
-          ),
-          createdAt: storedCreatedAt,
           updatedAt: FieldValue.serverTimestamp(),
         });
-        return {profilePhotoUrl, photoVersion};
-      },
-    );
-    await getAuth().updateUser(uid, {displayName});
+      }),
+      getAuth().updateUser(uid, {displayName}),
+    ]);
 
     const [members, activePlaces] = await Promise.all([
       db
@@ -168,11 +123,7 @@ export const updateDisplayName = onCall<{displayName?: unknown}>(
     for (let i = 0; i < activePlaces.docs.length; i += BATCH_WRITE_LIMIT) {
       const batch = db.batch();
       for (const doc of activePlaces.docs.slice(i, i + BATCH_WRITE_LIMIT)) {
-        batch.update(doc.ref, {
-          creatorName: displayName,
-          creatorPhotoUrl: profilePhotoUrl,
-          creatorPhotoVersion: photoVersion,
-        });
+        batch.update(doc.ref, {creatorName: displayName});
       }
       await batch.commit();
     }
