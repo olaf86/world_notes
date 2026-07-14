@@ -132,6 +132,35 @@ void main() {
       await tester.pump();
     },
   );
+
+  testWidgets('reveals detailed pin choices and delayed publishing on demand', (
+    tester,
+  ) async {
+    await _pumpScreen(
+      tester,
+      locationService: _FakeLocationService(
+        position: _position(latitude: 35.681236, longitude: 139.767125),
+      ),
+      placeRepository: _RecordingPlaceRepository(),
+    );
+
+    await tester.tap(find.byTooltip('Show more colors'));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.byTooltip('Indigo'), findsOneWidget);
+
+    final showMoreIcons = find.byTooltip('Show more icons');
+    await tester.ensureVisible(showMoreIcons);
+    await tester.tap(showMoreIcons);
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.byTooltip('coffee'), findsOneWidget);
+
+    final later = find.text('Later');
+    await tester.ensureVisible(later);
+    await tester.tap(later);
+    await tester.pump();
+    expect(find.text('Publish later'), findsOneWidget);
+    expect(find.text('Auto-close after'), findsOneWidget);
+  });
 }
 
 Future<void> _pumpScreen(
@@ -178,7 +207,12 @@ Future<void> _pumpScreen(
 
 Future<void> _scrollToCreateButton(WidgetTester tester) async {
   for (var i = 0; i < 8; i += 1) {
-    if (find.text('Create Note').evaluate().isNotEmpty) return;
+    final createButton = find.text('Create Note');
+    if (createButton.evaluate().isNotEmpty) {
+      await tester.ensureVisible(createButton);
+      await tester.pump();
+      return;
+    }
     await tester.drag(find.byType(ListView), const Offset(0, -300));
     await tester.pump();
   }

@@ -13,7 +13,12 @@ import '../../../core/utils/place_icon.dart';
 import '../../../domain/entities/place_entity.dart';
 import '../../../services/location_service.dart';
 import '../../providers/providers.dart';
+import '../../widgets/note/fork_location_notice.dart';
 import '../../widgets/note/note_lock_setup_dialog.dart';
+import '../../widgets/note/note_lock_summary.dart';
+import '../../widgets/note/pin_color_picker.dart';
+import '../../widgets/note/pin_icon_picker.dart';
+import '../../widgets/note/pin_image_summary.dart';
 import '../../widgets/note/pin_thumbnail_crop_dialog.dart';
 
 enum _PublicationPreset {
@@ -89,6 +94,8 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
   NoteLockSetupValue? _lockSetup;
   bool _loading = false;
   bool _pickingPinImage = false;
+  bool _showMoreColors = false;
+  bool _showMoreIcons = false;
 
   /// Human-readable label for an expiry preset (in days).
   static String _expiryLabel(int days) => switch (days) {
@@ -100,7 +107,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
     _ => '$days days',
   };
 
-  static const _colors = [
+  static const List<Color> _colors = [
     Colors.green,
     Colors.blue,
     Colors.red,
@@ -109,17 +116,33 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
     Colors.teal,
     Colors.pink,
     Colors.brown,
+    Colors.indigo,
+    Colors.cyan,
+    Colors.lime,
+    Colors.amber,
+    Colors.deepOrange,
+    Colors.blueGrey,
   ];
 
   static const _icons = [
-    ('place', Icons.place),
-    ('restaurant', Icons.restaurant),
-    ('park', Icons.park),
-    ('home', Icons.home),
-    ('star', Icons.star),
-    ('photo', Icons.photo_camera),
-    ('music', Icons.music_note),
+    PinIconOption('place', Icons.place),
+    PinIconOption('restaurant', Icons.restaurant),
+    PinIconOption('park', Icons.park),
+    PinIconOption('home', Icons.home),
+    PinIconOption('star', Icons.star),
+    PinIconOption('photo', Icons.photo_camera),
+    PinIconOption('music', Icons.music_note),
+    PinIconOption('coffee', Icons.coffee),
+    PinIconOption('shopping', Icons.shopping_bag),
+    PinIconOption('hotel', Icons.hotel),
+    PinIconOption('directions', Icons.directions_car),
+    PinIconOption('hiking', Icons.hiking),
+    PinIconOption('pets', Icons.pets),
+    PinIconOption('work', Icons.work),
+    PinIconOption('favorite', Icons.favorite),
   ];
+
+  static const int _inlineOptionCount = 5;
 
   @override
   void initState() {
@@ -130,7 +153,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
     _titleController.text = draft.title;
     _subtitleController.text = draft.subtitle ?? '';
     _selectedColor = parsePlaceColor(draft.colorHex);
-    if (_icons.any((item) => item.$1 == draft.icon)) {
+    if (_icons.any((item) => item.id == draft.icon)) {
       _selectedIcon = draft.icon;
     }
   }
@@ -519,37 +542,20 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
             ),
             if (forkDraft != null) ...[
               const SizedBox(height: 16),
-              const _ForkLocationNotice(),
+              const ForkLocationNotice(),
             ],
             const SizedBox(height: 24),
             Text('Pin color', style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 12,
-              children: _colors.map((color) {
-                final isSelected = _selectedColor == color;
-                return GestureDetector(
-                  onTap: () => setState(() => _selectedColor = color),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 150),
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                      border: isSelected
-                          ? Border.all(
-                              color: Theme.of(context).colorScheme.onSurface,
-                              width: 3,
-                            )
-                          : null,
-                    ),
-                    child: isSelected
-                        ? const Icon(Icons.check, color: Colors.white, size: 20)
-                        : null,
-                  ),
-                );
-              }).toList(),
+            PinColorPicker(
+              colors: _colors,
+              selected: _selectedColor,
+              showMore: _showMoreColors,
+              inlineOptionCount: _inlineOptionCount,
+              onSelected: (color) => setState(() => _selectedColor = color),
+              onToggleMore: () {
+                setState(() => _showMoreColors = !_showMoreColors);
+              },
             ),
             const SizedBox(height: 24),
             Text('Pin style', style: Theme.of(context).textTheme.titleSmall),
@@ -558,14 +564,14 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
               showSelectedIcon: false,
               segments: const [
                 ButtonSegment(
+                  value: _PinMarkerStyle.image,
+                  icon: Icon(Icons.image_outlined),
+                  label: Text('Pin image'),
+                ),
+                ButtonSegment(
                   value: _PinMarkerStyle.icon,
                   icon: Icon(Icons.place_outlined),
                   label: Text('Icon'),
-                ),
-                ButtonSegment(
-                  value: _PinMarkerStyle.image,
-                  icon: Icon(Icons.image_outlined),
-                  label: Text('Image'),
                 ),
               ],
               selected: {_pinMarkerStyle},
@@ -577,39 +583,21 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
             if (_pinMarkerStyle == _PinMarkerStyle.icon) ...[
               Text('Icon', style: Theme.of(context).textTheme.titleSmall),
               const SizedBox(height: 8),
-              Wrap(
-                spacing: 12,
-                children: _icons.map((item) {
-                  final (key, iconData) = item;
-                  final isSelected = _selectedIcon == key;
-                  return GestureDetector(
-                    onTap: () => setState(() => _selectedIcon = key),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? _selectedColor
-                            : Theme.of(
-                                context,
-                              ).colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        iconData,
-                        color: isSelected
-                            ? Colors.white
-                            : Theme.of(context).colorScheme.onSurface,
-                      ),
-                    ),
-                  );
-                }).toList(),
+              PinIconPicker(
+                icons: _icons,
+                selected: _selectedIcon,
+                selectedColor: _selectedColor,
+                showMore: _showMoreIcons,
+                inlineOptionCount: _inlineOptionCount,
+                onSelected: (icon) => setState(() => _selectedIcon = icon),
+                onToggleMore: () {
+                  setState(() => _showMoreIcons = !_showMoreIcons);
+                },
               ),
             ] else ...[
               Text('Image', style: Theme.of(context).textTheme.titleSmall),
               const SizedBox(height: 8),
-              _PinImageSummary(
+              PinImageSummary(
                 bytes: _pinThumbnailBytes,
                 selectedColor: _selectedColor,
                 selectedIcon: defaultMapPinIcon,
@@ -621,64 +609,104 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
             const SizedBox(height: 24),
             Text('Publish', style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _PublicationPreset.values.map((preset) {
-                return ChoiceChip(
-                  label: Text(preset.label),
-                  selected: _publicationPreset == preset,
-                  onSelected: (_) {
-                    setState(() {
-                      _publicationPreset = preset;
-                      if (preset == _PublicationPreset.custom) {
-                        _customPublishAt ??= _defaultCustomPublishAt();
-                      }
-                    });
-                  },
-                );
-              }).toList(),
+            SegmentedButton<bool>(
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(value: false, label: Text('Now')),
+                ButtonSegment(value: true, label: Text('Later')),
+              ],
+              selected: {_publicationPreset != _PublicationPreset.now},
+              onSelectionChanged: (selection) {
+                final isLater = selection.single;
+                setState(() {
+                  _publicationPreset = isLater
+                      ? (_publicationPreset == _PublicationPreset.now
+                            ? _PublicationPreset.in15Minutes
+                            : _publicationPreset)
+                      : _PublicationPreset.now;
+                });
+              },
             ),
-            if (_publicationPreset == _PublicationPreset.custom) ...[
+            if (_publicationPreset != _PublicationPreset.now) ...[
               const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: _pickPublicationTime,
-                icon: const Icon(Icons.event_outlined),
-                label: Text(
-                  _publicationLabel(
-                    _customPublishAt ?? _defaultCustomPublishAt(),
+              DropdownButtonFormField<_PublicationPreset>(
+                initialValue: _publicationPreset,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Publish later',
+                  border: OutlineInputBorder(),
+                ),
+                items: _PublicationPreset.values
+                    .where((preset) => preset != _PublicationPreset.now)
+                    .map(
+                      (preset) => DropdownMenuItem(
+                        value: preset,
+                        child: Text(preset.label),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (preset) {
+                  if (preset == null) return;
+                  if (preset == _PublicationPreset.custom) {
+                    _pickPublicationTime();
+                    return;
+                  }
+                  setState(() => _publicationPreset = preset);
+                },
+              ),
+              if (_publicationPreset == _PublicationPreset.custom) ...[
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: _pickPublicationTime,
+                  icon: const Icon(Icons.event_outlined),
+                  label: Text(
+                    _publicationLabel(
+                      _customPublishAt ?? _defaultCustomPublishAt(),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
             const SizedBox(height: 24),
-            Text(
-              'Auto-close after',
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'The note stops accepting messages and is archived when this '
-              'period after publication ends.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              children: AppConfig.noteExpiryPresetDays.map((days) {
-                return ChoiceChip(
-                  label: Text(_expiryLabel(days)),
-                  selected: _expiryDays == days,
-                  onSelected: (_) => setState(() => _expiryDays = days),
-                );
-              }).toList(),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Auto-close after',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ),
+                Tooltip(
+                  message:
+                      'Stops accepting messages and archives the note after this period.',
+                  child: Icon(
+                    Icons.info_outline,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                DropdownButton<int>(
+                  value: _expiryDays,
+                  underline: const SizedBox.shrink(),
+                  items: AppConfig.noteExpiryPresetDays
+                      .map(
+                        (days) => DropdownMenuItem(
+                          value: days,
+                          child: Text(_expiryLabel(days)),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (days) {
+                    if (days != null) setState(() => _expiryDays = days);
+                  },
+                ),
+              ],
             ),
             const SizedBox(height: 24),
             Text('Access', style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 8),
-            _LockSetupSummary(
+            NoteLockSummary(
               value: _lockSetup,
               onConfigure: _configureLock,
               onRemove: _removeLock,
@@ -694,209 +722,6 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
                     )
                   : const Text('Create Note'),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ForkLocationNotice extends StatelessWidget {
-  const _ForkLocationNotice();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: Row(
-          children: [
-            Icon(
-              Icons.add_location_alt_outlined,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'This new note will use the archived note\'s location.',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _LockSetupSummary extends StatelessWidget {
-  final NoteLockSetupValue? value;
-  final VoidCallback onConfigure;
-  final VoidCallback onRemove;
-
-  const _LockSetupSummary({
-    required this.value,
-    required this.onConfigure,
-    required this.onRemove,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final value = this.value;
-    final isLocked = value != null;
-    final lockTypeLabel = switch (value?.lockType) {
-      NoteLockType.password => 'Password',
-      NoteLockType.pattern => 'Pattern',
-      null => 'Public',
-    };
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: Row(
-          children: [
-            Icon(
-              isLocked ? Icons.lock_outline : Icons.lock_open_outlined,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    isLocked ? 'Locked note' : 'Public note',
-                    style: theme.textTheme.titleSmall,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    isLocked
-                        ? '$lockTypeLabel lock${value.lockHint == null ? '' : ' with hint'}'
-                        : 'Anyone nearby can open it.',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            IconButton(
-              tooltip: isLocked ? 'Change lock' : 'Set lock',
-              onPressed: onConfigure,
-              icon: Icon(isLocked ? Icons.edit_outlined : Icons.lock_outline),
-            ),
-            if (isLocked)
-              IconButton(
-                tooltip: 'Remove lock',
-                onPressed: onRemove,
-                icon: const Icon(Icons.close),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PinImageSummary extends StatelessWidget {
-  final Uint8List? bytes;
-  final Color selectedColor;
-  final String selectedIcon;
-  final bool picking;
-  final VoidCallback onPick;
-  final VoidCallback onRemove;
-
-  const _PinImageSummary({
-    required this.bytes,
-    required this.selectedColor,
-    required this.selectedIcon,
-    required this.picking,
-    required this.onPick,
-    required this.onRemove,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final thumbnail = bytes;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 24,
-              backgroundColor: selectedColor,
-              backgroundImage: thumbnail == null
-                  ? null
-                  : MemoryImage(thumbnail),
-              child: thumbnail == null
-                  ? Icon(placeIconData(selectedIcon), color: Colors.white)
-                  : null,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    thumbnail == null ? 'Image pin' : 'Image pin ready',
-                    style: theme.textTheme.titleSmall,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    thumbnail == null
-                        ? 'Add a cropped thumbnail. The default pin is used as fallback.'
-                        : 'This cropped thumbnail will be uploaded.',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            IconButton(
-              tooltip: thumbnail == null ? 'Choose image' : 'Change image',
-              onPressed: picking ? null : onPick,
-              icon: picking
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Icon(
-                      thumbnail == null
-                          ? Icons.add_photo_alternate_outlined
-                          : Icons.edit_outlined,
-                    ),
-            ),
-            if (thumbnail != null)
-              IconButton(
-                tooltip: 'Remove image',
-                onPressed: picking ? null : onRemove,
-                icon: const Icon(Icons.close),
-              ),
           ],
         ),
       ),
