@@ -63,5 +63,11 @@ export {setNoteLike} from "./likes";
 export {setUserFollow} from "./social";
 
 // Note lifecycle and metadata functions. Region set in their own options.
-export {createNote, setNotePinImage, archiveNote, archiveExpiredNotes}
+export {
+  createNote,
+  setNotePinImage,
+  setNoteTheme,
+  archiveNote,
+  archiveExpiredNotes,
+}
   from "./notes";

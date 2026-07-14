@@ -33,6 +33,7 @@ PinSummary _pin({required PinAccess access}) => PinSummary(
   colorHex: '#4CAF50',
   icon: 'place',
   creatorName: 'Alice',
+  creatorPhotoVersion: 1,
   messageCount: 0,
   likeCount: 0,
   visitorCount: 0,

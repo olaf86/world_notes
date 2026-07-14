@@ -1,3 +1,5 @@
+import 'note_theme.dart';
+
 enum PinAccess {
   openable,
   distanceLocked;
@@ -26,6 +28,7 @@ class PinSummary {
   final String title;
   final String? subtitle;
   final String colorHex;
+  final NoteThemeId themeId;
   final String icon;
   final String? pinImageStoragePath;
   final String creatorName;
@@ -50,6 +53,7 @@ class PinSummary {
     required this.title,
     this.subtitle,
     required this.colorHex,
+    this.themeId = NoteThemeId.aurora,
     required this.icon,
     this.pinImageStoragePath,
     required this.creatorName,

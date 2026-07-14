@@ -10,35 +10,39 @@ The first release ships five app-defined themes:
 
 | ID | Name | Direction |
 | --- | --- | --- |
-| `aurora` | Aurora | Modern deep indigo with aqua and violet accents. Default. |
+| `aurora` | Aurora | Modern deep indigo with aqua and violet accents. |
 | `citrus` | Citrus Pop | Warm cream, coral, orange, and teal for a playful look. |
 | `botanical` | Botanical | Calm jade and leaf green on a soft natural surface. |
 | `neon` | Neon Grid | Cyberpunk near-black with cyan and fuchsia highlights. |
 | `editorial` | Editorial | Crisp paper-like neutral surfaces with a strong cobalt accent. |
 
 Theme IDs are stable product identifiers. Display names, token values, and
-preview artwork live in the app and can change without a Firestore migration.
-The first version deliberately does not allow custom color uploads or
-user-defined themes.
+preview artwork live in the app and can change without a data migration. The
+first version deliberately does not allow custom color uploads or user-defined
+themes.
 
 ## Data model
 
-Add the optional field below to `places/{placeId}`:
+Add the required field below to `places/{placeId}`:
 
 ```text
-themeId: string // one of the built-in IDs; `aurora` when absent
+themeId: string // one of: aurora, citrus, botanical, neon, editorial
 ```
 
 `themeId` is metadata for the note surface, not map-marker styling:
 
 - `colorHex` continues to control the map pin and is chosen at creation.
 - `themeId` controls the visual language used after selecting/opening a note.
-- Existing documents without `themeId` resolve to `aurora` in every client and
-  do not require backfilling.
+- No client compatibility fallback is provided for missing or invalid values.
 
-The `createNote` callable writes `themeId`, defaulting to `aurora` when an
-older client omits it. `listMapPins` includes it in its payload so the marker
-bottom sheet can render without fetching the entire `places` document.
+`createNote` requires and validates `themeId`. `listMapPins` includes it in
+its payload so the marker bottom sheet can render without fetching the entire
+`places` document.
+
+Before shipping the Flutter client, run an Admin SDK migration over every
+existing `places` document to set `themeId: 'aurora'`. The migration is
+idempotent and only writes documents missing the field. No legacy documents
+are deliberately retained after the migration.
 
 ## Client model and palettes
 
@@ -66,15 +70,41 @@ class NoteThemePalette {
 }
 ```
 
-The ID type exposes safe storage parsing and a default fallback for unknown or
-removed IDs. The Flutter registry owns translated display labels, preview
-treatment, and colors. The colors are semantic tokens rather than raw colors
-in widgets, so all themes receive the same UI behavior and contrast can be
-tested centrally.
+The ID type performs strict storage parsing; invalid values are treated as a
+data-contract violation. The Flutter registry owns translated display labels,
+preview treatment, and colors. The colors are semantic tokens rather than raw
+colors in widgets, so all themes receive the same UI behavior and contrast can
+be tested centrally.
 
 `PlaceEntity`, `PlaceModel`, `PinSummary`, and `PinSummaryModel` carry the
 parsed `NoteThemeId`. At the UI boundary, derive a local `ThemeData`/
 `ColorScheme` from the palette. Do not mutate the application-wide theme.
+
+## Light and dark appearance
+
+The app already follows the system setting through `ThemeMode.system`; note
+themes must do the same. A note never stores whether it is light or dark.
+`themeId` selects its visual identity, and the active app brightness selects
+one of that identity's two palettes:
+
+```dart
+class NoteThemeDefinition {
+  final NoteThemePalette light;
+  final NoteThemePalette dark;
+}
+```
+
+Resolve the palette from `Theme.of(context).brightness`, so the system setting
+changes the open bottom sheet and note detail without a data write or an app
+restart. The picker previews the palette appropriate to the current setting.
+
+Every theme has a deliberate dark counterpart, including Citrus Pop,
+Botanical, and Editorial; they are not simply color-inverted. Aurora becomes
+deeper and more luminous, while Neon Grid remains dark in both modes but uses
+a distinct dark palette with reduced glow and higher text contrast. Background
+surfaces, text, outlines, chip states, CTA colors, message bubbles, and focus/
+disabled states must be specified in both palettes. Body text and interactive
+controls must meet WCAG AA contrast (4.5:1 for normal text) in both modes.
 
 ## Presentation behavior
 
@@ -96,6 +126,17 @@ Modal controls launched from the screen inherit the same local theme.
 The image viewer remains black, and error/destructive states retain explicit
 high-contrast colors. Theme colors are decorative and must never make lock,
 closed, expiry, moderation, or access state ambiguous.
+
+### Note lists
+
+Map Notes, My Notes, and Archived Notes use the theme as a compact identity
+signal, not as a full-screen treatment. Each `NoteListCard` receives the
+resolved palette and uses its surface, outline, a narrow leading accent, and
+selected metadata/count colors. The pin avatar continues to use `colorHex`.
+
+Archived cards retain the same identity at reduced saturation and opacity, but
+the archive label and status remain visually dominant. List backgrounds stay
+application-neutral so mixed-theme lists remain scannable and accessible.
 
 ### Theme picker and authorization
 
@@ -132,40 +173,54 @@ The existing Firestore rule for `/places/{placeId}` continues to permit only
 the narrowly defined close/re-open client transition, thereby denying direct
 theme changes. This avoids broadening rules for a cosmetic field.
 
-## Creation and legacy behavior
+## Creation behavior
 
 The initial delivery should add the same compact picker to note creation,
-defaulted to `aurora`, so new notes are purposeful from the start. Forking an
-archived note copies its `themeId`; a legacy source resolves to `aurora`.
+preselected to `aurora`, so new notes are purposeful from the start. Forking
+an archived note copies its required `themeId`.
 
-The server default and client fallback make rollout safe in either deployment
-order:
+## Rollout and migration
 
-- old app + new backend: new notes receive `aurora`;
-- new app + old legacy notes: absent `themeId` displays as `aurora`;
-- unsupported stored ID: client displays `aurora`, while the callable refuses
-  any new unsupported selection.
+Because this is still in development, treat the field as a strict schema
+change rather than a backward-compatible rollout:
+
+1. Deploy the server changes that validate/write `themeId` and return it from
+   `listMapPins`; do not publish the new Flutter build yet.
+2. Run `functions/src/scripts/backfillNoteThemes.ts` with Admin SDK credentials
+   to set `aurora` on documents that predate the schema.
+3. Verify there are no missing or unsupported values in `places`.
+4. Release the Flutter build with strict model parsing.
+
+The migration script reports scanned, changed, skipped, and invalid-document
+counts, performs bounded batched writes, and is safe to rerun. Development
+seed data must set a valid `themeId` explicitly.
 
 ## Implementation slices
 
-1. Add pure-Dart theme IDs/registry and entity/model fallback handling, with
-   unit tests for known, absent, and invalid values.
+1. Add pure-Dart theme IDs/registry and strict entity/model handling, with
+   unit tests for every valid ID and rejected absent/invalid values.
 2. Carry `themeId` through create, Firestore, map-pin callable, and summary
    models; add `setNoteTheme` to the repository and function exports.
 3. Extend `NotePermissions`, add the picker, and apply the local palette to
-   the bottom sheet and note detail screen.
+   the bottom sheet, note detail screen, and compact list cards.
 4. Add creation/fork selection, localization strings, and widget tests for
-   visual selection, maintainer visibility, and non-maintainer hiding.
-5. Run Flutter tests/analyzer and Functions type/lint tests; deploy rules only
+   visual selection, maintainer visibility, non-maintainer hiding, and
+   archived-card treatment.
+5. Add the Admin SDK backfill script and seed-data field, then test light and
+   dark palettes (including contrast) in widget tests.
+6. Run Flutter tests/analyzer and Functions type/lint tests; deploy rules only
    if their existing denial behavior is changed (the proposed design does not
    require a rules change).
 
 ## Acceptance criteria
 
 - Each of the five IDs has a visually distinct, readable preview and detail
-  appearance.
-- A legacy or malformed stored ID never crashes the map sheet or note detail.
+  appearance in both light and dark mode.
+- Every stored note has one valid `themeId` before the Flutter client with this
+  feature is released.
 - The bottom sheet and detail screen show the same theme for the same note.
+- Map Notes, My Notes, and Archived Notes present the same theme as a compact
+  card accent without changing the map pin color.
 - Maintainers can change themes from detail; members and visitors cannot.
 - Direct Firestore clients cannot change `themeId`.
 - Pin color and icon remain unchanged when a note theme changes.

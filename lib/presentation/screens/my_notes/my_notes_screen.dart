@@ -565,6 +565,8 @@ class _MyNoteCard extends StatelessWidget {
         avatarColor: color,
         avatarIcon: placeIconData(place.icon),
         avatarImageStoragePath: place.pinImageStoragePath,
+        themeId: place.themeId,
+        isArchived: place.isArchived,
         avatarBadge: UserAvatarBadge(
           name: place.creatorName,
           photoUrl: place.creatorPhotoUrl,

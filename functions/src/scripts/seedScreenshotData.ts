@@ -54,6 +54,7 @@ interface PlaceSeed {
   latitude: number;
   longitude: number;
   colorHex: string;
+  themeId: "aurora" | "citrus" | "botanical" | "neon" | "editorial";
   icon: string;
   createdHoursAgo: number;
   lastMessageHoursAgo: number;
@@ -206,6 +207,7 @@ function placeData(
     title: place.title,
     subtitle: place.subtitle,
     colorHex: place.colorHex,
+    themeId: place.themeId,
     icon: place.icon,
     createdByUserId: user.uid,
     creatorName: user.displayName,
@@ -312,6 +314,7 @@ function screenshotPlaces(user: ScreenshotUser): PlaceSeed[] {
       latitude: 35.681236,
       longitude: 139.767125,
       colorHex: "#2563EB",
+      themeId: "aurora",
       icon: "place",
       createdHoursAgo: 72,
       lastMessageHoursAgo: 2,
@@ -368,6 +371,7 @@ function screenshotPlaces(user: ScreenshotUser): PlaceSeed[] {
       latitude: 35.68205,
       longitude: 139.76485,
       colorHex: "#D97706",
+      themeId: "citrus",
       icon: "restaurant",
       visibility: "private",
       createdHoursAgo: 48,
@@ -402,6 +406,7 @@ function screenshotPlaces(user: ScreenshotUser): PlaceSeed[] {
       latitude: 35.68518,
       longitude: 139.75808,
       colorHex: "#16A34A",
+      themeId: "botanical",
       icon: "park",
       createdHoursAgo: 96,
       lastMessageHoursAgo: 12,
@@ -432,6 +437,7 @@ function screenshotPlaces(user: ScreenshotUser): PlaceSeed[] {
       latitude: 35.6802,
       longitude: 139.7691,
       colorHex: "#64748B",
+      themeId: "editorial",
       icon: "star",
       isArchived: true,
       createdHoursAgo: 240,

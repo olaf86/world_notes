@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/note_themes.dart';
+import '../../../domain/entities/note_theme.dart';
 import 'note_pin_avatar.dart';
 
 class NoteListCard extends StatelessWidget {
@@ -13,6 +15,8 @@ class NoteListCard extends StatelessWidget {
   final List<NoteListMeta> metadata;
   final Widget? trailing;
   final VoidCallback? onTap;
+  final NoteThemeId themeId;
+  final bool isArchived;
 
   const NoteListCard({
     super.key,
@@ -26,21 +30,28 @@ class NoteListCard extends StatelessWidget {
     this.metadata = const [],
     this.trailing,
     this.onTap,
+    this.themeId = NoteThemeId.aurora,
+    this.isArchived = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final palette = NoteThemes.paletteOf(context, themeId).colorScheme;
     final trimmedSubtitle = subtitle?.trim();
     final hasSubtitle = trimmedSubtitle?.isNotEmpty == true;
 
     return Card(
       margin: EdgeInsets.zero,
       elevation: 0,
+      color: Color.alphaBlend(
+        palette.primary.withValues(alpha: isArchived ? 0.04 : 0.08),
+        palette.surface,
+      ),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: colorScheme.outlineVariant),
+        side: BorderSide(color: palette.outlineVariant),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
@@ -50,6 +61,17 @@ class NoteListCard extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Container(
+                width: 4,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: palette.primary.withValues(
+                    alpha: isArchived ? 0.45 : 1,
+                  ),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+              const SizedBox(width: 8),
               NotePinAvatar(
                 color: avatarColor,
                 icon: avatarIcon,

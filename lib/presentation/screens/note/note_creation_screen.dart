@@ -11,11 +11,13 @@ import 'package:intl/intl.dart';
 import '../../../config/app_config.dart';
 import '../../../core/utils/place_icon.dart';
 import '../../../domain/entities/place_entity.dart';
+import '../../../domain/entities/note_theme.dart';
 import '../../../services/location_service.dart';
 import '../../providers/providers.dart';
 import '../../widgets/note/fork_location_notice.dart';
 import '../../widgets/note/note_lock_setup_dialog.dart';
 import '../../widgets/note/note_lock_summary.dart';
+import '../../widgets/note/note_theme_picker.dart';
 import '../../widgets/note/pin_color_picker.dart';
 import '../../widgets/note/pin_icon_picker.dart';
 import '../../widgets/note/pin_image_summary.dart';
@@ -46,6 +48,7 @@ class NoteCreationDraft {
   final String? subtitle;
   final String colorHex;
   final String icon;
+  final NoteThemeId themeId;
 
   const NoteCreationDraft({
     required this.latitude,
@@ -54,6 +57,7 @@ class NoteCreationDraft {
     this.subtitle,
     required this.colorHex,
     required this.icon,
+    this.themeId = NoteThemeId.aurora,
   });
 
   factory NoteCreationDraft.fromPlace(PlaceEntity place) => NoteCreationDraft(
@@ -63,6 +67,7 @@ class NoteCreationDraft {
     subtitle: place.subtitle,
     colorHex: place.colorHex,
     icon: place.icon,
+    themeId: place.themeId,
   );
 }
 
@@ -83,6 +88,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
 
   Color _selectedColor = Colors.green;
   String _selectedIcon = defaultMapPinIcon;
+  NoteThemeId _selectedTheme = NoteThemeId.aurora;
   _PinMarkerStyle _pinMarkerStyle = _PinMarkerStyle.icon;
   Uint8List? _pinThumbnailBytes;
   // Expiry is required. Defaults to AppConfig.defaultNoteExpiryDays (3 months)
@@ -153,6 +159,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
     _titleController.text = draft.title;
     _subtitleController.text = draft.subtitle ?? '';
     _selectedColor = parsePlaceColor(draft.colorHex);
+    _selectedTheme = draft.themeId;
     if (_icons.any((item) => item.id == draft.icon)) {
       _selectedIcon = draft.icon;
     }
@@ -440,6 +447,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
                 ? null
                 : _subtitleController.text.trim(),
             colorHex: colorHex,
+            themeId: _selectedTheme,
             icon: icon,
             expiryDays: _expiryDays,
             publishAt: _publishAtForCreate(),
@@ -545,6 +553,13 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
               const ForkLocationNotice(),
             ],
             const SizedBox(height: 24),
+            Text('Note theme', style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: 8),
+            NoteThemePicker(
+              selected: _selectedTheme,
+              onChanged: (theme) => setState(() => _selectedTheme = theme),
+            ),
+            const SizedBox(height: 16),
             Text('Pin color', style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 8),
             PinColorPicker(

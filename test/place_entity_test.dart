@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:world_notes/data/models/place_model.dart';
 import 'package:world_notes/domain/entities/place_entity.dart';
+import 'package:world_notes/domain/entities/note_theme.dart';
 
 void main() {
   group('PlaceEntity', () {
@@ -13,6 +14,7 @@ void main() {
         geohash: 'xn76u',
         title: 'Tokyo Station',
         colorHex: '#4CAF50',
+        themeId: NoteThemeId.aurora,
         icon: 'place',
         createdByUserId: 'creator-1',
         creatorName: 'Alice',
@@ -39,6 +41,7 @@ void main() {
         geohash: 'xn76u',
         title: 'Tokyo Station',
         colorHex: '#4CAF50',
+        themeId: NoteThemeId.aurora,
         icon: 'place',
         pinImageStoragePath: 'images/pins/place-1/user-1/thumb.webp',
         createdByUserId: 'creator-1',
@@ -65,6 +68,7 @@ void main() {
         geohash: 'xn76u',
         title: 'Tokyo Station',
         colorHex: '#4CAF50',
+        themeId: NoteThemeId.aurora,
         icon: 'place',
         createdByUserId: 'creator-1',
         creatorName: 'Alice',
