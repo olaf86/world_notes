@@ -64,6 +64,29 @@ class PinSummary {
     this.markerFlags = const <PinMarkerFlag>{},
   });
 
+  PinSummary copyWith({PinAccess? access}) => PinSummary(
+    placeId: placeId,
+    latitude: latitude,
+    longitude: longitude,
+    title: title,
+    subtitle: subtitle,
+    colorHex: colorHex,
+    icon: icon,
+    pinImageStoragePath: pinImageStoragePath,
+    creatorName: creatorName,
+    messageCount: messageCount,
+    likeCount: likeCount,
+    visitorCount: visitorCount,
+    createdAt: createdAt,
+    lastActivityAt: lastActivityAt,
+    expiresAt: expiresAt,
+    isPrivate: isPrivate,
+    isClosed: isClosed,
+    footprintEnabled: footprintEnabled,
+    access: access ?? this.access,
+    markerFlags: markerFlags,
+  );
+
   bool get canOpen => access == PinAccess.openable;
   bool get isFromFollowedAuthor =>
       markerFlags.contains(PinMarkerFlag.followedAuthorNew);

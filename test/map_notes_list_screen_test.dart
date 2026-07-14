@@ -35,6 +35,7 @@ void main() {
                 placeId: 'locked',
                 now: now,
                 access: PinAccess.distanceLocked,
+                latitude: 35.01,
               ),
             ],
           ),
@@ -76,6 +77,7 @@ void main() {
                 placeId: 'locked',
                 now: now,
                 access: PinAccess.distanceLocked,
+                latitude: 35.01,
               ),
             ],
           ),
@@ -153,11 +155,124 @@ void main() {
     expect(navigationCount, 1);
     expect(find.text('Opened open'), findsOneWidget);
   });
+
+  testWidgets(
+    'updates access and distance from live position without reloading pins',
+    (tester) async {
+      final now = DateTime(2026, 7, 13, 12);
+      final positions = StreamController<Position>();
+      addTearDown(positions.close);
+      var mapPinsRequestCount = 0;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            positionStreamProvider.overrideWith((ref) => positions.stream),
+            mapPinsProvider.overrideWith((ref, request) async {
+              mapPinsRequestCount += 1;
+              return [
+                _pin(
+                  placeId: 'boundary',
+                  now: now,
+                  access: PinAccess.distanceLocked,
+                  latitude: 35.005,
+                ),
+              ];
+            }),
+          ],
+          child: const MaterialApp(home: MapNotesListScreen()),
+        ),
+      );
+
+      positions.add(_position());
+      await tester.pump();
+      await tester.pump();
+
+      expect(
+        find.bySemanticsLabel(
+          'Outside access range. Move closer to open this note.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          '${_distanceMeters(from: _position(), toLatitude: 35.005)} meters away',
+        ),
+        findsOneWidget,
+      );
+      expect(mapPinsRequestCount, 1);
+
+      // This is only about 111m, below the 200m discovery-anchor threshold,
+      // but crosses the 500m note-access boundary.
+      positions.add(_position(latitude: 35.001));
+      await tester.pump();
+
+      expect(
+        find.bySemanticsLabel('Within access range. You can open this note.'),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          '${_distanceMeters(from: _position(latitude: 35.001), toLatitude: 35.005)} meters away',
+        ),
+        findsOneWidget,
+      );
+      expect(mapPinsRequestCount, 1);
+    },
+  );
+
+  testWidgets('keeps list order stable while live distances cross', (
+    tester,
+  ) async {
+    final now = DateTime(2026, 7, 13, 12);
+    final positions = StreamController<Position>();
+    addTearDown(positions.close);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          positionStreamProvider.overrideWith((ref) => positions.stream),
+          mapPinsProvider.overrideWith(
+            (ref, request) async => [
+              _pin(
+                placeId: 'north',
+                now: now,
+                access: PinAccess.openable,
+                latitude: 35.001,
+              ),
+              _pin(
+                placeId: 'south',
+                now: now,
+                access: PinAccess.openable,
+                latitude: 34.9995,
+              ),
+            ],
+          ),
+        ],
+        child: const MaterialApp(home: MapNotesListScreen()),
+      ),
+    );
+
+    positions.add(_position());
+    await tester.pump();
+    await tester.pump();
+
+    final north = find.text('Note north');
+    final south = find.text('Note south');
+    expect(tester.getTopLeft(south).dy, lessThan(tester.getTopLeft(north).dy));
+
+    // At this point north is nearer, but the 167m movement is below the
+    // discovery-anchor threshold, so only the live display should update.
+    positions.add(_position(latitude: 35.0015));
+    await tester.pump();
+
+    expect(tester.getTopLeft(south).dy, lessThan(tester.getTopLeft(north).dy));
+  });
 }
 
-Position _position() => Position(
-  latitude: 35,
-  longitude: 139,
+Position _position({double latitude = 35, double longitude = 139}) => Position(
+  latitude: latitude,
+  longitude: longitude,
   timestamp: DateTime(2026, 7, 13, 12),
   accuracy: 5,
   altitude: 0,
@@ -168,15 +283,25 @@ Position _position() => Position(
   speedAccuracy: 0,
 );
 
+int _distanceMeters({required Position from, required double toLatitude}) =>
+    Geolocator.distanceBetween(
+      from.latitude,
+      from.longitude,
+      toLatitude,
+      139,
+    ).round();
+
 PinSummary _pin({
   required String placeId,
   required DateTime now,
   required PinAccess access,
+  double latitude = 35,
+  double longitude = 139,
   Set<PinMarkerFlag> markerFlags = const {},
 }) => PinSummary(
   placeId: placeId,
-  latitude: 35,
-  longitude: 139,
+  latitude: latitude,
+  longitude: longitude,
   title: 'Note $placeId',
   colorHex: '#4CAF50',
   icon: 'place',

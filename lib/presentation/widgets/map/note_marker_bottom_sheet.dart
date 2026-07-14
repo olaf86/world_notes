@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/place_icon.dart';
 import '../../../core/utils/time_format.dart';
 import '../../../domain/entities/pin_summary_entity.dart';
+import '../../providers/providers.dart';
+import '../../screens/map/map_pin_access.dart';
 import '../note/note_pin_avatar.dart';
 import '../note/user_avatar_badge.dart';
 
-class NoteMarkerBottomSheet extends StatefulWidget {
+class NoteMarkerBottomSheet extends ConsumerStatefulWidget {
   final PinSummary pin;
   final Future<bool> Function(PinSummary pin) onOpen;
 
@@ -17,17 +20,18 @@ class NoteMarkerBottomSheet extends StatefulWidget {
   });
 
   @override
-  State<NoteMarkerBottomSheet> createState() => _NoteMarkerBottomSheetState();
+  ConsumerState<NoteMarkerBottomSheet> createState() =>
+      _NoteMarkerBottomSheetState();
 }
 
-class _NoteMarkerBottomSheetState extends State<NoteMarkerBottomSheet> {
+class _NoteMarkerBottomSheetState extends ConsumerState<NoteMarkerBottomSheet> {
   bool _isOpening = false;
 
-  Future<void> _open() async {
-    if (_isOpening || !widget.pin.canOpen) return;
+  Future<void> _open(PinSummary pin) async {
+    if (_isOpening || !pin.canOpen) return;
 
     setState(() => _isOpening = true);
-    final opened = await widget.onOpen(widget.pin);
+    final opened = await widget.onOpen(pin);
     if (!mounted) return;
 
     if (opened) {
@@ -41,7 +45,16 @@ class _NoteMarkerBottomSheetState extends State<NoteMarkerBottomSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final pin = widget.pin;
+    final livePosition = ref.watch(positionStreamProvider).valueOrNull;
+    final pin = livePosition == null
+        ? widget.pin
+        : pinWithLiveAccess(
+            widget.pin,
+            position: livePosition,
+            accessRadiusMeters: ref
+                .watch(noteAccessRadiusMetersProvider)
+                .toDouble(),
+          );
     final color = parsePlaceColor(pin.colorHex);
 
     return Padding(
@@ -171,7 +184,7 @@ class _NoteMarkerBottomSheetState extends State<NoteMarkerBottomSheet> {
           ),
           const SizedBox(height: 20),
           FilledButton.icon(
-            onPressed: pin.canOpen && !_isOpening ? _open : null,
+            onPressed: pin.canOpen && !_isOpening ? () => _open(pin) : null,
             icon: _isOpening
                 ? SizedBox.square(
                     dimension: 18,
