@@ -29,6 +29,8 @@ class PinSummary {
   final String icon;
   final String? pinImageStoragePath;
   final String creatorName;
+  final String? creatorPhotoUrl;
+  final int creatorPhotoVersion;
   final int messageCount;
   final int likeCount;
   final int visitorCount;
@@ -51,6 +53,8 @@ class PinSummary {
     required this.icon,
     this.pinImageStoragePath,
     required this.creatorName,
+    this.creatorPhotoUrl,
+    required this.creatorPhotoVersion,
     required this.messageCount,
     required this.likeCount,
     required this.visitorCount,

@@ -220,21 +220,30 @@ export const createNote = onCall<CreateNoteData>(
 
     const db = getFirestore();
     const userRef = db.collection("users").doc(uid);
+    const publicProfileRef = db.collection("publicProfiles").doc(uid);
     const placeRef = db.collection("places").doc();
     const noteStateRef = userRef.collection("noteStates").doc(placeRef.id);
 
     await db.runTransaction(async (tx) => {
-      const userSnap = await tx.get(userRef);
+      const [userSnap, publicProfileSnap] = await Promise.all([
+        tx.get(userRef),
+        tx.get(publicProfileRef),
+      ]);
       await assertUserCanCreateContent(tx, userRef, nowMillis);
       const isPremium = userSnap.get("isPremium") === true;
       const limit = isPremium ? PREMIUM_NOTE_LIMIT : FREE_NOTE_LIMIT;
       const activeCount = (userSnap.get("activeNoteCount") as number) ?? 0;
-      const storedDisplayName = userSnap.get("displayName");
-      const creatorName =
-        typeof storedDisplayName === "string" &&
-          storedDisplayName.trim().length > 0 ?
-          storedDisplayName.trim() :
-          "Unknown user";
+      if (!publicProfileSnap.exists) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Public profile missing.",
+        );
+      }
+      const creatorName = publicProfileSnap.get("displayName") as string;
+      const creatorPhotoUrl =
+        publicProfileSnap.get("photoUrl") as string | null;
+      const creatorPhotoVersion =
+        publicProfileSnap.get("photoVersion") as number;
 
       if (activeCount >= limit) {
         throw new HttpsError(
@@ -259,6 +268,8 @@ export const createNote = onCall<CreateNoteData>(
         icon: typeof icon === "string" ? icon : "place",
         createdByUserId: uid,
         creatorName,
+        creatorPhotoUrl,
+        creatorPhotoVersion,
         maintainerIds: [uid],
         createdAt: FieldValue.serverTimestamp(),
         publishAt,

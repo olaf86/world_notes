@@ -13,6 +13,7 @@ import '../../../services/location_service.dart';
 import '../../providers/providers.dart';
 import '../../widgets/note/note_list_card.dart';
 import '../../widgets/note/note_sort_button.dart';
+import '../../widgets/note/user_avatar_badge.dart';
 import 'map_notes_error_messages.dart';
 
 class MapNotesListScreen extends ConsumerWidget {
@@ -264,6 +265,11 @@ class _MapNoteTileState extends ConsumerState<_MapNoteTile> {
       avatarColor: color,
       avatarIcon: placeIconData(pin.icon),
       avatarImageStoragePath: pin.pinImageStoragePath,
+      avatarBadge: UserAvatarBadge(
+        name: pin.creatorName,
+        photoUrl: pin.creatorPhotoUrl,
+        photoVersion: pin.creatorPhotoVersion,
+      ),
       title: pin.title,
       subtitle: pin.subtitle,
       titleAccessory: _AccessStatusSignal(canOpen: pin.canOpen),

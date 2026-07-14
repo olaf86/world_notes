@@ -10,6 +10,8 @@ class PinSummaryModel {
   final String icon;
   final String? pinImageStoragePath;
   final String creatorName;
+  final String? creatorPhotoUrl;
+  final int creatorPhotoVersion;
   final int messageCount;
   final int likeCount;
   final int visitorCount;
@@ -32,6 +34,8 @@ class PinSummaryModel {
     required this.icon,
     this.pinImageStoragePath,
     required this.creatorName,
+    this.creatorPhotoUrl,
+    required this.creatorPhotoVersion,
     required this.messageCount,
     required this.likeCount,
     required this.visitorCount,
@@ -59,7 +63,9 @@ class PinSummaryModel {
       colorHex: json['colorHex'] as String,
       icon: json['icon'] as String,
       pinImageStoragePath: json['pinImageStoragePath'] as String?,
-      creatorName: json['creatorName'] as String? ?? 'Unknown user',
+      creatorName: json['creatorName'] as String,
+      creatorPhotoUrl: json['creatorPhotoUrl'] as String?,
+      creatorPhotoVersion: json['creatorPhotoVersion'] as int,
       messageCount: json['messageCount'] as int,
       likeCount: json['likeCount'] as int,
       visitorCount: json['visitorCount'] as int,
@@ -86,6 +92,8 @@ class PinSummaryModel {
     icon: icon,
     pinImageStoragePath: pinImageStoragePath,
     creatorName: creatorName,
+    creatorPhotoUrl: creatorPhotoUrl,
+    creatorPhotoVersion: creatorPhotoVersion,
     messageCount: messageCount,
     likeCount: likeCount,
     visitorCount: visitorCount,

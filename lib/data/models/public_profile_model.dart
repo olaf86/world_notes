@@ -6,6 +6,7 @@ class PublicProfileModel {
   final String id;
   final String displayName;
   final String? photoUrl;
+  final int photoVersion;
   final int followerCount;
   final int followingCount;
 
@@ -13,6 +14,7 @@ class PublicProfileModel {
     required this.id,
     required this.displayName,
     this.photoUrl,
+    required this.photoVersion,
     this.followerCount = 0,
     this.followingCount = 0,
   });
@@ -30,6 +32,7 @@ class PublicProfileModel {
       id: id,
       displayName: data['displayName'] as String,
       photoUrl: data['photoUrl'] as String?,
+      photoVersion: data['photoVersion'] as int,
       followerCount: data['followerCount'] as int,
       followingCount: data['followingCount'] as int,
     );
@@ -39,6 +42,7 @@ class PublicProfileModel {
     return {
       'displayName': displayName,
       'photoUrl': photoUrl,
+      'photoVersion': photoVersion,
       if (includeCounts) ...{'followerCount': 0, 'followingCount': 0},
       'updatedAt': FieldValue.serverTimestamp(),
       if (includeCounts) 'createdAt': FieldValue.serverTimestamp(),
@@ -49,6 +53,7 @@ class PublicProfileModel {
     id: id,
     displayName: displayName,
     photoUrl: photoUrl,
+    photoVersion: photoVersion,
     followerCount: followerCount,
     followingCount: followingCount,
   );
@@ -58,6 +63,7 @@ class PublicProfileModel {
       id: entity.id,
       displayName: entity.displayName,
       photoUrl: entity.photoUrl,
+      photoVersion: entity.photoVersion,
       followerCount: entity.followerCount,
       followingCount: entity.followingCount,
     );

@@ -6,6 +6,7 @@ class NoteListCard extends StatelessWidget {
   final Color avatarColor;
   final IconData avatarIcon;
   final String? avatarImageStoragePath;
+  final Widget? avatarBadge;
   final String title;
   final String? subtitle;
   final Widget? titleAccessory;
@@ -18,6 +19,7 @@ class NoteListCard extends StatelessWidget {
     required this.avatarColor,
     required this.avatarIcon,
     this.avatarImageStoragePath,
+    this.avatarBadge,
     required this.title,
     this.subtitle,
     this.titleAccessory,
@@ -52,6 +54,7 @@ class NoteListCard extends StatelessWidget {
                 color: avatarColor,
                 icon: avatarIcon,
                 storagePath: avatarImageStoragePath,
+                badge: avatarBadge,
               ),
               const SizedBox(width: 12),
               Expanded(

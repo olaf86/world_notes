@@ -75,6 +75,8 @@ interface PinResult {
   icon: string;
   pinImageStoragePath: string | null;
   creatorName: string;
+  creatorPhotoUrl: string | null;
+  creatorPhotoVersion: number;
   messageCount: number;
   likeCount: number;
   visitorCount: number;
@@ -269,7 +271,9 @@ function pinFromDoc(
   const createdAt = doc.get("createdAt") as Timestamp | undefined;
   const publishAt = doc.get("publishAt") as Timestamp;
   const expiresAt = doc.get("expiresAt") as Timestamp;
-  const storedCreatorName = doc.get("creatorName");
+  const creatorName = doc.get("creatorName") as string;
+  const creatorPhotoUrl = doc.get("creatorPhotoUrl") as string | null;
+  const creatorPhotoVersion = doc.get("creatorPhotoVersion") as number;
   const storedPinImageStoragePath = doc.get("pinImageStoragePath");
   return {
     placeId: doc.id,
@@ -284,11 +288,9 @@ function pinFromDoc(
         storedPinImageStoragePath.trim().length > 0 ?
         storedPinImageStoragePath.trim() :
         null,
-    creatorName:
-      typeof storedCreatorName === "string" &&
-        storedCreatorName.trim().length > 0 ?
-        storedCreatorName.trim() :
-        "Unknown user",
+    creatorName,
+    creatorPhotoUrl,
+    creatorPhotoVersion,
     messageCount: (doc.get("messageCount") as number | undefined) ?? 0,
     likeCount: doc.get("likeCount") as number,
     visitorCount: (doc.get("visitorCount") as number | undefined) ?? 0,
@@ -344,11 +346,15 @@ async function addMarkerFlagsToPins(
   if (pins.length === 0) return [];
 
   const placeIds = [...new Set(pins.map((pin) => pin.placeId))];
-  const creatorUids = [...new Set(
+  const followedCreatorCandidateUids = [...new Set(
     pins
       .map((pin) => pin.creatorUid)
       .filter((creatorUid) => creatorUid.length > 0 && creatorUid !== uid),
   )];
+  const followedCreatorUidChunks = chunksOf(
+    followedCreatorCandidateUids,
+    VIEWER_STATE_QUERY_BATCH_SIZE,
+  );
   const noteStatesRef = db
     .collection("users")
     .doc(uid)
@@ -363,8 +369,8 @@ async function addMarkerFlagsToPins(
       ),
     ),
     Promise.all(
-      chunksOf(creatorUids, VIEWER_STATE_QUERY_BATCH_SIZE).map(
-        (creatorUidChunk) => db
+      followedCreatorUidChunks.map((creatorUidChunk) =>
+        db
           .collection("socialEdges")
           .where("followerUid", "==", uid)
           .where("followeeUid", "in", creatorUidChunk)
@@ -384,7 +390,6 @@ async function addMarkerFlagsToPins(
       if (typeof followeeUid === "string") followedCreatorUids.add(followeeUid);
     }
   }
-
   return pins.map((pin) => {
     const noteState = noteStateByPlaceId.get(pin.placeId);
     const lastSeenMessageCount =

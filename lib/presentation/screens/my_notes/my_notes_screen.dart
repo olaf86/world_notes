@@ -10,6 +10,7 @@ import '../../providers/providers.dart';
 import '../../widgets/my_notes_notification_controls.dart';
 import '../../widgets/note/note_list_card.dart';
 import '../../widgets/note/note_sort_button.dart';
+import '../../widgets/note/user_avatar_badge.dart';
 import '../note/note_creation_screen.dart';
 
 class MyNotesScreen extends ConsumerWidget {
@@ -564,6 +565,11 @@ class _MyNoteCard extends StatelessWidget {
         avatarColor: color,
         avatarIcon: placeIconData(place.icon),
         avatarImageStoragePath: place.pinImageStoragePath,
+        avatarBadge: UserAvatarBadge(
+          name: place.creatorName,
+          photoUrl: place.creatorPhotoUrl,
+          photoVersion: place.creatorPhotoVersion,
+        ),
         title: place.title,
         subtitle: place.subtitle,
         metadata: [

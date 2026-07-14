@@ -150,12 +150,21 @@ class AuthRepositoryImpl implements AuthRepository {
 
   Future<void> _syncPublicProfile(UserEntity entity) async {
     final profileRef = _firestore.collection('publicProfiles').doc(entity.id);
+    final existing = await profileRef.get();
+    final existingProfile = existing.exists
+        ? PublicProfileModel.fromFirestore(existing)
+        : null;
+    final photoVersion = existingProfile == null
+        ? 1
+        : existingProfile.photoUrl == entity.photoUrl
+        ? existingProfile.photoVersion
+        : existingProfile.photoVersion + 1;
     final profile = PublicProfileModel(
       id: entity.id,
       displayName: entity.name,
       photoUrl: entity.photoUrl,
+      photoVersion: photoVersion,
     );
-    final existing = await profileRef.get();
     await profileRef.set(
       profile.toOwnerFirestore(includeCounts: !existing.exists),
       SetOptions(merge: true),

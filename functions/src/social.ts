@@ -20,6 +20,7 @@ interface SetUserFollowData {
 interface PublicProfileData {
   displayName: string;
   photoUrl: string | null;
+  photoVersion: number;
 }
 
 const MAX_UID_LENGTH = 128;
@@ -97,7 +98,7 @@ function publicProfileFromUser(
     typeof rawPhoto === "string" && rawPhoto.trim().length > 0 ?
       rawPhoto.trim() :
       null;
-  return {displayName, photoUrl};
+  return {displayName, photoUrl, photoVersion: 1};
 }
 
 /**
@@ -143,6 +144,10 @@ function upsertPublicProfile(
     {
       displayName: profile.displayName,
       photoUrl: profile.photoUrl,
+      photoVersion: profileSnap.exists &&
+          typeof profileSnap.get("photoVersion") === "number" ?
+        profileSnap.get("photoVersion") :
+        profile.photoVersion,
       followerCount,
       followingCount,
       createdAt: profileSnap.exists ?

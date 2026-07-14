@@ -6,14 +6,23 @@ class UserAvatarBadge extends StatelessWidget {
 
   final String? name;
   final String? photoUrl;
+  final int? photoVersion;
 
-  const UserAvatarBadge({super.key, this.name, this.photoUrl});
+  const UserAvatarBadge({
+    super.key,
+    this.name,
+    this.photoUrl,
+    this.photoVersion,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final effectiveName = name ?? defaultName;
     final url = photoUrl?.trim();
+    final cacheKey = url == null || url.isEmpty || photoVersion == null
+        ? null
+        : '$url#v$photoVersion';
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -34,7 +43,7 @@ class UserAvatarBadge extends StatelessWidget {
             child: url == null || url.isEmpty
                 ? _InitialAvatar(name: effectiveName)
                 : Image(
-                    image: CachedNetworkImageProvider(url),
+                    image: CachedNetworkImageProvider(url, cacheKey: cacheKey),
                     fit: BoxFit.cover,
                     errorBuilder: (_, _, _) =>
                         _InitialAvatar(name: effectiveName),

@@ -1,9 +1,7 @@
 import {getAuth} from "firebase-admin/auth";
 import {
-  DocumentSnapshot,
   FieldValue,
   getFirestore,
-  Timestamp,
 } from "firebase-admin/firestore";
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 
@@ -44,28 +42,6 @@ function stringOrNull(value: unknown): string | null {
 }
 
 /**
- * Returns a required counter from an existing public profile.
- *
- * @param {DocumentSnapshot} profileSnap Existing public profile.
- * @param {string} field Counter field to read.
- * @return {number} Current non-negative counter value.
- */
-function publicProfileCounter(
-  profileSnap: DocumentSnapshot,
-  field: "followerCount" | "followingCount",
-): number {
-  if (!profileSnap.exists) return 0;
-  const value = profileSnap.get(field);
-  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
-    throw new HttpsError(
-      "failed-precondition",
-      "Public profile counters are incomplete.",
-    );
-  }
-  return value;
-}
-
-/**
  * Updates the caller's nickname and refreshes access-list display names.
  */
 export const updateDisplayName = onCall<{displayName?: unknown}>(
@@ -102,21 +78,12 @@ export const updateDisplayName = onCall<{displayName?: unknown}>(
         if (!userSnap.exists) {
           throw new HttpsError("failed-precondition", "User profile missing.");
         }
-        const storedCreatedAt = publicProfileSnap.exists ?
-          publicProfileSnap.get("createdAt") :
-          null;
-        if (
-          publicProfileSnap.exists &&
-          !(storedCreatedAt instanceof Timestamp)
-        ) {
+        if (!publicProfileSnap.exists) {
           throw new HttpsError(
             "failed-precondition",
-            "Public profile timestamps are incomplete.",
+            "Public profile missing.",
           );
         }
-        const profilePhotoUrl = publicProfileSnap.exists ?
-          stringOrNull(publicProfileSnap.get("photoUrl")) :
-          stringOrNull(userSnap.get("photoUrl"));
         tx.set(
           userRef,
           {
@@ -125,20 +92,8 @@ export const updateDisplayName = onCall<{displayName?: unknown}>(
           },
           {merge: true},
         );
-        tx.set(publicProfileRef, {
+        tx.update(publicProfileRef, {
           displayName,
-          photoUrl: profilePhotoUrl,
-          followerCount: publicProfileCounter(
-            publicProfileSnap,
-            "followerCount",
-          ),
-          followingCount: publicProfileCounter(
-            publicProfileSnap,
-            "followingCount",
-          ),
-          createdAt: publicProfileSnap.exists ?
-            storedCreatedAt :
-            FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
         });
       }),

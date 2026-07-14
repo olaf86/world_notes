@@ -12,6 +12,9 @@ class PlaceModel {
   final String icon;
   final String? pinImageStoragePath;
   final String createdByUserId;
+  final String creatorName;
+  final String? creatorPhotoUrl;
+  final int creatorPhotoVersion;
   final List<String> maintainerIds;
   final DateTime createdAt;
   final DateTime publishAt;
@@ -42,6 +45,9 @@ class PlaceModel {
     required this.icon,
     this.pinImageStoragePath,
     required this.createdByUserId,
+    required this.creatorName,
+    this.creatorPhotoUrl,
+    required this.creatorPhotoVersion,
     this.maintainerIds = const [],
     required this.createdAt,
     required this.publishAt,
@@ -87,6 +93,9 @@ class PlaceModel {
       icon: data['icon'] as String,
       pinImageStoragePath: data['pinImageStoragePath'] as String?,
       createdByUserId: data['createdByUserId'] as String,
+      creatorName: data['creatorName'] as String,
+      creatorPhotoUrl: data['creatorPhotoUrl'] as String?,
+      creatorPhotoVersion: data['creatorPhotoVersion'] as int,
       maintainerIds: _maintainerIdsFromData(data),
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       publishAt: (data['publishAt'] as Timestamp).toDate(),
@@ -120,6 +129,9 @@ class PlaceModel {
       if (pinImageStoragePath != null)
         'pinImageStoragePath': pinImageStoragePath,
       'createdByUserId': createdByUserId,
+      'creatorName': creatorName,
+      if (creatorPhotoUrl != null) 'creatorPhotoUrl': creatorPhotoUrl,
+      'creatorPhotoVersion': creatorPhotoVersion,
       'maintainerIds': maintainerIds.isEmpty
           ? [createdByUserId]
           : maintainerIds,
@@ -156,6 +168,9 @@ class PlaceModel {
     icon: icon,
     pinImageStoragePath: pinImageStoragePath,
     createdByUserId: createdByUserId,
+    creatorName: creatorName,
+    creatorPhotoUrl: creatorPhotoUrl,
+    creatorPhotoVersion: creatorPhotoVersion,
     maintainerIds: maintainerIds,
     createdAt: createdAt,
     publishAt: publishAt,
