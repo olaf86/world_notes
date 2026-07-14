@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/place_icon.dart';
 import '../../../core/utils/time_format.dart';
 import '../../../domain/entities/pin_summary_entity.dart';
+import '../../providers/providers.dart';
+import '../../screens/map/map_pin_display.dart';
 import '../note/note_pin_avatar.dart';
 import '../note/user_avatar_badge.dart';
 
-class NoteMarkerBottomSheet extends StatefulWidget {
+class NoteMarkerBottomSheet extends ConsumerStatefulWidget {
   final PinSummary pin;
   final Future<bool> Function(PinSummary pin) onOpen;
 
@@ -17,17 +20,18 @@ class NoteMarkerBottomSheet extends StatefulWidget {
   });
 
   @override
-  State<NoteMarkerBottomSheet> createState() => _NoteMarkerBottomSheetState();
+  ConsumerState<NoteMarkerBottomSheet> createState() =>
+      _NoteMarkerBottomSheetState();
 }
 
-class _NoteMarkerBottomSheetState extends State<NoteMarkerBottomSheet> {
+class _NoteMarkerBottomSheetState extends ConsumerState<NoteMarkerBottomSheet> {
   bool _isOpening = false;
 
-  Future<void> _open() async {
-    if (_isOpening || !widget.pin.canOpen) return;
+  Future<void> _open(MapPinDisplay display) async {
+    if (_isOpening || !display.canOpen) return;
 
     setState(() => _isOpening = true);
-    final opened = await widget.onOpen(widget.pin);
+    final opened = await widget.onOpen(display.pin);
     if (!mounted) return;
 
     if (opened) {
@@ -41,7 +45,19 @@ class _NoteMarkerBottomSheetState extends State<NoteMarkerBottomSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final pin = widget.pin;
+    final livePosition = ref.watch(positionStreamProvider).valueOrNull;
+    final anchor = ref.watch(anchorPositionProvider);
+    final position = livePosition ?? anchor;
+    final display = position == null
+        ? MapPinDisplay.fromServerSnapshot(widget.pin)
+        : MapPinDisplay.fromLivePosition(
+            pin: widget.pin,
+            position: position,
+            accessRadiusMeters: ref
+                .watch(noteAccessRadiusMetersProvider)
+                .toDouble(),
+          );
+    final pin = display.pin;
     final color = parsePlaceColor(pin.colorHex);
 
     return Padding(
@@ -165,7 +181,7 @@ class _NoteMarkerBottomSheetState extends State<NoteMarkerBottomSheet> {
                 icon: Icons.schedule,
                 label: remainingLifetimeLabel(pin.expiresAt),
               ),
-              if (!pin.canOpen)
+              if (!display.canOpen)
                 _MetaChip(
                   icon: Icons.near_me_disabled_outlined,
                   label: 'Move closer to open',
@@ -175,7 +191,9 @@ class _NoteMarkerBottomSheetState extends State<NoteMarkerBottomSheet> {
           ),
           const SizedBox(height: 20),
           FilledButton.icon(
-            onPressed: pin.canOpen && !_isOpening ? _open : null,
+            onPressed: display.canOpen && !_isOpening
+                ? () => _open(display)
+                : null,
             icon: _isOpening
                 ? SizedBox.square(
                     dimension: 18,
@@ -184,11 +202,13 @@ class _NoteMarkerBottomSheetState extends State<NoteMarkerBottomSheet> {
                       color: theme.colorScheme.onPrimary,
                     ),
                   )
-                : Icon(pin.canOpen ? Icons.open_in_new : Icons.lock_outline),
+                : Icon(
+                    display.canOpen ? Icons.open_in_new : Icons.lock_outline,
+                  ),
             label: Text(
               _isOpening
                   ? 'Opening...'
-                  : pin.canOpen
+                  : display.canOpen
                   ? (pin.isClosed ? 'View Note' : 'Open Note')
                   : 'Available nearby',
             ),
