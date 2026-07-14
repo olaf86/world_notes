@@ -198,11 +198,14 @@ class _PinListState extends ConsumerState<_PinList> {
               error: (e, _) =>
                   const _ScrollableStatusView(child: _MapNotesLoadErrorView()),
               data: (pins) {
-                final currentPins = deriveMapPinDisplays(
-                  pins,
-                  position: widget.currentPosition,
-                  accessRadiusMeters: noteAccessRadiusMeters.toDouble(),
-                );
+                final currentPins = [
+                  for (final pin in pins)
+                    MapPinDisplay.fromLivePosition(
+                      pin: pin,
+                      position: widget.currentPosition,
+                      accessRadiusMeters: noteAccessRadiusMeters.toDouble(),
+                    ),
+                ];
                 if (currentPins.isEmpty) {
                   return _ScrollableStatusView(
                     child: Center(

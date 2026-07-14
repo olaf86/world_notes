@@ -50,8 +50,8 @@ class _NoteMarkerBottomSheetState extends ConsumerState<NoteMarkerBottomSheet> {
     final position = livePosition ?? anchor;
     final display = position == null
         ? MapPinDisplay.fromServerSnapshot(widget.pin)
-        : deriveMapPinDisplay(
-            widget.pin,
+        : MapPinDisplay.fromLivePosition(
+            pin: widget.pin,
             position: position,
             accessRadiusMeters: ref
                 .watch(noteAccessRadiusMetersProvider)

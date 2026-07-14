@@ -22,41 +22,26 @@ class MapPinDisplay {
   /// available.
   factory MapPinDisplay.fromServerSnapshot(PinSummary pin) =>
       MapPinDisplay(pin: pin, distanceMeters: null, canOpen: pin.canOpen);
-}
 
-/// Combines a server pin with the locally observable, distance-based state.
-/// Pin discovery is deliberately throttled by [anchorPositionProvider], but
-/// access affordances must react to the live GPS stream. Keeping this mapping
-/// local avoids a map-pins request for every location update.
-MapPinDisplay deriveMapPinDisplay(
-  PinSummary pin, {
-  required Position position,
-  required double accessRadiusMeters,
-}) {
-  final distanceMeters = Geolocator.distanceBetween(
-    position.latitude,
-    position.longitude,
-    pin.latitude,
-    pin.longitude,
-  );
-  return MapPinDisplay(
-    pin: pin,
-    distanceMeters: distanceMeters,
-    canOpen: distanceMeters <= accessRadiusMeters,
-  );
-}
-
-List<MapPinDisplay> deriveMapPinDisplays(
-  List<PinSummary> pins, {
-  required Position position,
-  required double accessRadiusMeters,
-}) {
-  return [
-    for (final pin in pins)
-      deriveMapPinDisplay(
-        pin,
-        position: position,
-        accessRadiusMeters: accessRadiusMeters,
-      ),
-  ];
+  /// Combines a server pin with the locally observable, distance-based state.
+  /// Pin discovery is deliberately throttled by [anchorPositionProvider], but
+  /// access affordances must react to the live GPS stream. Keeping this
+  /// mapping local avoids a map-pins request for every location update.
+  factory MapPinDisplay.fromLivePosition({
+    required PinSummary pin,
+    required Position position,
+    required double accessRadiusMeters,
+  }) {
+    final distanceMeters = Geolocator.distanceBetween(
+      position.latitude,
+      position.longitude,
+      pin.latitude,
+      pin.longitude,
+    );
+    return MapPinDisplay(
+      pin: pin,
+      distanceMeters: distanceMeters,
+      canOpen: distanceMeters <= accessRadiusMeters,
+    );
+  }
 }
