@@ -147,16 +147,19 @@ class _PinListState extends ConsumerState<_PinList> {
       _sort = sort;
     }
 
-    final pinByPlaceId = {
+    // Map the current live display data by id, then rebuild it in the
+    // previously chosen order. Removing each item also makes the remaining
+    // entries below the set of newly arrived pins.
+    final displayByPlaceId = {
       for (final display in currentPins) display.pin.placeId: display,
     };
-    final ordered = <MapPinDisplay>[
-      for (final placeId in _orderedPlaceIds) ?pinByPlaceId.remove(placeId),
+    final orderedDisplays = <MapPinDisplay>[
+      for (final placeId in _orderedPlaceIds) ?displayByPlaceId.remove(placeId),
     ];
     // A defensive fallback for a source update that mutates the same list
     // instance. Normal repository responses always take the branch above.
-    ordered.addAll(pinByPlaceId.values);
-    return ordered;
+    orderedDisplays.addAll(displayByPlaceId.values);
+    return orderedDisplays;
   }
 
   @override
