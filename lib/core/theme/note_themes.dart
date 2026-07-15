@@ -34,6 +34,15 @@ class NoteThemeDefinition {
 class NoteThemes {
   static final all = <NoteThemeDefinition>[
     _definition(
+      id: NoteThemeId.standard,
+      name: 'Standard',
+      description: 'The calm, familiar World Notes appearance.',
+      lightSeed: const Color(0xFF2E7D32),
+      darkSeed: const Color(0xFF8BC58F),
+      lightGradient: const [Color(0xFFF7FAF6), Color(0xFFF3F8F5)],
+      darkGradient: const [Color(0xFF142018), Color(0xFF18241B)],
+    ),
+    _definition(
       id: NoteThemeId.aurora,
       name: 'Aurora',
       description: 'Indigo with aqua and violet light.',

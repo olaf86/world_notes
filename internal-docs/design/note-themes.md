@@ -10,6 +10,7 @@ The first release ships five app-defined themes:
 
 | ID | Name | Direction |
 | --- | --- | --- |
+| `standard` | Standard | The calm, familiar World Notes appearance. Default. |
 | `aurora` | Aurora | Modern deep indigo with aqua and violet accents. |
 | `citrus` | Citrus Pop | Warm cream, coral, orange, and teal for a playful look. |
 | `botanical` | Botanical | Calm jade and leaf green on a soft natural surface. |
@@ -26,7 +27,7 @@ themes.
 Add the required field below to `places/{placeId}`:
 
 ```text
-themeId: string // one of: aurora, citrus, botanical, neon, editorial
+themeId: string // one of: standard, aurora, citrus, botanical, neon, editorial
 ```
 
 `themeId` is metadata for the note surface, not map-marker styling:
@@ -39,17 +40,12 @@ themeId: string // one of: aurora, citrus, botanical, neon, editorial
 its payload so the marker bottom sheet can render without fetching the entire
 `places` document.
 
-Before shipping the Flutter client, run an Admin SDK migration over every
-existing `places` document to set `themeId: 'aurora'`. The migration is
-idempotent and only writes documents missing the field. No legacy documents
-are deliberately retained after the migration.
-
 ## Client model and palettes
 
 Create a pure-Dart ID type in `lib/domain/entities/note_theme.dart`:
 
 ```dart
-enum NoteThemeId { aurora, citrus, botanical, neon, editorial }
+enum NoteThemeId { standard, aurora, citrus, botanical, neon, editorial }
 ```
 
 and a Flutter palette registry in `lib/core/theme/note_themes.dart`:
@@ -176,24 +172,9 @@ theme changes. This avoids broadening rules for a cosmetic field.
 ## Creation behavior
 
 The initial delivery should add the same compact picker to note creation,
-preselected to `aurora`, so new notes are purposeful from the start. Forking
+preselected to `standard`, so new notes begin with the familiar app appearance.
+Forking
 an archived note copies its required `themeId`.
-
-## Rollout and migration
-
-Because this is still in development, treat the field as a strict schema
-change rather than a backward-compatible rollout:
-
-1. Deploy the server changes that validate/write `themeId` and return it from
-   `listMapPins`; do not publish the new Flutter build yet.
-2. Run `functions/src/scripts/backfillNoteThemes.ts` with Admin SDK credentials
-   to set `aurora` on documents that predate the schema.
-3. Verify there are no missing or unsupported values in `places`.
-4. Release the Flutter build with strict model parsing.
-
-The migration script reports scanned, changed, skipped, and invalid-document
-counts, performs bounded batched writes, and is safe to rerun. Development
-seed data must set a valid `themeId` explicitly.
 
 ## Implementation slices
 
@@ -206,8 +187,8 @@ seed data must set a valid `themeId` explicitly.
 4. Add creation/fork selection, localization strings, and widget tests for
    visual selection, maintainer visibility, non-maintainer hiding, and
    archived-card treatment.
-5. Add the Admin SDK backfill script and seed-data field, then test light and
-   dark palettes (including contrast) in widget tests.
+5. Add the theme field to development seed data, then test light and dark
+   palettes (including contrast) in widget tests.
 6. Run Flutter tests/analyzer and Functions type/lint tests; deploy rules only
    if their existing denial behavior is changed (the proposed design does not
    require a rules change).
@@ -216,8 +197,7 @@ seed data must set a valid `themeId` explicitly.
 
 - Each of the five IDs has a visually distinct, readable preview and detail
   appearance in both light and dark mode.
-- Every stored note has one valid `themeId` before the Flutter client with this
-  feature is released.
+- Every stored note has one valid `themeId`.
 - The bottom sheet and detail screen show the same theme for the same note.
 - Map Notes, My Notes, and Archived Notes present the same theme as a compact
   card accent without changing the map pin color.

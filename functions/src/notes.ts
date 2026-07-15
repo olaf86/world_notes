@@ -66,6 +66,7 @@ interface SetNoteThemeData {
 }
 
 const NOTE_THEME_IDS = new Set([
+  "standard",
   "aurora",
   "citrus",
   "botanical",

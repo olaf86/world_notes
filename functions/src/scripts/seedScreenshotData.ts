@@ -54,7 +54,13 @@ interface PlaceSeed {
   latitude: number;
   longitude: number;
   colorHex: string;
-  themeId: "aurora" | "citrus" | "botanical" | "neon" | "editorial";
+  themeId:
+    | "standard"
+    | "aurora"
+    | "citrus"
+    | "botanical"
+    | "neon"
+    | "editorial";
   icon: string;
   createdHoursAgo: number;
   lastMessageHoursAgo: number;
@@ -314,7 +320,7 @@ function screenshotPlaces(user: ScreenshotUser): PlaceSeed[] {
       latitude: 35.681236,
       longitude: 139.767125,
       colorHex: "#2563EB",
-      themeId: "aurora",
+      themeId: "standard",
       icon: "place",
       createdHoursAgo: 72,
       lastMessageHoursAgo: 2,

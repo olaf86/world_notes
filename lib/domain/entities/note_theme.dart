@@ -1,5 +1,6 @@
 /// Stable identifiers for the built-in note appearance themes.
 enum NoteThemeId {
+  standard,
   aurora,
   citrus,
   botanical,
@@ -9,6 +10,7 @@ enum NoteThemeId {
   String toJson() => name;
 
   static NoteThemeId fromJson(Object? value) => switch (value) {
+    'standard' => standard,
     'aurora' => aurora,
     'citrus' => citrus,
     'botanical' => botanical,

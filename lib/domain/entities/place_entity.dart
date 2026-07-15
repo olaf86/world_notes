@@ -136,7 +136,7 @@ class PlaceEntity {
     required this.title,
     this.subtitle,
     required this.colorHex,
-    this.themeId = NoteThemeId.aurora,
+    this.themeId = NoteThemeId.standard,
     required this.icon,
     this.pinImageStoragePath,
     required this.createdByUserId,

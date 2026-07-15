@@ -30,7 +30,7 @@ class NoteListCard extends StatelessWidget {
     this.metadata = const [],
     this.trailing,
     this.onTap,
-    this.themeId = NoteThemeId.aurora,
+    this.themeId = NoteThemeId.standard,
     this.isArchived = false,
   });
 

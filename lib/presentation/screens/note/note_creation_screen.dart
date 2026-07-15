@@ -57,7 +57,7 @@ class NoteCreationDraft {
     this.subtitle,
     required this.colorHex,
     required this.icon,
-    this.themeId = NoteThemeId.aurora,
+    this.themeId = NoteThemeId.standard,
   });
 
   factory NoteCreationDraft.fromPlace(PlaceEntity place) => NoteCreationDraft(
@@ -88,7 +88,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
 
   Color _selectedColor = Colors.green;
   String _selectedIcon = defaultMapPinIcon;
-  NoteThemeId _selectedTheme = NoteThemeId.aurora;
+  NoteThemeId _selectedTheme = NoteThemeId.standard;
   _PinMarkerStyle _pinMarkerStyle = _PinMarkerStyle.icon;
   Uint8List? _pinThumbnailBytes;
   // Expiry is required. Defaults to AppConfig.defaultNoteExpiryDays (3 months)

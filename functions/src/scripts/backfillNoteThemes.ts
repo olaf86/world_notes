@@ -4,6 +4,7 @@ import {FieldPath, getFirestore} from "firebase-admin/firestore";
 
 const projectId = process.env.GCLOUD_PROJECT || "world-notes-prod";
 const validThemeIds = new Set([
+  "standard",
   "aurora",
   "citrus",
   "botanical",
@@ -35,7 +36,7 @@ async function main(): Promise<void> {
       scanned++;
       const themeId = place.get("themeId");
       if (themeId == null) {
-        batch.update(place.ref, {themeId: "aurora"});
+        batch.update(place.ref, {themeId: "standard"});
         changed++;
       } else if (typeof themeId !== "string" || !validThemeIds.has(themeId)) {
         invalid++;
