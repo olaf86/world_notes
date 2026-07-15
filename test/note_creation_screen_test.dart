@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:world_notes/domain/entities/pin_summary_entity.dart';
 import 'package:world_notes/domain/entities/place_entity.dart';
+import 'package:world_notes/domain/entities/note_theme.dart';
 import 'package:world_notes/domain/entities/user_entity.dart';
 import 'package:world_notes/domain/repositories/place_repository.dart';
 import 'package:world_notes/presentation/providers/providers.dart';
@@ -144,7 +145,13 @@ void main() {
       placeRepository: _RecordingPlaceRepository(),
     );
 
-    await tester.tap(find.byTooltip('Show more colors'));
+    final showMoreColors = find.byTooltip('Show more colors');
+    await tester.dragUntilVisible(
+      showMoreColors,
+      find.byType(ListView),
+      const Offset(0, -300),
+    );
+    await tester.tap(showMoreColors);
     await tester.pump(const Duration(milliseconds: 200));
     expect(find.byTooltip('Indigo'), findsOneWidget);
 
@@ -263,6 +270,7 @@ class _RecordingPlaceRepository implements PlaceRepository {
     required String title,
     String? subtitle,
     required String colorHex,
+    required NoteThemeId themeId,
     required String icon,
     required int expiryDays,
     DateTime? publishAt,

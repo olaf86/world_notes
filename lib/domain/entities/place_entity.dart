@@ -1,4 +1,5 @@
 import '../../config/app_config.dart';
+import 'note_theme.dart';
 
 /// Axis 1 — Visibility (access control).
 ///
@@ -68,6 +69,7 @@ class PlaceEntity {
   final String title;
   final String? subtitle;
   final String colorHex;
+  final NoteThemeId themeId;
   final String icon;
   final String? pinImageStoragePath;
   final String createdByUserId;
@@ -134,6 +136,7 @@ class PlaceEntity {
     required this.title,
     this.subtitle,
     required this.colorHex,
+    this.themeId = NoteThemeId.standard,
     required this.icon,
     this.pinImageStoragePath,
     required this.createdByUserId,

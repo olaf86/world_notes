@@ -17,6 +17,7 @@ import '../../domain/entities/place_entity.dart'
         NoteMembership,
         PlaceEntity,
         PlaceVisibility;
+import '../../domain/entities/note_theme.dart';
 import '../../domain/entities/note_visitor_entity.dart';
 import '../../domain/entities/note_list_sort.dart';
 import '../../domain/entities/pin_summary_entity.dart';
@@ -92,6 +93,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
     required String title,
     String? subtitle,
     required String colorHex,
+    required NoteThemeId themeId,
     required String icon,
     required int expiryDays,
     DateTime? publishAt,
@@ -108,6 +110,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
       'title': title,
       'subtitle': subtitle,
       'colorHex': colorHex,
+      'themeId': themeId.toJson(),
       'icon': icon,
       'expiryDays': expiryDays,
       if (publishAt != null)
@@ -282,6 +285,17 @@ class PlaceRepositoryImpl implements PlaceRepository {
       'isOpen': true,
       'closedReason': FieldValue.delete(),
       'closedAt': FieldValue.delete(),
+    });
+  }
+
+  @override
+  Future<void> setNoteTheme({
+    required String placeId,
+    required NoteThemeId themeId,
+  }) async {
+    await _functions.httpsCallable('setNoteTheme').call<void>({
+      'placeId': placeId,
+      'themeId': themeId.toJson(),
     });
   }
 

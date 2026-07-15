@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/place_icon.dart';
+import '../../../core/theme/note_themes.dart';
 import '../../../core/utils/time_format.dart';
 import '../../../domain/entities/pin_summary_entity.dart';
 import '../../providers/providers.dart';
@@ -44,7 +45,6 @@ class _NoteMarkerBottomSheetState extends ConsumerState<NoteMarkerBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final livePosition = ref.watch(positionStreamProvider).valueOrNull;
     final anchor = ref.watch(anchorPositionProvider);
     final position = livePosition ?? anchor;
@@ -59,161 +59,177 @@ class _NoteMarkerBottomSheetState extends ConsumerState<NoteMarkerBottomSheet> {
           );
     final pin = display.pin;
     final color = parsePlaceColor(pin.colorHex);
+    final palette = NoteThemes.paletteOf(context, pin.themeId);
 
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              NotePinAvatar(
-                color: color,
-                icon: placeIconData(pin.icon),
-                storagePath: pin.pinImageStoragePath,
-                radius: 20,
-                badge: UserAvatarBadge(
-                  name: pin.creatorName,
-                  photoUrl: pin.creatorPhotoUrl,
-                  photoVersion: pin.creatorPhotoVersion,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      pin.title,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    if (pin.subtitle != null)
-                      Text(
-                        pin.subtitle!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.person_outline,
-                          size: 14,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            pin.creatorName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    Text(
-                      'Created at ${noteDateTimeLabel(pin.createdAt)}',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              if (pin.isFromFollowedAuthor)
-                _MetaChip(
-                  icon: Icons.person_pin_circle_outlined,
-                  label: 'New from someone you follow',
-                  color: theme.colorScheme.tertiary,
-                ),
-              if (pin.hasUnseenMessages)
-                _MetaChip(
-                  icon: Icons.fiber_new_outlined,
-                  label: 'New messages',
-                  color: theme.colorScheme.error,
-                ),
-              _MetaChip(
-                icon: Icons.chat_bubble_outline,
-                label: _countLabel(pin.messageCount, 'message'),
-              ),
-              _MetaChip(
-                icon: Icons.favorite_border,
-                label: _countLabel(pin.likeCount, 'like'),
-              ),
-              _MetaChip(
-                icon: Icons.directions_walk,
-                label: pin.footprintEnabled
-                    ? pin.visitorCount > 0
-                          ? '${pin.visitorCount} footprints'
-                          : 'Footprints on'
-                    : 'Footprints off',
-                color: pin.footprintEnabled
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurfaceVariant,
-              ),
-              if (pin.isPrivate)
-                _MetaChip(
-                  icon: Icons.lock_outline,
-                  label: 'Private',
-                  color: theme.colorScheme.tertiary,
-                ),
-              if (pin.isClosed)
-                _MetaChip(
-                  icon: Icons.do_not_disturb_on_outlined,
-                  label: 'Closed',
-                  color: theme.colorScheme.error,
-                ),
-              _MetaChip(
-                icon: Icons.schedule,
-                label: remainingLifetimeLabel(pin.expiresAt),
-              ),
-              if (!display.canOpen)
-                _MetaChip(
-                  icon: Icons.near_me_disabled_outlined,
-                  label: 'Move closer to open',
-                  color: theme.colorScheme.secondary,
-                ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          FilledButton.icon(
-            onPressed: display.canOpen && !_isOpening
-                ? () => _open(display)
-                : null,
-            icon: _isOpening
-                ? SizedBox.square(
-                    dimension: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: theme.colorScheme.onPrimary,
-                    ),
-                  )
-                : Icon(
-                    display.canOpen ? Icons.open_in_new : Icons.lock_outline,
-                  ),
-            label: Text(
-              _isOpening
-                  ? 'Opening...'
-                  : display.canOpen
-                  ? (pin.isClosed ? 'View Note' : 'Open Note')
-                  : 'Available nearby',
+    return Theme(
+      data: NoteThemes.themed(context, pin.themeId),
+      child: Builder(
+        builder: (context) {
+          final theme = Theme.of(context);
+          return DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: palette.heroGradient),
             ),
-          ),
-        ],
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      NotePinAvatar(
+                        color: color,
+                        icon: placeIconData(pin.icon),
+                        storagePath: pin.pinImageStoragePath,
+                        radius: 20,
+                        badge: UserAvatarBadge(
+                          name: pin.creatorName,
+                          photoUrl: pin.creatorPhotoUrl,
+                          photoVersion: pin.creatorPhotoVersion,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              pin.title,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            if (pin.subtitle != null)
+                              Text(
+                                pin.subtitle!,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.person_outline,
+                                  size: 14,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    pin.creatorName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              'Created at ${noteDateTimeLabel(pin.createdAt)}',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      if (pin.isFromFollowedAuthor)
+                        _MetaChip(
+                          icon: Icons.person_pin_circle_outlined,
+                          label: 'New from someone you follow',
+                          color: theme.colorScheme.tertiary,
+                        ),
+                      if (pin.hasUnseenMessages)
+                        _MetaChip(
+                          icon: Icons.fiber_new_outlined,
+                          label: 'New messages',
+                          color: theme.colorScheme.error,
+                        ),
+                      _MetaChip(
+                        icon: Icons.chat_bubble_outline,
+                        label: _countLabel(pin.messageCount, 'message'),
+                      ),
+                      _MetaChip(
+                        icon: Icons.favorite_border,
+                        label: _countLabel(pin.likeCount, 'like'),
+                      ),
+                      _MetaChip(
+                        icon: Icons.directions_walk,
+                        label: pin.footprintEnabled
+                            ? pin.visitorCount > 0
+                                  ? '${pin.visitorCount} footprints'
+                                  : 'Footprints on'
+                            : 'Footprints off',
+                        color: pin.footprintEnabled
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.onSurfaceVariant,
+                      ),
+                      if (pin.isPrivate)
+                        _MetaChip(
+                          icon: Icons.lock_outline,
+                          label: 'Private',
+                          color: theme.colorScheme.tertiary,
+                        ),
+                      if (pin.isClosed)
+                        _MetaChip(
+                          icon: Icons.do_not_disturb_on_outlined,
+                          label: 'Closed',
+                          color: theme.colorScheme.error,
+                        ),
+                      _MetaChip(
+                        icon: Icons.schedule,
+                        label: remainingLifetimeLabel(pin.expiresAt),
+                      ),
+                      if (!display.canOpen)
+                        _MetaChip(
+                          icon: Icons.near_me_disabled_outlined,
+                          label: 'Move closer to open',
+                          color: theme.colorScheme.secondary,
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  FilledButton.icon(
+                    onPressed: display.canOpen && !_isOpening
+                        ? () => _open(display)
+                        : null,
+                    icon: _isOpening
+                        ? SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: theme.colorScheme.onPrimary,
+                            ),
+                          )
+                        : Icon(
+                            display.canOpen
+                                ? Icons.open_in_new
+                                : Icons.lock_outline,
+                          ),
+                    label: Text(
+                      _isOpening
+                          ? 'Opening...'
+                          : display.canOpen
+                          ? (pin.isClosed ? 'View Note' : 'Open Note')
+                          : 'Available nearby',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

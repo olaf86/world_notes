@@ -72,6 +72,7 @@ interface PinResult {
   title: string;
   subtitle: string | null;
   colorHex: string;
+  themeId: string;
   icon: string;
   pinImageStoragePath: string | null;
   creatorName: string;
@@ -282,6 +283,7 @@ function pinFromDoc(
     title: doc.get("title") as string,
     subtitle: (doc.get("subtitle") as string | undefined) ?? null,
     colorHex: doc.get("colorHex") as string,
+    themeId: doc.get("themeId") as string,
     icon: doc.get("icon") as string,
     pinImageStoragePath:
       typeof storedPinImageStoragePath === "string" &&

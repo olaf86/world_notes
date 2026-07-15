@@ -18,6 +18,7 @@ class NotePermissions {
   final bool canPromoteMaintainers;
   final bool canDemoteMaintainers;
   final bool canChangeLock;
+  final bool canChangeTheme;
   final bool canArchive;
 
   const NotePermissions({
@@ -35,6 +36,7 @@ class NotePermissions {
     required this.canPromoteMaintainers,
     required this.canDemoteMaintainers,
     required this.canChangeLock,
+    required this.canChangeTheme,
     required this.canArchive,
   });
 
@@ -48,6 +50,7 @@ class NotePermissions {
       canReopenThread ||
       canManageAccess ||
       canChangeLock ||
+      canChangeTheme ||
       canArchive;
 }
 
@@ -114,6 +117,7 @@ extension NotePermissionPolicy on PlaceEntity {
       canPromoteMaintainers: isCreator && !isArchived && isPrivate,
       canDemoteMaintainers: isCreator && !isArchived && isPrivate,
       canChangeLock: isCreator && !isArchived,
+      canChangeTheme: isMaintainer && !isArchived,
       canArchive: isCreator && !isArchived,
     );
   }

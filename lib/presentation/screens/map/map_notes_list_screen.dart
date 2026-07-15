@@ -334,6 +334,7 @@ class _MapNoteTileState extends ConsumerState<_MapNoteTile> {
       avatarColor: color,
       avatarIcon: placeIconData(pin.icon),
       avatarImageStoragePath: pin.pinImageStoragePath,
+      themeId: pin.themeId,
       avatarBadge: UserAvatarBadge(
         name: pin.creatorName,
         photoUrl: pin.creatorPhotoUrl,

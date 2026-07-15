@@ -1,5 +1,6 @@
 import '../entities/note_visitor_entity.dart';
 import '../entities/note_list_sort.dart';
+import '../entities/note_theme.dart';
 import '../entities/place_entity.dart';
 import '../entities/pin_summary_entity.dart';
 
@@ -32,6 +33,7 @@ abstract class PlaceRepository {
     required String title,
     String? subtitle,
     required String colorHex,
+    required NoteThemeId themeId,
     required String icon,
     required int expiryDays,
     DateTime? publishAt,
@@ -86,6 +88,12 @@ abstract class PlaceRepository {
   /// Re-opens a thread.  Only valid for maintainer-closed threads — the caller
   /// must verify [PlaceEntity.canReopen] first (rules also enforce this).
   Future<void> reopenPlace(String placeId);
+
+  /// Maintainer-only: changes the built-in visual theme of an active note.
+  Future<void> setNoteTheme({
+    required String placeId,
+    required NoteThemeId themeId,
+  });
 
   // ── Private access (Cloud Functions) ──────────────────────────────────────
 

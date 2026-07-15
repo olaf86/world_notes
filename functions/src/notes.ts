@@ -37,6 +37,7 @@ interface CreateNoteData {
   title?: unknown;
   subtitle?: unknown;
   colorHex?: unknown;
+  themeId?: unknown;
   icon?: unknown;
   expiryDays?: unknown;
   visibility?: unknown;
@@ -57,6 +58,30 @@ interface ArchiveNoteData {
 interface SetNotePinImageData {
   placeId?: unknown;
   pinImageStoragePath?: unknown;
+}
+
+interface SetNoteThemeData {
+  placeId?: unknown;
+  themeId?: unknown;
+}
+
+const NOTE_THEME_IDS = new Set([
+  "standard",
+  "aurora",
+  "citrus",
+  "botanical",
+  "neon",
+  "editorial",
+]);
+
+/**
+ * Returns whether [value] is one of the supported built-in note themes.
+ *
+ * @param {unknown} value Candidate stored theme value.
+ * @return {boolean} Whether the value is supported.
+ */
+function isNoteThemeId(value: unknown): value is string {
+  return typeof value === "string" && NOTE_THEME_IDS.has(value);
 }
 
 const UUID_V7_PATTERN =
@@ -90,6 +115,7 @@ export const createNote = onCall<CreateNoteData>(
       title,
       subtitle,
       colorHex,
+      themeId,
       icon,
       expiryDays,
       publishAtMillis,
@@ -104,6 +130,9 @@ export const createNote = onCall<CreateNoteData>(
       longitude > 180
     ) {
       throw new HttpsError("invalid-argument", "Invalid coordinates.");
+    }
+    if (!isNoteThemeId(themeId)) {
+      throw new HttpsError("invalid-argument", "Invalid note theme.");
     }
     if (
       typeof title !== "string" ||
@@ -265,6 +294,7 @@ export const createNote = onCall<CreateNoteData>(
         title: (title as string).trim(),
         subtitle: trimmedSubtitle,
         colorHex: typeof colorHex === "string" ? colorHex : "#4CAF50",
+        themeId,
         icon: typeof icon === "string" ? icon : "place",
         createdByUserId: uid,
         creatorName,
@@ -387,6 +417,47 @@ export const setNotePinImage = onCall<SetNotePinImageData>(
         logger.warn(`Could not delete old pin image ${previousPath}.`, error);
       }
     }
+  },
+);
+
+/** Updates the built-in appearance theme of an active note. */
+export const setNoteTheme = onCall<SetNoteThemeData>(
+  {enforceAppCheck: true, region: REGION},
+  async (req) => {
+    const uid = req.auth?.uid;
+    if (!uid) {
+      throw new HttpsError("unauthenticated", "You must be signed in.");
+    }
+    const {placeId, themeId} = req.data ?? {};
+    if (typeof placeId !== "string" || placeId.length === 0) {
+      throw new HttpsError("invalid-argument", "placeId is required.");
+    }
+    if (!isNoteThemeId(themeId)) {
+      throw new HttpsError("invalid-argument", "Invalid note theme.");
+    }
+
+    const placeRef = getFirestore().collection("places").doc(placeId);
+    await getFirestore().runTransaction(async (tx) => {
+      const placeSnap = await tx.get(placeRef);
+      if (!placeSnap.exists) {
+        throw new HttpsError("not-found", "Note not found.");
+      }
+      if (!canMaintainNote(placeSnap, uid)) {
+        throw new HttpsError(
+          "permission-denied",
+          "You cannot change this note's theme.",
+        );
+      }
+      if (placeSnap.get("isArchived") === true) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Archived notes cannot change theme.",
+        );
+      }
+      if (placeSnap.get("themeId") !== themeId) {
+        tx.update(placeRef, {themeId});
+      }
+    });
   },
 );
 
