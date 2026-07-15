@@ -78,7 +78,36 @@ The Flutter profile screen only links to `/admin/moderation` when the current
 ID token contains `admin: true`. The screen still calls the same trusted
 callables, so direct route access by a normal user fails at the backend.
 
-Set or remove the claim from `functions/`:
+### Grant or remove access
+
+Run these commands from `functions/`. Install the Node.js dependencies first
+when this is a new checkout:
+
+```bash
+cd functions
+npm ci
+```
+
+The default Firebase project is `world-notes-prod`, as configured in
+`.firebaserc`. To target another project, prepend the command with
+`GCLOUD_PROJECT=<project-id>`.
+
+The script uses Application Default Credentials (ADC). When local user ADC
+does not have a quota project, run the script with a command-scoped quota
+project instead of changing the saved ADC configuration:
+
+```bash
+GOOGLE_CLOUD_QUOTA_PROJECT=world-notes-prod \
+  npm run admin:set -- --email admin@example.com
+```
+
+This environment variable applies only to that command. The executing Google
+account needs permission to administer Firebase Auth users and the Service
+Usage Consumer role (`roles/serviceusage.serviceUsageConsumer`) on the quota
+project.
+
+To grant or remove the claim by UID instead of email, replace `--email` with
+`--uid`:
 
 ```bash
 npm run admin:set -- --email admin@example.com
@@ -86,7 +115,24 @@ npm run admin:unset -- --email admin@example.com
 ```
 
 The target user must refresh their ID token or sign in again after the claim
-changes.
+changes. After that, the **Moderation** item appears on the profile screen.
+
+### Check local ADC quota-project configuration
+
+The saved quota project in local user ADC can be inspected with:
+
+```bash
+jq -r '.quota_project_id // "(not set)"' \
+  ~/.config/gcloud/application_default_credentials.json
+```
+
+This is separate from the default project in `gcloud config`. If
+`GOOGLE_APPLICATION_CREDENTIALS` is set, ADC uses that credential file before
+the local file above; inspect it first with:
+
+```bash
+echo "${GOOGLE_APPLICATION_CREDENTIALS:-'(not set)'}"
+```
 
 ## User report flow
 

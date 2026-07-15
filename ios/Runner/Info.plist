@@ -44,9 +44,9 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Used to show notes near your current location.</string>
+	<string>World Notes uses your location to show notes near places you visit.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>World Notes uses your location in the background to notify you about notes near places you visit.</string>
+	<string>World Notes uses your location to show notes near places you visit, including when the app is in the background.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Used to take a photo and attach it to your message.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
