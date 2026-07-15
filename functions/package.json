@@ -9,7 +9,6 @@
     "admin:set": "npm run build && node lib/scripts/setAdminClaim.js",
     "admin:unset": "npm run build && node lib/scripts/setAdminClaim.js --unset",
     "seed:screenshot": "npm run build && node lib/scripts/seedScreenshotData.js",
-    "backfill:note-themes": "npm run build && node lib/scripts/backfillNoteThemes.js",
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",
