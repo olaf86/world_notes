@@ -20,6 +20,7 @@ interface ParsedArgs {
   command: Command;
   projectId: string;
   allowLive: boolean;
+  all: boolean;
   confirmProject?: string;
   runId?: string;
 }
@@ -64,7 +65,7 @@ function usage(): string {
     "Usage:",
     "  npm run moderation:test-data -- seed --project <project-id>",
     "  npm run moderation:test-data -- list --project <project-id> [--run-id <run-id>]",
-    "  npm run moderation:test-data -- cleanup --project <project-id> --run-id <run-id>",
+    "  npm run moderation:test-data -- cleanup --project <project-id> (--run-id <run-id> | --all)",
     "",
     "For a non-emulator target, also pass:",
     "  --allow-live --confirm-project <project-id>",
@@ -89,6 +90,7 @@ function parseArgs(argv: string[]): ParsedArgs {
   let confirmProject: string | undefined;
   let runId: string | undefined;
   let allowLive = false;
+  let all = false;
 
   for (let index = 1; index < argv.length; index++) {
     const arg = argv[index];
@@ -103,6 +105,8 @@ function parseArgs(argv: string[]): ParsedArgs {
       index++;
     } else if (arg === "--allow-live") {
       allowLive = true;
+    } else if (arg === "--all") {
+      all = true;
     } else {
       throw new Error(`Unknown argument: ${arg}\n\n${usage()}`);
     }
@@ -111,17 +115,23 @@ function parseArgs(argv: string[]): ParsedArgs {
   if (projectId == null || projectId.trim().length === 0) {
     throw new Error(`--project is required.\n\n${usage()}`);
   }
-  if (command === "cleanup" && runId == null) {
-    throw new Error(`cleanup requires --run-id.\n\n${usage()}`);
+  if (command === "cleanup" && (runId == null) === !all) {
+    throw new Error(
+      `cleanup requires exactly one of --run-id or --all.\n\n${usage()}`,
+    );
   }
   if (command === "seed" && runId != null) {
     throw new Error("seed generates its own run ID; omit --run-id.");
+  }
+  if (command !== "cleanup" && all) {
+    throw new Error("--all can only be used with cleanup.");
   }
 
   return {
     command,
     projectId: projectId.trim(),
     allowLive,
+    all,
     confirmProject: confirmProject?.trim(),
     runId: runId?.trim(),
   };
@@ -513,6 +523,26 @@ async function cleanup(db: Firestore, projectId: string, runId: string): Promise
   console.log(`auditLogs: ${auditSnap.size}`);
 }
 
+async function cleanupAll(db: Firestore, projectId: string): Promise<void> {
+  const snap = await db.collection(RUN_COLLECTION)
+    .where("kind", "==", RUN_KIND)
+    .get();
+  const runIds = snap.docs
+    .filter((doc) => doc.get("projectId") === projectId)
+    .map((doc) => doc.id);
+
+  if (runIds.length === 0) {
+    console.log(`No moderation test data runs found in ${projectId}.`);
+    return;
+  }
+
+  console.log(`Deleting ${runIds.length} moderation test data run(s)...`);
+  for (const runId of runIds) {
+    await cleanup(db, projectId, runId);
+  }
+  console.log(`Deleted all ${runIds.length} moderation test data run(s).`);
+}
+
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   assertSafeTarget(args);
@@ -523,6 +553,8 @@ async function main(): Promise<void> {
       await seed(db, args.projectId);
     } else if (args.command === "list") {
       await list(db, args.projectId, args.runId);
+    } else if (args.all) {
+      await cleanupAll(db, args.projectId);
     } else {
       await cleanup(db, args.projectId, args.runId as string);
     }

@@ -36,6 +36,16 @@ npm run moderation:test-data -- cleanup \
   --confirm-project world-notes-prod
 ```
 
+Delete every tracked moderation test data run with `cleanup --all`:
+
+```bash
+npm run moderation:test-data -- cleanup \
+  --project world-notes-prod \
+  --all \
+  --allow-live \
+  --confirm-project world-notes-prod
+```
+
 Each run creates a private archived place, four messages and reviews, two user
 reports, and a server-only `moderationTestRuns` manifest. Cleanup also removes
 moderation audit logs generated while the fixtures were reviewed.
