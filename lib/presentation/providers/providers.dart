@@ -428,6 +428,59 @@ final placeProvider = StreamProvider.family<PlaceEntity?, String>((
   return ref.watch(placeRepositoryProvider).watchPlace(placeId);
 });
 
+/// A proximity check performed after the note route is already visible.
+/// Keeping this in Riverpod deduplicates retries for the same route arguments
+/// and lets the destination own its loading and error states.
+class NoteAccessValidationRequest {
+  final String placeId;
+  final double latitude;
+  final double longitude;
+
+  const NoteAccessValidationRequest({
+    required this.placeId,
+    required this.latitude,
+    required this.longitude,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      other is NoteAccessValidationRequest &&
+      other.placeId == placeId &&
+      other.latitude == latitude &&
+      other.longitude == longitude;
+
+  @override
+  int get hashCode => Object.hash(placeId, latitude, longitude);
+}
+
+final noteAccessValidationProvider = FutureProvider.autoDispose
+    .family<void, NoteAccessValidationRequest>((ref, request) async {
+      try {
+        await ref
+            .watch(placeRepositoryProvider)
+            .validateNoteAccess(
+              placeId: request.placeId,
+              latitude: request.latitude,
+              longitude: request.longitude,
+            );
+      } catch (error, stack) {
+        try {
+          await ref
+              .read(firebaseCrashlyticsProvider)
+              .recordError(
+                error,
+                stack,
+                reason: 'Note destination access validation failed',
+                fatal: false,
+              );
+        } catch (_) {
+          // Access errors still belong in the destination UI even when
+          // Crashlytics itself is unavailable.
+        }
+        rethrow;
+      }
+    });
+
 /// The current user's access grant for a (private) note — null if none.
 /// For public notes this isn't needed; callers gate on PlaceEntity.isPublic.
 final noteMembershipProvider = StreamProvider.family<NoteMembership?, String>((
@@ -502,6 +555,17 @@ final myPlacesProvider = StreamProvider<List<PlaceEntity>>((ref) {
   final user = ref.watch(authStateProvider).valueOrNull;
   if (user == null) return Stream.value(const []);
   return ref.watch(placeRepositoryProvider).watchMyPlaces(user.id);
+});
+
+/// Server-backed note-cap precheck used by the creation destination. The form
+/// can render while this runs; createNote remains the authoritative check.
+final activeMyPlacesCountProvider = FutureProvider.autoDispose<int?>((
+  ref,
+) async {
+  final repository = ref.watch(placeRepositoryProvider);
+  final user = await ref.watch(authStateProvider.future);
+  if (user == null) return null;
+  return repository.countUserActivePlaces(user.id);
 });
 
 /// Total archived notes owned by the current user. The archived list itself is

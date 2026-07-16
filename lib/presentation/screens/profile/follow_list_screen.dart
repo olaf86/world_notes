@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../domain/entities/follow_entity.dart';
 import '../../../domain/entities/public_profile_entity.dart';
 import '../../providers/providers.dart';
+import '../../widgets/loading_skeleton.dart';
 
 class FollowListScreen extends ConsumerStatefulWidget {
   final String userId;
@@ -123,7 +124,7 @@ class _FollowListScreenState extends ConsumerState<FollowListScreen> {
 
   Widget _body(String title) {
     if (_initialLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const SkeletonView(child: SkeletonListView());
     }
     if (_error != null && _items.isEmpty) {
       return ListView(

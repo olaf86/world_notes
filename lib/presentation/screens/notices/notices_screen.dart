@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +7,7 @@ import 'package:intl/intl.dart';
 
 import '../../../domain/entities/notice_entity.dart';
 import '../../providers/providers.dart';
+import '../../widgets/loading_skeleton.dart';
 
 class NoticesScreen extends ConsumerWidget {
   const NoticesScreen({super.key});
@@ -15,7 +18,7 @@ class NoticesScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Notifications')),
       body: noticesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const SkeletonView(child: SkeletonListView()),
         error: (error, _) => Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -54,11 +57,17 @@ class NoticesScreen extends ConsumerWidget {
   ) async {
     final user = ref.read(authStateProvider).valueOrNull;
     if (user != null && notice.isUnread) {
-      await ref
-          .read(noticeRepositoryProvider)
-          .markRead(userId: user.id, noticeId: notice.id);
+      // Reading a notice must not delay its destination. The live notices
+      // stream updates the badge when this best-effort write completes.
+      unawaited(
+        ref
+            .read(noticeRepositoryProvider)
+            .markRead(userId: user.id, noticeId: notice.id)
+            .onError((error, stack) {
+              debugPrint('Could not mark notice ${notice.id} read: $error');
+            }),
+      );
     }
-    if (!context.mounted) return;
     if (notice.category == 'social' && notice.sourceId?.isNotEmpty == true) {
       await context.push<void>('/users/${notice.sourceId}');
       return;
