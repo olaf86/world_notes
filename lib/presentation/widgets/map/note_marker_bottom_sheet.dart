@@ -67,9 +67,7 @@ class _NoteMarkerBottomSheetState extends ConsumerState<NoteMarkerBottomSheet> {
         builder: (context) {
           final theme = Theme.of(context);
           return DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(colors: palette.heroGradient),
-            ),
+            decoration: BoxDecoration(gradient: palette.pageGradient),
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: Column(

@@ -10,6 +10,39 @@ class NoteThemePalette {
     required this.colorScheme,
     required this.heroGradient,
   });
+
+  /// A spacious, low-frequency gradient for a whole note surface.
+  LinearGradient get pageGradient => LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      heroGradient.first,
+      Color.alphaBlend(
+        colorScheme.primary.withValues(alpha: 0.035),
+        colorScheme.surface,
+      ),
+      heroGradient.last,
+    ],
+    stops: const [0, 0.52, 1],
+  );
+
+  /// A quieter version for mixed-theme lists, with archived notes softened.
+  LinearGradient cardGradient({required bool isArchived}) {
+    final strength = isArchived ? 0.20 : 0.52;
+    return LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: heroGradient
+          .map((color) => Color.lerp(colorScheme.surface, color, strength)!)
+          .toList(),
+    );
+  }
+
+  LinearGradient get previewGradient => LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: heroGradient,
+  );
 }
 
 class NoteThemeDefinition {

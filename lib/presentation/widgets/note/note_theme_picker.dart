@@ -44,7 +44,7 @@ class NoteThemePicker extends StatelessWidget {
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(colors: palette.heroGradient),
+                        gradient: palette.previewGradient,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: isSelected

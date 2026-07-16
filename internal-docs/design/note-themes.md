@@ -6,7 +6,7 @@ Give each note a distinct, built-in visual theme, similar to a LINE chat
 theme. A theme changes the note preview bottom sheet and the note-detail
 screen, while the map pin's existing `colorHex` and icon remain independent.
 
-The first release ships five app-defined themes:
+The first release ships six app-defined themes:
 
 | ID | Name | Direction |
 | --- | --- | --- |
@@ -52,17 +52,12 @@ and a Flutter palette registry in `lib/core/theme/note_themes.dart`:
 
 ```dart
 class NoteThemePalette {
-  final Color background;
-  final Color surface;
-  final Color surfaceVariant;
-  final Color primary;
-  final Color onPrimary;
-  final Color onSurface;
-  final Color onSurfaceVariant;
-  final Color outline;
-  final Color positiveAccent;
-  final Color dangerAccent;
+  final ColorScheme colorScheme;
   final List<Color> heroGradient;
+
+  LinearGradient get pageGradient;
+  LinearGradient cardGradient({required bool isArchived});
+  LinearGradient get previewGradient;
 }
 ```
 
@@ -117,7 +112,10 @@ connection to the marker on the map.
 stream. Wrap only the note screen's scaffold subtree in the local theme. Apply
 the palette to the app bar, screen background, mini-map frame, status/like
 rows, floating action button, message-list background, and message bubbles.
-Modal controls launched from the screen inherit the same local theme.
+The screen background uses a broad, low-frequency diagonal gradient rather
+than a flat fill. Content surfaces may remain slightly translucent so the
+theme is present throughout the page without reducing text readability. Modal
+controls launched from the screen inherit the same local theme.
 
 The image viewer remains black, and error/destructive states retain explicit
 high-contrast colors. Theme colors are decorative and must never make lock,
@@ -127,18 +125,27 @@ closed, expiry, moderation, or access state ambiguous.
 
 Map Notes, My Notes, and Archived Notes use the theme as a compact identity
 signal, not as a full-screen treatment. Each `NoteListCard` receives the
-resolved palette and uses its surface, outline, a narrow leading accent, and
-selected metadata/count colors. The pin avatar continues to use `colorHex`.
+resolved palette and uses a quiet gradient surface, outline, and selected
+metadata/count colors. A separate leading theme stripe is deliberately not
+used: the card background itself is the identity signal, while the pin avatar
+continues to use `colorHex`.
 
 Archived cards retain the same identity at reduced saturation and opacity, but
 the archive label and status remain visually dominant. List backgrounds stay
 application-neutral so mixed-theme lists remain scannable and accessible.
 
+Gradient intensity follows the amount of space available. The full detail
+page uses the broadest and gentlest treatment, list cards blend their theme
+colors more heavily toward the local surface, and bottom-sheet/picker previews
+use the clearest theme colors. This keeps mixed lists calm while making focused
+theme exploration feel expressive. All three treatments resolve distinct
+light and dark palettes.
+
 ### Theme picker and authorization
 
 Add a `Change theme` entry to the note-detail overflow menu when
 `NotePermissions.canChangeTheme` is true. It opens a scroll-controlled picker
-sheet with five selectable preview cards. A card shows its name, short style
+sheet with six selectable preview cards. A card shows its name, short style
 description, color/gradient sample, and a selected checkmark. Selecting a
 theme updates the note; the live place stream updates the detail screen and
 subsequent map-sheet previews.
@@ -195,12 +202,13 @@ an archived note copies its required `themeId`.
 
 ## Acceptance criteria
 
-- Each of the five IDs has a visually distinct, readable preview and detail
+- Each of the six IDs has a visually distinct, readable preview and detail
   appearance in both light and dark mode.
 - Every stored note has one valid `themeId`.
 - The bottom sheet and detail screen show the same theme for the same note.
 - Map Notes, My Notes, and Archived Notes present the same theme as a compact
-  card accent without changing the map pin color.
+  gradient card surface without changing the map pin color or adding a theme
+  stripe.
 - Maintainers can change themes from detail; members and visitors cannot.
 - Direct Firestore clients cannot change `themeId`.
 - Pin color and icon remain unchanged when a note theme changes.

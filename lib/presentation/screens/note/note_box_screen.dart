@@ -707,6 +707,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     // re-triggering '!semantics.parentDataDirty' loops.  Same pattern as
     // _MainShell in router.dart.
     final size = MediaQuery.sizeOf(context);
+    final palette = NoteThemes.paletteOf(context, place.themeId);
 
     return Theme(
       data: NoteThemes.themed(context, place.themeId),
@@ -726,11 +727,20 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
             excluding: !isCurrent,
             child: Stack(
               children: [
+                Positioned.fill(
+                  child: DecoratedBox(
+                    key: ValueKey('note-theme-page-${place.themeId.name}'),
+                    decoration: BoxDecoration(gradient: palette.pageGradient),
+                  ),
+                ),
                 // ── Base layer: the message-box screen ──────────────────────
                 Semantics(
                   identifier: 'screen-note-detail-${place.id}',
                   child: Scaffold(
+                    backgroundColor: Colors.transparent,
                     appBar: AppBar(
+                      backgroundColor: Colors.transparent,
+                      surfaceTintColor: Colors.transparent,
                       title: Text(displayTitle),
                       actions: [
                         if (!isPremium)
@@ -1245,7 +1255,7 @@ class _NoteLikeRowState extends ConsumerState<_NoteLikeRow> {
         : 'Like unavailable';
 
     return Material(
-      color: colorScheme.surface,
+      color: colorScheme.surface.withValues(alpha: 0.78),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
         child: Row(
@@ -1323,7 +1333,7 @@ class _ThreadStatusBanner extends StatelessWidget {
     };
 
     return Material(
-      color: theme.colorScheme.surfaceContainerHighest,
+      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.82),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(
@@ -1413,7 +1423,7 @@ class _ReadOnlyBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Material(
-      color: theme.colorScheme.surfaceContainerHighest,
+      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.82),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(
