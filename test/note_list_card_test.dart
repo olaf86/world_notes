@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:world_notes/core/theme/note_themes.dart';
 import 'package:world_notes/domain/entities/note_theme.dart';
 import 'package:world_notes/presentation/widgets/note/note_list_card.dart';
 
@@ -12,6 +13,7 @@ void main() {
             avatarColor: Colors.green,
             avatarIcon: Icons.place,
             title: 'Aurora note',
+            subtitle: 'Night train',
             themeId: NoteThemeId.aurora,
           ),
         ),
@@ -24,6 +26,15 @@ void main() {
     expect(
       (themedSurface.decoration as BoxDecoration).gradient,
       isA<LinearGradient>(),
+    );
+    final palette = NoteThemes.of(NoteThemeId.aurora).light;
+    expect(
+      tester.widget<Text>(find.text('Aurora note')).style?.color,
+      palette.textColors.heading,
+    );
+    expect(
+      tester.widget<Text>(find.text('Night train')).style?.color,
+      palette.textColors.muted,
     );
   });
 

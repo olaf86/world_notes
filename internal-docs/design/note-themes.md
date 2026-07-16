@@ -54,6 +54,7 @@ and a Flutter palette registry in `lib/core/theme/note_themes.dart`:
 class NoteThemePalette {
   final ColorScheme colorScheme;
   final List<Color> heroGradient;
+  final NoteThemeTextColors textColors;
 
   LinearGradient get pageGradient;
   LinearGradient cardGradient({required bool isArchived});
@@ -66,6 +67,20 @@ data-contract violation. The Flutter registry owns translated display labels,
 preview treatment, and colors. The colors are semantic tokens rather than raw
 colors in widgets, so all themes receive the same UI behavior and contrast can
 be tested centrally.
+
+Each light and dark palette defines semantic `heading`, `body`, and `muted`
+text colors. Headings may carry a recognizable theme tint, while body text
+stays calmer and muted text remains readable at small metadata sizes. The
+local note `ThemeData` maps these tokens into its `TextTheme`, `onSurface`, and
+`onSurfaceVariant`; widgets continue to select colors by meaning instead of by
+theme ID. All three tokens must maintain at least 4.5:1 contrast against page,
+card, and content surfaces.
+
+Font families are deliberately outside the first theme release. CJK asset
+size, mixed CJK/Latin metrics, runtime fetching, and cross-device fallback
+make per-theme font families disproportionate to their current value. Themes
+may vary text color, weight, and spacing without downloading or bundling
+additional fonts.
 
 `PlaceEntity`, `PlaceModel`, `PinSummary`, and `PinSummaryModel` carry the
 parsed `NoteThemeId`. At the UI boundary, derive a local `ThemeData`/
