@@ -92,6 +92,13 @@ void main() {
     await tester.pump();
 
     expect(find.byType(StaticNoteMiniMap), findsOneWidget);
+    final themedBackground = tester.widget<DecoratedBox>(
+      find.byKey(const ValueKey('note-theme-page-standard')),
+    );
+    expect(
+      (themedBackground.decoration as BoxDecoration).gradient,
+      isA<LinearGradient>(),
+    );
   });
 
   testWidgets('opens the creator profile from the mini map', (tester) async {

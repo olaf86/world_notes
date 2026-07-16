@@ -36,103 +36,104 @@ class NoteListCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final palette = NoteThemes.paletteOf(context, themeId).colorScheme;
     final trimmedSubtitle = subtitle?.trim();
     final hasSubtitle = trimmedSubtitle?.isNotEmpty == true;
 
-    return Card(
-      margin: EdgeInsets.zero,
-      elevation: 0,
-      color: Color.alphaBlend(
-        palette.primary.withValues(alpha: isArchived ? 0.04 : 0.08),
-        palette.surface,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: palette.outlineVariant),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 4,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: palette.primary.withValues(
-                    alpha: isArchived ? 0.45 : 1,
+    return Theme(
+      data: NoteThemes.themed(context, themeId),
+      child: Builder(
+        builder: (context) {
+          final theme = Theme.of(context);
+          final colorScheme = theme.colorScheme;
+          final palette = NoteThemes.paletteOf(context, themeId);
+          return Card(
+            margin: EdgeInsets.zero,
+            elevation: 0,
+            color: Colors.transparent,
+            clipBehavior: Clip.antiAlias,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+              side: BorderSide(color: colorScheme.outlineVariant),
+            ),
+            child: Ink(
+              key: ValueKey('note-theme-card-${themeId.name}'),
+              decoration: BoxDecoration(
+                gradient: palette.cardGradient(isArchived: isArchived),
+              ),
+              child: InkWell(
+                onTap: onTap,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      NotePinAvatar(
+                        color: avatarColor,
+                        icon: avatarIcon,
+                        storagePath: avatarImageStoragePath,
+                        badge: avatarBadge,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    title,
+                                    style: theme.textTheme.titleSmall,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (titleAccessory != null) ...[
+                                  const SizedBox(width: 8),
+                                  titleAccessory!,
+                                ],
+                                if (trailing != null) ...[
+                                  const SizedBox(width: 8),
+                                  trailing!,
+                                ],
+                              ],
+                            ),
+                            if (hasSubtitle)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  trimmedSubtitle!,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            if (metadata.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: Wrap(
+                                  spacing: 8,
+                                  runSpacing: 4,
+                                  children: metadata
+                                      .map(
+                                        (item) => _NoteListMetaView(item: item),
+                                      )
+                                      .toList(),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  borderRadius: BorderRadius.circular(99),
                 ),
               ),
-              const SizedBox(width: 8),
-              NotePinAvatar(
-                color: avatarColor,
-                icon: avatarIcon,
-                storagePath: avatarImageStoragePath,
-                badge: avatarBadge,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            title,
-                            style: theme.textTheme.titleSmall,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (titleAccessory != null) ...[
-                          const SizedBox(width: 8),
-                          titleAccessory!,
-                        ],
-                        if (trailing != null) ...[
-                          const SizedBox(width: 8),
-                          trailing!,
-                        ],
-                      ],
-                    ),
-                    if (hasSubtitle)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          trimmedSubtitle!,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    if (metadata.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Wrap(
-                          spacing: 8,
-                          runSpacing: 4,
-                          children: metadata
-                              .map((item) => _NoteListMetaView(item: item))
-                              .toList(),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
