@@ -404,6 +404,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Server-only manifests used to track disposable moderation test data.
+    match /moderationTestRuns/{runId} {
+      allow read, write: if false;
+    }
+
     // ── invites ─────────────────────────────────────────────────────────────
     // Invite tokens are secrets (the doc id is the token). Read/write only via
     // the createInviteLink / claimInvite / revokeInvite Cloud Functions

@@ -8,6 +8,7 @@
     "serve": "npm run build && firebase emulators:start --only functions",
     "admin:set": "npm run build && node lib/scripts/setAdminClaim.js",
     "admin:unset": "npm run build && node lib/scripts/setAdminClaim.js --unset",
+    "moderation:test-data": "npm run build && node lib/scripts/moderationTestData.js",
     "seed:screenshot": "npm run build && node lib/scripts/seedScreenshotData.js",
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
