@@ -11,6 +11,8 @@ import 'package:world_notes/domain/entities/user_entity.dart';
 import 'package:world_notes/domain/repositories/place_repository.dart';
 import 'package:world_notes/presentation/providers/providers.dart';
 import 'package:world_notes/presentation/screens/note/note_creation_screen.dart';
+import 'package:world_notes/presentation/widgets/note/pin_icon_picker.dart';
+import 'package:world_notes/presentation/widgets/note/pin_image_summary.dart';
 import 'package:world_notes/services/location_service.dart';
 
 void main() {
@@ -177,6 +179,12 @@ void main() {
     await tester.tap(showMoreColors);
     await tester.pump(const Duration(milliseconds: 200));
     expect(find.byTooltip('Indigo'), findsOneWidget);
+
+    expect(find.byType(PinImageSummary), findsOneWidget);
+    expect(find.byType(PinIconPicker), findsNothing);
+
+    await tester.tap(find.text('Icon'));
+    await tester.pump();
 
     final showMoreIcons = find.byTooltip('Show more icons');
     await tester.ensureVisible(showMoreIcons);

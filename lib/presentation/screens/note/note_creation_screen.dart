@@ -89,7 +89,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
   Color _selectedColor = Colors.green;
   String _selectedIcon = defaultMapPinIcon;
   NoteThemeId _selectedTheme = NoteThemeId.standard;
-  _PinMarkerStyle _pinMarkerStyle = _PinMarkerStyle.icon;
+  _PinMarkerStyle _pinMarkerStyle = _PinMarkerStyle.image;
   Uint8List? _pinThumbnailBytes;
   // Expiry is required. Defaults to AppConfig.defaultNoteExpiryDays (3 months)
   // — a balanced lifetime that keeps the map from filling with stale notes
