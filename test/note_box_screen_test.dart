@@ -13,6 +13,60 @@ import 'package:world_notes/presentation/widgets/loading_skeleton.dart';
 import 'package:world_notes/presentation/widgets/map/static_note_mini_map.dart';
 
 void main() {
+  testWidgets('can return to the previous map while the note is loading', (
+    tester,
+  ) async {
+    final router = GoRouter(
+      initialLocation: '/map',
+      routes: [
+        GoRoute(
+          path: '/map',
+          builder: (_, _) => const Scaffold(body: Text('Map origin')),
+        ),
+        GoRoute(
+          path: '/note/:placeId',
+          builder: (_, state) => NoteBoxScreen(
+            placeId: state.pathParameters['placeId']!,
+            placeTitle: 'Loading note',
+          ),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          isPremiumProvider.overrideWith((ref) => Stream.value(true)),
+          authStateProvider.overrideWith(
+            (ref) => Stream<UserEntity?>.value(null),
+          ),
+          placeProvider.overrideWith(
+            (ref, String placeId) => const Stream<PlaceEntity?>.empty(),
+          ),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pump();
+
+    unawaited(router.push<void>('/note/place-1'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.byType(SkeletonBox), findsWidgets);
+    expect(
+      find.byKey(const ValueKey('note-detail-back-button')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('note-detail-back-button')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Map origin'), findsOneWidget);
+  });
+
   testWidgets('shows retry UI when destination access validation fails', (
     tester,
   ) async {

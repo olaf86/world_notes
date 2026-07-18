@@ -755,6 +755,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                     appBar: AppBar(
                       backgroundColor: Colors.transparent,
                       surfaceTintColor: Colors.transparent,
+                      leading: const _NoteBackButton(),
                       title: Text(displayTitle),
                       actions: [
                         if (!isPremium)
@@ -1369,6 +1370,28 @@ class _ThreadStatusBanner extends StatelessWidget {
   }
 }
 
+class _NoteBackButton extends StatelessWidget {
+  const _NoteBackButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      identifier: 'action-close-note-detail',
+      button: true,
+      child: BackButton(
+        key: const ValueKey('note-detail-back-button'),
+        onPressed: () {
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/map');
+          }
+        },
+      ),
+    );
+  }
+}
+
 class _UnavailableNoteView extends StatelessWidget {
   final String title;
 
@@ -1378,7 +1401,10 @@ class _UnavailableNoteView extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(title.isEmpty ? 'Note' : title)),
+      appBar: AppBar(
+        leading: const _NoteBackButton(),
+        title: Text(title.isEmpty ? 'Note' : title),
+      ),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -1422,7 +1448,10 @@ class _NoteAccessErrorView extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(title.isEmpty ? 'Note' : title)),
+      appBar: AppBar(
+        leading: const _NoteBackButton(),
+        title: Text(title.isEmpty ? 'Note' : title),
+      ),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -1469,7 +1498,10 @@ class _LoadingNoteView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(title.isEmpty ? 'Note' : title)),
+      appBar: AppBar(
+        leading: const _NoteBackButton(),
+        title: Text(title.isEmpty ? 'Note' : title),
+      ),
       body: const SkeletonView(
         child: Column(
           children: [
@@ -1579,7 +1611,7 @@ class _LockedNoteView extends StatelessWidget {
     };
 
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(leading: const _NoteBackButton(), title: Text(title)),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
