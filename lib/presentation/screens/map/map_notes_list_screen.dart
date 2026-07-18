@@ -404,31 +404,13 @@ class _MapNoteTileState extends ConsumerState<_MapNoteTile> {
 
     final container = ProviderScope.containerOf(context, listen: false);
     try {
-      await container
-          .read(placeRepositoryProvider)
-          .validateNoteAccess(
-            placeId: widget.display.pin.placeId,
-            latitude: widget.userLatitude,
-            longitude: widget.userLongitude,
-          );
-    } catch (error, stack) {
-      await reportMapNotesError(
-        crashlytics: container.read(firebaseCrashlyticsProvider),
-        operation: 'open list pin',
-        error: error,
-        stack: stack,
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text(mapNoteOpenErrorMessage)));
-      setState(() => _isOpening = false);
-      return;
-    }
-    if (!mounted) return;
-    try {
       await context.push<void>(
         '/note/${widget.display.pin.placeId}?title=${Uri.encodeComponent(widget.display.pin.title)}',
+        extra: NoteAccessValidationRequest(
+          placeId: widget.display.pin.placeId,
+          latitude: widget.userLatitude,
+          longitude: widget.userLongitude,
+        ),
       );
       if (!mounted) return;
       container.invalidate(mapPinsProvider(widget.request));

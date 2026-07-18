@@ -16,6 +16,7 @@ import '../../../domain/entities/note_theme.dart';
 import '../../../domain/policies/note_permissions.dart';
 import '../../providers/providers.dart';
 import '../../widgets/map/static_note_mini_map.dart';
+import '../../widgets/loading_skeleton.dart';
 import '../../widgets/note/manage_access_sheet.dart';
 import '../../widgets/note/message_bubble.dart';
 import '../../widgets/note/message_creation_overlay.dart';
@@ -33,12 +34,14 @@ class NoteBoxScreen extends ConsumerStatefulWidget {
   final String placeId;
   final String placeTitle;
   final bool readOnly;
+  final NoteAccessValidationRequest? accessValidation;
 
   const NoteBoxScreen({
     super.key,
     required this.placeId,
     required this.placeTitle,
     this.readOnly = false,
+    this.accessValidation,
   });
 
   @override
@@ -653,9 +656,23 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     final isPremium = ref.watch(isPremiumProvider).valueOrNull ?? false;
     final currentUser = ref.watch(authStateProvider).valueOrNull;
     final placeAsync = ref.watch(placeProvider(widget.placeId));
+    final accessValidation = widget.accessValidation;
+    final accessAsync = accessValidation == null
+        ? null
+        : ref.watch(noteAccessValidationProvider(accessValidation));
     final place = placeAsync.valueOrNull;
     final now = DateTime.now();
 
+    if (accessAsync?.isLoading ?? false) {
+      return _LoadingNoteView(title: widget.placeTitle);
+    }
+    if (accessAsync?.hasError ?? false) {
+      return _NoteAccessErrorView(
+        title: widget.placeTitle,
+        onRetry: () =>
+            ref.invalidate(noteAccessValidationProvider(accessValidation!)),
+      );
+    }
     if (placeAsync.hasError && place == null) {
       return _UnavailableNoteView(title: widget.placeTitle);
     }
@@ -700,12 +717,9 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     // coexist.
     final bool isCurrent = ModalRoute.of(context)?.isCurrent ?? true;
 
-    // Defensive constraint clamp.  Even with opaque:false on all push routes,
-    // any future route that lands on top of NoteBoxScreen with opaque:true
-    // would wrap this Scaffold in Offstage(offstage:true), pushing
-    // BoxConstraints() (0..∞) into the FAB Column / Scaffold body and
-    // re-triggering '!semantics.parentDataDirty' loops.  Same pattern as
-    // _MainShell in router.dart.
+    // Defensive size boundary. A route above this one may put the screen
+    // offstage; retaining finite constraints keeps its Scaffold, FAB, and ad
+    // slot stable until the user returns.
     final size = MediaQuery.sizeOf(context);
     final palette = NoteThemes.paletteOf(context, place.themeId);
 
@@ -1398,6 +1412,55 @@ class _UnavailableNoteView extends StatelessWidget {
   }
 }
 
+class _NoteAccessErrorView extends StatelessWidget {
+  final String title;
+  final VoidCallback onRetry;
+
+  const _NoteAccessErrorView({required this.title, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(title: Text(title.isEmpty ? 'Note' : title)),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.near_me_disabled_outlined,
+                size: 48,
+                color: theme.colorScheme.outline,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Could not open this note.',
+                style: theme.textTheme.titleMedium,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Check your connection and make sure you are still nearby.',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Try again'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _LoadingNoteView extends StatelessWidget {
   final String title;
 
@@ -1407,7 +1470,38 @@ class _LoadingNoteView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(title.isEmpty ? 'Note' : title)),
-      body: const Center(child: CircularProgressIndicator()),
+      body: const SkeletonView(
+        child: Column(
+          children: [
+            Padding(
+              padding: EdgeInsets.fromLTRB(16, 16, 16, 12),
+              child: SkeletonBox(
+                width: double.infinity,
+                height: 150,
+                borderRadius: BorderRadius.all(Radius.circular(16)),
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  SkeletonBox(
+                    width: 36,
+                    height: 36,
+                    borderRadius: BorderRadius.all(Radius.circular(18)),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(child: SkeletonBox(height: 14)),
+                  SizedBox(width: 32),
+                  SkeletonBox(width: 56, height: 28),
+                ],
+              ),
+            ),
+            SizedBox(height: 8),
+            Expanded(child: SkeletonListView(itemCount: 4)),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -151,33 +151,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
     }
 
     try {
-      await ref
-          .read(placeRepositoryProvider)
-          .validateNoteAccess(
-            placeId: pin.placeId,
-            latitude: anchor.latitude,
-            longitude: anchor.longitude,
-          );
-    } catch (error, stack) {
-      await reportMapNotesError(
-        crashlytics: ref.read(firebaseCrashlyticsProvider),
-        operation: 'open map pin',
-        error: error,
-        stack: stack,
-      );
-      if (!mounted) return false;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text(mapNoteOpenErrorMessage)));
-      return false;
-    }
-
-    if (!mounted) return false;
-    try {
       unawaited(
         context
             .push(
               '/note/${pin.placeId}?title=${Uri.encodeComponent(pin.title)}',
+              extra: NoteAccessValidationRequest(
+                placeId: pin.placeId,
+                latitude: anchor.latitude,
+                longitude: anchor.longitude,
+              ),
             )
             .then((_) => _refreshMapNotes()),
       );
@@ -263,32 +245,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
     };
   }
 
-  Future<void> _onAddNote() async {
+  void _onAddNote() {
     if (!mounted) return;
 
     final user = ref.read(authStateProvider).valueOrNull;
     if (user == null) return;
 
-    // Fast client-side PRE-CHECK only (for UX) — blocks opening the creation
-    // form when the user is already at their cap, so they don't fill it out
-    // just to be rejected. This is NOT the source of truth and is bypassable
-    // by a direct Firestore write: rules can't aggregate a per-user count.
-    // Authoritative enforcement of the free / premium cap lives in the
-    // `createNote` Cloud Function in Phase 3, which counts and creates inside
-    // a transaction (rules will then deny direct client place creation).
-    final limit = ref.read(noteLimitProvider);
-    final isPremium = ref.read(isPremiumProvider).valueOrNull ?? false;
-    final current = await ref
-        .read(placeRepositoryProvider)
-        .countUserActivePlaces(user.id);
-    if (!mounted) return;
-
-    if (current >= limit) {
-      await _showLimitReachedDialog(limit: limit, isPremium: isPremium);
-      return;
-    }
-
-    if (!mounted) return;
     logMapDiagnostics('MapScreen.push note/create');
     context.push('/note/create');
   }
@@ -356,40 +318,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
     ref.read(mapSearchCenterProvider.notifier).state = center;
     ref.read(mapSearchRadiusKmProvider.notifier).state = radiusKm;
     logMapDiagnostics('MapScreen.cameraIdle updates search center');
-  }
-
-  Future<void> _showLimitReachedDialog({
-    required int limit,
-    required bool isPremium,
-  }) async {
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Note limit reached'),
-        content: Text(
-          isPremium
-              ? 'You\'ve reached the maximum of $limit active notes. '
-                    'Archive or let an existing note expire to create a new one.'
-              : 'Free accounts can keep $limit active notes. '
-                    'Upgrade to PRO for up to ${AppConfig.proNoteLimit}, '
-                    'or let an existing note expire to free up a slot.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('OK'),
-          ),
-          if (!isPremium)
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                context.push('/subscription');
-              },
-              child: const Text('Go PRO'),
-            ),
-        ],
-      ),
-    );
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────

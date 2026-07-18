@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../domain/entities/public_profile_entity.dart';
 import '../../providers/providers.dart';
+import '../../widgets/loading_skeleton.dart';
 
 class UserProfileScreen extends ConsumerStatefulWidget {
   final String userId;
@@ -53,7 +54,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Profile')),
       body: profileAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const _ProfileSkeleton(),
         error: (e, _) => Center(child: Text('Could not load profile: $e')),
         data: (profile) {
           if (profile == null) {
@@ -104,6 +105,36 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _ProfileSkeleton extends StatelessWidget {
+  const _ProfileSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SkeletonView(
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          children: [
+            SkeletonBox(
+              width: 96,
+              height: 96,
+              borderRadius: BorderRadius.all(Radius.circular(48)),
+            ),
+            SizedBox(height: 16),
+            SkeletonBox(width: 180, height: 22),
+            SizedBox(height: 12),
+            SkeletonBox(width: 240, height: 14),
+            SizedBox(height: 28),
+            SkeletonBox(width: double.infinity, height: 52),
+            SizedBox(height: 24),
+            Expanded(child: SkeletonListView(itemCount: 3)),
+          ],
+        ),
       ),
     );
   }

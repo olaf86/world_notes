@@ -6,6 +6,7 @@ import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 
 import '../../../config/app_config.dart';
 import '../../../services/subscription_service.dart';
+import '../../widgets/loading_skeleton.dart';
 
 /// Displays the RevenueCat Paywall so users can subscribe to World Notes PRO.
 ///
@@ -53,7 +54,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         if (snapshot.connectionState != ConnectionState.done) {
           return Scaffold(
             appBar: AppBar(title: const Text(AppConfig.proPlanName)),
-            body: const Center(child: CircularProgressIndicator()),
+            body: const _PaywallSkeleton(),
           );
         }
 
@@ -117,6 +118,41 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       );
       rethrow;
     }
+  }
+}
+
+class _PaywallSkeleton extends StatelessWidget {
+  const _PaywallSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SkeletonView(
+      child: Padding(
+        padding: EdgeInsets.all(24),
+        child: Column(
+          children: [
+            SizedBox(height: 36),
+            SkeletonBox(
+              width: 88,
+              height: 88,
+              borderRadius: BorderRadius.all(Radius.circular(44)),
+            ),
+            SizedBox(height: 24),
+            SkeletonBox(width: 240, height: 28),
+            SizedBox(height: 12),
+            SkeletonBox(width: double.infinity, height: 14),
+            SizedBox(height: 8),
+            SkeletonBox(width: 280, height: 14),
+            SizedBox(height: 36),
+            SkeletonBox(width: double.infinity, height: 92),
+            SizedBox(height: 16),
+            SkeletonBox(width: double.infinity, height: 92),
+            Spacer(),
+            SkeletonBox(width: double.infinity, height: 52),
+          ],
+        ),
+      ),
+    );
   }
 }
 

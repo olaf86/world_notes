@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
+import 'package:world_notes/config/app_config.dart';
 import 'package:world_notes/domain/entities/pin_summary_entity.dart';
 import 'package:world_notes/domain/entities/place_entity.dart';
 import 'package:world_notes/domain/entities/note_theme.dart';
@@ -13,6 +14,28 @@ import 'package:world_notes/presentation/screens/note/note_creation_screen.dart'
 import 'package:world_notes/services/location_service.dart';
 
 void main() {
+  testWidgets('renders the form while preventing creation at the note limit', (
+    tester,
+  ) async {
+    await _pumpScreen(
+      tester,
+      locationService: _FakeLocationService(
+        position: _position(latitude: 35.681236, longitude: 139.767125),
+      ),
+      placeRepository: _RecordingPlaceRepository(),
+      activeCount: AppConfig.freeNoteLimit,
+    );
+
+    expect(find.text('Note limit reached'), findsOneWidget);
+    expect(find.byType(TextFormField), findsWidgets);
+
+    await _scrollToCreateButton(tester);
+    final createButton = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Create Note'),
+    );
+    expect(createButton.onPressed, isNull);
+  });
+
   testWidgets('uses the current position when creating a note', (tester) async {
     final locationService = _FakeLocationService(
       position: _position(latitude: 35.681236, longitude: 139.767125),
@@ -175,6 +198,7 @@ Future<void> _pumpScreen(
   required LocationService locationService,
   required PlaceRepository placeRepository,
   NoteCreationDraft? forkDraft,
+  int activeCount = 0,
 }) async {
   final router = GoRouter(
     routes: [
@@ -205,6 +229,8 @@ Future<void> _pumpScreen(
         ),
         locationServiceProvider.overrideWithValue(locationService),
         placeRepositoryProvider.overrideWithValue(placeRepository),
+        isPremiumProvider.overrideWith((ref) => Stream.value(false)),
+        activeMyPlacesCountProvider.overrideWith((ref) async => activeCount),
       ],
       child: MaterialApp.router(routerConfig: router),
     ),

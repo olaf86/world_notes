@@ -523,6 +523,14 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
   @override
   Widget build(BuildContext context) {
     final forkDraft = widget.forkDraft;
+    final activeCount = ref.watch(activeMyPlacesCountProvider);
+    final noteLimit = ref.watch(noteLimitProvider);
+    final isPremium = ref.watch(isPremiumProvider).valueOrNull ?? false;
+    final limitReached = switch (activeCount.valueOrNull) {
+      final count? => count >= noteLimit,
+      null => false,
+    };
+    final canSubmit = !_loading && !activeCount.isLoading && !limitReached;
     return Scaffold(
       appBar: AppBar(title: const Text('New Note')),
       body: Form(
@@ -530,6 +538,12 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            _NoteCapacityStatus(
+              activeCount: activeCount,
+              limit: noteLimit,
+              isPremium: isPremium,
+            ),
+            const SizedBox(height: 16),
             TextFormField(
               controller: _titleController,
               decoration: const InputDecoration(
@@ -728,7 +742,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
             ),
             const SizedBox(height: 32),
             FilledButton(
-              onPressed: _loading ? null : _create,
+              onPressed: canSubmit ? _create : null,
               child: _loading
                   ? const SizedBox(
                       height: 20,
@@ -737,6 +751,72 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
                     )
                   : const Text('Create Note'),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NoteCapacityStatus extends StatelessWidget {
+  final AsyncValue<int?> activeCount;
+  final int limit;
+  final bool isPremium;
+
+  const _NoteCapacityStatus({
+    required this.activeCount,
+    required this.limit,
+    required this.isPremium,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (activeCount.isLoading) {
+      return const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          LinearProgressIndicator(),
+          SizedBox(height: 8),
+          Text('Checking available note slots...'),
+        ],
+      );
+    }
+
+    final count = activeCount.valueOrNull;
+    if (count == null || count < limit) return const SizedBox.shrink();
+
+    final colorScheme = Theme.of(context).colorScheme;
+    return Card(
+      color: colorScheme.errorContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Note limit reached',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: colorScheme.onErrorContainer,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              isPremium
+                  ? 'You have $count of $limit active notes. Archive one or '
+                        'wait for one to expire before creating another.'
+                  : 'Free accounts can keep $limit active notes. Archive one '
+                        'or upgrade to PRO for up to '
+                        '${AppConfig.proNoteLimit}.',
+              style: TextStyle(color: colorScheme.onErrorContainer),
+            ),
+            if (!isPremium) ...[
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: () => context.push('/subscription'),
+                child: const Text('Go PRO'),
+              ),
+            ],
           ],
         ),
       ),

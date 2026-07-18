@@ -7,6 +7,7 @@ import '../../../domain/entities/note_list_sort.dart';
 import '../../../domain/entities/place_entity.dart';
 import '../../../domain/policies/note_permissions.dart';
 import '../../providers/providers.dart';
+import '../../widgets/loading_skeleton.dart';
 import '../../widgets/my_notes_notification_controls.dart';
 import '../../widgets/note/note_list_card.dart';
 import '../../widgets/note/note_sort_button.dart';
@@ -163,9 +164,7 @@ class _MyNotesListView extends ConsumerWidget {
               await ref.read(myPlacesProvider.future);
             },
             child: placesAsync.when(
-              loading: () => const _ScrollableStatusView(
-                child: Center(child: CircularProgressIndicator()),
-              ),
+              loading: () => const SkeletonView(child: SkeletonListView()),
               error: (e, _) => _ScrollableStatusView(
                 child: Center(child: Text('Error: $e')),
               ),
@@ -354,9 +353,7 @@ class _ArchivedNotesListViewState
 
   Widget _buildList() {
     if (_initialLoading) {
-      return const _ScrollableStatusView(
-        child: Center(child: CircularProgressIndicator()),
-      );
+      return const SkeletonView(child: SkeletonListView());
     }
     if (_error != null && _places.isEmpty) {
       return _ScrollableStatusView(
