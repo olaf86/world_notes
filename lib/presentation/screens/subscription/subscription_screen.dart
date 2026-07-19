@@ -5,6 +5,8 @@ import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 
 import '../../../config/app_config.dart';
+import '../../../config/runtime_mode.dart';
+import '../../../l10n/app_localizations_ext.dart';
 import '../../../services/subscription_service.dart';
 import '../../widgets/loading_skeleton.dart';
 
@@ -30,16 +32,18 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = appLocalizationsOf(context);
+    if (screenshotMode) return const _ScreenshotProView();
     if (!SubscriptionService.isConfigured) {
       return Semantics(
         identifier: 'screen-subscription',
         child: Scaffold(
           appBar: AppBar(title: const Text(AppConfig.proPlanName)),
-          body: const Center(
+          body: Center(
             child: Padding(
-              padding: EdgeInsets.all(24),
+              padding: const EdgeInsets.all(24),
               child: Text(
-                '${AppConfig.proPlanName} is not available in this build.',
+                l10n.subscriptionUnavailableBuild(AppConfig.proPlanName),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -118,6 +122,189 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       );
       rethrow;
     }
+  }
+}
+
+class _ScreenshotProView extends StatelessWidget {
+  const _ScreenshotProView();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final l10n = appLocalizationsOf(context);
+
+    return Semantics(
+      identifier: 'screen-subscription',
+      child: Scaffold(
+        appBar: AppBar(title: const Text(AppConfig.proPlanName)),
+        body: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                colors.primaryContainer.withValues(alpha: 0.72),
+                colors.surface,
+              ],
+            ),
+          ),
+          child: SafeArea(
+            top: false,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(24, 28, 24, 32),
+              children: [
+                CircleAvatar(
+                  radius: 44,
+                  backgroundColor: colors.primary,
+                  foregroundColor: colors.onPrimary,
+                  child: const Icon(Icons.public, size: 46),
+                ),
+                const SizedBox(height: 22),
+                Text(
+                  l10n.proHeroTitle,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  l10n.proHeroSubtitle,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 28),
+                _ProFeature(
+                  icon: Icons.block_outlined,
+                  label: l10n.proFeatureAdFree,
+                ),
+                _ProFeature(
+                  icon: Icons.bookmarks_outlined,
+                  label: l10n.proFeatureNoteLimit(AppConfig.proNoteLimit),
+                ),
+                _ProFeature(
+                  icon: Icons.radar_outlined,
+                  label: l10n.proFeatureAccessArea,
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  l10n.proChoosePlan,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _ProPlanCard(
+                        title: l10n.proMonthlyPlan(
+                          AppConfig.proMonthlyPriceLabel,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _ProPlanCard(
+                        title: l10n.proYearlyPlan(
+                          AppConfig.proYearlyPriceLabel,
+                        ),
+                        subtitle: l10n.proIntroOffer(
+                          AppConfig.proYearlyLaunchPriceLabel,
+                        ),
+                        highlighted: true,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProFeature extends StatelessWidget {
+  const _ProFeature({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 18,
+            backgroundColor: colors.primaryContainer,
+            foregroundColor: colors.onPrimaryContainer,
+            child: Icon(icon, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Text(label)),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProPlanCard extends StatelessWidget {
+  const _ProPlanCard({
+    required this.title,
+    this.subtitle,
+    this.highlighted = false,
+  });
+
+  final String title;
+  final String? subtitle;
+  final bool highlighted;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 18),
+      decoration: BoxDecoration(
+        color: highlighted ? colors.primaryContainer : colors.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: highlighted ? colors.primary : colors.outlineVariant,
+          width: highlighted ? 2 : 1,
+        ),
+      ),
+      child: Column(
+        children: [
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (subtitle case final value?) ...[
+            const SizedBox(height: 6),
+            Text(
+              value,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: colors.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }
 
@@ -218,6 +405,7 @@ class _SubscriptionSetupErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = appLocalizationsOf(context);
     return Semantics(
       identifier: 'screen-subscription',
       child: Scaffold(
@@ -238,14 +426,19 @@ class _SubscriptionSetupErrorView extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    '${AppConfig.proPlanName} is temporarily unavailable.',
+                    l10n.subscriptionTemporarilyUnavailable(
+                      AppConfig.proPlanName,
+                    ),
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 12),
                   SelectableText(message, textAlign: TextAlign.center),
                   const SizedBox(height: 24),
-                  FilledButton(onPressed: onRetry, child: const Text('Retry')),
+                  FilledButton(
+                    onPressed: onRetry,
+                    child: Text(l10n.commonRetry),
+                  ),
                 ],
               ),
             ),

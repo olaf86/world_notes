@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import '../../../config/app_config.dart';
 import '../../../domain/entities/message_entity.dart';
 import '../../../domain/entities/message_thread_item.dart';
+import '../../../l10n/app_localizations_ext.dart';
 import '../../providers/providers.dart';
 import 'image_grid_layout.dart';
 
@@ -138,20 +139,24 @@ class _MessageBubbleState extends State<MessageBubble> {
     );
   }
 
-  String _messageTimeLabel(MessageEntity message, {required bool isScheduled}) {
+  String _messageTimeLabel(
+    MessageEntity message, {
+    required bool isScheduled,
+    required String locale,
+  }) {
     final publishAt = message.publishAt.toLocal();
 
     if (isScheduled) {
-      return DateFormat('MMM d, HH:mm').format(publishAt);
+      return DateFormat.MMMd(locale).add_Hm().format(publishAt);
     }
 
     final elapsed = DateTime.now().difference(publishAt);
     final isAtLeastOneDayOld =
         !elapsed.isNegative && elapsed >= const Duration(days: 1);
 
-    return DateFormat(
-      isAtLeastOneDayOld ? 'MMM d, HH:mm' : 'HH:mm',
-    ).format(publishAt);
+    return isAtLeastOneDayOld
+        ? DateFormat.MMMd(locale).add_Hm().format(publishAt)
+        : DateFormat.Hm(locale).format(publishAt);
   }
 
   void _showActionSheet() {
@@ -289,6 +294,7 @@ class _MessageBubbleState extends State<MessageBubble> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = appLocalizationsOf(context);
     final message = widget.message;
     _applyServerLikeState(
       serverLiked: widget.likeState.likedByCurrentUser,
@@ -393,6 +399,7 @@ class _MessageBubbleState extends State<MessageBubble> {
     final timeStr = _messageTimeLabel(
       message,
       isScheduled: isAwaitingPublication,
+      locale: Localizations.localeOf(context).toLanguageTag(),
     );
     final imageStoragePaths = message.imageStoragePaths;
     final hasActions =
@@ -468,7 +475,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
-                                  'You',
+                                  l10n.youLabel,
                                   style: theme.textTheme.labelSmall?.copyWith(
                                     color: theme.colorScheme.onPrimary,
                                     fontWeight: FontWeight.w700,
@@ -509,9 +516,9 @@ class _MessageBubbleState extends State<MessageBubble> {
                               Flexible(
                                 child: Text(
                                   message.isPending
-                                      ? 'Sending…'
+                                      ? l10n.messageSending
                                       : isAwaitingPublication
-                                      ? 'Scheduled $timeStr'
+                                      ? l10n.messageScheduledAt(timeStr)
                                       : timeStr,
                                   style: theme.textTheme.labelSmall?.copyWith(
                                     color: isAwaitingPublication

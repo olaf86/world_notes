@@ -6,7 +6,7 @@ appId: dev.asobo.worldnotes
     visible:
       id: "screen-map"
     timeout: 20000
-- takeScreenshot: "artifacts/store_screenshots/ios/ios_01_map"
+- takeScreenshot: "${SCREENSHOT_OUTPUT_DIR}/ios_01_map"
 - tapOn:
     id: "action-show-map-notes-list"
 - extendedWaitUntil:
@@ -17,16 +17,17 @@ appId: dev.asobo.worldnotes
     visible:
       id: "map-note-card-wn_tokyo_station"
     timeout: 15000
-- takeScreenshot: "artifacts/store_screenshots/ios/ios_02_nearby_notes"
+- takeScreenshot: "${SCREENSHOT_OUTPUT_DIR}/ios_02_nearby_notes"
 - tapOn:
     id: "map-note-card-wn_tokyo_station"
 - extendedWaitUntil:
     visible:
       id: "screen-note-detail-wn_tokyo_station"
     timeout: 15000
-- takeScreenshot: "artifacts/store_screenshots/ios/ios_03_note_detail"
+- takeScreenshot: "${SCREENSHOT_OUTPUT_DIR}/ios_03_note_detail"
 - back
-- tapOn: "Notes"
+- tapOn:
+    id: "nav-notes"
 - extendedWaitUntil:
     visible:
       id: "screen-my-notes"
@@ -35,16 +36,18 @@ appId: dev.asobo.worldnotes
     visible:
       id: "my-note-card-wn_tokyo_station"
     timeout: 15000
-- takeScreenshot: "artifacts/store_screenshots/ios/ios_04_my_notes"
-- tapOn: "Profile"
+- takeScreenshot: "${SCREENSHOT_OUTPUT_DIR}/ios_04_my_notes"
+- tapOn:
+    id: "nav-profile"
 - extendedWaitUntil:
     visible:
       id: "screen-profile"
     timeout: 15000
-- takeScreenshot: "artifacts/store_screenshots/ios/ios_05_profile"
-- tapOn: "Upgrade to PRO"
+- takeScreenshot: "${SCREENSHOT_OUTPUT_DIR}/ios_05_profile"
+- tapOn:
+    id: "action-upgrade-to-pro"
 - extendedWaitUntil:
     visible:
       id: "screen-subscription"
     timeout: 15000
-- takeScreenshot: "artifacts/store_screenshots/ios/ios_06_pro"
+- takeScreenshot: "${SCREENSHOT_OUTPUT_DIR}/ios_06_pro"

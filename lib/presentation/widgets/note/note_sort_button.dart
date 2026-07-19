@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/entities/note_list_sort.dart';
+import '../../../l10n/app_localizations.dart';
+import '../../../l10n/app_localizations_ext.dart';
 
 class NoteSortButton extends ConsumerWidget {
   final NoteListSort selected;
@@ -19,11 +21,13 @@ class NoteSortButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = appLocalizationsOf(context);
+    final selectedLabel = selected.localizedLabel(l10n);
     return Semantics(
       identifier: semanticIdentifier,
       button: true,
       child: PopupMenuButton<NoteListSort>(
-        tooltip: 'Sort notes: ${selected.label}',
+        tooltip: l10n.sortNotesTooltip(selectedLabel),
         icon: const Icon(Icons.sort_outlined),
         onSelected: (sort) => ref.read(provider.notifier).state = sort,
         itemBuilder: (context) =>
@@ -51,13 +55,15 @@ class NoteSortChip extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = appLocalizationsOf(context);
+    final selectedLabel = selected.localizedLabel(l10n);
 
     return Semantics(
       identifier: semanticIdentifier,
-      label: 'Sort notes. ${selected.label} selected',
+      label: l10n.sortNotesSelected(selectedLabel),
       button: true,
       child: PopupMenuButton<NoteListSort>(
-        tooltip: 'Sort notes: ${selected.label}',
+        tooltip: l10n.sortNotesTooltip(selectedLabel),
         padding: EdgeInsets.zero,
         position: PopupMenuPosition.under,
         onSelected: (sort) => ref.read(provider.notifier).state = sort,
@@ -81,7 +87,7 @@ class NoteSortChip extends ConsumerWidget {
                 const SizedBox(width: 6),
                 Flexible(
                   child: Text(
-                    selected.label,
+                    selectedLabel,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.labelMedium?.copyWith(
@@ -120,10 +126,12 @@ class NoteSortStatus extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final label = 'Sorted by: ${sort.label}';
+    final l10n = appLocalizationsOf(context);
+    final sortLabel = sort.localizedLabel(l10n);
+    final label = l10n.sortedBy(sortLabel);
     return Semantics(
       identifier: semanticIdentifier,
-      label: 'Sorted by ${sort.label}',
+      label: label,
       child: inline
           ? Text(
               label,
@@ -163,7 +171,9 @@ List<PopupMenuEntry<NoteListSort>> _buildSortMenuItems(
             children: [
               Icon(sort.icon, size: 20),
               const SizedBox(width: 12),
-              Expanded(child: Text(sort.label)),
+              Expanded(
+                child: Text(sort.localizedLabel(appLocalizationsOf(context))),
+              ),
               if (sort == selected)
                 Icon(
                   Icons.check,
@@ -178,14 +188,14 @@ List<PopupMenuEntry<NoteListSort>> _buildSortMenuItems(
 }
 
 extension NoteListSortPresentation on NoteListSort {
-  String get label => switch (this) {
-    NoteListSort.distance => 'Distance',
-    NoteListSort.lastActivity => 'Last activity',
-    NoteListSort.newest => 'Newest',
-    NoteListSort.expiresSoonest => 'Expires soon',
-    NoteListSort.mostLiked => 'Most liked',
-    NoteListSort.archivedNewest => 'Recently archived',
-    NoteListSort.archivedOldest => 'Oldest archived',
+  String localizedLabel(AppLocalizations l10n) => switch (this) {
+    NoteListSort.distance => l10n.sortDistance,
+    NoteListSort.lastActivity => l10n.sortLastActivity,
+    NoteListSort.newest => l10n.sortNewest,
+    NoteListSort.expiresSoonest => l10n.sortExpiresSoon,
+    NoteListSort.mostLiked => l10n.sortMostLiked,
+    NoteListSort.archivedNewest => l10n.sortArchivedNewest,
+    NoteListSort.archivedOldest => l10n.sortArchivedOldest,
   };
 
   IconData get icon => switch (this) {

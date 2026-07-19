@@ -20,6 +20,6 @@ String remainingLifetimeLabel(DateTime expiresAt, {DateTime? now}) {
 }
 
 /// Compact absolute timestamp for note metadata.
-String noteDateTimeLabel(DateTime value) {
-  return DateFormat('MMM d, yyyy HH:mm').format(value.toLocal());
+String noteDateTimeLabel(DateTime value, {String? locale}) {
+  return DateFormat.yMMMd(locale).add_Hm().format(value.toLocal());
 }

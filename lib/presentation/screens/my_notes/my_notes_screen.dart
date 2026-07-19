@@ -6,6 +6,8 @@ import '../../../core/utils/place_icon.dart';
 import '../../../domain/entities/note_list_sort.dart';
 import '../../../domain/entities/place_entity.dart';
 import '../../../domain/policies/note_permissions.dart';
+import '../../../l10n/app_localizations.dart';
+import '../../../l10n/app_localizations_ext.dart';
 import '../../providers/providers.dart';
 import '../../widgets/loading_skeleton.dart';
 import '../../widgets/my_notes_notification_controls.dart';
@@ -42,13 +44,14 @@ class _NotesAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = appLocalizationsOf(context);
     return AppBar(
-      title: const Text('Notes'),
+      title: Text(l10n.myNotesTitle),
       actions: const [MyNotesNotificationIconButton()],
-      bottom: const TabBar(
+      bottom: TabBar(
         tabs: [
-          Tab(text: 'My Notes'),
-          Tab(text: 'Archived'),
+          Tab(text: l10n.myNotesTab),
+          Tab(text: l10n.archivedNotesTab),
         ],
       ),
     );
@@ -63,23 +66,20 @@ class _MyNotesListView extends ConsumerWidget {
     WidgetRef ref,
     PlaceEntity place,
   ) async {
+    final l10n = appLocalizationsOf(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Archive this note?'),
-        content: const Text(
-          'It will disappear from the map, become read-only, and free one '
-          'note slot. You cannot restore the archived note, but you can '
-          'create a new note from its title, description, and location later.',
-        ),
+        title: Text(l10n.archiveNoteTitle),
+        content: Text(l10n.archiveNoteMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
+            child: Text(l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Archive'),
+            child: Text(l10n.archiveAction),
           ),
         ],
       ),
@@ -93,7 +93,7 @@ class _MyNotesListView extends ConsumerWidget {
       if (!context.mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Failed to archive note: $error')));
+      ).showSnackBar(SnackBar(content: Text(l10n.archiveFailed(error))));
     }
   }
 
@@ -120,7 +120,9 @@ class _MyNotesListView extends ConsumerWidget {
             child: placesAsync.when(
               loading: () => const SkeletonView(child: SkeletonListView()),
               error: (e, _) => _ScrollableStatusView(
-                child: Center(child: Text('Error: $e')),
+                child: Center(
+                  child: Text(appLocalizationsOf(context).commonError(e)),
+                ),
               ),
               data: (places) {
                 if (places.isEmpty) {
@@ -311,7 +313,9 @@ class _ArchivedNotesListViewState
     }
     if (_error != null && _places.isEmpty) {
       return _ScrollableStatusView(
-        child: Center(child: Text('Error: $_error')),
+        child: Center(
+          child: Text(appLocalizationsOf(context).commonError(_error!)),
+        ),
       );
     }
     if (_places.isEmpty) {
@@ -339,6 +343,7 @@ class _ArchivedNotesListViewState
   }
 
   Widget _loadMoreFooter() {
+    final l10n = appLocalizationsOf(context);
     if (_loadingMore) {
       return const Padding(
         padding: EdgeInsets.all(12),
@@ -349,7 +354,7 @@ class _ArchivedNotesListViewState
       child: TextButton.icon(
         onPressed: _loadMore,
         icon: const Icon(Icons.expand_more),
-        label: Text(_error == null ? 'Load more' : 'Retry loading more'),
+        label: Text(_error == null ? l10n.loadMore : l10n.retryLoadMore),
       ),
     );
   }
@@ -386,6 +391,7 @@ class _NoteLimitSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = appLocalizationsOf(context);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -398,7 +404,7 @@ class _NoteLimitSummary extends StatelessWidget {
               children: [
                 Flexible(
                   child: Text(
-                    'Created notes',
+                    l10n.createdNotes,
                     style: theme.textTheme.bodyMedium,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -449,6 +455,7 @@ class _ArchivedNotesSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = appLocalizationsOf(context);
 
     return Semantics(
       identifier: 'archived-notes-count',
@@ -463,7 +470,7 @@ class _ArchivedNotesSummary extends StatelessWidget {
                 children: [
                   Flexible(
                     child: Text(
-                      'Archived notes',
+                      l10n.archivedNotes,
                       style: theme.textTheme.bodyMedium,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -531,6 +538,7 @@ class _MyNoteCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = parsePlaceColor(place.colorHex);
     final lastActivity = place.lastMessageAt ?? place.createdAt;
+    final l10n = appLocalizationsOf(context);
 
     return Semantics(
       identifier: 'my-note-card-${place.id}',
@@ -551,21 +559,22 @@ class _MyNoteCard extends StatelessWidget {
         metadata: [
           NoteListMeta(
             icon: Icons.schedule_outlined,
-            label: 'Last active ${_relativeTime(lastActivity)}',
+            label: l10n.lastActive(_relativeTime(l10n, lastActivity)),
           ),
           if (place.isArchived)
             NoteListMeta(
               icon: Icons.archive_outlined,
-              label:
-                  'Archived ${_relativeTime(place.archivedAt ?? place.expiresAt)}',
+              label: l10n.archivedAt(
+                _relativeTime(l10n, place.archivedAt ?? place.expiresAt),
+              ),
             )
           else if (place.isClosed)
-            const NoteListMeta(
+            NoteListMeta(
               icon: Icons.do_not_disturb_on_outlined,
-              label: 'Closed',
+              label: l10n.noteClosed,
             ),
           if (place.isPrivate)
-            const NoteListMeta(icon: Icons.lock_outline, label: 'Private'),
+            NoteListMeta(icon: Icons.lock_outline, label: l10n.notePrivate),
         ],
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
@@ -577,7 +586,7 @@ class _MyNoteCard extends StatelessWidget {
               const SizedBox(width: 4),
               IconButton(
                 visualDensity: VisualDensity.compact,
-                tooltip: 'Create new note from archive',
+                tooltip: l10n.createFromArchiveTooltip,
                 onPressed: onCreateFromArchive,
                 icon: const Icon(Icons.add_location_alt_outlined, size: 20),
               ),
@@ -586,7 +595,7 @@ class _MyNoteCard extends StatelessWidget {
               const SizedBox(width: 4),
               IconButton(
                 visualDensity: VisualDensity.compact,
-                tooltip: 'Archive note',
+                tooltip: l10n.archiveNoteTooltip,
                 onPressed: onArchive,
                 icon: const Icon(Icons.archive_outlined, size: 20),
               ),
@@ -598,18 +607,18 @@ class _MyNoteCard extends StatelessWidget {
     );
   }
 
-  String _relativeTime(DateTime time) {
+  String _relativeTime(AppLocalizations l10n, DateTime time) {
     final diff = DateTime.now().difference(time);
     if (diff.inDays >= 1) {
-      return '${diff.inDays} day${diff.inDays == 1 ? '' : 's'} ago';
+      return l10n.relativeDaysAgo(diff.inDays);
     }
     if (diff.inHours >= 1) {
-      return '${diff.inHours} hour${diff.inHours == 1 ? '' : 's'} ago';
+      return l10n.relativeHoursAgo(diff.inHours);
     }
     if (diff.inMinutes >= 1) {
-      return '${diff.inMinutes} min ago';
+      return l10n.relativeMinutesAgo(diff.inMinutes);
     }
-    return 'just now';
+    return l10n.relativeJustNow;
   }
 }
 
@@ -679,6 +688,7 @@ class _EmptyArchivedNotesView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = appLocalizationsOf(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -692,7 +702,7 @@ class _EmptyArchivedNotesView extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'No archived notes yet.',
+              l10n.noArchivedNotes,
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
@@ -727,6 +737,7 @@ class _EmptyMyNotesView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = appLocalizationsOf(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -740,7 +751,7 @@ class _EmptyMyNotesView extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'No notes yet.\nCreate one from the Map tab.',
+              l10n.noMyNotes,
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,

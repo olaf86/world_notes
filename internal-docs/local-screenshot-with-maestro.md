@@ -13,8 +13,8 @@
 - App mode: `flutter run` with `USE_FIREBASE_EMULATORS=true` and `SCREENSHOT_MODE=true`
 - Screenshot output:
   - Android: `artifacts/store_screenshots/android/`
-  - iOS: `artifacts/store_screenshots/ios/`
-  - iPad: `artifacts/store_screenshots/ios_ipad/`
+  - iOS: `artifacts/store_screenshots/ios/{ja,en}/`
+  - iPad: `artifacts/store_screenshots/ios_ipad/{ja,en}/`
 
 `artifacts/store_screenshots/` is ignored by git.
 
@@ -34,6 +34,9 @@
   - Defaults to `Passw0rd!`.
 - `SCREENSHOT_LATITUDE` / `SCREENSHOT_LONGITUDE`
   - Defaults to Tokyo Station: `35.6812`, `139.7671`.
+- `SCREENSHOT_LOCALE`
+  - Supports `ja` and `en`; defaults to `ja`.
+  - Forces the app UI locale and selects matching localized seed data.
 
 ## Seed Data
 
@@ -83,6 +86,7 @@ flutter pub get
      -d emulator-5554 \
      --dart-define=USE_FIREBASE_EMULATORS=true \
      --dart-define=SCREENSHOT_MODE=true \
+     --dart-define=SCREENSHOT_LOCALE=ja \
      --dart-define=SCREENSHOT_AUTH_EMAIL=screenshot@example.com \
      --dart-define=SCREENSHOT_AUTH_PASSWORD=Passw0rd!
    ```
@@ -108,6 +112,7 @@ flutter pub get
      -d "iPhone 16 Pro Max" \
      --dart-define=USE_FIREBASE_EMULATORS=true \
      --dart-define=SCREENSHOT_MODE=true \
+     --dart-define=SCREENSHOT_LOCALE=ja \
      --dart-define=SCREENSHOT_AUTH_EMAIL=screenshot@example.com \
      --dart-define=SCREENSHOT_AUTH_PASSWORD=Passw0rd!
    ```
@@ -115,8 +120,12 @@ flutter pub get
 3. Capture screenshots:
 
    ```bash
-   ./scripts/run_screenshots_ios.sh
+   SCREENSHOT_LOCALE=ja ./scripts/run_screenshots_ios.sh
+   SCREENSHOT_LOCALE=en ./scripts/run_screenshots_ios.sh
    ```
+
+   Restart `flutter run` with the matching `SCREENSHOT_LOCALE` before
+   capturing the other language.
 
 ## iPad
 
@@ -133,6 +142,7 @@ flutter pub get
      -d "iPad Pro 13-inch (M4)" \
      --dart-define=USE_FIREBASE_EMULATORS=true \
      --dart-define=SCREENSHOT_MODE=true \
+     --dart-define=SCREENSHOT_LOCALE=ja \
      --dart-define=SCREENSHOT_AUTH_EMAIL=screenshot@example.com \
      --dart-define=SCREENSHOT_AUTH_PASSWORD=Passw0rd!
    ```
@@ -140,8 +150,12 @@ flutter pub get
 3. Capture screenshots:
 
    ```bash
-   ./scripts/run_screenshots_ipad.sh
+   SCREENSHOT_LOCALE=ja ./scripts/run_screenshots_ipad.sh
+   SCREENSHOT_LOCALE=en ./scripts/run_screenshots_ipad.sh
    ```
+
+   Restart `flutter run` with the matching `SCREENSHOT_LOCALE` before
+   capturing the other language.
 
 ## Smoke Test
 

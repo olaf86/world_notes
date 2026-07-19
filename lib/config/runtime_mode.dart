@@ -20,6 +20,11 @@ const String screenshotAuthPassword = String.fromEnvironment(
   defaultValue: 'Passw0rd!',
 );
 
+const String screenshotLocale = String.fromEnvironment(
+  'SCREENSHOT_LOCALE',
+  defaultValue: 'ja',
+);
+
 const String _screenshotLatitudeValue = String.fromEnvironment(
   'SCREENSHOT_LATITUDE',
   defaultValue: '35.6812',

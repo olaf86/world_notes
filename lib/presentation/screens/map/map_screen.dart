@@ -11,6 +11,7 @@ import '../../../config/route_observer.dart';
 import '../../../core/map_style.dart';
 import '../../../core/utils/image_upload_util.dart';
 import '../../../domain/entities/pin_summary_entity.dart';
+import '../../../l10n/app_localizations_ext.dart';
 import '../../../services/location_service.dart';
 import '../../providers/providers.dart';
 import '../../widgets/map/location_checking_view.dart';
@@ -144,9 +145,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
         ref.read(anchorPositionProvider);
     if (!mounted) return false;
     if (anchor == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not get your current location.')),
-      );
+      final l10n = appLocalizationsOf(context);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.currentLocationUnavailable)));
       return false;
     }
 
@@ -219,27 +221,28 @@ class _MapScreenState extends ConsumerState<MapScreen>
   _LocationRecoveryAction? _locationRecoveryActionFor(
     LocationAvailabilityIssue? issue,
   ) {
+    final l10n = appLocalizationsOf(context);
     return switch (issue) {
       LocationAvailabilityIssue.permissionPermanentlyDenied =>
         _LocationRecoveryAction(
-          label: 'Enable Location',
-          tooltip: 'Open settings to enable location',
+          label: l10n.enableLocation,
+          tooltip: l10n.enableLocationSettingsTooltip,
           icon: Icons.settings_outlined,
           onPressed: () {
             unawaited(Geolocator.openAppSettings());
           },
         ),
       LocationAvailabilityIssue.permissionDenied => _LocationRecoveryAction(
-        label: 'Enable Location',
-        tooltip: 'Allow location to add notes',
+        label: l10n.enableLocation,
+        tooltip: l10n.enableLocationPermissionTooltip,
         icon: Icons.location_on_outlined,
         onPressed: () {
           ref.invalidate(positionStreamProvider);
         },
       ),
       LocationAvailabilityIssue.serviceDisabled => _LocationRecoveryAction(
-        label: 'Enable Location',
-        tooltip: 'Open location settings',
+        label: l10n.enableLocation,
+        tooltip: l10n.enableLocationServiceTooltip,
         icon: Icons.settings_outlined,
         onPressed: () {
           unawaited(Geolocator.openLocationSettings());
@@ -512,6 +515,7 @@ class _MapNotesLoadingStatus extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = appLocalizationsOf(context);
     return Positioned(
       top: 12,
       left: 16,
@@ -558,7 +562,7 @@ class _MapNotesLoadingStatus extends StatelessWidget {
                         ),
                         const SizedBox(width: 10),
                         Text(
-                          'Loading map notes...',
+                          l10n.mapLoadingNotes,
                           style: Theme.of(context).textTheme.labelLarge
                               ?.copyWith(color: colorScheme.onSurface),
                         ),
@@ -596,6 +600,8 @@ class _AccessAreaButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = appLocalizationsOf(context);
+    final radiusLabel = _radiusLabel(radiusMeters);
     return Positioned(
       bottom: 264,
       right: 16,
@@ -605,8 +611,8 @@ class _AccessAreaButton extends StatelessWidget {
         child: FloatingActionButton.small(
           heroTag: 'noteAccessArea',
           tooltip: visible
-              ? 'Hide ${_radiusLabel(radiusMeters)} access area'
-              : 'Show ${_radiusLabel(radiusMeters)} access area',
+              ? l10n.mapHideAccessArea(radiusLabel)
+              : l10n.mapShowAccessArea(radiusLabel),
           onPressed: onPressed,
           backgroundColor: visible ? colorScheme.primary : colorScheme.surface,
           elevation: 2,
@@ -629,6 +635,7 @@ class _RefreshButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = appLocalizationsOf(context);
     return Positioned(
       bottom: 208,
       right: 16,
@@ -637,7 +644,7 @@ class _RefreshButton extends StatelessWidget {
         button: true,
         child: FloatingActionButton.small(
           heroTag: 'mapNotesRefresh',
-          tooltip: 'Refresh map notes',
+          tooltip: l10n.mapRefreshNotes,
           onPressed: refreshing ? null : onPressed,
           backgroundColor: colorScheme.surface,
           elevation: 2,
@@ -662,6 +669,7 @@ class _ListButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = appLocalizationsOf(context);
     return Positioned(
       bottom: 152,
       right: 16,
@@ -670,7 +678,7 @@ class _ListButton extends StatelessWidget {
         button: true,
         child: FloatingActionButton.small(
           heroTag: 'mapNotesList',
-          tooltip: 'List',
+          tooltip: l10n.mapList,
           onPressed: onPressed,
           backgroundColor: colorScheme.surface,
           elevation: 2,
@@ -725,6 +733,7 @@ class _AddNoteFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final recoveryAction = locationRecoveryAction;
+    final l10n = appLocalizationsOf(context);
     return Positioned(
       bottom: 24,
       right: 16,
@@ -733,10 +742,10 @@ class _AddNoteFab extends StatelessWidget {
         button: true,
         child: FloatingActionButton.extended(
           heroTag: 'mapAddNote',
-          tooltip: recoveryAction?.tooltip ?? 'Add Note',
+          tooltip: recoveryAction?.tooltip ?? l10n.mapAddNote,
           onPressed: recoveryAction?.onPressed ?? onPressed,
           icon: Icon(recoveryAction?.icon ?? Icons.add_location_alt_outlined),
-          label: Text(recoveryAction?.label ?? 'Add Note'),
+          label: Text(recoveryAction?.label ?? l10n.mapAddNote),
         ),
       ),
     );

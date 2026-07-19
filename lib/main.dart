@@ -180,6 +180,7 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: AppLocalizations.supportedLocales,
+      locale: screenshotMode ? Locale(screenshotLocale) : null,
     );
   }
 }

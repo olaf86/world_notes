@@ -14,6 +14,7 @@ import '../../../domain/entities/message_entity.dart';
 import '../../../domain/entities/place_entity.dart';
 import '../../../domain/entities/note_theme.dart';
 import '../../../domain/policies/note_permissions.dart';
+import '../../../l10n/app_localizations_ext.dart';
 import '../../providers/providers.dart';
 import '../../widgets/map/static_note_mini_map.dart';
 import '../../widgets/loading_skeleton.dart';
@@ -667,6 +668,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = appLocalizationsOf(context);
     final isPremium = ref.watch(isPremiumProvider).valueOrNull ?? false;
     final currentUser = ref.watch(authStateProvider).valueOrNull;
     final placeAsync = ref.watch(placeProvider(widget.placeId));
@@ -775,14 +777,14 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                         if (!isPremium)
                           IconButton(
                             icon: const Icon(Icons.star_outline),
-                            tooltip: 'Go PRO',
+                            tooltip: l10n.goPro,
                             onPressed: () => context.push('/subscription'),
                           ),
                         if (place.isArchived &&
                             place.isMaintainedBy(currentUser?.id))
                           IconButton(
                             icon: const Icon(Icons.add_location_alt_outlined),
-                            tooltip: 'Create new note from archive',
+                            tooltip: l10n.createFromArchiveTooltip,
                             onPressed: () => context.push(
                               '/note/create',
                               extra: NoteCreationDraft.fromPlace(place),
@@ -790,7 +792,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                           ),
                         if (permissions.hasThreadActions)
                           PopupMenuButton<String>(
-                            tooltip: 'Thread options',
+                            tooltip: l10n.threadOptions,
                             onSelected: (value) {
                               if (value == 'close') _closeThread();
                               if (value == 'reopen') _reopenThread();
@@ -904,7 +906,8 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                             loading: () => const Center(
                               child: CircularProgressIndicator(),
                             ),
-                            error: (e, _) => Center(child: Text('Error: $e')),
+                            error: (e, _) =>
+                                Center(child: Text(l10n.commonError(e))),
                             data: (messages) {
                               return messages.isEmpty
                                   ? const _EmptyState()
@@ -970,7 +973,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                               onPressed: _preparingMessageEditor
                                   ? null
                                   : _openMessageEditor,
-                              tooltip: 'Write a message',
+                              tooltip: l10n.writeMessage,
                               child: _preparingMessageEditor
                                   ? const SizedBox(
                                       width: 20,
@@ -1266,6 +1269,7 @@ class _NoteLikeRowState extends ConsumerState<_NoteLikeRow> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = appLocalizationsOf(context);
     final likedAsync = ref.watch(noteLikeProvider(widget.placeId));
     final serverLiked = likedAsync.valueOrNull ?? false;
     _applyServerLikeState(
@@ -1278,10 +1282,10 @@ class _NoteLikeRowState extends ConsumerState<_NoteLikeRow> {
         ? colorScheme.error
         : colorScheme.onSurfaceVariant;
     final tooltip = widget.canLike
-        ? (_displayLiked ? 'Unlike note' : 'Like note')
+        ? (_displayLiked ? l10n.unlikeNote : l10n.likeNote)
         : widget.isOwnNote
-        ? 'You cannot like your own note'
-        : 'Like unavailable';
+        ? l10n.cannotLikeOwnNote
+        : l10n.likeUnavailable;
 
     return Material(
       color: colorScheme.surface.withValues(alpha: 0.78),
@@ -1301,7 +1305,7 @@ class _NoteLikeRowState extends ConsumerState<_NoteLikeRow> {
             ),
             const SizedBox(width: 4),
             Text(
-              '$_displayLikeCount like${_displayLikeCount == 1 ? '' : 's'}',
+              l10n.likeCount(_displayLikeCount),
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: colorScheme.onSurfaceVariant,
               ),
@@ -1680,6 +1684,7 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = appLocalizationsOf(context);
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -1691,7 +1696,7 @@ class _EmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            'No messages yet.\nBe the first to write!',
+            l10n.noMessages,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant,

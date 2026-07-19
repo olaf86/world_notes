@@ -18,6 +18,11 @@ process.env.FIRESTORE_EMULATOR_HOST =
 const app = initializeApp({projectId});
 const db = getFirestore(app);
 const auth = getAuth(app);
+const screenshotLocale = process.env.SCREENSHOT_LOCALE === "en" ? "en" : "ja";
+
+function localized(english: string, japanese: string): string {
+  return screenshotLocale === "ja" ? japanese : english;
+}
 
 interface ScreenshotUser {
   uid: string;
@@ -76,7 +81,7 @@ interface PlaceSeed {
 const screenshotUser = {
   email: "screenshot@example.com",
   password: "Passw0rd!",
-  displayName: "World Notes Guide",
+  displayName: localized("World Notes Guide", "World Notes ガイド"),
 };
 
 const otherUsers: OtherUser[] = [
@@ -226,7 +231,8 @@ function placeData(
     visibility: place.visibility || "public",
     passwordVersion: place.visibility === "private" ? 1 : 0,
     lockType: place.visibility === "private" ? "password" : null,
-    lockHint: place.visibility === "private" ? "The place where we met" : null,
+    lockHint: place.visibility === "private" ?
+      localized("The place where we met", "待ち合わせをした場所") : null,
     isOpen: place.isOpen !== false,
     isArchived: place.isArchived === true,
     archivedAt: place.isArchived ? timestamp(hoursBefore(now, 8)) : null,
@@ -315,8 +321,11 @@ function screenshotPlaces(user: ScreenshotUser): PlaceSeed[] {
   return [
     {
       id: "wn_tokyo_station",
-      title: "Tokyo Station Time Capsule",
-      subtitle: "Travel tips left by people passing through Marunouchi.",
+      title: localized("Tokyo Station Time Capsule", "東京駅のタイムカプセル"),
+      subtitle: localized(
+        "Travel tips left by people passing through Marunouchi.",
+        "丸の内を訪れた人が残す旅のヒント。",
+      ),
       latitude: 35.681236,
       longitude: 139.767125,
       colorHex: "#2563EB",
@@ -353,27 +362,39 @@ function screenshotPlaces(user: ScreenshotUser): PlaceSeed[] {
           id: "msg_tokyo_01",
           userName: "Mina",
           userId: "screenshot_friend_mina",
-          content: "The north dome is quiet in the morning. Good place to plan the day.",
+          content: localized(
+            "The north dome is quiet in the morning. Good place to plan the day.",
+            "朝の北口ドームは静かで、一日の予定を考えるのにぴったりです。",
+          ),
           hoursAgo: 4,
         },
         {
           id: "msg_tokyo_02",
-          content: "Left a tiny route idea: walk toward the palace after coffee.",
+          content: localized(
+            "Left a tiny route idea: walk toward the palace after coffee.",
+            "コーヒーのあと皇居方面へ歩く、小さな散歩コースを残しました。",
+          ),
           hoursAgo: 2,
         },
         {
           id: "msg_tokyo_03",
           userName: "Ren",
           userId: "screenshot_friend_ren",
-          content: "Found this note while changing trains. Nice little city breadcrumb.",
+          content: localized(
+            "Found this note while changing trains. Nice little city breadcrumb.",
+            "乗り換えの途中で見つけました。街に残された小さな道しるべですね。",
+          ),
           hoursAgo: 1,
         },
       ],
     },
     {
       id: "wn_marunouchi_cafe",
-      title: "Marunouchi Morning Coffee",
-      subtitle: "A private planning note for a quiet meetup.",
+      title: localized("Marunouchi Morning Coffee", "丸の内の朝カフェ"),
+      subtitle: localized(
+        "A private planning note for a quiet meetup.",
+        "静かな待ち合わせのための非公開ノート。",
+      ),
       latitude: 35.68205,
       longitude: 139.76485,
       colorHex: "#D97706",
@@ -395,20 +416,29 @@ function screenshotPlaces(user: ScreenshotUser): PlaceSeed[] {
       messages: [
         {
           id: "msg_cafe_01",
-          content: "Meet by the window seats. The second floor is usually calm.",
+          content: localized(
+            "Meet by the window seats. The second floor is usually calm.",
+            "窓際の席で待ち合わせ。2階はたいてい落ち着いています。",
+          ),
           hoursAgo: 7,
         },
         {
           id: "msg_cafe_02",
-          content: "Added this as a private note so only the invited group sees it.",
+          content: localized(
+            "Added this as a private note so only the invited group sees it.",
+            "招待したメンバーだけに見える非公開ノートにしました。",
+          ),
           hoursAgo: 6,
         },
       ],
     },
     {
       id: "wn_imperial_garden",
-      title: "Garden Walk Ideas",
-      subtitle: "A public note for slow walks and photo stops.",
+      title: localized("Garden Walk Ideas", "皇居外苑のお散歩アイデア"),
+      subtitle: localized(
+        "A public note for slow walks and photo stops.",
+        "ゆっくり歩きながら写真を楽しむための公開ノート。",
+      ),
       latitude: 35.68518,
       longitude: 139.75808,
       colorHex: "#16A34A",
@@ -431,15 +461,21 @@ function screenshotPlaces(user: ScreenshotUser): PlaceSeed[] {
           id: "msg_garden_01",
           userName: "Sora",
           userId: "screenshot_friend_sora",
-          content: "The path along the moat is best just before sunset.",
+          content: localized(
+            "The path along the moat is best just before sunset.",
+            "お堀沿いの道は日没前の時間がいちばんきれいです。",
+          ),
           hoursAgo: 12,
         },
       ],
     },
     {
       id: "wn_archived_memory",
-      title: "Archived Launch Memory",
-      subtitle: "An old note kept for My Notes archive screenshots.",
+      title: localized("Archived Launch Memory", "アーカイブした旅の思い出"),
+      subtitle: localized(
+        "An old note kept for My Notes archive screenshots.",
+        "マイノートに残してある、以前の場所の記録。",
+      ),
       latitude: 35.6802,
       longitude: 139.7691,
       colorHex: "#64748B",
@@ -453,7 +489,10 @@ function screenshotPlaces(user: ScreenshotUser): PlaceSeed[] {
       messages: [
         {
           id: "msg_archived_01",
-          content: "This archived note shows how old places remain readable.",
+          content: localized(
+            "This archived note shows how old places remain readable.",
+            "アーカイブした場所の思い出も、あとから読み返せます。",
+          ),
           hoursAgo: 180,
         },
       ],
@@ -476,6 +515,7 @@ async function main(): Promise<void> {
   console.log(`projectId: ${projectId}`);
   console.log(`uid: ${user.uid}`);
   console.log(`email: ${user.email}`);
+  console.log(`locale: ${screenshotLocale}`);
   console.log("places:", places.map((place) => place.id).join(", "));
 }
 

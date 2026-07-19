@@ -5,6 +5,8 @@ import '../../../core/utils/place_icon.dart';
 import '../../../core/theme/note_themes.dart';
 import '../../../core/utils/time_format.dart';
 import '../../../domain/entities/pin_summary_entity.dart';
+import '../../../l10n/app_localizations.dart';
+import '../../../l10n/app_localizations_ext.dart';
 import '../../providers/providers.dart';
 import '../../screens/map/map_pin_display.dart';
 import '../note/note_pin_avatar.dart';
@@ -45,6 +47,7 @@ class _NoteMarkerBottomSheetState extends ConsumerState<NoteMarkerBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = appLocalizationsOf(context);
     final livePosition = ref.watch(positionStreamProvider).valueOrNull;
     final anchor = ref.watch(anchorPositionProvider);
     final position = livePosition ?? anchor;
@@ -126,7 +129,14 @@ class _NoteMarkerBottomSheetState extends ConsumerState<NoteMarkerBottomSheet> {
                               ],
                             ),
                             Text(
-                              'Created at ${noteDateTimeLabel(pin.createdAt)}',
+                              l10n.createdAt(
+                                noteDateTimeLabel(
+                                  pin.createdAt,
+                                  locale: Localizations.localeOf(
+                                    context,
+                                  ).toLanguageTag(),
+                                ),
+                              ),
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: theme.colorScheme.onSurfaceVariant,
                               ),
@@ -145,30 +155,30 @@ class _NoteMarkerBottomSheetState extends ConsumerState<NoteMarkerBottomSheet> {
                       if (pin.isFromFollowedAuthor)
                         _MetaChip(
                           icon: Icons.person_pin_circle_outlined,
-                          label: 'New from someone you follow',
+                          label: l10n.mapNewFromFollowing,
                           color: theme.colorScheme.tertiary,
                         ),
                       if (pin.hasUnseenMessages)
                         _MetaChip(
                           icon: Icons.fiber_new_outlined,
-                          label: 'New messages',
+                          label: l10n.newMessages,
                           color: theme.colorScheme.error,
                         ),
                       _MetaChip(
                         icon: Icons.chat_bubble_outline,
-                        label: _countLabel(pin.messageCount, 'message'),
+                        label: l10n.messageCount(pin.messageCount),
                       ),
                       _MetaChip(
                         icon: Icons.favorite_border,
-                        label: _countLabel(pin.likeCount, 'like'),
+                        label: l10n.likeCount(pin.likeCount),
                       ),
                       _MetaChip(
                         icon: Icons.directions_walk,
                         label: pin.footprintEnabled
                             ? pin.visitorCount > 0
-                                  ? '${pin.visitorCount} footprints'
-                                  : 'Footprints on'
-                            : 'Footprints off',
+                                  ? l10n.footprintCount(pin.visitorCount)
+                                  : l10n.footprintsOn
+                            : l10n.footprintsOff,
                         color: pin.footprintEnabled
                             ? theme.colorScheme.primary
                             : theme.colorScheme.onSurfaceVariant,
@@ -176,23 +186,23 @@ class _NoteMarkerBottomSheetState extends ConsumerState<NoteMarkerBottomSheet> {
                       if (pin.isPrivate)
                         _MetaChip(
                           icon: Icons.lock_outline,
-                          label: 'Private',
+                          label: l10n.notePrivate,
                           color: theme.colorScheme.tertiary,
                         ),
                       if (pin.isClosed)
                         _MetaChip(
                           icon: Icons.do_not_disturb_on_outlined,
-                          label: 'Closed',
+                          label: l10n.noteClosed,
                           color: theme.colorScheme.error,
                         ),
                       _MetaChip(
                         icon: Icons.schedule,
-                        label: remainingLifetimeLabel(pin.expiresAt),
+                        label: _remainingLifetimeLabel(l10n, pin.expiresAt),
                       ),
                       if (!display.canOpen)
                         _MetaChip(
                           icon: Icons.near_me_disabled_outlined,
-                          label: 'Move closer to open',
+                          label: l10n.noteMoveCloser,
                           color: theme.colorScheme.secondary,
                         ),
                     ],
@@ -217,10 +227,10 @@ class _NoteMarkerBottomSheetState extends ConsumerState<NoteMarkerBottomSheet> {
                           ),
                     label: Text(
                       _isOpening
-                          ? 'Opening...'
+                          ? l10n.noteOpening
                           : display.canOpen
-                          ? (pin.isClosed ? 'View Note' : 'Open Note')
-                          : 'Available nearby',
+                          ? (pin.isClosed ? l10n.noteView : l10n.noteOpen)
+                          : l10n.noteAvailableNearby,
                     ),
                   ),
                 ],
@@ -233,8 +243,16 @@ class _NoteMarkerBottomSheetState extends ConsumerState<NoteMarkerBottomSheet> {
   }
 }
 
-String _countLabel(int count, String singular) =>
-    '$count $singular${count == 1 ? '' : 's'}';
+String _remainingLifetimeLabel(AppLocalizations l10n, DateTime expiresAt) {
+  final duration = expiresAt.difference(DateTime.now());
+  if (duration.isNegative) return l10n.noteExpired;
+  if (duration.inDays >= 60) {
+    return l10n.noteExpiresMonths((duration.inDays / 30).round());
+  }
+  if (duration.inDays >= 1) return l10n.noteExpiresDays(duration.inDays);
+  if (duration.inHours >= 1) return l10n.noteExpiresHours(duration.inHours);
+  return l10n.noteExpiresSoon;
+}
 
 /// Compact icon + label chip used for note metadata (message count, status,
 /// remaining lifetime). [color] tints both icon and text; defaults to the
