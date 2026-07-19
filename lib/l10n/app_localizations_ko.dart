@@ -9,6 +9,9 @@ class AppLocalizationsKo extends AppLocalizations {
   AppLocalizationsKo([String locale = 'ko']) : super(locale);
 
   @override
+  String get appName => '세계 일기';
+
+  @override
   String get commonCancel => '취소';
 
   @override
@@ -41,7 +44,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get locationPermissionTitle => '위치 권한이 필요합니다';
 
   @override
-  String get locationPermissionMessage => 'World Notes를 이용하려면 위치 추적을 허용해 주세요.';
+  String get locationPermissionMessage => '세계 일기를 이용하려면 위치 추적을 허용해 주세요.';
 
   @override
   String get locationPermissionOpenSettings => '설정 열기';
@@ -53,8 +56,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get locationServiceDisabledTitle => '위치 서비스를 켜 주세요';
 
   @override
-  String get locationServiceDisabledMessage =>
-      'World Notes를 사용하려면 위치 서비스를 켜 주세요.';
+  String get locationServiceDisabledMessage => '세계 일기를 사용하려면 위치 서비스를 켜 주세요.';
 
   @override
   String get locationServiceOpenSettings => '위치 설정 열기';
@@ -405,7 +407,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get proHeroSubtitle => '세계 곳곳에 노트를 남기고, 다시 보고, 공유하는 더 많은 방법을 만나 보세요.';
 
   @override
-  String get proFeatureAdFree => '광고 없이 World Notes 즐기기';
+  String get proFeatureAdFree => '광고 없이 세계 일기 즐기기';
 
   @override
   String proFeatureNoteLimit(int count) {

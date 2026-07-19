@@ -9,6 +9,9 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get appName => '世界日记';
+
+  @override
   String get commonCancel => '取消';
 
   @override
@@ -41,7 +44,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get locationPermissionTitle => '需要位置权限';
 
   @override
-  String get locationPermissionMessage => '请允许定位，以完整体验 World Notes。';
+  String get locationPermissionMessage => '请允许定位，以完整体验世界日记。';
 
   @override
   String get locationPermissionOpenSettings => '打开设置';
@@ -53,7 +56,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get locationServiceDisabledTitle => '请开启定位服务';
 
   @override
-  String get locationServiceDisabledMessage => '请开启定位服务以使用 World Notes。';
+  String get locationServiceDisabledMessage => '请开启定位服务以使用世界日记。';
 
   @override
   String get locationServiceOpenSettings => '打开定位设置';
@@ -403,7 +406,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get proHeroSubtitle => '解锁更多方式，在世界各地留下、重温并分享笔记。';
 
   @override
-  String get proFeatureAdFree => '无广告畅享 World Notes';
+  String get proFeatureAdFree => '无广告畅享世界日记';
 
   @override
   String proFeatureNoteLimit(int count) {
@@ -459,6 +462,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   AppLocalizationsZhHans() : super('zh_Hans');
 
   @override
+  String get appName => '世界日记';
+
+  @override
   String get commonCancel => '取消';
 
   @override
@@ -491,7 +497,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get locationPermissionTitle => '需要位置权限';
 
   @override
-  String get locationPermissionMessage => '请允许定位，以完整体验 World Notes。';
+  String get locationPermissionMessage => '请允许定位，以完整体验世界日记。';
 
   @override
   String get locationPermissionOpenSettings => '打开设置';
@@ -503,7 +509,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get locationServiceDisabledTitle => '请开启定位服务';
 
   @override
-  String get locationServiceDisabledMessage => '请开启定位服务以使用 World Notes。';
+  String get locationServiceDisabledMessage => '请开启定位服务以使用世界日记。';
 
   @override
   String get locationServiceOpenSettings => '打开定位设置';
@@ -853,7 +859,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get proHeroSubtitle => '解锁更多方式，在世界各地留下、重温并分享笔记。';
 
   @override
-  String get proFeatureAdFree => '无广告畅享 World Notes';
+  String get proFeatureAdFree => '无广告畅享世界日记';
 
   @override
   String proFeatureNoteLimit(int count) {
@@ -909,6 +915,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   AppLocalizationsZhHant() : super('zh_Hant');
 
   @override
+  String get appName => '世界日記';
+
+  @override
   String get commonCancel => '取消';
 
   @override
@@ -941,7 +950,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get locationPermissionTitle => '需要位置權限';
 
   @override
-  String get locationPermissionMessage => '請允許定位，以完整體驗 World Notes。';
+  String get locationPermissionMessage => '請允許定位，以完整體驗世界日記。';
 
   @override
   String get locationPermissionOpenSettings => '開啟設定';
@@ -953,7 +962,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get locationServiceDisabledTitle => '請開啟定位服務';
 
   @override
-  String get locationServiceDisabledMessage => '請開啟定位服務以使用 World Notes。';
+  String get locationServiceDisabledMessage => '請開啟定位服務以使用世界日記。';
 
   @override
   String get locationServiceOpenSettings => '開啟定位設定';
@@ -1303,7 +1312,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get proHeroSubtitle => '解鎖更多方式，在世界各地留下、重溫並分享筆記。';
 
   @override
-  String get proFeatureAdFree => '無廣告享受 World Notes';
+  String get proFeatureAdFree => '無廣告享受世界日記';
 
   @override
   String proFeatureNoteLimit(int count) {

@@ -19,6 +19,25 @@ Flutter also requires `app_zh.arb` as a base fallback whenever both Chinese
 script variants exist. It intentionally mirrors Simplified Chinese, but is not
 an additional store-listing locale.
 
+## Public app name
+
+The public app name should be expressed in the primary language and script of
+each store-listing locale. Keep the Flutter title, the iOS and Android home
+screen label, and the App Store Connect or Google Play listing name aligned.
+
+| Locale | Public app name |
+| --- | --- |
+| `en` | World Notes |
+| `ja` | セカイノート |
+| `zh_Hans` | 世界日记 |
+| `zh_Hant` | 世界日記 |
+| `ko` | 세계 일기 |
+
+For future locales, decide the localized public name with a native-language
+review before creating the store listing. Internal identifiers such as the
+bundle ID, entitlement ID, product IDs, analytics keys, and repository name
+remain language-neutral and must not be renamed as part of localization.
+
 ## Source of truth
 
 - `app_en.arb` defines the complete message API, placeholders, and metadata.

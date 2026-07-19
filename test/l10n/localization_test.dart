@@ -28,6 +28,8 @@ void main() {
 
       expect(simplified.commonSave, '保存');
       expect(traditional.commonSave, '儲存');
+      expect(simplified.appName, '世界日记');
+      expect(traditional.appName, '世界日記');
     });
 
     test('screenshot locale parser accepts script tags', () {

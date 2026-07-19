@@ -1,6 +1,9 @@
 {
   "@@locale": "en",
 
+  "appName": "World Notes",
+  "@appName": {"description": "Public app name shown in the UI and store listing."},
+
   "commonCancel": "Cancel",
   "commonSave": "Save",
   "commonRetry": "Retry",

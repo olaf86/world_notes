@@ -1,6 +1,8 @@
 {
   "@@locale": "ja",
 
+  "appName": "セカイノート",
+
   "commonCancel": "キャンセル",
   "commonSave": "保存",
   "commonRetry": "再試行",
@@ -13,11 +15,11 @@
   "navProfile": "プロフィール",
 
   "locationPermissionTitle": "現在位置へのアクセスが必要です",
-  "locationPermissionMessage": "World Notes を楽しむために、現在位置のトラッキング許可を有効にしてください。",
+  "locationPermissionMessage": "セカイノートを楽しむために、現在位置のトラッキング許可を有効にしてください。",
   "locationPermissionOpenSettings": "設定を開く",
   "locationPermissionAllow": "現在位置を許可",
   "locationServiceDisabledTitle": "位置情報サービスをオンにしてください",
-  "locationServiceDisabledMessage": "World Notes を利用するには、端末の位置情報サービスをオンにしてください。",
+  "locationServiceDisabledMessage": "セカイノートを利用するには、端末の位置情報サービスをオンにしてください。",
   "locationServiceOpenSettings": "位置情報設定を開く",
   "locationSearching": "現在位置を取得中…",
   "locationUnavailable": "位置情報を利用できません。",

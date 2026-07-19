@@ -20,7 +20,7 @@ import 'config/runtime_mode.dart';
 import 'core/theme/app_theme.dart';
 import 'firebase_options.dart';
 import 'l10n/app_locale.dart';
-import 'l10n/app_localizations.dart';
+import 'l10n/l10n.dart';
 import 'presentation/providers/providers.dart';
 import 'services/subscription_service.dart';
 
@@ -168,7 +168,7 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp> {
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(
-      title: AppConfig.appName,
+      onGenerateTitle: (context) => context.l10n.appName,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,

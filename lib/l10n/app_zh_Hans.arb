@@ -1,6 +1,8 @@
 {
   "@@locale": "zh_Hans",
 
+  "appName": "世界日记",
+
   "commonCancel": "取消",
   "commonSave": "保存",
   "commonRetry": "重试",
@@ -13,11 +15,11 @@
   "navProfile": "个人资料",
 
   "locationPermissionTitle": "需要位置权限",
-  "locationPermissionMessage": "请允许定位，以完整体验 World Notes。",
+  "locationPermissionMessage": "请允许定位，以完整体验世界日记。",
   "locationPermissionOpenSettings": "打开设置",
   "locationPermissionAllow": "允许定位",
   "locationServiceDisabledTitle": "请开启定位服务",
-  "locationServiceDisabledMessage": "请开启定位服务以使用 World Notes。",
+  "locationServiceDisabledMessage": "请开启定位服务以使用世界日记。",
   "locationServiceOpenSettings": "打开定位设置",
   "locationSearching": "正在获取你的位置…",
   "locationUnavailable": "无法获取位置。",
@@ -122,7 +124,7 @@
   "subscriptionManagementSummary": "付款、取消与支持",
   "proHeroTitle": "让每个地方都值得记住",
   "proHeroSubtitle": "解锁更多方式，在世界各地留下、重温并分享笔记。",
-  "proFeatureAdFree": "无广告畅享 World Notes",
+  "proFeatureAdFree": "无广告畅享世界日记",
   "proFeatureNoteLimit": "最多保留 {count} 则使用中的笔记",
   "proFeatureAccessArea": "从更大的范围打开附近笔记",
   "proMonthlyPlan": "每月 {price}",

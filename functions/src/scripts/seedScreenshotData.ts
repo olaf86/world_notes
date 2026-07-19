@@ -107,10 +107,10 @@ const screenshotUser = {
   password: "Passw0rd!",
   displayName: localized(
     "World Notes Guide",
-    "World Notes ガイド",
-    "World Notes 導覽員",
-    "World Notes 向导",
-    "World Notes 가이드",
+    "セカイノートガイド",
+    "世界日記導覽員",
+    "世界日记向导",
+    "세계 일기 가이드",
   ),
 };
 

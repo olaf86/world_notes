@@ -1,6 +1,8 @@
 {
   "@@locale": "zh_Hant",
 
+  "appName": "世界日記",
+
   "commonCancel": "取消",
   "commonSave": "儲存",
   "commonRetry": "重試",
@@ -13,11 +15,11 @@
   "navProfile": "個人檔案",
 
   "locationPermissionTitle": "需要位置權限",
-  "locationPermissionMessage": "請允許定位，以完整體驗 World Notes。",
+  "locationPermissionMessage": "請允許定位，以完整體驗世界日記。",
   "locationPermissionOpenSettings": "開啟設定",
   "locationPermissionAllow": "允許定位",
   "locationServiceDisabledTitle": "請開啟定位服務",
-  "locationServiceDisabledMessage": "請開啟定位服務以使用 World Notes。",
+  "locationServiceDisabledMessage": "請開啟定位服務以使用世界日記。",
   "locationServiceOpenSettings": "開啟定位設定",
   "locationSearching": "正在取得你的位置…",
   "locationUnavailable": "無法取得位置。",
@@ -122,7 +124,7 @@
   "subscriptionManagementSummary": "付款、取消與支援",
   "proHeroTitle": "讓每個地方都值得記住",
   "proHeroSubtitle": "解鎖更多方式，在世界各地留下、重溫並分享筆記。",
-  "proFeatureAdFree": "無廣告享受 World Notes",
+  "proFeatureAdFree": "無廣告享受世界日記",
   "proFeatureNoteLimit": "最多保留 {count} 則使用中的筆記",
   "proFeatureAccessArea": "從更大的範圍開啟附近筆記",
   "proMonthlyPlan": "每月 {price}",

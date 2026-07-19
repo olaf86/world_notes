@@ -104,6 +104,12 @@ abstract class AppLocalizations {
     Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'),
   ];
 
+  /// Public app name shown in the UI and store listing.
+  ///
+  /// In en, this message translates to:
+  /// **'World Notes'**
+  String get appName;
+
   /// No description provided for @commonCancel.
   ///
   /// In en, this message translates to:
