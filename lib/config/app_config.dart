@@ -28,10 +28,29 @@ class AppConfig {
     'BANNER_AD_UNIT_ID',
     defaultValue: '',
   );
+  static const String _interstitialAdUnitIdOverride = String.fromEnvironment(
+    'INTERSTITIAL_AD_UNIT_ID',
+    defaultValue: '',
+  );
   static const String androidTestBannerAdUnitId =
       'ca-app-pub-3940256099942544/6300978111';
   static const String iosTestBannerAdUnitId =
       'ca-app-pub-3940256099942544/2934735716';
+  static const String androidTestInterstitialAdUnitId =
+      'ca-app-pub-3940256099942544/1033173712';
+  static const String iosTestInterstitialAdUnitId =
+      'ca-app-pub-3940256099942544/4411468910';
+
+  /// Distinct note details that must open without an interstitial after the
+  /// previous interstitial impression.
+  static const int interstitialMinimumNoteOpens = 2;
+
+  /// Independent display chance for each new note after the minimum opens.
+  static const double interstitialDisplayProbability = 0.20;
+
+  /// A second guard in addition to the count/probability policy. Production
+  /// should also configure an equivalent frequency cap in AdMob.
+  static const Duration interstitialCooldown = Duration(minutes: 15);
 
   static bool get supportsMobileAds {
     if (screenshotMode) return false;
@@ -48,6 +67,17 @@ class AppConfig {
       TargetPlatform.iOS => iosTestBannerAdUnitId,
       TargetPlatform.android => androidTestBannerAdUnitId,
       _ => androidTestBannerAdUnitId,
+    };
+  }
+
+  static String get interstitialAdUnitId {
+    if (_interstitialAdUnitIdOverride.isNotEmpty) {
+      return _interstitialAdUnitIdOverride;
+    }
+    return switch (defaultTargetPlatform) {
+      TargetPlatform.iOS => iosTestInterstitialAdUnitId,
+      TargetPlatform.android => androidTestInterstitialAdUnitId,
+      _ => androidTestInterstitialAdUnitId,
     };
   }
 

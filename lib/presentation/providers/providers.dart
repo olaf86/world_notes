@@ -38,6 +38,7 @@ import '../../services/admin_moderation_service.dart';
 import '../../services/message_image_service.dart';
 import '../../services/my_notes_notification_service.dart';
 import '../../services/notice_notification_service.dart';
+import '../../services/note_open_interstitial_service.dart';
 import '../../services/subscription_service.dart';
 
 // --- Infrastructure ---
@@ -86,6 +87,31 @@ final messageImageServiceProvider = Provider<MessageImageService>((ref) {
   );
   ref.onDispose(service.dispose);
   return service;
+});
+
+/// Preloaded interstitial gate used only by the map note-opening flows.
+/// Premium must resolve explicitly to false before the ad client is created.
+final noteOpenInterstitialGateProvider = Provider<NoteOpenInterstitialGate>((
+  ref,
+) {
+  if (!AppConfig.supportsMobileAds) {
+    return const DisabledNoteOpenInterstitialGate();
+  }
+
+  final user = ref.watch(authStateProvider).valueOrNull;
+  final isPremium = ref.watch(isPremiumProvider).valueOrNull;
+  if (user == null || isPremium != false) {
+    return const DisabledNoteOpenInterstitialGate();
+  }
+
+  final controller = NoteOpenInterstitialController(
+    userId: user.id,
+    stateStore: SharedPreferencesNoteOpenInterstitialStateStore(),
+    adClient: GoogleInterstitialAdClient(),
+  );
+  controller.preload();
+  ref.onDispose(controller.dispose);
+  return controller;
 });
 
 final messageImageUrlProvider = FutureProvider.autoDispose

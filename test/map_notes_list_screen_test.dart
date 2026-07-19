@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:world_notes/domain/entities/pin_summary_entity.dart';
 import 'package:world_notes/presentation/providers/providers.dart';
 import 'package:world_notes/presentation/screens/map/map_notes_list_screen.dart';
+import 'package:world_notes/services/note_open_interstitial_service.dart';
 
 void main() {
   testWidgets('shows access and followed-author indicators for each map note', (
@@ -104,6 +105,7 @@ void main() {
     final now = DateTime(2026, 7, 13, 12);
     var navigationCount = 0;
     NoteAccessValidationRequest? accessRequest;
+    final interstitialGate = _RecordingInterstitialGate();
     final router = GoRouter(
       initialLocation: '/list',
       routes: [
@@ -133,6 +135,7 @@ void main() {
               _pin(placeId: 'open', now: now, access: PinAccess.openable),
             ],
           ),
+          noteOpenInterstitialGateProvider.overrideWithValue(interstitialGate),
         ],
         child: MaterialApp.router(routerConfig: router),
       ),
@@ -152,6 +155,7 @@ void main() {
     expect(accessRequest?.placeId, 'open');
     expect(accessRequest?.latitude, _position().latitude);
     expect(accessRequest?.longitude, _position().longitude);
+    expect(interstitialGate.openedPlaceIds, ['open']);
   });
 
   testWidgets(
@@ -266,6 +270,15 @@ void main() {
 
     expect(tester.getTopLeft(south).dy, lessThan(tester.getTopLeft(north).dy));
   });
+}
+
+class _RecordingInterstitialGate implements NoteOpenInterstitialGate {
+  final List<String> openedPlaceIds = [];
+
+  @override
+  Future<void> beforeNoteOpen({required String placeId}) async {
+    openedPlaceIds.add(placeId);
+  }
 }
 
 Position _position({double latitude = 35, double longitude = 139}) => Position(
