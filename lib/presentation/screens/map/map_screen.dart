@@ -151,6 +151,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
     }
 
     try {
+      await ref
+          .read(noteOpenInterstitialGateProvider)
+          .beforeNoteOpen(placeId: pin.placeId);
+      if (!mounted) return false;
       unawaited(
         context
             .push(

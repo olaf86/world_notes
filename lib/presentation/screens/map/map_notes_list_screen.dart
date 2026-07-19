@@ -404,6 +404,10 @@ class _MapNoteTileState extends ConsumerState<_MapNoteTile> {
 
     final container = ProviderScope.containerOf(context, listen: false);
     try {
+      await ref
+          .read(noteOpenInterstitialGateProvider)
+          .beforeNoteOpen(placeId: widget.display.pin.placeId);
+      if (!mounted) return;
       await context.push<void>(
         '/note/${widget.display.pin.placeId}?title=${Uri.encodeComponent(widget.display.pin.title)}',
         extra: NoteAccessValidationRequest(

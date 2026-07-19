@@ -12,6 +12,10 @@ void main() {
 
     expect(AppConfig.supportsMobileAds, isTrue);
     expect(AppConfig.bannerAdUnitId, AppConfig.androidTestBannerAdUnitId);
+    expect(
+      AppConfig.interstitialAdUnitId,
+      AppConfig.androidTestInterstitialAdUnitId,
+    );
   });
 
   test('uses the official iOS test banner ad unit by default', () {
@@ -19,6 +23,10 @@ void main() {
 
     expect(AppConfig.supportsMobileAds, isTrue);
     expect(AppConfig.bannerAdUnitId, AppConfig.iosTestBannerAdUnitId);
+    expect(
+      AppConfig.interstitialAdUnitId,
+      AppConfig.iosTestInterstitialAdUnitId,
+    );
   });
 
   test('does not support mobile ads on desktop platforms', () {
@@ -37,5 +45,11 @@ void main() {
       AppConfig.proNoteDetailAccessRadiusMeters,
     );
     expect(AppConfig.proNoteDetailAccessRadiusMeters, 1000);
+  });
+
+  test('uses the agreed note-open interstitial frequency defaults', () {
+    expect(AppConfig.interstitialMinimumNoteOpens, 2);
+    expect(AppConfig.interstitialDisplayProbability, 0.20);
+    expect(AppConfig.interstitialCooldown, const Duration(minutes: 15));
   });
 }

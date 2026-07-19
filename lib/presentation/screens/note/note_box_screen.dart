@@ -83,7 +83,14 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
       vsync: this,
       duration: const Duration(milliseconds: 280),
     );
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadAdIfNeeded());
+    ref.listenManual<AsyncValue<bool>>(isPremiumProvider, (_, next) {
+      final isPremium = next.valueOrNull;
+      if (isPremium == false) {
+        _loadAdIfNeeded();
+      } else if (isPremium == true) {
+        _disposeBannerAd();
+      }
+    }, fireImmediately: true);
   }
 
   @override
@@ -99,7 +106,8 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
 
   void _loadAdIfNeeded() {
     if (!AppConfig.supportsMobileAds) return;
-    if (ref.read(isPremiumProvider).valueOrNull == true) return;
+    if (ref.read(isPremiumProvider).valueOrNull != false) return;
+    if (_bannerAd != null) return;
     _bannerAd = BannerAd(
       adUnitId: AppConfig.bannerAdUnitId,
       size: AdSize.banner,
@@ -112,6 +120,12 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
         },
       ),
     )..load();
+  }
+
+  void _disposeBannerAd() {
+    _bannerAd?.dispose();
+    _bannerAd = null;
+    _adLoaded.value = false;
   }
 
   // ── Message editor overlay ────────────────────────────────────────────────
