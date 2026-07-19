@@ -26,26 +26,80 @@ class NoteSortButton extends ConsumerWidget {
         tooltip: 'Sort notes: ${selected.label}',
         icon: const Icon(Icons.sort_outlined),
         onSelected: (sort) => ref.read(provider.notifier).state = sort,
-        itemBuilder: (context) => options
-            .map(
-              (sort) => PopupMenuItem(
-                value: sort,
-                child: Row(
-                  children: [
-                    Icon(sort.icon, size: 20),
-                    const SizedBox(width: 12),
-                    Expanded(child: Text(sort.label)),
-                    if (sort == selected)
-                      Icon(
-                        Icons.check,
-                        size: 20,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                  ],
+        itemBuilder: (context) =>
+            _buildSortMenuItems(context, options: options, selected: selected),
+      ),
+    );
+  }
+}
+
+class NoteSortChip extends ConsumerWidget {
+  final NoteListSort selected;
+  final StateProvider<NoteListSort> provider;
+  final List<NoteListSort> options;
+  final String semanticIdentifier;
+
+  const NoteSortChip({
+    super.key,
+    required this.selected,
+    required this.provider,
+    required this.options,
+    required this.semanticIdentifier,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Semantics(
+      identifier: semanticIdentifier,
+      label: 'Sort notes. ${selected.label} selected',
+      button: true,
+      child: PopupMenuButton<NoteListSort>(
+        tooltip: 'Sort notes: ${selected.label}',
+        padding: EdgeInsets.zero,
+        position: PopupMenuPosition.under,
+        onSelected: (sort) => ref.read(provider.notifier).state = sort,
+        itemBuilder: (context) =>
+            _buildSortMenuItems(context, options: options, selected: selected),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(10, 7, 8, 7),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.sort_outlined,
+                  size: 16,
+                  color: colorScheme.onSurfaceVariant,
                 ),
-              ),
-            )
-            .toList(),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    selected.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 2),
+                Icon(
+                  Icons.arrow_drop_down,
+                  size: 18,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -94,6 +148,33 @@ class NoteSortStatus extends StatelessWidget {
             ),
     );
   }
+}
+
+List<PopupMenuEntry<NoteListSort>> _buildSortMenuItems(
+  BuildContext context, {
+  required List<NoteListSort> options,
+  required NoteListSort selected,
+}) {
+  return options
+      .map(
+        (sort) => PopupMenuItem<NoteListSort>(
+          value: sort,
+          child: Row(
+            children: [
+              Icon(sort.icon, size: 20),
+              const SizedBox(width: 12),
+              Expanded(child: Text(sort.label)),
+              if (sort == selected)
+                Icon(
+                  Icons.check,
+                  size: 20,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+            ],
+          ),
+        ),
+      )
+      .toList();
 }
 
 extension NoteListSortPresentation on NoteListSort {

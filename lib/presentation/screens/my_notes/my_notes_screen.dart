@@ -34,63 +34,17 @@ class MyNotesScreen extends ConsumerWidget {
   }
 }
 
-class _NotesAppBar extends ConsumerStatefulWidget
-    implements PreferredSizeWidget {
+class _NotesAppBar extends StatelessWidget implements PreferredSizeWidget {
   const _NotesAppBar();
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight + 48);
 
   @override
-  ConsumerState<_NotesAppBar> createState() => _NotesAppBarState();
-}
-
-class _NotesAppBarState extends ConsumerState<_NotesAppBar> {
-  TabController? _tabController;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final tabController = DefaultTabController.of(context);
-    if (_tabController == tabController) return;
-    _tabController?.removeListener(_onTabChanged);
-    _tabController = tabController..addListener(_onTabChanged);
-  }
-
-  @override
-  void dispose() {
-    _tabController?.removeListener(_onTabChanged);
-    super.dispose();
-  }
-
-  void _onTabChanged() {
-    if (mounted) setState(() {});
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final isArchivedTab = _tabController?.index == 1;
-    final sortProvider = isArchivedTab
-        ? archivedMyNotesSortProvider
-        : myNotesSortProvider;
-    final sort = ref.watch(sortProvider);
     return AppBar(
       title: const Text('Notes'),
-      actions: [
-        NoteSortButton(
-          selected: sort,
-          provider: sortProvider,
-          options: isArchivedTab
-              ? const [NoteListSort.archivedNewest, NoteListSort.archivedOldest]
-              : const [
-                  NoteListSort.lastActivity,
-                  NoteListSort.newest,
-                  NoteListSort.expiresSoonest,
-                ],
-          semanticIdentifier: 'action-sort-my-notes',
-        ),
-        const MyNotesNotificationIconButton(),
-      ],
+      actions: const [MyNotesNotificationIconButton()],
       bottom: const TabBar(
         tabs: [
           Tab(text: 'My Notes'),
@@ -440,26 +394,38 @@ class _NoteLimitSummary extends StatelessWidget {
           Icon(Icons.note_alt_outlined, size: 18, color: colorScheme.primary),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              'Created notes',
-              style: theme.textTheme.bodyMedium,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          Text(
-            '$currentCount / $limit',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: colorScheme.primary,
-              fontWeight: FontWeight.w700,
+            child: Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    'Created notes',
+                    style: theme.textTheme.bodyMedium,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '$currentCount / $limit',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(width: 12),
           Flexible(
-            child: NoteSortStatus(
-              sort: sort,
-              semanticIdentifier: 'my-notes-sort-status',
-              inline: true,
+            child: NoteSortChip(
+              selected: sort,
+              provider: myNotesSortProvider,
+              options: const [
+                NoteListSort.lastActivity,
+                NoteListSort.newest,
+                NoteListSort.expiresSoonest,
+              ],
+              semanticIdentifier: 'action-sort-my-notes',
             ),
           ),
         ],
@@ -493,43 +459,54 @@ class _ArchivedNotesSummary extends StatelessWidget {
             Icon(Icons.archive_outlined, size: 18, color: colorScheme.primary),
             const SizedBox(width: 8),
             Expanded(
-              child: Text(
-                'Archived notes',
-                style: theme.textTheme.bodyMedium,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              child: Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      'Archived notes',
+                      style: theme.textTheme.bodyMedium,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  if (count != null)
+                    Text(
+                      '$count',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    )
+                  else if (isLoading)
+                    SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: colorScheme.primary,
+                      ),
+                    )
+                  else
+                    Text(
+                      '—',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                ],
               ),
             ),
-            if (count != null)
-              Text(
-                '$count',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.primary,
-                  fontWeight: FontWeight.w700,
-                ),
-              )
-            else if (isLoading)
-              SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: colorScheme.primary,
-                ),
-              )
-            else
-              Text(
-                '—',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
             const SizedBox(width: 12),
             Flexible(
-              child: NoteSortStatus(
-                sort: sort,
-                semanticIdentifier: 'archived-notes-sort-status',
-                inline: true,
+              child: NoteSortChip(
+                selected: sort,
+                provider: archivedMyNotesSortProvider,
+                options: const [
+                  NoteListSort.archivedNewest,
+                  NoteListSort.archivedOldest,
+                ],
+                semanticIdentifier: 'action-sort-archived-notes',
               ),
             ),
           ],
