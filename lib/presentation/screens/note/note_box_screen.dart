@@ -14,7 +14,7 @@ import '../../../domain/entities/message_entity.dart';
 import '../../../domain/entities/place_entity.dart';
 import '../../../domain/entities/note_theme.dart';
 import '../../../domain/policies/note_permissions.dart';
-import '../../../l10n/app_localizations_ext.dart';
+import '../../../l10n/l10n.dart';
 import '../../providers/providers.dart';
 import '../../widgets/map/static_note_mini_map.dart';
 import '../../widgets/loading_skeleton.dart';
@@ -668,7 +668,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
 
   @override
   Widget build(BuildContext context) {
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
     final isPremium = ref.watch(isPremiumProvider).valueOrNull ?? false;
     final currentUser = ref.watch(authStateProvider).valueOrNull;
     final placeAsync = ref.watch(placeProvider(widget.placeId));
@@ -1269,7 +1269,7 @@ class _NoteLikeRowState extends ConsumerState<_NoteLikeRow> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
     final likedAsync = ref.watch(noteLikeProvider(widget.placeId));
     final serverLiked = likedAsync.valueOrNull ?? false;
     _applyServerLikeState(
@@ -1684,7 +1684,7 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,

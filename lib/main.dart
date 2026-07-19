@@ -19,6 +19,7 @@ import 'config/router.dart';
 import 'config/runtime_mode.dart';
 import 'core/theme/app_theme.dart';
 import 'firebase_options.dart';
+import 'l10n/app_locale.dart';
 import 'l10n/app_localizations.dart';
 import 'presentation/providers/providers.dart';
 import 'services/subscription_service.dart';
@@ -180,7 +181,7 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: AppLocalizations.supportedLocales,
-      locale: screenshotMode ? Locale(screenshotLocale) : null,
+      locale: screenshotMode ? appLocaleFromTag(screenshotLocale) : null,
     );
   }
 }

@@ -11,7 +11,7 @@ import '../../../config/route_observer.dart';
 import '../../../core/map_style.dart';
 import '../../../core/utils/image_upload_util.dart';
 import '../../../domain/entities/pin_summary_entity.dart';
-import '../../../l10n/app_localizations_ext.dart';
+import '../../../l10n/l10n.dart';
 import '../../../services/location_service.dart';
 import '../../providers/providers.dart';
 import '../../widgets/map/location_checking_view.dart';
@@ -145,7 +145,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
         ref.read(anchorPositionProvider);
     if (!mounted) return false;
     if (anchor == null) {
-      final l10n = appLocalizationsOf(context);
+      final l10n = context.l10n;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(l10n.currentLocationUnavailable)));
@@ -221,7 +221,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
   _LocationRecoveryAction? _locationRecoveryActionFor(
     LocationAvailabilityIssue? issue,
   ) {
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
     return switch (issue) {
       LocationAvailabilityIssue.permissionPermanentlyDenied =>
         _LocationRecoveryAction(
@@ -515,7 +515,7 @@ class _MapNotesLoadingStatus extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
     return Positioned(
       top: 12,
       left: 16,
@@ -600,7 +600,7 @@ class _AccessAreaButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
     final radiusLabel = _radiusLabel(radiusMeters);
     return Positioned(
       bottom: 264,
@@ -635,7 +635,7 @@ class _RefreshButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
     return Positioned(
       bottom: 208,
       right: 16,
@@ -669,7 +669,7 @@ class _ListButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
     return Positioned(
       bottom: 152,
       right: 16,
@@ -733,7 +733,7 @@ class _AddNoteFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final recoveryAction = locationRecoveryAction;
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
     return Positioned(
       bottom: 24,
       right: 16,

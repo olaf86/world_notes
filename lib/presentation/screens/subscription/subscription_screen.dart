@@ -6,7 +6,7 @@ import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 
 import '../../../config/app_config.dart';
 import '../../../config/runtime_mode.dart';
-import '../../../l10n/app_localizations_ext.dart';
+import '../../../l10n/l10n.dart';
 import '../../../services/subscription_service.dart';
 import '../../widgets/loading_skeleton.dart';
 
@@ -32,7 +32,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
     if (screenshotMode) return const _ScreenshotProView();
     if (!SubscriptionService.isConfigured) {
       return Semantics(
@@ -132,7 +132,7 @@ class _ScreenshotProView extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
 
     return Semantics(
       identifier: 'screen-subscription',
@@ -405,7 +405,7 @@ class _SubscriptionSetupErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
     return Semantics(
       identifier: 'screen-subscription',
       child: Scaffold(

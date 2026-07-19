@@ -3,12 +3,12 @@ import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../../config/app_config.dart';
 import '../../../domain/entities/message_entity.dart';
 import '../../../domain/entities/message_thread_item.dart';
-import '../../../l10n/app_localizations_ext.dart';
+import '../../../l10n/l10n.dart';
+import '../../../l10n/localized_formatters.dart';
 import '../../providers/providers.dart';
 import 'image_grid_layout.dart';
 
@@ -145,18 +145,14 @@ class _MessageBubbleState extends State<MessageBubble> {
     required String locale,
   }) {
     final publishAt = message.publishAt.toLocal();
-
-    if (isScheduled) {
-      return DateFormat.MMMd(locale).add_Hm().format(publishAt);
-    }
-
     final elapsed = DateTime.now().difference(publishAt);
     final isAtLeastOneDayOld =
         !elapsed.isNegative && elapsed >= const Duration(days: 1);
-
-    return isAtLeastOneDayOld
-        ? DateFormat.MMMd(locale).add_Hm().format(publishAt)
-        : DateFormat.Hm(locale).format(publishAt);
+    return formatMessageDateTime(
+      publishAt,
+      locale: locale,
+      includeDate: isScheduled || isAtLeastOneDayOld,
+    );
   }
 
   void _showActionSheet() {
@@ -294,7 +290,7 @@ class _MessageBubbleState extends State<MessageBubble> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
     final message = widget.message;
     _applyServerLikeState(
       serverLiked: widget.likeState.likedByCurrentUser,

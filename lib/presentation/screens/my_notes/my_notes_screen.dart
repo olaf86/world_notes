@@ -6,8 +6,8 @@ import '../../../core/utils/place_icon.dart';
 import '../../../domain/entities/note_list_sort.dart';
 import '../../../domain/entities/place_entity.dart';
 import '../../../domain/policies/note_permissions.dart';
-import '../../../l10n/app_localizations.dart';
-import '../../../l10n/app_localizations_ext.dart';
+import '../../../l10n/l10n.dart';
+import '../../../l10n/localized_formatters.dart';
 import '../../providers/providers.dart';
 import '../../widgets/loading_skeleton.dart';
 import '../../widgets/my_notes_notification_controls.dart';
@@ -44,7 +44,7 @@ class _NotesAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
     return AppBar(
       title: Text(l10n.myNotesTitle),
       actions: const [MyNotesNotificationIconButton()],
@@ -66,7 +66,7 @@ class _MyNotesListView extends ConsumerWidget {
     WidgetRef ref,
     PlaceEntity place,
   ) async {
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -120,9 +120,7 @@ class _MyNotesListView extends ConsumerWidget {
             child: placesAsync.when(
               loading: () => const SkeletonView(child: SkeletonListView()),
               error: (e, _) => _ScrollableStatusView(
-                child: Center(
-                  child: Text(appLocalizationsOf(context).commonError(e)),
-                ),
+                child: Center(child: Text(context.l10n.commonError(e))),
               ),
               data: (places) {
                 if (places.isEmpty) {
@@ -313,9 +311,7 @@ class _ArchivedNotesListViewState
     }
     if (_error != null && _places.isEmpty) {
       return _ScrollableStatusView(
-        child: Center(
-          child: Text(appLocalizationsOf(context).commonError(_error!)),
-        ),
+        child: Center(child: Text(context.l10n.commonError(_error!))),
       );
     }
     if (_places.isEmpty) {
@@ -343,7 +339,7 @@ class _ArchivedNotesListViewState
   }
 
   Widget _loadMoreFooter() {
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
     if (_loadingMore) {
       return const Padding(
         padding: EdgeInsets.all(12),
@@ -391,7 +387,7 @@ class _NoteLimitSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -455,7 +451,7 @@ class _ArchivedNotesSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
 
     return Semantics(
       identifier: 'archived-notes-count',
@@ -538,7 +534,7 @@ class _MyNoteCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = parsePlaceColor(place.colorHex);
     final lastActivity = place.lastMessageAt ?? place.createdAt;
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
 
     return Semantics(
       identifier: 'my-note-card-${place.id}',
@@ -607,19 +603,8 @@ class _MyNoteCard extends StatelessWidget {
     );
   }
 
-  String _relativeTime(AppLocalizations l10n, DateTime time) {
-    final diff = DateTime.now().difference(time);
-    if (diff.inDays >= 1) {
-      return l10n.relativeDaysAgo(diff.inDays);
-    }
-    if (diff.inHours >= 1) {
-      return l10n.relativeHoursAgo(diff.inHours);
-    }
-    if (diff.inMinutes >= 1) {
-      return l10n.relativeMinutesAgo(diff.inMinutes);
-    }
-    return l10n.relativeJustNow;
-  }
+  String _relativeTime(AppLocalizations l10n, DateTime time) =>
+      formatRelativeTime(l10n, time);
 }
 
 class _MessageCountBadge extends StatelessWidget {
@@ -688,7 +673,7 @@ class _EmptyArchivedNotesView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -737,7 +722,7 @@ class _EmptyMyNotesView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),

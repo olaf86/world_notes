@@ -3,9 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../../domain/entities/notice_entity.dart';
+import '../../../l10n/l10n.dart';
+import '../../../l10n/localized_formatters.dart';
 import '../../providers/providers.dart';
 import '../../widgets/loading_skeleton.dart';
 
@@ -132,11 +133,11 @@ class _NoticeTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final createdAt = DateFormat(
-      DateTime.now().difference(notice.createdAt).inDays >= 1
-          ? 'MMM d, HH:mm'
-          : 'HH:mm',
-    ).format(notice.createdAt.toLocal());
+    final createdAt = formatMessageDateTime(
+      notice.createdAt,
+      locale: context.localeTag,
+      includeDate: DateTime.now().difference(notice.createdAt).inDays >= 1,
+    );
 
     return ListTile(
       leading: Stack(

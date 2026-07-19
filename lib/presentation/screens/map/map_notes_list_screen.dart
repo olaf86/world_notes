@@ -5,11 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/utils/time_format.dart';
 import '../../../core/utils/place_icon.dart';
 import '../../../domain/entities/note_list_sort.dart';
 import '../../../domain/entities/pin_summary_entity.dart';
-import '../../../l10n/app_localizations_ext.dart';
+import '../../../l10n/l10n.dart';
+import '../../../l10n/localized_formatters.dart';
 import '../../../services/location_service.dart';
 import '../../providers/providers.dart';
 import '../../widgets/note/note_list_card.dart';
@@ -25,7 +25,7 @@ class MapNotesListScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
     final sort = ref.watch(mapNotesSortProvider);
     final anchor = ref.watch(anchorPositionProvider);
     final livePosition = ref.watch(positionStreamProvider).valueOrNull;
@@ -167,7 +167,7 @@ class _PinListState extends ConsumerState<_PinList> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
     final sort = ref.watch(mapNotesSortProvider);
     final noteAccessRadiusMeters = ref.watch(noteAccessRadiusMetersProvider);
     final request = MapPinsRequest(
@@ -326,7 +326,7 @@ class _MapNoteTileState extends ConsumerState<_MapNoteTile> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
     final display = widget.display;
     final pin = display.pin;
     final color = parsePlaceColor(pin.colorHex);
@@ -369,7 +369,7 @@ class _MapNoteTileState extends ConsumerState<_MapNoteTile> {
         NoteListMeta(
           icon: Icons.schedule_outlined,
           label: l10n.createdAt(
-            noteDateTimeLabel(
+            formatNoteDateTime(
               pin.createdAt,
               locale: Localizations.localeOf(context).toLanguageTag(),
             ),
@@ -378,7 +378,7 @@ class _MapNoteTileState extends ConsumerState<_MapNoteTile> {
         NoteListMeta(
           icon: Icons.event_outlined,
           label: l10n.expiresAt(
-            noteDateTimeLabel(
+            formatNoteDateTime(
               pin.expiresAt,
               locale: Localizations.localeOf(context).toLanguageTag(),
             ),
@@ -445,7 +445,7 @@ class _AccessStatusSignal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
     final color = canOpen
         ? Colors.green.shade700
         : Theme.of(context).colorScheme.error;
@@ -531,7 +531,7 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -554,7 +554,7 @@ class _LocationDeniedView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../l10n/app_localizations_ext.dart';
+import '../l10n/l10n.dart';
 import '../presentation/providers/providers.dart';
 import '../presentation/screens/admin/admin_moderation_screen.dart';
 import '../presentation/screens/auth/sign_in_screen.dart';
@@ -254,7 +254,7 @@ class _BottomNav extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final unreadCount = ref.watch(unreadNoticeCountProvider);
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
     return NavigationBar(
       selectedIndex: navigationShell.currentIndex,
       onDestinationSelected: (index) => navigationShell.goBranch(

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../l10n/app_localizations.dart';
+import '../../../l10n/l10n.dart';
 
 /// Full-screen placeholder shown while waiting for the first GPS fix.
 class LocationCheckingView extends StatelessWidget {
@@ -8,7 +8,7 @@ class LocationCheckingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = context.l10n;
     final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       backgroundColor: colorScheme.surfaceContainerLow,
@@ -21,8 +21,8 @@ class LocationCheckingView extends StatelessWidget {
             Text(
               l10n.locationSearching,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
+                color: colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),

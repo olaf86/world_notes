@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/entities/note_list_sort.dart';
-import '../../../l10n/app_localizations.dart';
-import '../../../l10n/app_localizations_ext.dart';
+import '../../../l10n/l10n.dart';
+import '../../../l10n/presentation_labels.dart';
 
 class NoteSortButton extends ConsumerWidget {
   final NoteListSort selected;
@@ -21,7 +21,7 @@ class NoteSortButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
     final selectedLabel = selected.localizedLabel(l10n);
     return Semantics(
       identifier: semanticIdentifier,
@@ -55,7 +55,7 @@ class NoteSortChip extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
     final selectedLabel = selected.localizedLabel(l10n);
 
     return Semantics(
@@ -126,7 +126,7 @@ class NoteSortStatus extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
     final sortLabel = sort.localizedLabel(l10n);
     final label = l10n.sortedBy(sortLabel);
     return Semantics(
@@ -171,9 +171,7 @@ List<PopupMenuEntry<NoteListSort>> _buildSortMenuItems(
             children: [
               Icon(sort.icon, size: 20),
               const SizedBox(width: 12),
-              Expanded(
-                child: Text(sort.localizedLabel(appLocalizationsOf(context))),
-              ),
+              Expanded(child: Text(sort.localizedLabel(context.l10n))),
               if (sort == selected)
                 Icon(
                   Icons.check,
@@ -187,17 +185,7 @@ List<PopupMenuEntry<NoteListSort>> _buildSortMenuItems(
       .toList();
 }
 
-extension NoteListSortPresentation on NoteListSort {
-  String localizedLabel(AppLocalizations l10n) => switch (this) {
-    NoteListSort.distance => l10n.sortDistance,
-    NoteListSort.lastActivity => l10n.sortLastActivity,
-    NoteListSort.newest => l10n.sortNewest,
-    NoteListSort.expiresSoonest => l10n.sortExpiresSoon,
-    NoteListSort.mostLiked => l10n.sortMostLiked,
-    NoteListSort.archivedNewest => l10n.sortArchivedNewest,
-    NoteListSort.archivedOldest => l10n.sortArchivedOldest,
-  };
-
+extension NoteListSortIcon on NoteListSort {
   IconData get icon => switch (this) {
     NoteListSort.distance => Icons.near_me_outlined,
     NoteListSort.lastActivity => Icons.forum_outlined,

@@ -3,10 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/place_icon.dart';
 import '../../../core/theme/note_themes.dart';
-import '../../../core/utils/time_format.dart';
 import '../../../domain/entities/pin_summary_entity.dart';
-import '../../../l10n/app_localizations.dart';
-import '../../../l10n/app_localizations_ext.dart';
+import '../../../l10n/l10n.dart';
+import '../../../l10n/localized_formatters.dart';
 import '../../providers/providers.dart';
 import '../../screens/map/map_pin_display.dart';
 import '../note/note_pin_avatar.dart';
@@ -47,7 +46,7 @@ class _NoteMarkerBottomSheetState extends ConsumerState<NoteMarkerBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
     final livePosition = ref.watch(positionStreamProvider).valueOrNull;
     final anchor = ref.watch(anchorPositionProvider);
     final position = livePosition ?? anchor;
@@ -130,11 +129,9 @@ class _NoteMarkerBottomSheetState extends ConsumerState<NoteMarkerBottomSheet> {
                             ),
                             Text(
                               l10n.createdAt(
-                                noteDateTimeLabel(
+                                formatNoteDateTime(
                                   pin.createdAt,
-                                  locale: Localizations.localeOf(
-                                    context,
-                                  ).toLanguageTag(),
+                                  locale: context.localeTag,
                                 ),
                               ),
                               style: theme.textTheme.bodySmall?.copyWith(
@@ -197,7 +194,7 @@ class _NoteMarkerBottomSheetState extends ConsumerState<NoteMarkerBottomSheet> {
                         ),
                       _MetaChip(
                         icon: Icons.schedule,
-                        label: _remainingLifetimeLabel(l10n, pin.expiresAt),
+                        label: formatRemainingLifetime(l10n, pin.expiresAt),
                       ),
                       if (!display.canOpen)
                         _MetaChip(
@@ -241,17 +238,6 @@ class _NoteMarkerBottomSheetState extends ConsumerState<NoteMarkerBottomSheet> {
       ),
     );
   }
-}
-
-String _remainingLifetimeLabel(AppLocalizations l10n, DateTime expiresAt) {
-  final duration = expiresAt.difference(DateTime.now());
-  if (duration.isNegative) return l10n.noteExpired;
-  if (duration.inDays >= 60) {
-    return l10n.noteExpiresMonths((duration.inDays / 30).round());
-  }
-  if (duration.inDays >= 1) return l10n.noteExpiresDays(duration.inDays);
-  if (duration.inHours >= 1) return l10n.noteExpiresHours(duration.inHours);
-  return l10n.noteExpiresSoon;
 }
 
 /// Compact icon + label chip used for note metadata (message count, status,

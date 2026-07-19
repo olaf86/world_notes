@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 
 import '../../../config/app_config.dart';
-import '../../../l10n/app_localizations_ext.dart';
+import '../../../l10n/l10n.dart';
 import '../../../services/subscription_service.dart';
 import '../../providers/providers.dart';
 
@@ -17,7 +17,7 @@ class ProfileScreen extends ConsumerWidget {
     WidgetRef ref,
     String currentName,
   ) async {
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
     final controller = TextEditingController(text: currentName);
     var saving = false;
 
@@ -87,7 +87,7 @@ class ProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
     final userAsync = ref.watch(authStateProvider);
     final isPremiumAsync = ref.watch(isPremiumProvider);
     final adminClaim = ref.watch(adminClaimProvider);
@@ -279,7 +279,7 @@ class _ProfileSocialCounts extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = appLocalizationsOf(context);
+    final l10n = context.l10n;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [

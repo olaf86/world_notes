@@ -6,9 +6,9 @@ cd "$ROOT_DIR"
 
 SCREENSHOT_LOCALE="${SCREENSHOT_LOCALE:-ja}"
 case "$SCREENSHOT_LOCALE" in
-  ja|en) ;;
+  en|ja|zh_Hant|zh_Hans|ko) ;;
   *)
-    echo "SCREENSHOT_LOCALE must be ja or en." >&2
+    echo "SCREENSHOT_LOCALE must be en, ja, zh_Hant, zh_Hans, or ko." >&2
     exit 1
     ;;
 esac
