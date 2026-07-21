@@ -3,11 +3,12 @@ import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../../config/app_config.dart';
 import '../../../domain/entities/message_entity.dart';
 import '../../../domain/entities/message_thread_item.dart';
+import '../../../l10n/l10n.dart';
+import '../../../l10n/localized_formatters.dart';
 import '../../providers/providers.dart';
 import 'image_grid_layout.dart';
 
@@ -138,20 +139,20 @@ class _MessageBubbleState extends State<MessageBubble> {
     );
   }
 
-  String _messageTimeLabel(MessageEntity message, {required bool isScheduled}) {
+  String _messageTimeLabel(
+    MessageEntity message, {
+    required bool isScheduled,
+    required String locale,
+  }) {
     final publishAt = message.publishAt.toLocal();
-
-    if (isScheduled) {
-      return DateFormat('MMM d, HH:mm').format(publishAt);
-    }
-
     final elapsed = DateTime.now().difference(publishAt);
     final isAtLeastOneDayOld =
         !elapsed.isNegative && elapsed >= const Duration(days: 1);
-
-    return DateFormat(
-      isAtLeastOneDayOld ? 'MMM d, HH:mm' : 'HH:mm',
-    ).format(publishAt);
+    return formatMessageDateTime(
+      publishAt,
+      locale: locale,
+      includeDate: isScheduled || isAtLeastOneDayOld,
+    );
   }
 
   void _showActionSheet() {
@@ -289,6 +290,7 @@ class _MessageBubbleState extends State<MessageBubble> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
     final message = widget.message;
     _applyServerLikeState(
       serverLiked: widget.likeState.likedByCurrentUser,
@@ -393,6 +395,7 @@ class _MessageBubbleState extends State<MessageBubble> {
     final timeStr = _messageTimeLabel(
       message,
       isScheduled: isAwaitingPublication,
+      locale: Localizations.localeOf(context).toLanguageTag(),
     );
     final imageStoragePaths = message.imageStoragePaths;
     final hasActions =
@@ -468,7 +471,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
-                                  'You',
+                                  l10n.youLabel,
                                   style: theme.textTheme.labelSmall?.copyWith(
                                     color: theme.colorScheme.onPrimary,
                                     fontWeight: FontWeight.w700,
@@ -509,9 +512,9 @@ class _MessageBubbleState extends State<MessageBubble> {
                               Flexible(
                                 child: Text(
                                   message.isPending
-                                      ? 'Sending…'
+                                      ? l10n.messageSending
                                       : isAwaitingPublication
-                                      ? 'Scheduled $timeStr'
+                                      ? l10n.messageScheduledAt(timeStr)
                                       : timeStr,
                                   style: theme.textTheme.labelSmall?.copyWith(
                                     color: isAwaitingPublication

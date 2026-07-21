@@ -6,12 +6,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:intl/intl.dart';
 
 import '../../../config/app_config.dart';
 import '../../../core/utils/place_icon.dart';
 import '../../../domain/entities/place_entity.dart';
 import '../../../domain/entities/note_theme.dart';
+import '../../../l10n/l10n.dart';
+import '../../../l10n/localized_formatters.dart';
 import '../../../services/location_service.dart';
 import '../../providers/providers.dart';
 import '../../widgets/note/fork_location_notice.dart';
@@ -186,7 +187,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
   }
 
   String _publicationLabel(DateTime value) {
-    return DateFormat('MMM d, yyyy HH:mm').format(value.toLocal());
+    return formatNoteDateTime(value, locale: context.localeTag);
   }
 
   Future<void> _pickPublicationTime() async {

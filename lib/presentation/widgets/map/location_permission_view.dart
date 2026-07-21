@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
-import '../../../l10n/app_localizations.dart';
+import '../../../l10n/l10n.dart';
 import '../../../services/location_service.dart';
 
 /// Full-screen placeholder shown when the position stream errors with a
@@ -18,7 +18,7 @@ class LocationPermissionView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = context.l10n;
     final colorScheme = Theme.of(context).colorScheme;
     final content = _contentFor(l10n);
     return Scaffold(

@@ -7,6 +7,8 @@ import 'package:intl/intl.dart' as intl;
 
 import 'app_localizations_en.dart';
 import 'app_localizations_ja.dart';
+import 'app_localizations_ko.dart';
+import 'app_localizations_zh.dart';
 
 // ignore_for_file: type=lint
 
@@ -96,55 +98,785 @@ abstract class AppLocalizations {
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
     Locale('ja'),
+    Locale('ko'),
+    Locale('zh'),
+    Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+    Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'),
   ];
 
-  /// Title shown when location permission is not granted
+  /// Public app name shown in the UI and store listing.
+  ///
+  /// In en, this message translates to:
+  /// **'World Notes'**
+  String get appName;
+
+  /// No description provided for @commonCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get commonCancel;
+
+  /// No description provided for @commonSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get commonSave;
+
+  /// No description provided for @commonRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get commonRetry;
+
+  /// No description provided for @commonTryAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get commonTryAgain;
+
+  /// No description provided for @commonError.
+  ///
+  /// In en, this message translates to:
+  /// **'Error: {error}'**
+  String commonError(Object error);
+
+  /// No description provided for @navMap.
+  ///
+  /// In en, this message translates to:
+  /// **'Map'**
+  String get navMap;
+
+  /// No description provided for @navNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes'**
+  String get navNotes;
+
+  /// No description provided for @navNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get navNotifications;
+
+  /// No description provided for @navProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile'**
+  String get navProfile;
+
+  /// No description provided for @locationPermissionTitle.
   ///
   /// In en, this message translates to:
   /// **'Location Required'**
   String get locationPermissionTitle;
 
-  /// Body text shown when location permission is not granted
+  /// No description provided for @locationPermissionMessage.
   ///
   /// In en, this message translates to:
   /// **'Enable location tracking to enjoy World Notes.'**
   String get locationPermissionMessage;
 
-  /// Button label to open system settings for location permission
+  /// No description provided for @locationPermissionOpenSettings.
   ///
   /// In en, this message translates to:
   /// **'Open Settings'**
   String get locationPermissionOpenSettings;
 
-  /// Button label to retry requesting location permission
+  /// No description provided for @locationPermissionAllow.
   ///
   /// In en, this message translates to:
   /// **'Allow Location'**
   String get locationPermissionAllow;
 
-  /// Title shown when device location services are disabled
+  /// No description provided for @locationServiceDisabledTitle.
   ///
   /// In en, this message translates to:
   /// **'Turn On Location Services'**
   String get locationServiceDisabledTitle;
 
-  /// Body text shown when device location services are disabled
+  /// No description provided for @locationServiceDisabledMessage.
   ///
   /// In en, this message translates to:
   /// **'Turn on location services to use World Notes.'**
   String get locationServiceDisabledMessage;
 
-  /// Button label to open device location service settings
+  /// No description provided for @locationServiceOpenSettings.
   ///
   /// In en, this message translates to:
   /// **'Open Location Settings'**
   String get locationServiceOpenSettings;
 
-  /// Label shown while waiting for the first GPS fix
+  /// No description provided for @locationSearching.
   ///
   /// In en, this message translates to:
   /// **'Finding your location…'**
   String get locationSearching;
+
+  /// No description provided for @locationUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Location unavailable.'**
+  String get locationUnavailable;
+
+  /// No description provided for @locationUnavailableHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow location access in Settings,\nor move to an area with better GPS signal.'**
+  String get locationUnavailableHelp;
+
+  /// No description provided for @locationLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load location.'**
+  String get locationLoadFailed;
+
+  /// No description provided for @currentLocationUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not get your current location.'**
+  String get currentLocationUnavailable;
+
+  /// No description provided for @enableLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable Location'**
+  String get enableLocation;
+
+  /// No description provided for @enableLocationSettingsTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Open settings to enable location'**
+  String get enableLocationSettingsTooltip;
+
+  /// No description provided for @enableLocationPermissionTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow location to add notes'**
+  String get enableLocationPermissionTooltip;
+
+  /// No description provided for @enableLocationServiceTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Open location settings'**
+  String get enableLocationServiceTooltip;
+
+  /// No description provided for @mapNotesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Map Notes'**
+  String get mapNotesTitle;
+
+  /// No description provided for @mapAddNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Note'**
+  String get mapAddNote;
+
+  /// No description provided for @mapList.
+  ///
+  /// In en, this message translates to:
+  /// **'List'**
+  String get mapList;
+
+  /// No description provided for @mapRefreshNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh map notes'**
+  String get mapRefreshNotes;
+
+  /// No description provided for @mapHideAccessArea.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide {radius} access area'**
+  String mapHideAccessArea(String radius);
+
+  /// No description provided for @mapShowAccessArea.
+  ///
+  /// In en, this message translates to:
+  /// **'Show {radius} access area'**
+  String mapShowAccessArea(String radius);
+
+  /// No description provided for @mapLoadingNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading map notes…'**
+  String get mapLoadingNotes;
+
+  /// No description provided for @mapNoNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'No notes in this area.\nMove the map or drop one here!'**
+  String get mapNoNotes;
+
+  /// No description provided for @mapDistanceMeters.
+  ///
+  /// In en, this message translates to:
+  /// **'{distance} meters away'**
+  String mapDistanceMeters(int distance);
+
+  /// No description provided for @mapDistanceKilometers.
+  ///
+  /// In en, this message translates to:
+  /// **'{distance} km away'**
+  String mapDistanceKilometers(String distance);
+
+  /// No description provided for @mapFromFollowing.
+  ///
+  /// In en, this message translates to:
+  /// **'From someone you follow'**
+  String get mapFromFollowing;
+
+  /// No description provided for @mapNewFromFollowing.
+  ///
+  /// In en, this message translates to:
+  /// **'New from someone you follow'**
+  String get mapNewFromFollowing;
+
+  /// No description provided for @mapFromFollowingSemantic.
+  ///
+  /// In en, this message translates to:
+  /// **'From a followed author.'**
+  String get mapFromFollowingSemantic;
+
+  /// No description provided for @newMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'New messages'**
+  String get newMessages;
+
+  /// No description provided for @createdAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Created at {date}'**
+  String createdAt(String date);
+
+  /// No description provided for @expiresAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Expires {date}'**
+  String expiresAt(String date);
+
+  /// No description provided for @noteClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'Closed'**
+  String get noteClosed;
+
+  /// No description provided for @notePrivate.
+  ///
+  /// In en, this message translates to:
+  /// **'Private'**
+  String get notePrivate;
+
+  /// No description provided for @noteWithinRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Within access range. You can open this note.'**
+  String get noteWithinRange;
+
+  /// No description provided for @noteOutsideRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Outside access range. Move closer to open this note.'**
+  String get noteOutsideRange;
+
+  /// No description provided for @noteOpenNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Open now'**
+  String get noteOpenNow;
+
+  /// No description provided for @noteMoveCloser.
+  ///
+  /// In en, this message translates to:
+  /// **'Move closer to open'**
+  String get noteMoveCloser;
+
+  /// No description provided for @messageCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 message} other{{count} messages}}'**
+  String messageCount(int count);
+
+  /// No description provided for @likeCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 like} other{{count} likes}}'**
+  String likeCount(int count);
+
+  /// No description provided for @footprintCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 footprint} other{{count} footprints}}'**
+  String footprintCount(int count);
+
+  /// No description provided for @footprintsOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Footprints on'**
+  String get footprintsOn;
+
+  /// No description provided for @footprintsOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Footprints off'**
+  String get footprintsOff;
+
+  /// No description provided for @noteOpening.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening…'**
+  String get noteOpening;
+
+  /// No description provided for @noteView.
+  ///
+  /// In en, this message translates to:
+  /// **'View Note'**
+  String get noteView;
+
+  /// No description provided for @noteOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Note'**
+  String get noteOpen;
+
+  /// No description provided for @noteAvailableNearby.
+  ///
+  /// In en, this message translates to:
+  /// **'Available nearby'**
+  String get noteAvailableNearby;
+
+  /// No description provided for @noteExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'Expired'**
+  String get noteExpired;
+
+  /// No description provided for @noteExpiresMonths.
+  ///
+  /// In en, this message translates to:
+  /// **'Expires in {count} months'**
+  String noteExpiresMonths(int count);
+
+  /// No description provided for @noteExpiresDays.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Expires in 1 day} other{Expires in {count} days}}'**
+  String noteExpiresDays(int count);
+
+  /// No description provided for @noteExpiresHours.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Expires in 1 hour} other{Expires in {count} hours}}'**
+  String noteExpiresHours(int count);
+
+  /// No description provided for @noteExpiresSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Expires soon'**
+  String get noteExpiresSoon;
+
+  /// No description provided for @goPro.
+  ///
+  /// In en, this message translates to:
+  /// **'Go PRO'**
+  String get goPro;
+
+  /// No description provided for @threadOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Thread options'**
+  String get threadOptions;
+
+  /// No description provided for @writeMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Write a message'**
+  String get writeMessage;
+
+  /// No description provided for @likeNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Like note'**
+  String get likeNote;
+
+  /// No description provided for @unlikeNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlike note'**
+  String get unlikeNote;
+
+  /// No description provided for @cannotLikeOwnNote.
+  ///
+  /// In en, this message translates to:
+  /// **'You cannot like your own note'**
+  String get cannotLikeOwnNote;
+
+  /// No description provided for @likeUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Like unavailable'**
+  String get likeUnavailable;
+
+  /// No description provided for @noMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'No messages yet.\nBe the first to write!'**
+  String get noMessages;
+
+  /// No description provided for @youLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get youLabel;
+
+  /// No description provided for @messageSending.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending…'**
+  String get messageSending;
+
+  /// No description provided for @messageScheduledAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled {time}'**
+  String messageScheduledAt(String time);
+
+  /// No description provided for @sortNotesTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort notes: {sort}'**
+  String sortNotesTooltip(String sort);
+
+  /// No description provided for @sortNotesSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort notes. {sort} selected'**
+  String sortNotesSelected(String sort);
+
+  /// No description provided for @sortedBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Sorted by: {sort}'**
+  String sortedBy(String sort);
+
+  /// No description provided for @sortDistance.
+  ///
+  /// In en, this message translates to:
+  /// **'Distance'**
+  String get sortDistance;
+
+  /// No description provided for @sortLastActivity.
+  ///
+  /// In en, this message translates to:
+  /// **'Last activity'**
+  String get sortLastActivity;
+
+  /// No description provided for @sortNewest.
+  ///
+  /// In en, this message translates to:
+  /// **'Newest'**
+  String get sortNewest;
+
+  /// No description provided for @sortExpiresSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Expires soon'**
+  String get sortExpiresSoon;
+
+  /// No description provided for @sortMostLiked.
+  ///
+  /// In en, this message translates to:
+  /// **'Most liked'**
+  String get sortMostLiked;
+
+  /// No description provided for @sortArchivedNewest.
+  ///
+  /// In en, this message translates to:
+  /// **'Recently archived'**
+  String get sortArchivedNewest;
+
+  /// No description provided for @sortArchivedOldest.
+  ///
+  /// In en, this message translates to:
+  /// **'Oldest archived'**
+  String get sortArchivedOldest;
+
+  /// No description provided for @myNotesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes'**
+  String get myNotesTitle;
+
+  /// No description provided for @myNotesTab.
+  ///
+  /// In en, this message translates to:
+  /// **'My Notes'**
+  String get myNotesTab;
+
+  /// No description provided for @archivedNotesTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Archived'**
+  String get archivedNotesTab;
+
+  /// No description provided for @archiveNoteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive this note?'**
+  String get archiveNoteTitle;
+
+  /// No description provided for @archiveNoteMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'It will disappear from the map, become read-only, and free one note slot. You cannot restore the archived note, but you can create a new note from its title, description, and location later.'**
+  String get archiveNoteMessage;
+
+  /// No description provided for @archiveAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive'**
+  String get archiveAction;
+
+  /// No description provided for @archiveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to archive note: {error}'**
+  String archiveFailed(Object error);
+
+  /// No description provided for @loadMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Load more'**
+  String get loadMore;
+
+  /// No description provided for @retryLoadMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry loading more'**
+  String get retryLoadMore;
+
+  /// No description provided for @createdNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Created notes'**
+  String get createdNotes;
+
+  /// No description provided for @archivedNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Archived notes'**
+  String get archivedNotes;
+
+  /// No description provided for @lastActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Last active {time}'**
+  String lastActive(String time);
+
+  /// No description provided for @archivedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Archived {time}'**
+  String archivedAt(String time);
+
+  /// No description provided for @createFromArchiveTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Create new note from archive'**
+  String get createFromArchiveTooltip;
+
+  /// No description provided for @archiveNoteTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive note'**
+  String get archiveNoteTooltip;
+
+  /// No description provided for @relativeDaysAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 day ago} other{{count} days ago}}'**
+  String relativeDaysAgo(int count);
+
+  /// No description provided for @relativeHoursAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 hour ago} other{{count} hours ago}}'**
+  String relativeHoursAgo(int count);
+
+  /// No description provided for @relativeMinutesAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} min ago'**
+  String relativeMinutesAgo(int count);
+
+  /// No description provided for @relativeJustNow.
+  ///
+  /// In en, this message translates to:
+  /// **'just now'**
+  String get relativeJustNow;
+
+  /// No description provided for @noArchivedNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'No archived notes yet.'**
+  String get noArchivedNotes;
+
+  /// No description provided for @noMyNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'No notes yet.\nCreate one from the Map tab.'**
+  String get noMyNotes;
+
+  /// No description provided for @profileTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile'**
+  String get profileTitle;
+
+  /// No description provided for @settingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get settingsTitle;
+
+  /// No description provided for @editNickname.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit nickname'**
+  String get editNickname;
+
+  /// No description provided for @nicknameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Nickname'**
+  String get nicknameLabel;
+
+  /// No description provided for @nicknameUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Nickname updated.'**
+  String get nicknameUpdated;
+
+  /// No description provided for @nicknameUpdateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to update nickname: {error}'**
+  String nicknameUpdateFailed(Object error);
+
+  /// No description provided for @manageSubscription.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Subscription'**
+  String get manageSubscription;
+
+  /// No description provided for @upgradeToPro.
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade to PRO'**
+  String get upgradeToPro;
+
+  /// No description provided for @proBenefitsSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove ads, keep 200 notes, and unlock PRO features'**
+  String get proBenefitsSummary;
+
+  /// No description provided for @subscriptionManagementSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Billing, cancellation & support'**
+  String get subscriptionManagementSummary;
+
+  /// No description provided for @proHeroTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Make every place memorable'**
+  String get proHeroTitle;
+
+  /// No description provided for @proHeroSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock more ways to leave, revisit, and share notes around the world.'**
+  String get proHeroSubtitle;
+
+  /// No description provided for @proFeatureAdFree.
+  ///
+  /// In en, this message translates to:
+  /// **'Enjoy World Notes without ads'**
+  String get proFeatureAdFree;
+
+  /// No description provided for @proFeatureNoteLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep up to {count} active notes'**
+  String proFeatureNoteLimit(int count);
+
+  /// No description provided for @proFeatureAccessArea.
+  ///
+  /// In en, this message translates to:
+  /// **'Open nearby notes from a wider area'**
+  String get proFeatureAccessArea;
+
+  /// No description provided for @proMonthlyPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'{price} / month'**
+  String proMonthlyPlan(String price);
+
+  /// No description provided for @proYearlyPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'{price} / year'**
+  String proYearlyPlan(String price);
+
+  /// No description provided for @proIntroOffer.
+  ///
+  /// In en, this message translates to:
+  /// **'First year {price}'**
+  String proIntroOffer(String price);
+
+  /// No description provided for @proChoosePlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose your PRO plan'**
+  String get proChoosePlan;
+
+  /// No description provided for @moderation.
+  ///
+  /// In en, this message translates to:
+  /// **'Moderation'**
+  String get moderation;
+
+  /// No description provided for @signOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign Out'**
+  String get signOut;
+
+  /// No description provided for @followers.
+  ///
+  /// In en, this message translates to:
+  /// **'Followers'**
+  String get followers;
+
+  /// No description provided for @following.
+  ///
+  /// In en, this message translates to:
+  /// **'Following'**
+  String get following;
+
+  /// No description provided for @subscriptionUnavailableBuild.
+  ///
+  /// In en, this message translates to:
+  /// **'{planName} is not available in this build.'**
+  String subscriptionUnavailableBuild(String planName);
+
+  /// No description provided for @subscriptionTemporarilyUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'{planName} is temporarily unavailable.'**
+  String subscriptionTemporarilyUnavailable(String planName);
 }
 
 class _AppLocalizationsDelegate
@@ -158,19 +890,37 @@ class _AppLocalizationsDelegate
 
   @override
   bool isSupported(Locale locale) =>
-      <String>['en', 'ja'].contains(locale.languageCode);
+      <String>['en', 'ja', 'ko', 'zh'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
 }
 
 AppLocalizations lookupAppLocalizations(Locale locale) {
+  // Lookup logic when language+script codes are specified.
+  switch (locale.languageCode) {
+    case 'zh':
+      {
+        switch (locale.scriptCode) {
+          case 'Hans':
+            return AppLocalizationsZhHans();
+          case 'Hant':
+            return AppLocalizationsZhHant();
+        }
+        break;
+      }
+  }
+
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
     case 'en':
       return AppLocalizationsEn();
     case 'ja':
       return AppLocalizationsJa();
+    case 'ko':
+      return AppLocalizationsKo();
+    case 'zh':
+      return AppLocalizationsZh();
   }
 
   throw FlutterError(

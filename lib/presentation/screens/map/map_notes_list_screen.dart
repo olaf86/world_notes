@@ -5,10 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/utils/time_format.dart';
 import '../../../core/utils/place_icon.dart';
 import '../../../domain/entities/note_list_sort.dart';
 import '../../../domain/entities/pin_summary_entity.dart';
+import '../../../l10n/l10n.dart';
+import '../../../l10n/localized_formatters.dart';
 import '../../../services/location_service.dart';
 import '../../providers/providers.dart';
 import '../../widgets/note/note_list_card.dart';
@@ -24,6 +25,7 @@ class MapNotesListScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final sort = ref.watch(mapNotesSortProvider);
     final anchor = ref.watch(anchorPositionProvider);
     final livePosition = ref.watch(positionStreamProvider).valueOrNull;
@@ -65,7 +67,7 @@ class MapNotesListScreen extends ConsumerWidget {
     if (embedded) return body;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Map Notes'),
+        title: Text(l10n.mapNotesTitle),
         actions: [
           NoteSortButton(
             selected: sort,
@@ -165,6 +167,7 @@ class _PinListState extends ConsumerState<_PinList> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final sort = ref.watch(mapNotesSortProvider);
     final noteAccessRadiusMeters = ref.watch(noteAccessRadiusMetersProvider);
     final request = MapPinsRequest(
@@ -223,7 +226,7 @@ class _PinListState extends ConsumerState<_PinList> {
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            'No notes in this area.\nMove the map or drop one here!',
+                            l10n.mapNoNotes,
                             textAlign: TextAlign.center,
                             style: Theme.of(context).textTheme.bodyMedium
                                 ?.copyWith(
@@ -323,13 +326,14 @@ class _MapNoteTileState extends ConsumerState<_MapNoteTile> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = context.l10n;
     final display = widget.display;
     final pin = display.pin;
     final color = parsePlaceColor(pin.colorHex);
     final distanceM = display.distanceMeters!;
     final distanceLabel = distanceM < 1000
-        ? '${distanceM.round()} meters away'
-        : '${(distanceM / 1000).toStringAsFixed(1)} km away';
+        ? l10n.mapDistanceMeters(distanceM.round())
+        : l10n.mapDistanceKilometers((distanceM / 1000).toStringAsFixed(1));
     return NoteListCard(
       avatarColor: color,
       avatarIcon: placeIconData(pin.icon),
@@ -347,14 +351,14 @@ class _MapNoteTileState extends ConsumerState<_MapNoteTile> {
         if (pin.isFromFollowedAuthor)
           NoteListMeta(
             icon: Icons.person_pin_circle_outlined,
-            label: 'From someone you follow',
-            semanticLabel: 'From a followed author.',
+            label: l10n.mapFromFollowing,
+            semanticLabel: l10n.mapFromFollowingSemantic,
             color: colorScheme.tertiary,
           ),
         if (pin.hasUnseenMessages)
           NoteListMeta(
             icon: Icons.fiber_new_outlined,
-            label: 'New messages',
+            label: l10n.newMessages,
             color: colorScheme.error,
           ),
         NoteListMeta(
@@ -364,22 +368,32 @@ class _MapNoteTileState extends ConsumerState<_MapNoteTile> {
         ),
         NoteListMeta(
           icon: Icons.schedule_outlined,
-          label: 'Created ${noteDateTimeLabel(pin.createdAt)}',
+          label: l10n.createdAt(
+            formatNoteDateTime(
+              pin.createdAt,
+              locale: Localizations.localeOf(context).toLanguageTag(),
+            ),
+          ),
         ),
         NoteListMeta(
           icon: Icons.event_outlined,
-          label: 'Expires ${noteDateTimeLabel(pin.expiresAt)}',
+          label: l10n.expiresAt(
+            formatNoteDateTime(
+              pin.expiresAt,
+              locale: Localizations.localeOf(context).toLanguageTag(),
+            ),
+          ),
         ),
         if (pin.isClosed)
           NoteListMeta(
             icon: Icons.do_not_disturb_on_outlined,
-            label: 'Closed',
+            label: l10n.noteClosed,
             color: colorScheme.error,
           )
         else if (pin.isPrivate)
           NoteListMeta(
             icon: Icons.lock_outline,
-            label: 'Private',
+            label: l10n.notePrivate,
             color: colorScheme.tertiary,
           ),
       ],
@@ -431,18 +445,17 @@ class _AccessStatusSignal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final color = canOpen
         ? Colors.green.shade700
         : Theme.of(context).colorScheme.error;
-    final label = canOpen
-        ? 'Within access range. You can open this note.'
-        : 'Outside access range. Move closer to open this note.';
+    final label = canOpen ? l10n.noteWithinRange : l10n.noteOutsideRange;
 
     return Semantics(
       container: true,
       label: label,
       child: Tooltip(
-        message: canOpen ? 'Open now' : 'Move closer to open',
+        message: canOpen ? l10n.noteOpenNow : l10n.noteMoveCloser,
         excludeFromSemantics: true,
         child: ExcludeSemantics(
           child: Container(
@@ -518,6 +531,7 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -528,7 +542,7 @@ class _ErrorView extends StatelessWidget {
             color: Theme.of(context).colorScheme.error,
           ),
           const SizedBox(height: 12),
-          const Text('Failed to load location.'),
+          Text(l10n.locationLoadFailed),
         ],
       ),
     );
@@ -540,6 +554,7 @@ class _LocationDeniedView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -551,12 +566,12 @@ class _LocationDeniedView extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            'Location unavailable.',
+            l10n.locationUnavailable,
             style: Theme.of(context).textTheme.titleSmall,
           ),
           const SizedBox(height: 4),
           Text(
-            'Allow location access in Settings,\nor move to an area with better GPS signal.',
+            l10n.locationUnavailableHelp,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant,

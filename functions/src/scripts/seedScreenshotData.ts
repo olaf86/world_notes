@@ -18,6 +18,35 @@ process.env.FIRESTORE_EMULATOR_HOST =
 const app = initializeApp({projectId});
 const db = getFirestore(app);
 const auth = getAuth(app);
+type ScreenshotLocale = "en" | "ja" | "zh_Hant" | "zh_Hans" | "ko";
+
+const supportedScreenshotLocales = new Set<ScreenshotLocale>([
+  "en",
+  "ja",
+  "zh_Hant",
+  "zh_Hans",
+  "ko",
+]);
+const requestedScreenshotLocale = process.env.SCREENSHOT_LOCALE;
+const screenshotLocale: ScreenshotLocale = supportedScreenshotLocales.has(
+  requestedScreenshotLocale as ScreenshotLocale,
+) ? requestedScreenshotLocale as ScreenshotLocale : "ja";
+
+function localized(
+  english: string,
+  japanese: string,
+  traditionalChinese: string,
+  simplifiedChinese: string,
+  korean: string,
+): string {
+  return {
+    en: english,
+    ja: japanese,
+    zh_Hant: traditionalChinese,
+    zh_Hans: simplifiedChinese,
+    ko: korean,
+  }[screenshotLocale];
+}
 
 interface ScreenshotUser {
   uid: string;
@@ -76,7 +105,13 @@ interface PlaceSeed {
 const screenshotUser = {
   email: "screenshot@example.com",
   password: "Passw0rd!",
-  displayName: "World Notes Guide",
+  displayName: localized(
+    "World Notes Guide",
+    "セカイノートガイド",
+    "世界日記導覽員",
+    "世界日记向导",
+    "세계 일기 가이드",
+  ),
 };
 
 const otherUsers: OtherUser[] = [
@@ -226,7 +261,14 @@ function placeData(
     visibility: place.visibility || "public",
     passwordVersion: place.visibility === "private" ? 1 : 0,
     lockType: place.visibility === "private" ? "password" : null,
-    lockHint: place.visibility === "private" ? "The place where we met" : null,
+    lockHint: place.visibility === "private" ?
+      localized(
+        "The place where we met",
+        "待ち合わせをした場所",
+        "我們見面的地方",
+        "我们见面的地方",
+        "우리가 만난 장소",
+      ) : null,
     isOpen: place.isOpen !== false,
     isArchived: place.isArchived === true,
     archivedAt: place.isArchived ? timestamp(hoursBefore(now, 8)) : null,
@@ -315,8 +357,20 @@ function screenshotPlaces(user: ScreenshotUser): PlaceSeed[] {
   return [
     {
       id: "wn_tokyo_station",
-      title: "Tokyo Station Time Capsule",
-      subtitle: "Travel tips left by people passing through Marunouchi.",
+      title: localized(
+        "Tokyo Station Time Capsule",
+        "東京駅のタイムカプセル",
+        "東京車站時光膠囊",
+        "东京站时光胶囊",
+        "도쿄역 타임캡슐",
+      ),
+      subtitle: localized(
+        "Travel tips left by people passing through Marunouchi.",
+        "丸の内を訪れた人が残す旅のヒント。",
+        "造訪丸之內的人留下的旅行提示。",
+        "到访丸之内的人留下的旅行提示。",
+        "마루노우치를 다녀간 사람들이 남긴 여행 팁입니다.",
+      ),
       latitude: 35.681236,
       longitude: 139.767125,
       colorHex: "#2563EB",
@@ -353,27 +407,57 @@ function screenshotPlaces(user: ScreenshotUser): PlaceSeed[] {
           id: "msg_tokyo_01",
           userName: "Mina",
           userId: "screenshot_friend_mina",
-          content: "The north dome is quiet in the morning. Good place to plan the day.",
+          content: localized(
+            "The north dome is quiet in the morning. Good place to plan the day.",
+            "朝の北口ドームは静かで、一日の予定を考えるのにぴったりです。",
+            "北口圓頂大廳早上很安靜，很適合規劃一天的行程。",
+            "北口穹顶大厅早上很安静，很适合规划一天的行程。",
+            "북쪽 돔은 아침에 조용해서 하루 일정을 짜기 좋아요.",
+          ),
           hoursAgo: 4,
         },
         {
           id: "msg_tokyo_02",
-          content: "Left a tiny route idea: walk toward the palace after coffee.",
+          content: localized(
+            "Left a tiny route idea: walk toward the palace after coffee.",
+            "コーヒーのあと皇居方面へ歩く、小さな散歩コースを残しました。",
+            "留下一條小路線：喝完咖啡後往皇居方向散步。",
+            "留下一条小路线：喝完咖啡后往皇居方向散步。",
+            "커피를 마신 뒤 황궁 쪽으로 걷는 짧은 산책 코스를 남겼어요.",
+          ),
           hoursAgo: 2,
         },
         {
           id: "msg_tokyo_03",
           userName: "Ren",
           userId: "screenshot_friend_ren",
-          content: "Found this note while changing trains. Nice little city breadcrumb.",
+          content: localized(
+            "Found this note while changing trains. Nice little city breadcrumb.",
+            "乗り換えの途中で見つけました。街に残された小さな道しるべですね。",
+            "轉車時發現了這則筆記，像是城市裡可愛的小路標。",
+            "换乘时发现了这则笔记，像是城市里可爱的小路标。",
+            "환승하다 발견했어요. 도시에 남겨진 작은 이정표 같네요.",
+          ),
           hoursAgo: 1,
         },
       ],
     },
     {
       id: "wn_marunouchi_cafe",
-      title: "Marunouchi Morning Coffee",
-      subtitle: "A private planning note for a quiet meetup.",
+      title: localized(
+        "Marunouchi Morning Coffee",
+        "丸の内の朝カフェ",
+        "丸之內晨間咖啡",
+        "丸之内晨间咖啡",
+        "마루노우치 모닝 커피",
+      ),
+      subtitle: localized(
+        "A private planning note for a quiet meetup.",
+        "静かな待ち合わせのための非公開ノート。",
+        "為安靜聚會準備的私人規劃筆記。",
+        "为安静聚会准备的私密规划笔记。",
+        "조용한 만남을 계획하는 비공개 노트입니다.",
+      ),
       latitude: 35.68205,
       longitude: 139.76485,
       colorHex: "#D97706",
@@ -395,20 +479,44 @@ function screenshotPlaces(user: ScreenshotUser): PlaceSeed[] {
       messages: [
         {
           id: "msg_cafe_01",
-          content: "Meet by the window seats. The second floor is usually calm.",
+          content: localized(
+            "Meet by the window seats. The second floor is usually calm.",
+            "窓際の席で待ち合わせ。2階はたいてい落ち着いています。",
+            "在窗邊座位碰面，二樓通常很安靜。",
+            "在窗边座位碰面，二楼通常很安静。",
+            "창가 자리에서 만나요. 2층은 대체로 조용해요.",
+          ),
           hoursAgo: 7,
         },
         {
           id: "msg_cafe_02",
-          content: "Added this as a private note so only the invited group sees it.",
+          content: localized(
+            "Added this as a private note so only the invited group sees it.",
+            "招待したメンバーだけに見える非公開ノートにしました。",
+            "已設為私人筆記，只有受邀成員看得到。",
+            "已设为私密笔记，只有受邀成员看得到。",
+            "초대받은 멤버만 볼 수 있도록 비공개 노트로 만들었어요.",
+          ),
           hoursAgo: 6,
         },
       ],
     },
     {
       id: "wn_imperial_garden",
-      title: "Garden Walk Ideas",
-      subtitle: "A public note for slow walks and photo stops.",
+      title: localized(
+        "Garden Walk Ideas",
+        "皇居外苑のお散歩アイデア",
+        "皇居外苑散步點子",
+        "皇居外苑散步点子",
+        "고쿄 가이엔 산책 아이디어",
+      ),
+      subtitle: localized(
+        "A public note for slow walks and photo stops.",
+        "ゆっくり歩きながら写真を楽しむための公開ノート。",
+        "適合悠閒散步和停下拍照的公開筆記。",
+        "适合悠闲散步和停下拍照的公开笔记。",
+        "천천히 걷고 사진도 찍기 위한 공개 노트입니다.",
+      ),
       latitude: 35.68518,
       longitude: 139.75808,
       colorHex: "#16A34A",
@@ -431,15 +539,33 @@ function screenshotPlaces(user: ScreenshotUser): PlaceSeed[] {
           id: "msg_garden_01",
           userName: "Sora",
           userId: "screenshot_friend_sora",
-          content: "The path along the moat is best just before sunset.",
+          content: localized(
+            "The path along the moat is best just before sunset.",
+            "お堀沿いの道は日没前の時間がいちばんきれいです。",
+            "護城河旁的小徑在日落前最美。",
+            "护城河旁的小径在日落前最美。",
+            "해 질 무렵의 해자 옆길이 가장 아름다워요.",
+          ),
           hoursAgo: 12,
         },
       ],
     },
     {
       id: "wn_archived_memory",
-      title: "Archived Launch Memory",
-      subtitle: "An old note kept for My Notes archive screenshots.",
+      title: localized(
+        "Archived Launch Memory",
+        "アーカイブした旅の思い出",
+        "已封存的旅途回憶",
+        "已归档的旅途回忆",
+        "보관된 여행의 추억",
+      ),
+      subtitle: localized(
+        "An old note kept for My Notes archive screenshots.",
+        "マイノートに残してある、以前の場所の記録。",
+        "保留在「我的筆記」封存區的舊地點記錄。",
+        "保留在“我的笔记”归档区的旧地点记录。",
+        "내 노트 보관함에 남겨 둔 예전 장소의 기록입니다.",
+      ),
       latitude: 35.6802,
       longitude: 139.7691,
       colorHex: "#64748B",
@@ -453,7 +579,13 @@ function screenshotPlaces(user: ScreenshotUser): PlaceSeed[] {
       messages: [
         {
           id: "msg_archived_01",
-          content: "This archived note shows how old places remain readable.",
+          content: localized(
+            "This archived note shows how old places remain readable.",
+            "アーカイブした場所の思い出も、あとから読み返せます。",
+            "封存後，仍可回頭閱讀過去地點的回憶。",
+            "归档后，仍可回头阅读过去地点的回忆。",
+            "보관한 장소의 추억도 나중에 다시 읽을 수 있어요.",
+          ),
           hoursAgo: 180,
         },
       ],
@@ -476,6 +608,7 @@ async function main(): Promise<void> {
   console.log(`projectId: ${projectId}`);
   console.log(`uid: ${user.uid}`);
   console.log(`email: ${user.email}`);
+  console.log(`locale: ${screenshotLocale}`);
   console.log("places:", places.map((place) => place.id).join(", "));
 }
 

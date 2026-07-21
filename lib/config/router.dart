@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../l10n/l10n.dart';
 import '../presentation/providers/providers.dart';
 import '../presentation/screens/admin/admin_moderation_screen.dart';
 import '../presentation/screens/auth/sign_in_screen.dart';
@@ -253,6 +254,7 @@ class _BottomNav extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final unreadCount = ref.watch(unreadNoticeCountProvider);
+    final l10n = context.l10n;
     return NavigationBar(
       selectedIndex: navigationShell.currentIndex,
       onDestinationSelected: (index) => navigationShell.goBranch(
@@ -262,22 +264,34 @@ class _BottomNav extends ConsumerWidget {
         initialLocation: index == navigationShell.currentIndex,
       ),
       destinations: [
-        const NavigationDestination(
-          icon: Icon(Icons.map_outlined),
-          label: 'Map',
-        ),
-        const NavigationDestination(
-          icon: Icon(Icons.bookmark_border_outlined),
-          label: 'Notes',
+        NavigationDestination(
+          icon: Semantics(
+            identifier: 'nav-map',
+            child: const Icon(Icons.map_outlined),
+          ),
+          label: l10n.navMap,
         ),
         NavigationDestination(
-          icon: _NoticeNavIcon(count: unreadCount),
-          selectedIcon: _NoticeNavIcon(count: unreadCount, selected: true),
-          label: 'Notifications',
+          icon: Semantics(
+            identifier: 'nav-notes',
+            child: const Icon(Icons.bookmark_border_outlined),
+          ),
+          label: l10n.navNotes,
         ),
-        const NavigationDestination(
-          icon: Icon(Icons.person_outline),
-          label: 'Profile',
+        NavigationDestination(
+          icon: Semantics(
+            identifier: 'nav-notifications',
+            child: _NoticeNavIcon(count: unreadCount),
+          ),
+          selectedIcon: _NoticeNavIcon(count: unreadCount, selected: true),
+          label: l10n.navNotifications,
+        ),
+        NavigationDestination(
+          icon: Semantics(
+            identifier: 'nav-profile',
+            child: const Icon(Icons.person_outline),
+          ),
+          label: l10n.navProfile,
         ),
       ],
     );

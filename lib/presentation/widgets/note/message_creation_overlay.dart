@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../config/app_config.dart';
 import '../../../core/utils/image_upload_util.dart';
+import '../../../l10n/l10n.dart';
+import '../../../l10n/localized_formatters.dart';
 import '../../providers/providers.dart';
 import 'image_grid_layout.dart';
 
@@ -243,7 +244,11 @@ class _MessageCreationOverlayState
       return _publishPreset.label;
     }
     final value = _customPublishAt ?? _defaultCustomPublishAt();
-    return DateFormat('MMM d, HH:mm').format(value.toLocal());
+    return formatMessageDateTime(
+      value,
+      locale: context.localeTag,
+      includeDate: true,
+    );
   }
 
   Future<void> _pickCustomPublishTime() async {
