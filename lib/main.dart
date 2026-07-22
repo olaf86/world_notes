@@ -12,7 +12,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'config/app_config.dart';
 import 'config/notification_navigation.dart';
 import 'config/router.dart';
 import 'config/runtime_mode.dart';
@@ -118,7 +117,8 @@ class WorldNotesApp extends ConsumerStatefulWidget {
   ConsumerState<WorldNotesApp> createState() => _WorldNotesAppState();
 }
 
-class _WorldNotesAppState extends ConsumerState<WorldNotesApp> {
+class _WorldNotesAppState extends ConsumerState<WorldNotesApp>
+    with WidgetsBindingObserver {
   StreamSubscription<NotificationPlaceRoute>? _notificationOpenSubscription;
   StreamSubscription<String>? _noticeOpenSubscription;
 
@@ -126,6 +126,7 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp> {
   void initState() {
     super.initState();
     if (screenshotMode) return;
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final service = ref.read(myNotesNotificationServiceProvider);
       service.initialPlaceRouteFromLaunch().then(_openPlaceFromNotification);
@@ -144,9 +145,20 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _notificationOpenSubscription?.cancel();
     _noticeOpenSubscription?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || screenshotMode) return;
+    final privacyStatus = ref.read(adPrivacyStatusProvider);
+    if (privacyStatus.hasError ||
+        privacyStatus.valueOrNull?.shouldRetry == true) {
+      ref.invalidate(adPrivacyStatusProvider);
+    }
   }
 
   void _openPlaceFromNotification(NotificationPlaceRoute? route) {

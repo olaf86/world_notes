@@ -6,10 +6,12 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 class AdPrivacyStatus {
   final bool canRequestAds;
   final bool privacyOptionsRequired;
+  final bool shouldRetry;
 
   const AdPrivacyStatus({
     required this.canRequestAds,
     required this.privacyOptionsRequired,
+    this.shouldRetry = false,
   });
 
   static const disabled = AdPrivacyStatus(
@@ -29,17 +31,48 @@ abstract interface class AdPrivacyService {
 /// AdMob, UMP presents them in the required order and triggers ATT after its
 /// IDFA explanation. A declined ATT request does not prevent ad requests.
 class GoogleAdPrivacyService implements AdPrivacyService {
+  final Future<AdPrivacyStatus> Function()? _initializerOverride;
   Future<AdPrivacyStatus>? _initialization;
+
+  GoogleAdPrivacyService() : _initializerOverride = null;
+
+  @visibleForTesting
+  GoogleAdPrivacyService.forTesting(this._initializerOverride);
 
   @override
   Future<AdPrivacyStatus> gatherConsentAndInitialize() {
-    return _initialization ??= _gatherConsentAndInitialize();
+    final existing = _initialization;
+    if (existing != null) return existing;
+
+    final initialization =
+        _initializerOverride?.call() ?? _gatherConsentAndInitialize();
+    _initialization = initialization;
+    // A retryable result or thrown platform error must not remain cached for
+    // the entire app process. WorldNotesApp invalidates the provider when the
+    // app next resumes, which starts a fresh UMP request.
+    unawaited(
+      initialization.then<void>(
+        (status) {
+          if (status.shouldRetry &&
+              identical(_initialization, initialization)) {
+            _initialization = null;
+          }
+        },
+        onError: (Object _, StackTrace _) {
+          if (identical(_initialization, initialization)) {
+            _initialization = null;
+          }
+        },
+      ),
+    );
+    return initialization;
   }
 
   Future<AdPrivacyStatus> _gatherConsentAndInitialize() async {
     final updateError = await _requestConsentInfoUpdate();
+    FormError? formError;
     if (updateError == null) {
-      final formError = await _loadAndShowConsentFormIfRequired();
+      formError = await _loadAndShowConsentFormIfRequired();
       if (formError != null) {
         debugPrint(
           '[AdMob] Consent form failed: ${formError.errorCode} '
@@ -66,6 +99,7 @@ class GoogleAdPrivacyService implements AdPrivacyService {
       canRequestAds: canRequestAds,
       privacyOptionsRequired:
           privacyOptionsStatus == PrivacyOptionsRequirementStatus.required,
+      shouldRetry: !canRequestAds && (updateError != null || formError != null),
     );
   }
 

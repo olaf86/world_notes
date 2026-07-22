@@ -96,4 +96,23 @@ void main() {
     expect(AppConfig.interstitialDisplayProbability, 0.20);
     expect(AppConfig.interstitialCooldown, const Duration(minutes: 15));
   });
+
+  test('backs off banner retries and caps the delay', () {
+    expect(
+      AppConfig.bannerAdRetryDelayForFailure(0),
+      const Duration(seconds: 30),
+    );
+    expect(
+      AppConfig.bannerAdRetryDelayForFailure(2),
+      const Duration(minutes: 2),
+    );
+    expect(
+      AppConfig.bannerAdRetryDelayForFailure(3),
+      const Duration(minutes: 4),
+    );
+    expect(
+      AppConfig.bannerAdRetryDelayForFailure(20),
+      const Duration(minutes: 5),
+    );
+  });
 }

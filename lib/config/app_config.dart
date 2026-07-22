@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 
 import 'runtime_mode.dart';
@@ -49,6 +51,20 @@ class AppConfig {
   /// A second guard in addition to the count/probability policy. Production
   /// should also configure an equivalent frequency cap in AdMob.
   static const Duration interstitialCooldown = Duration(minutes: 15);
+
+  static const Duration bannerAdInitialRetryDelay = Duration(seconds: 30);
+  static const Duration bannerAdMaxRetryDelay = Duration(minutes: 5);
+
+  /// Returns `min(30 seconds * 2^failureCount, 5 minutes)`.
+  /// Failures after reaching the cap continue to retry every five minutes.
+  static Duration bannerAdRetryDelayForFailure(int failureCount) {
+    assert(failureCount >= 0);
+    final seconds = math.min(
+      bannerAdInitialRetryDelay.inSeconds * math.pow(2, failureCount),
+      bannerAdMaxRetryDelay.inSeconds,
+    );
+    return Duration(seconds: seconds.toInt());
+  }
 
   static bool get supportsMobileAds {
     if (screenshotMode) return false;

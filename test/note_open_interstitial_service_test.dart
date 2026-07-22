@@ -82,16 +82,13 @@ void main() {
     expect(adClient.showCount, 1);
   });
 
-  test('first note after an app restart is always ad-free', () async {
+  test('an app restart does not create an extra ad-free open', () async {
     store.states[userId] = const NoteOpenInterstitialState(
       openedPlaceIds: {'place-1', 'place-2'},
     );
     final gate = controller();
 
     await gate.beforeNoteOpen(placeId: 'place-3');
-    expect(adClient.showCount, 0);
-
-    await gate.beforeNoteOpen(placeId: 'place-4');
     expect(adClient.showCount, 1);
   });
 
