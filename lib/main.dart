@@ -11,7 +11,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import 'config/app_config.dart';
 import 'config/notification_navigation.dart';
@@ -43,9 +42,6 @@ void main() async {
     };
   }
 
-  if (AppConfig.supportsMobileAds) {
-    await MobileAds.instance.initialize();
-  }
   if (!screenshotMode) {
     await SubscriptionService.initialize();
   }
@@ -166,6 +162,10 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp> {
   @override
   Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
+    // Keep the post-login UMP/ATT flow alive for the app lifetime. Ad widgets
+    // remain disabled until this provider allows requests and initializes the
+    // Mobile Ads SDK.
+    ref.watch(adPrivacyStatusProvider);
 
     return MaterialApp.router(
       onGenerateTitle: (context) => context.l10n.appName,

@@ -60,24 +60,51 @@ class AppConfig {
   }
 
   static String get bannerAdUnitId {
-    if (_bannerAdUnitIdOverride.isNotEmpty) return _bannerAdUnitIdOverride;
-    return switch (defaultTargetPlatform) {
+    return bannerAdUnitIdFor(
+      platform: defaultTargetPlatform,
+      useProductionAds: kReleaseMode,
+      productionAdUnitId: _bannerAdUnitIdOverride,
+    );
+  }
+
+  static String get interstitialAdUnitId {
+    return interstitialAdUnitIdFor(
+      platform: defaultTargetPlatform,
+      useProductionAds: kReleaseMode,
+      productionAdUnitId: _interstitialAdUnitIdOverride,
+    );
+  }
+
+  static String bannerAdUnitIdFor({
+    required TargetPlatform platform,
+    required bool useProductionAds,
+    required String productionAdUnitId,
+  }) {
+    if (useProductionAds) return productionAdUnitId;
+    return switch (platform) {
       TargetPlatform.iOS => iosTestBannerAdUnitId,
       TargetPlatform.android => androidTestBannerAdUnitId,
       _ => androidTestBannerAdUnitId,
     };
   }
 
-  static String get interstitialAdUnitId {
-    if (_interstitialAdUnitIdOverride.isNotEmpty) {
-      return _interstitialAdUnitIdOverride;
-    }
-    return switch (defaultTargetPlatform) {
+  static String interstitialAdUnitIdFor({
+    required TargetPlatform platform,
+    required bool useProductionAds,
+    required String productionAdUnitId,
+  }) {
+    if (useProductionAds) return productionAdUnitId;
+    return switch (platform) {
       TargetPlatform.iOS => iosTestInterstitialAdUnitId,
       TargetPlatform.android => androidTestInterstitialAdUnitId,
       _ => androidTestInterstitialAdUnitId,
     };
   }
+
+  /// Release builds never fall back to Google's demo units. CI must inject
+  /// both production unit IDs before ads are enabled.
+  static bool get hasRequiredAdUnitIds =>
+      bannerAdUnitId.isNotEmpty && interstitialAdUnitId.isNotEmpty;
 
   // RevenueCat
   static const String revenueCatApiKeyIos = String.fromEnvironment(

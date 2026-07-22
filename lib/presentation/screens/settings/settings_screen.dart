@@ -41,9 +41,74 @@ class SettingsScreen extends ConsumerWidget {
           const _RegionSection(),
           const SizedBox(height: 24),
           const _MyNotesNotificationsSection(),
+          const _AdPrivacySection(),
         ],
       ),
     );
+  }
+}
+
+class _AdPrivacySection extends ConsumerStatefulWidget {
+  const _AdPrivacySection();
+
+  @override
+  ConsumerState<_AdPrivacySection> createState() => _AdPrivacySectionState();
+}
+
+class _AdPrivacySectionState extends ConsumerState<_AdPrivacySection> {
+  bool _opening = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = ref.watch(adPrivacyStatusProvider).valueOrNull;
+    if (status?.privacyOptionsRequired != true) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Ad Privacy',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.privacy_tip_outlined),
+            title: const Text('Manage privacy choices'),
+            subtitle: const Text(
+              'Review or change how your information is used for ads.',
+            ),
+            trailing: _opening
+                ? const SizedBox.square(
+                    dimension: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.chevron_right),
+            onTap: _opening ? null : _showPrivacyOptions,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showPrivacyOptions() async {
+    setState(() => _opening = true);
+    try {
+      await ref.read(adPrivacyServiceProvider).showPrivacyOptions();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open privacy choices: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _opening = false);
+    }
   }
 }
 

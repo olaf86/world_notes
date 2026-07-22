@@ -84,11 +84,10 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
       vsync: this,
       duration: const Duration(milliseconds: 280),
     );
-    ref.listenManual<AsyncValue<bool>>(isPremiumProvider, (_, next) {
-      final isPremium = next.valueOrNull;
-      if (isPremium == false) {
+    ref.listenManual<bool>(canRequestAdsProvider, (_, canRequestAds) {
+      if (canRequestAds) {
         _loadAdIfNeeded();
-      } else if (isPremium == true) {
+      } else {
         _disposeBannerAd();
       }
     }, fireImmediately: true);
@@ -107,6 +106,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
 
   void _loadAdIfNeeded() {
     if (!AppConfig.supportsMobileAds) return;
+    if (!ref.read(canRequestAdsProvider)) return;
     if (ref.read(isPremiumProvider).valueOrNull != false) return;
     if (_bannerAd != null) return;
     _bannerAd = BannerAd(

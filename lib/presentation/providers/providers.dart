@@ -33,6 +33,7 @@ import '../../domain/repositories/follow_repository.dart';
 import '../../domain/repositories/message_repository.dart';
 import '../../domain/repositories/notice_repository.dart';
 import '../../domain/repositories/place_repository.dart';
+import '../../services/ad_privacy_service.dart';
 import '../../services/location_service.dart';
 import '../../services/admin_moderation_service.dart';
 import '../../services/message_image_service.dart';
@@ -81,6 +82,31 @@ final subscriptionServiceProvider = Provider<SubscriptionService>(
   (_) => SubscriptionService(),
 );
 
+final adPrivacyServiceProvider = Provider<AdPrivacyService>(
+  (_) => GoogleAdPrivacyService(),
+);
+
+/// Starts UMP only after authentication and the subscription state have
+/// resolved. UMP decides whether a form is needed on this app launch and, on
+/// iOS, sequences a published IDFA explanation before the one-time ATT alert.
+final adPrivacyStatusProvider = FutureProvider<AdPrivacyStatus>((ref) async {
+  if (!AppConfig.supportsMobileAds || !AppConfig.hasRequiredAdUnitIds) {
+    return AdPrivacyStatus.disabled;
+  }
+
+  final user = ref.watch(authStateProvider).valueOrNull;
+  final isPremium = ref.watch(isPremiumProvider).valueOrNull;
+  if (user == null || isPremium != false) {
+    return AdPrivacyStatus.disabled;
+  }
+
+  return ref.watch(adPrivacyServiceProvider).gatherConsentAndInitialize();
+});
+
+final canRequestAdsProvider = Provider<bool>((ref) {
+  return ref.watch(adPrivacyStatusProvider).valueOrNull?.canRequestAds ?? false;
+});
+
 final messageImageServiceProvider = Provider<MessageImageService>((ref) {
   final service = MessageImageService(
     storage: ref.watch(firebaseStorageProvider),
@@ -94,7 +120,7 @@ final messageImageServiceProvider = Provider<MessageImageService>((ref) {
 final noteOpenInterstitialGateProvider = Provider<NoteOpenInterstitialGate>((
   ref,
 ) {
-  if (!AppConfig.supportsMobileAds) {
+  if (!AppConfig.supportsMobileAds || !ref.watch(canRequestAdsProvider)) {
     return const DisabledNoteOpenInterstitialGate();
   }
 

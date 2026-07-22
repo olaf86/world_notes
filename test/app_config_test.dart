@@ -29,6 +29,50 @@ void main() {
     );
   });
 
+  test('uses an injected iOS interstitial unit for release builds', () {
+    expect(
+      AppConfig.interstitialAdUnitIdFor(
+        platform: TargetPlatform.iOS,
+        useProductionAds: true,
+        productionAdUnitId: 'ios-production-interstitial',
+      ),
+      'ios-production-interstitial',
+    );
+  });
+
+  test('uses an injected Android banner unit for release builds', () {
+    expect(
+      AppConfig.bannerAdUnitIdFor(
+        platform: TargetPlatform.android,
+        useProductionAds: true,
+        productionAdUnitId: 'android-production-banner',
+      ),
+      'android-production-banner',
+    );
+  });
+
+  test('release builds never fall back to a demo ad unit', () {
+    expect(
+      AppConfig.interstitialAdUnitIdFor(
+        platform: TargetPlatform.iOS,
+        useProductionAds: true,
+        productionAdUnitId: '',
+      ),
+      isEmpty,
+    );
+  });
+
+  test('keeps the official iOS interstitial test unit outside release', () {
+    expect(
+      AppConfig.interstitialAdUnitIdFor(
+        platform: TargetPlatform.iOS,
+        useProductionAds: false,
+        productionAdUnitId: 'ignored-production-id',
+      ),
+      AppConfig.iosTestInterstitialAdUnitId,
+    );
+  });
+
   test('does not support mobile ads on desktop platforms', () {
     debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
 
