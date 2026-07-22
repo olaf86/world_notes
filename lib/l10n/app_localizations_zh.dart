@@ -374,6 +374,123 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsTitle => '设置';
 
   @override
+  String get settingsLanguageTitle => '应用语言';
+
+  @override
+  String get settingsLanguageSystem => '自动（系统）';
+
+  @override
+  String get settingsLanguageSystemDescription => '使用设备的语言设置';
+
+  @override
+  String get settingsLanguageEnglish => 'English';
+
+  @override
+  String get settingsLanguageJapanese => '日本語';
+
+  @override
+  String get settingsLanguageKorean => '한국어';
+
+  @override
+  String get settingsLanguageSimplifiedChinese => '简体中文';
+
+  @override
+  String get settingsLanguageTraditionalChinese => '繁體中文';
+
+  @override
+  String get settingsLanguageUpdateFailed => '此设备的显示语言已更改，但无法保存到你的账户。';
+
+  @override
+  String get settingsMapStyleTitle => '地图样式';
+
+  @override
+  String get settingsMapStyleAuto => '自动';
+
+  @override
+  String get settingsMapStyleStandard => '标准';
+
+  @override
+  String get settingsMapStyleLight => '浅色';
+
+  @override
+  String get settingsMapStyleDark => '深色';
+
+  @override
+  String get settingsMapStylePop => '鲜艳';
+
+  @override
+  String get settingsMapStyleAutoDescription => '跟随系统外观';
+
+  @override
+  String get settingsMapStyleStandardDescription => '简洁清晰的显示';
+
+  @override
+  String get settingsMapStyleLightDescription => '以浅色模式使用 Apple 地图';
+
+  @override
+  String get settingsMapStyleDarkDescription => '夜间更舒适的深色显示';
+
+  @override
+  String get settingsMapStylePopDescription => '明亮多彩的显示';
+
+  @override
+  String get settingsDataRegionTitle => '数据区域';
+
+  @override
+  String get settingsDataRegionDescription =>
+      '选择处理请求的区域。自动会选择离当前位置最近的区域，旅行时也可手动更改。';
+
+  @override
+  String get settingsDataRegionAuto => '自动（最近）';
+
+  @override
+  String settingsDataRegionCurrent(String region) {
+    return '当前：$region';
+  }
+
+  @override
+  String get settingsRegionAsiaTokyo => '亚洲（东京）';
+
+  @override
+  String get settingsRegionAmericasUsCentral => '美洲（美国中部）';
+
+  @override
+  String get settingsRegionEuropeBelgium => '欧洲（比利时）';
+
+  @override
+  String get settingsNotificationsTitle => '通知';
+
+  @override
+  String get notificationsMaintainedNotesTitle => '管理中的笔记';
+
+  @override
+  String get notificationsMaintainedNotesDescription => '你管理的笔记收到新消息时通知你。';
+
+  @override
+  String get notificationsTurnOnTooltip => '开启管理中笔记的通知';
+
+  @override
+  String get notificationsTurnOffTooltip => '关闭管理中笔记的通知';
+
+  @override
+  String get notificationsPermissionDenied => '通知未获允许。请在系统设置中启用通知以接收新消息提醒。';
+
+  @override
+  String get notificationsEnableFailed => '无法开启管理中笔记的通知。';
+
+  @override
+  String get notificationsDisableFailed => '无法关闭管理中笔记的通知。';
+
+  @override
+  String get notificationPreviewsTitle => '消息预览';
+
+  @override
+  String get notificationPreviewsDescription => '在管理中笔记的通知里显示消息内容。';
+
+  @override
+  String get notificationPreviewsUpdateFailed => '无法更新通知预览。';
+
+  @override
   String get editNickname => '编辑昵称';
 
   @override
@@ -827,6 +944,123 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get settingsTitle => '设置';
 
   @override
+  String get settingsLanguageTitle => '应用语言';
+
+  @override
+  String get settingsLanguageSystem => '自动（系统）';
+
+  @override
+  String get settingsLanguageSystemDescription => '使用设备的语言设置';
+
+  @override
+  String get settingsLanguageEnglish => 'English';
+
+  @override
+  String get settingsLanguageJapanese => '日本語';
+
+  @override
+  String get settingsLanguageKorean => '한국어';
+
+  @override
+  String get settingsLanguageSimplifiedChinese => '简体中文';
+
+  @override
+  String get settingsLanguageTraditionalChinese => '繁體中文';
+
+  @override
+  String get settingsLanguageUpdateFailed => '此设备的显示语言已更改，但无法保存到你的账户。';
+
+  @override
+  String get settingsMapStyleTitle => '地图样式';
+
+  @override
+  String get settingsMapStyleAuto => '自动';
+
+  @override
+  String get settingsMapStyleStandard => '标准';
+
+  @override
+  String get settingsMapStyleLight => '浅色';
+
+  @override
+  String get settingsMapStyleDark => '深色';
+
+  @override
+  String get settingsMapStylePop => '鲜艳';
+
+  @override
+  String get settingsMapStyleAutoDescription => '跟随系统外观';
+
+  @override
+  String get settingsMapStyleStandardDescription => '简洁清晰的显示';
+
+  @override
+  String get settingsMapStyleLightDescription => '以浅色模式使用 Apple 地图';
+
+  @override
+  String get settingsMapStyleDarkDescription => '夜间更舒适的深色显示';
+
+  @override
+  String get settingsMapStylePopDescription => '明亮多彩的显示';
+
+  @override
+  String get settingsDataRegionTitle => '数据区域';
+
+  @override
+  String get settingsDataRegionDescription =>
+      '选择处理请求的区域。自动会选择离当前位置最近的区域，旅行时也可手动更改。';
+
+  @override
+  String get settingsDataRegionAuto => '自动（最近）';
+
+  @override
+  String settingsDataRegionCurrent(String region) {
+    return '当前：$region';
+  }
+
+  @override
+  String get settingsRegionAsiaTokyo => '亚洲（东京）';
+
+  @override
+  String get settingsRegionAmericasUsCentral => '美洲（美国中部）';
+
+  @override
+  String get settingsRegionEuropeBelgium => '欧洲（比利时）';
+
+  @override
+  String get settingsNotificationsTitle => '通知';
+
+  @override
+  String get notificationsMaintainedNotesTitle => '管理中的笔记';
+
+  @override
+  String get notificationsMaintainedNotesDescription => '你管理的笔记收到新消息时通知你。';
+
+  @override
+  String get notificationsTurnOnTooltip => '开启管理中笔记的通知';
+
+  @override
+  String get notificationsTurnOffTooltip => '关闭管理中笔记的通知';
+
+  @override
+  String get notificationsPermissionDenied => '通知未获允许。请在系统设置中启用通知以接收新消息提醒。';
+
+  @override
+  String get notificationsEnableFailed => '无法开启管理中笔记的通知。';
+
+  @override
+  String get notificationsDisableFailed => '无法关闭管理中笔记的通知。';
+
+  @override
+  String get notificationPreviewsTitle => '消息预览';
+
+  @override
+  String get notificationPreviewsDescription => '在管理中笔记的通知里显示消息内容。';
+
+  @override
+  String get notificationPreviewsUpdateFailed => '无法更新通知预览。';
+
+  @override
   String get editNickname => '编辑昵称';
 
   @override
@@ -1278,6 +1512,123 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get settingsTitle => '設定';
+
+  @override
+  String get settingsLanguageTitle => 'App 語言';
+
+  @override
+  String get settingsLanguageSystem => '自動（系統）';
+
+  @override
+  String get settingsLanguageSystemDescription => '使用裝置的語言設定';
+
+  @override
+  String get settingsLanguageEnglish => 'English';
+
+  @override
+  String get settingsLanguageJapanese => '日本語';
+
+  @override
+  String get settingsLanguageKorean => '한국어';
+
+  @override
+  String get settingsLanguageSimplifiedChinese => '简体中文';
+
+  @override
+  String get settingsLanguageTraditionalChinese => '繁體中文';
+
+  @override
+  String get settingsLanguageUpdateFailed => '此裝置的顯示語言已變更，但無法儲存到你的帳號。';
+
+  @override
+  String get settingsMapStyleTitle => '地圖樣式';
+
+  @override
+  String get settingsMapStyleAuto => '自動';
+
+  @override
+  String get settingsMapStyleStandard => '標準';
+
+  @override
+  String get settingsMapStyleLight => '淺色';
+
+  @override
+  String get settingsMapStyleDark => '深色';
+
+  @override
+  String get settingsMapStylePop => '鮮豔';
+
+  @override
+  String get settingsMapStyleAutoDescription => '跟隨系統外觀';
+
+  @override
+  String get settingsMapStyleStandardDescription => '簡潔清晰的顯示';
+
+  @override
+  String get settingsMapStyleLightDescription => '以淺色模式使用 Apple 地圖';
+
+  @override
+  String get settingsMapStyleDarkDescription => '夜間更舒適的深色顯示';
+
+  @override
+  String get settingsMapStylePopDescription => '明亮多彩的顯示';
+
+  @override
+  String get settingsDataRegionTitle => '資料區域';
+
+  @override
+  String get settingsDataRegionDescription =>
+      '選擇處理請求的區域。自動會選擇離目前位置最近的區域，旅行時也可手動變更。';
+
+  @override
+  String get settingsDataRegionAuto => '自動（最近）';
+
+  @override
+  String settingsDataRegionCurrent(String region) {
+    return '目前：$region';
+  }
+
+  @override
+  String get settingsRegionAsiaTokyo => '亞洲（東京）';
+
+  @override
+  String get settingsRegionAmericasUsCentral => '美洲（美國中部）';
+
+  @override
+  String get settingsRegionEuropeBelgium => '歐洲（比利時）';
+
+  @override
+  String get settingsNotificationsTitle => '通知';
+
+  @override
+  String get notificationsMaintainedNotesTitle => '管理中的筆記';
+
+  @override
+  String get notificationsMaintainedNotesDescription => '你管理的筆記收到新訊息時通知你。';
+
+  @override
+  String get notificationsTurnOnTooltip => '開啟管理中筆記的通知';
+
+  @override
+  String get notificationsTurnOffTooltip => '關閉管理中筆記的通知';
+
+  @override
+  String get notificationsPermissionDenied => '通知未獲允許。請在系統設定中啟用通知以接收新訊息提醒。';
+
+  @override
+  String get notificationsEnableFailed => '無法開啟管理中筆記的通知。';
+
+  @override
+  String get notificationsDisableFailed => '無法關閉管理中筆記的通知。';
+
+  @override
+  String get notificationPreviewsTitle => '訊息預覽';
+
+  @override
+  String get notificationPreviewsDescription => '在管理中筆記的通知裡顯示訊息內容。';
+
+  @override
+  String get notificationPreviewsUpdateFailed => '無法更新通知預覽。';
 
   @override
   String get editNickname => '編輯暱稱';

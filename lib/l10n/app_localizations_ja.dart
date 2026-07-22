@@ -377,6 +377,126 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsTitle => '設定';
 
   @override
+  String get settingsLanguageTitle => 'アプリの言語';
+
+  @override
+  String get settingsLanguageSystem => '自動（システム）';
+
+  @override
+  String get settingsLanguageSystemDescription => '端末の言語設定を使用します';
+
+  @override
+  String get settingsLanguageEnglish => 'English';
+
+  @override
+  String get settingsLanguageJapanese => '日本語';
+
+  @override
+  String get settingsLanguageKorean => '한국어';
+
+  @override
+  String get settingsLanguageSimplifiedChinese => '简体中文';
+
+  @override
+  String get settingsLanguageTraditionalChinese => '繁體中文';
+
+  @override
+  String get settingsLanguageUpdateFailed =>
+      'この端末の表示言語は変更されましたが、アカウントに保存できませんでした。';
+
+  @override
+  String get settingsMapStyleTitle => 'マップスタイル';
+
+  @override
+  String get settingsMapStyleAuto => '自動';
+
+  @override
+  String get settingsMapStyleStandard => '標準';
+
+  @override
+  String get settingsMapStyleLight => 'ライト';
+
+  @override
+  String get settingsMapStyleDark => 'ダーク';
+
+  @override
+  String get settingsMapStylePop => 'ポップ';
+
+  @override
+  String get settingsMapStyleAutoDescription => 'システムの外観に合わせます';
+
+  @override
+  String get settingsMapStyleStandardDescription => 'すっきりとした標準表示';
+
+  @override
+  String get settingsMapStyleLightDescription => 'Appleマップをライト表示で使用します';
+
+  @override
+  String get settingsMapStyleDarkDescription => '夜間でも見やすい暗い表示';
+
+  @override
+  String get settingsMapStylePopDescription => '明るくカラフルな表示';
+
+  @override
+  String get settingsDataRegionTitle => 'データリージョン';
+
+  @override
+  String get settingsDataRegionDescription =>
+      'リクエストを処理するリージョンを選択します。自動では現在地に最も近いリージョンが選ばれ、旅行中は手動で変更できます。';
+
+  @override
+  String get settingsDataRegionAuto => '自動（最寄り）';
+
+  @override
+  String settingsDataRegionCurrent(String region) {
+    return '現在: $region';
+  }
+
+  @override
+  String get settingsRegionAsiaTokyo => 'アジア（東京）';
+
+  @override
+  String get settingsRegionAmericasUsCentral => 'アメリカ（米国中部）';
+
+  @override
+  String get settingsRegionEuropeBelgium => 'ヨーロッパ（ベルギー）';
+
+  @override
+  String get settingsNotificationsTitle => '通知';
+
+  @override
+  String get notificationsMaintainedNotesTitle => '管理中のノート';
+
+  @override
+  String get notificationsMaintainedNotesDescription =>
+      '管理しているノートに新しいメッセージが届いたときに通知します。';
+
+  @override
+  String get notificationsTurnOnTooltip => '管理中のノートの通知をオンにする';
+
+  @override
+  String get notificationsTurnOffTooltip => '管理中のノートの通知をオフにする';
+
+  @override
+  String get notificationsPermissionDenied =>
+      '通知が許可されていません。新着メッセージを受け取るには、システム設定で通知を有効にしてください。';
+
+  @override
+  String get notificationsEnableFailed => '管理中のノートの通知を有効にできませんでした。';
+
+  @override
+  String get notificationsDisableFailed => '管理中のノートの通知を無効にできませんでした。';
+
+  @override
+  String get notificationPreviewsTitle => 'メッセージのプレビュー';
+
+  @override
+  String get notificationPreviewsDescription => '管理中のノートの通知にメッセージ本文を表示します。';
+
+  @override
+  String get notificationPreviewsUpdateFailed => '通知プレビューを更新できませんでした。';
+
+  @override
   String get editNickname => 'ニックネームを編集';
 
   @override

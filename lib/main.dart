@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'config/app_config.dart';
 import 'config/notification_navigation.dart';
@@ -50,7 +51,13 @@ void main() async {
     await SubscriptionService.initialize();
   }
 
-  runApp(const ProviderScope(child: WorldNotesApp()));
+  final preferences = await SharedPreferences.getInstance();
+  runApp(
+    ProviderScope(
+      overrides: [sharedPreferencesProvider.overrideWithValue(preferences)],
+      child: const WorldNotesApp(),
+    ),
+  );
 }
 
 Future<void> _configureFirebaseServices() async {
@@ -166,6 +173,7 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp> {
   @override
   Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
+    final languagePreference = ref.watch(appLanguagePreferenceProvider);
 
     return MaterialApp.router(
       onGenerateTitle: (context) => context.l10n.appName,
@@ -181,7 +189,10 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: AppLocalizations.supportedLocales,
-      locale: screenshotMode ? appLocaleFromTag(screenshotLocale) : null,
+      localeListResolutionCallback: resolveAppLocale,
+      locale: screenshotMode
+          ? appLocaleFromTag(screenshotLocale)
+          : languagePreference.locale,
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../l10n/l10n.dart';
 import '../providers/providers.dart';
 
 class MyNotesNotificationIconButton extends ConsumerStatefulWidget {
@@ -53,8 +54,8 @@ class _MyNotesNotificationIconButtonState
 
     return IconButton(
       tooltip: enabled
-          ? 'Turn off maintained-note notifications'
-          : 'Turn on maintained-note notifications',
+          ? context.l10n.notificationsTurnOffTooltip
+          : context.l10n.notificationsTurnOnTooltip,
       icon: Icon(
         enabled
             ? Icons.notifications_active_outlined
@@ -101,10 +102,8 @@ class _MyNotesNotificationSwitchTileState
 
     return SwitchListTile(
       contentPadding: EdgeInsets.zero,
-      title: const Text('Maintained notes'),
-      subtitle: const Text(
-        'Receive notifications when notes you maintain get new messages.',
-      ),
+      title: Text(context.l10n.notificationsMaintainedNotesTitle),
+      subtitle: Text(context.l10n.notificationsMaintainedNotesDescription),
       value: enabled,
       onChanged: _updating || enabledAsync.isLoading ? null : _setEnabled,
     );
@@ -133,8 +132,8 @@ class _MyNotesNotificationPreviewSwitchTileState
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not update notification previews.'),
+          SnackBar(
+            content: Text(context.l10n.notificationPreviewsUpdateFailed),
           ),
         );
       }
@@ -161,8 +160,8 @@ class _MyNotesNotificationPreviewSwitchTileState
 
     return SwitchListTile(
       contentPadding: EdgeInsets.zero,
-      title: const Text('Message previews'),
-      subtitle: const Text('Show message text in maintained-note alerts.'),
+      title: Text(context.l10n.notificationPreviewsTitle),
+      subtitle: Text(context.l10n.notificationPreviewsDescription),
       value: previewEnabled,
       onChanged: disabled ? null : _setEnabled,
     );
@@ -180,12 +179,7 @@ Future<bool> setMyNotesNotificationsEnabled(WidgetRef ref, bool enabled) async {
 
 void showMyNotesNotificationPermissionSnackBar(BuildContext context) {
   ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(
-      content: Text(
-        'Notifications are not allowed. Enable notifications in system '
-        'settings to receive new message alerts.',
-      ),
-    ),
+    SnackBar(content: Text(context.l10n.notificationsPermissionDenied)),
   );
 }
 
@@ -197,8 +191,8 @@ void showMyNotesNotificationUpdateErrorSnackBar(
     SnackBar(
       content: Text(
         enabled
-            ? 'Could not enable maintained-note notifications.'
-            : 'Could not disable maintained-note notifications.',
+            ? context.l10n.notificationsEnableFailed
+            : context.l10n.notificationsDisableFailed,
       ),
     ),
   );

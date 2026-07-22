@@ -740,6 +740,234 @@ abstract class AppLocalizations {
   /// **'Settings'**
   String get settingsTitle;
 
+  /// No description provided for @settingsLanguageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'App Language'**
+  String get settingsLanguageTitle;
+
+  /// No description provided for @settingsLanguageSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic (System)'**
+  String get settingsLanguageSystem;
+
+  /// No description provided for @settingsLanguageSystemDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Use your device language'**
+  String get settingsLanguageSystemDescription;
+
+  /// No description provided for @settingsLanguageEnglish.
+  ///
+  /// In en, this message translates to:
+  /// **'English'**
+  String get settingsLanguageEnglish;
+
+  /// No description provided for @settingsLanguageJapanese.
+  ///
+  /// In en, this message translates to:
+  /// **'日本語'**
+  String get settingsLanguageJapanese;
+
+  /// No description provided for @settingsLanguageKorean.
+  ///
+  /// In en, this message translates to:
+  /// **'한국어'**
+  String get settingsLanguageKorean;
+
+  /// No description provided for @settingsLanguageSimplifiedChinese.
+  ///
+  /// In en, this message translates to:
+  /// **'简体中文'**
+  String get settingsLanguageSimplifiedChinese;
+
+  /// No description provided for @settingsLanguageTraditionalChinese.
+  ///
+  /// In en, this message translates to:
+  /// **'繁體中文'**
+  String get settingsLanguageTraditionalChinese;
+
+  /// No description provided for @settingsLanguageUpdateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The language changed on this device, but could not be saved to your account.'**
+  String get settingsLanguageUpdateFailed;
+
+  /// No description provided for @settingsMapStyleTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Map Style'**
+  String get settingsMapStyleTitle;
+
+  /// No description provided for @settingsMapStyleAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get settingsMapStyleAuto;
+
+  /// No description provided for @settingsMapStyleStandard.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard'**
+  String get settingsMapStyleStandard;
+
+  /// No description provided for @settingsMapStyleLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get settingsMapStyleLight;
+
+  /// No description provided for @settingsMapStyleDark.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get settingsMapStyleDark;
+
+  /// No description provided for @settingsMapStylePop.
+  ///
+  /// In en, this message translates to:
+  /// **'Pop'**
+  String get settingsMapStylePop;
+
+  /// No description provided for @settingsMapStyleAutoDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow the system appearance'**
+  String get settingsMapStyleAutoDescription;
+
+  /// No description provided for @settingsMapStyleStandardDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Clean & minimal'**
+  String get settingsMapStyleStandardDescription;
+
+  /// No description provided for @settingsMapStyleLightDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Use Apple Maps in light mode'**
+  String get settingsMapStyleLightDescription;
+
+  /// No description provided for @settingsMapStyleDarkDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Easy on the eyes at night'**
+  String get settingsMapStyleDarkDescription;
+
+  /// No description provided for @settingsMapStylePopDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Bright & colourful'**
+  String get settingsMapStylePopDescription;
+
+  /// No description provided for @settingsDataRegionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Data Region'**
+  String get settingsDataRegionTitle;
+
+  /// No description provided for @settingsDataRegionDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose which region serves your requests. Auto picks the closest to your current location — handy to override while travelling.'**
+  String get settingsDataRegionDescription;
+
+  /// No description provided for @settingsDataRegionAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto (nearest)'**
+  String get settingsDataRegionAuto;
+
+  /// No description provided for @settingsDataRegionCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Currently: {region}'**
+  String settingsDataRegionCurrent(String region);
+
+  /// No description provided for @settingsRegionAsiaTokyo.
+  ///
+  /// In en, this message translates to:
+  /// **'Asia (Tokyo)'**
+  String get settingsRegionAsiaTokyo;
+
+  /// No description provided for @settingsRegionAmericasUsCentral.
+  ///
+  /// In en, this message translates to:
+  /// **'Americas (US Central)'**
+  String get settingsRegionAmericasUsCentral;
+
+  /// No description provided for @settingsRegionEuropeBelgium.
+  ///
+  /// In en, this message translates to:
+  /// **'Europe (Belgium)'**
+  String get settingsRegionEuropeBelgium;
+
+  /// No description provided for @settingsNotificationsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get settingsNotificationsTitle;
+
+  /// No description provided for @notificationsMaintainedNotesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Maintained notes'**
+  String get notificationsMaintainedNotesTitle;
+
+  /// No description provided for @notificationsMaintainedNotesDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Receive notifications when notes you maintain get new messages.'**
+  String get notificationsMaintainedNotesDescription;
+
+  /// No description provided for @notificationsTurnOnTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on maintained-note notifications'**
+  String get notificationsTurnOnTooltip;
+
+  /// No description provided for @notificationsTurnOffTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn off maintained-note notifications'**
+  String get notificationsTurnOffTooltip;
+
+  /// No description provided for @notificationsPermissionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications are not allowed. Enable notifications in system settings to receive new message alerts.'**
+  String get notificationsPermissionDenied;
+
+  /// No description provided for @notificationsEnableFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not enable maintained-note notifications.'**
+  String get notificationsEnableFailed;
+
+  /// No description provided for @notificationsDisableFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not disable maintained-note notifications.'**
+  String get notificationsDisableFailed;
+
+  /// No description provided for @notificationPreviewsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Message previews'**
+  String get notificationPreviewsTitle;
+
+  /// No description provided for @notificationPreviewsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Show message text in maintained-note alerts.'**
+  String get notificationPreviewsDescription;
+
+  /// No description provided for @notificationPreviewsUpdateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not update notification previews.'**
+  String get notificationPreviewsUpdateFailed;
+
   /// No description provided for @editNickname.
   ///
   /// In en, this message translates to:

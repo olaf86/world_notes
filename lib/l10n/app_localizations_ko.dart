@@ -375,6 +375,126 @@ class AppLocalizationsKo extends AppLocalizations {
   String get settingsTitle => '설정';
 
   @override
+  String get settingsLanguageTitle => '앱 언어';
+
+  @override
+  String get settingsLanguageSystem => '자동(시스템)';
+
+  @override
+  String get settingsLanguageSystemDescription => '기기의 언어 설정을 사용합니다';
+
+  @override
+  String get settingsLanguageEnglish => 'English';
+
+  @override
+  String get settingsLanguageJapanese => '日本語';
+
+  @override
+  String get settingsLanguageKorean => '한국어';
+
+  @override
+  String get settingsLanguageSimplifiedChinese => '简体中文';
+
+  @override
+  String get settingsLanguageTraditionalChinese => '繁體中文';
+
+  @override
+  String get settingsLanguageUpdateFailed =>
+      '이 기기의 표시 언어는 변경되었지만 계정에 저장하지 못했습니다.';
+
+  @override
+  String get settingsMapStyleTitle => '지도 스타일';
+
+  @override
+  String get settingsMapStyleAuto => '자동';
+
+  @override
+  String get settingsMapStyleStandard => '표준';
+
+  @override
+  String get settingsMapStyleLight => '라이트';
+
+  @override
+  String get settingsMapStyleDark => '다크';
+
+  @override
+  String get settingsMapStylePop => '팝';
+
+  @override
+  String get settingsMapStyleAutoDescription => '시스템 화면 모드를 따릅니다';
+
+  @override
+  String get settingsMapStyleStandardDescription => '깔끔하고 간결한 표시';
+
+  @override
+  String get settingsMapStyleLightDescription => 'Apple 지도를 라이트 모드로 사용합니다';
+
+  @override
+  String get settingsMapStyleDarkDescription => '밤에도 보기 편한 어두운 표시';
+
+  @override
+  String get settingsMapStylePopDescription => '밝고 화려한 표시';
+
+  @override
+  String get settingsDataRegionTitle => '데이터 지역';
+
+  @override
+  String get settingsDataRegionDescription =>
+      '요청을 처리할 지역을 선택합니다. 자동은 현재 위치에서 가장 가까운 지역을 선택하며 여행 중에는 직접 변경할 수 있습니다.';
+
+  @override
+  String get settingsDataRegionAuto => '자동(가장 가까운 지역)';
+
+  @override
+  String settingsDataRegionCurrent(String region) {
+    return '현재: $region';
+  }
+
+  @override
+  String get settingsRegionAsiaTokyo => '아시아(도쿄)';
+
+  @override
+  String get settingsRegionAmericasUsCentral => '아메리카(미국 중부)';
+
+  @override
+  String get settingsRegionEuropeBelgium => '유럽(벨기에)';
+
+  @override
+  String get settingsNotificationsTitle => '알림';
+
+  @override
+  String get notificationsMaintainedNotesTitle => '관리 중인 노트';
+
+  @override
+  String get notificationsMaintainedNotesDescription =>
+      '관리하는 노트에 새 메시지가 오면 알림을 받습니다.';
+
+  @override
+  String get notificationsTurnOnTooltip => '관리 중인 노트 알림 켜기';
+
+  @override
+  String get notificationsTurnOffTooltip => '관리 중인 노트 알림 끄기';
+
+  @override
+  String get notificationsPermissionDenied =>
+      '알림이 허용되지 않았습니다. 새 메시지 알림을 받으려면 시스템 설정에서 알림을 켜 주세요.';
+
+  @override
+  String get notificationsEnableFailed => '관리 중인 노트 알림을 켜지 못했습니다.';
+
+  @override
+  String get notificationsDisableFailed => '관리 중인 노트 알림을 끄지 못했습니다.';
+
+  @override
+  String get notificationPreviewsTitle => '메시지 미리보기';
+
+  @override
+  String get notificationPreviewsDescription => '관리 중인 노트 알림에 메시지 내용을 표시합니다.';
+
+  @override
+  String get notificationPreviewsUpdateFailed => '알림 미리보기를 업데이트하지 못했습니다.';
+
+  @override
   String get editNickname => '닉네임 편집';
 
   @override

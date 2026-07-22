@@ -8,6 +8,14 @@ import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {REGION} from "./constants";
 
 const MAX_DISPLAY_NAME_LENGTH = 20;
+const LANGUAGE_PREFERENCES = new Set([
+  "system",
+  "en",
+  "ja",
+  "ko",
+  "zh-Hans",
+  "zh-Hant",
+]);
 // Stay below Firestore's 500-write batch limit to leave operational headroom.
 const BATCH_WRITE_LIMIT = 450;
 
@@ -133,5 +141,44 @@ export const updateDisplayName = onCall<{displayName?: unknown}>(
       updatedMemberCount: members.size,
       updatedPlaceCount: activePlaces.size,
     };
+  },
+);
+
+/**
+ * Saves the caller's app-language preference on their private profile.
+ * The device keeps a local mirror, but this account value is authoritative.
+ */
+export const setLanguagePreference = onCall<{
+  languagePreference?: unknown;
+}>(
+  {enforceAppCheck: true, region: REGION},
+  async (req) => {
+    const uid = req.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+
+    const languagePreference = req.data?.languagePreference;
+    if (
+      typeof languagePreference !== "string" ||
+      !LANGUAGE_PREFERENCES.has(languagePreference)
+    ) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Unsupported language preference.",
+      );
+    }
+
+    const userRef = getFirestore().collection("users").doc(uid);
+    await getFirestore().runTransaction(async (tx) => {
+      const userSnap = await tx.get(userRef);
+      if (!userSnap.exists) {
+        throw new HttpsError("failed-precondition", "User profile missing.");
+      }
+      tx.update(userRef, {
+        languagePreference,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    });
+
+    return {languagePreference};
   },
 );

@@ -423,6 +423,132 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsTitle => 'Settings';
 
   @override
+  String get settingsLanguageTitle => 'App Language';
+
+  @override
+  String get settingsLanguageSystem => 'Automatic (System)';
+
+  @override
+  String get settingsLanguageSystemDescription => 'Use your device language';
+
+  @override
+  String get settingsLanguageEnglish => 'English';
+
+  @override
+  String get settingsLanguageJapanese => '日本語';
+
+  @override
+  String get settingsLanguageKorean => '한국어';
+
+  @override
+  String get settingsLanguageSimplifiedChinese => '简体中文';
+
+  @override
+  String get settingsLanguageTraditionalChinese => '繁體中文';
+
+  @override
+  String get settingsLanguageUpdateFailed =>
+      'The language changed on this device, but could not be saved to your account.';
+
+  @override
+  String get settingsMapStyleTitle => 'Map Style';
+
+  @override
+  String get settingsMapStyleAuto => 'Auto';
+
+  @override
+  String get settingsMapStyleStandard => 'Standard';
+
+  @override
+  String get settingsMapStyleLight => 'Light';
+
+  @override
+  String get settingsMapStyleDark => 'Dark';
+
+  @override
+  String get settingsMapStylePop => 'Pop';
+
+  @override
+  String get settingsMapStyleAutoDescription => 'Follow the system appearance';
+
+  @override
+  String get settingsMapStyleStandardDescription => 'Clean & minimal';
+
+  @override
+  String get settingsMapStyleLightDescription => 'Use Apple Maps in light mode';
+
+  @override
+  String get settingsMapStyleDarkDescription => 'Easy on the eyes at night';
+
+  @override
+  String get settingsMapStylePopDescription => 'Bright & colourful';
+
+  @override
+  String get settingsDataRegionTitle => 'Data Region';
+
+  @override
+  String get settingsDataRegionDescription =>
+      'Choose which region serves your requests. Auto picks the closest to your current location — handy to override while travelling.';
+
+  @override
+  String get settingsDataRegionAuto => 'Auto (nearest)';
+
+  @override
+  String settingsDataRegionCurrent(String region) {
+    return 'Currently: $region';
+  }
+
+  @override
+  String get settingsRegionAsiaTokyo => 'Asia (Tokyo)';
+
+  @override
+  String get settingsRegionAmericasUsCentral => 'Americas (US Central)';
+
+  @override
+  String get settingsRegionEuropeBelgium => 'Europe (Belgium)';
+
+  @override
+  String get settingsNotificationsTitle => 'Notifications';
+
+  @override
+  String get notificationsMaintainedNotesTitle => 'Maintained notes';
+
+  @override
+  String get notificationsMaintainedNotesDescription =>
+      'Receive notifications when notes you maintain get new messages.';
+
+  @override
+  String get notificationsTurnOnTooltip =>
+      'Turn on maintained-note notifications';
+
+  @override
+  String get notificationsTurnOffTooltip =>
+      'Turn off maintained-note notifications';
+
+  @override
+  String get notificationsPermissionDenied =>
+      'Notifications are not allowed. Enable notifications in system settings to receive new message alerts.';
+
+  @override
+  String get notificationsEnableFailed =>
+      'Could not enable maintained-note notifications.';
+
+  @override
+  String get notificationsDisableFailed =>
+      'Could not disable maintained-note notifications.';
+
+  @override
+  String get notificationPreviewsTitle => 'Message previews';
+
+  @override
+  String get notificationPreviewsDescription =>
+      'Show message text in maintained-note alerts.';
+
+  @override
+  String get notificationPreviewsUpdateFailed =>
+      'Could not update notification previews.';
+
+  @override
   String get editNickname => 'Edit nickname';
 
   @override
