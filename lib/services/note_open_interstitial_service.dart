@@ -183,9 +183,9 @@ class GoogleInterstitialAdClient implements InterstitialAdClient {
 
 /// Applies the per-user note-open policy and coordinates a preloaded ad.
 ///
-/// Only distinct place IDs count within a cycle. The first note open in each
-/// app session is always ad-free. There is deliberately no maximum-open rule:
-/// after the minimum, every eligible open is an independent probability roll.
+/// Only distinct place IDs count within a cycle. There is deliberately no
+/// maximum-open rule: after the minimum, every eligible open is an independent
+/// probability roll, including the first open after an app restart.
 class NoteOpenInterstitialController implements NoteOpenInterstitialGate {
   final String userId;
   final NoteOpenInterstitialStateStore stateStore;
@@ -196,7 +196,6 @@ class NoteOpenInterstitialController implements NoteOpenInterstitialGate {
   final double Function() randomDouble;
   final DateTime Function() now;
 
-  bool _hasOpenedNoteThisSession = false;
   bool _isHandlingOpen = false;
   bool _isDisposed = false;
 
@@ -227,8 +226,6 @@ class NoteOpenInterstitialController implements NoteOpenInterstitialGate {
     _isHandlingOpen = true;
     try {
       final state = await stateStore.read(userId);
-      final isFirstOpenThisSession = !_hasOpenedNoteThisSession;
-      _hasOpenedNoteThisSession = true;
 
       // Reopening the same note within one cycle does not advance the counter
       // and does not create another chance to show an ad.
@@ -239,7 +236,6 @@ class NoteOpenInterstitialController implements NoteOpenInterstitialGate {
           state.lastShownAt == null ||
           currentTime.difference(state.lastShownAt!.toUtc()) >= cooldown;
       final canAttemptToShow =
-          !isFirstOpenThisSession &&
           state.openedPlaceIds.length >= minimumNoteOpens &&
           cooldownElapsed &&
           adClient.isReady;

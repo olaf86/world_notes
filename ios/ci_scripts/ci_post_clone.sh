@@ -1,5 +1,5 @@
 #!/bin/sh
-set -ex
+set -e
 
 # ---------------------------------------------------------------------------
 # Install Flutter
@@ -66,11 +66,26 @@ fi
 # ---------------------------------------------------------------------------
 encode() { printf '%s' "$1" | base64 | tr -d '\n'; }
 
+require_env() {
+  eval "value=\${$1:-}"
+  if [ -z "$value" ]; then
+    echo "ERROR: $1 is not set"
+    exit 1
+  fi
+}
+
+require_env IOS_ADMOB_APP_ID_PROD
+require_env ADMOB_IOS_BANNER_AD_UNIT_ID_PROD
+require_env ADMOB_IOS_INTERSTITIAL_AD_UNIT_ID_PROD
+
 DART_DEFINES="$(encode "STADIA_API_KEY=$STADIA_API_KEY")\
 ,$(encode "REVENUECAT_API_KEY_IOS=$REVENUECAT_API_KEY_IOS")\
-,$(encode "BANNER_AD_UNIT_ID=$BANNER_AD_UNIT_ID")"
+,$(encode "BANNER_AD_UNIT_ID=$ADMOB_IOS_BANNER_AD_UNIT_ID_PROD")\
+,$(encode "INTERSTITIAL_AD_UNIT_ID=$ADMOB_IOS_INTERSTITIAL_AD_UNIT_ID_PROD")"
 
 echo "DART_DEFINES=$DART_DEFINES" \
+    >> "$CI_PRIMARY_REPOSITORY_PATH/ios/Flutter/Generated.xcconfig"
+echo "ADMOB_APP_ID=$IOS_ADMOB_APP_ID_PROD" \
     >> "$CI_PRIMARY_REPOSITORY_PATH/ios/Flutter/Generated.xcconfig"
 
 # ---------------------------------------------------------------------------

@@ -59,6 +59,8 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
   // subtree is rebuilt when the ad loads; the rest of the screen is untouched.
   BannerAd? _bannerAd;
   final _adLoaded = ValueNotifier<bool>(false);
+  Timer? _bannerAdRetryTimer;
+  int _bannerAdFailureCount = 0;
 
   // ── Message editor overlay state ──────────────────────────────────────────
   //
@@ -84,11 +86,10 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
       vsync: this,
       duration: const Duration(milliseconds: 280),
     );
-    ref.listenManual<AsyncValue<bool>>(isPremiumProvider, (_, next) {
-      final isPremium = next.valueOrNull;
-      if (isPremium == false) {
+    ref.listenManual<bool>(canRequestAdsProvider, (_, canRequestAds) {
+      if (canRequestAds) {
         _loadAdIfNeeded();
-      } else if (isPremium == true) {
+      } else {
         _disposeBannerAd();
       }
     }, fireImmediately: true);
@@ -97,8 +98,11 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
   @override
   void dispose() {
     _scrollController.dispose();
+    _bannerAdRetryTimer?.cancel();
+    final bannerAd = _bannerAd;
+    _bannerAd = null;
+    bannerAd?.dispose();
     _adLoaded.dispose();
-    _bannerAd?.dispose();
     _messageEditorController.dispose();
     super.dispose();
   }
@@ -107,26 +111,59 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
 
   void _loadAdIfNeeded() {
     if (!AppConfig.supportsMobileAds) return;
+    if (!ref.read(canRequestAdsProvider)) return;
     if (ref.read(isPremiumProvider).valueOrNull != false) return;
     if (_bannerAd != null) return;
+    _bannerAdRetryTimer?.cancel();
+    _bannerAdRetryTimer = null;
     _bannerAd = BannerAd(
       adUnitId: AppConfig.bannerAdUnitId,
       size: AdSize.banner,
       request: const AdRequest(),
       listener: BannerAdListener(
-        onAdLoaded: (_) => _adLoaded.value = true,
+        onAdLoaded: (ad) {
+          if (!mounted || !identical(_bannerAd, ad)) {
+            ad.dispose();
+            return;
+          }
+          _bannerAdFailureCount = 0;
+          _adLoaded.value = true;
+        },
         onAdFailedToLoad: (ad, error) {
           ad.dispose();
+          if (!mounted || !identical(_bannerAd, ad)) return;
           _bannerAd = null;
+          _adLoaded.value = false;
+          _scheduleBannerAdRetry();
         },
       ),
     )..load();
   }
 
   void _disposeBannerAd() {
-    _bannerAd?.dispose();
+    _bannerAdRetryTimer?.cancel();
+    _bannerAdRetryTimer = null;
+    _bannerAdFailureCount = 0;
+    final bannerAd = _bannerAd;
     _bannerAd = null;
+    bannerAd?.dispose();
     _adLoaded.value = false;
+  }
+
+  void _scheduleBannerAdRetry() {
+    if (!mounted ||
+        !ref.read(canRequestAdsProvider) ||
+        ref.read(isPremiumProvider).valueOrNull != false) {
+      return;
+    }
+
+    final delay = AppConfig.bannerAdRetryDelayForFailure(_bannerAdFailureCount);
+    _bannerAdFailureCount += 1;
+    _bannerAdRetryTimer?.cancel();
+    _bannerAdRetryTimer = Timer(delay, () {
+      _bannerAdRetryTimer = null;
+      if (mounted) _loadAdIfNeeded();
+    });
   }
 
   // ── Message editor overlay ────────────────────────────────────────────────

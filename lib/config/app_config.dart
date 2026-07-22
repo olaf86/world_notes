@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 
 import 'runtime_mode.dart';
@@ -50,6 +52,20 @@ class AppConfig {
   /// should also configure an equivalent frequency cap in AdMob.
   static const Duration interstitialCooldown = Duration(minutes: 15);
 
+  static const Duration bannerAdInitialRetryDelay = Duration(seconds: 30);
+  static const Duration bannerAdMaxRetryDelay = Duration(minutes: 5);
+
+  /// Returns `min(30 seconds * 2^failureCount, 5 minutes)`.
+  /// Failures after reaching the cap continue to retry every five minutes.
+  static Duration bannerAdRetryDelayForFailure(int failureCount) {
+    assert(failureCount >= 0);
+    final seconds = math.min(
+      bannerAdInitialRetryDelay.inSeconds * math.pow(2, failureCount),
+      bannerAdMaxRetryDelay.inSeconds,
+    );
+    return Duration(seconds: seconds.toInt());
+  }
+
   static bool get supportsMobileAds {
     if (screenshotMode) return false;
     if (kIsWeb) return false;
@@ -60,24 +76,51 @@ class AppConfig {
   }
 
   static String get bannerAdUnitId {
-    if (_bannerAdUnitIdOverride.isNotEmpty) return _bannerAdUnitIdOverride;
-    return switch (defaultTargetPlatform) {
+    return bannerAdUnitIdFor(
+      platform: defaultTargetPlatform,
+      useProductionAds: kReleaseMode,
+      productionAdUnitId: _bannerAdUnitIdOverride,
+    );
+  }
+
+  static String get interstitialAdUnitId {
+    return interstitialAdUnitIdFor(
+      platform: defaultTargetPlatform,
+      useProductionAds: kReleaseMode,
+      productionAdUnitId: _interstitialAdUnitIdOverride,
+    );
+  }
+
+  static String bannerAdUnitIdFor({
+    required TargetPlatform platform,
+    required bool useProductionAds,
+    required String productionAdUnitId,
+  }) {
+    if (useProductionAds) return productionAdUnitId;
+    return switch (platform) {
       TargetPlatform.iOS => iosTestBannerAdUnitId,
       TargetPlatform.android => androidTestBannerAdUnitId,
       _ => androidTestBannerAdUnitId,
     };
   }
 
-  static String get interstitialAdUnitId {
-    if (_interstitialAdUnitIdOverride.isNotEmpty) {
-      return _interstitialAdUnitIdOverride;
-    }
-    return switch (defaultTargetPlatform) {
+  static String interstitialAdUnitIdFor({
+    required TargetPlatform platform,
+    required bool useProductionAds,
+    required String productionAdUnitId,
+  }) {
+    if (useProductionAds) return productionAdUnitId;
+    return switch (platform) {
       TargetPlatform.iOS => iosTestInterstitialAdUnitId,
       TargetPlatform.android => androidTestInterstitialAdUnitId,
       _ => androidTestInterstitialAdUnitId,
     };
   }
+
+  /// Release builds never fall back to Google's demo units. CI must inject
+  /// both production unit IDs before ads are enabled.
+  static bool get hasRequiredAdUnitIds =>
+      bannerAdUnitId.isNotEmpty && interstitialAdUnitId.isNotEmpty;
 
   // RevenueCat
   static const String revenueCatApiKeyIos = String.fromEnvironment(

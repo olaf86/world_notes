@@ -86,7 +86,8 @@ flutter test
 | `STADIA_API_KEY` | Stadia Maps API key | empty (omit for dev) |
 | `REVENUECAT_API_KEY_IOS` | RevenueCat iOS key | empty |
 | `REVENUECAT_API_KEY_ANDROID` | RevenueCat Android key | empty |
-| `BANNER_AD_UNIT_ID` | AdMob banner ad unit ID | Google test ID |
+| `BANNER_AD_UNIT_ID` | Platform production banner ad unit ID | empty (release ads disabled) |
+| `INTERSTITIAL_AD_UNIT_ID` | Platform production interstitial ad unit ID | empty (release ads disabled) |
 
 ## Firebase Setup (not yet done)
 
@@ -171,4 +172,4 @@ Add to `ios/Runner/Info.plist`:
 3. Configure RevenueCat products in App Store Connect / Google Play
 4. Add location permission strings to iOS Info.plist
 5. Write Firestore security rules
-6. Create AdMob account → replace test banner ID with production ID
+6. Publish AdMob UMP privacy messages and inject production app/ad unit IDs in CI

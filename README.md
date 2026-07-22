@@ -88,7 +88,9 @@ Optional repository secrets:
 |--------|-------------|
 | `STADIA_API_KEY` | Stadia Maps API key |
 | `REVENUECAT_API_KEY_ANDROID` | RevenueCat Android public key |
-| `BANNER_AD_UNIT_ID` | AdMob banner unit ID |
+| `ADMOB_ANDROID_APP_ID_PROD` | Production AdMob Android app ID |
+| `ADMOB_ANDROID_BANNER_AD_UNIT_ID_PROD` | Production Android banner unit ID |
+| `ADMOB_ANDROID_INTERSTITIAL_AD_UNIT_ID_PROD` | Production Android interstitial unit ID |
 
 ### Maestro UI Testing and Screenshots
 
@@ -110,14 +112,22 @@ capture steps.
 
 ### Environment Variables
 
-All secrets are injected at build time via `--dart-define`. No `.env` file is used.
+Runtime values are injected at build time; no `.env` file is used. Flutter
+values use `--dart-define`, while native AdMob app IDs use platform build
+settings.
 
 | Key | Description |
 |-----|-------------|
 | `STADIA_API_KEY` | Stadia Maps API key |
 | `REVENUECAT_API_KEY_IOS` | RevenueCat iOS public key |
 | `REVENUECAT_API_KEY_ANDROID` | RevenueCat Android public key |
-| `BANNER_AD_UNIT_ID` | AdMob banner unit ID (defaults to Google test ID) |
+| `BANNER_AD_UNIT_ID` | Platform production banner unit ID (release only) |
+| `INTERSTITIAL_AD_UNIT_ID` | Platform production interstitial unit ID (release only) |
+
+Debug and profile builds always use Google's official demo ad units. Xcode
+Cloud maps `ADMOB_IOS_BANNER_AD_UNIT_ID_PROD` and
+`ADMOB_IOS_INTERSTITIAL_AD_UNIT_ID_PROD` to the two Dart defines above, and
+injects `IOS_ADMOB_APP_ID_PROD` into the iOS build setting used by Info.plist.
 
 ## Project Structure
 

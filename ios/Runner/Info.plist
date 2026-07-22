@@ -7,7 +7,7 @@
 	<key>io.flutter.embedded_views_preview</key>
 	<true/>
 	<key>GADApplicationIdentifier</key>
-	<string>ca-app-pub-3940256099942544~1458002511</string>
+	<string>$(ADMOB_APP_ID)</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
@@ -51,6 +51,8 @@
 	<string>Used to take a photo and attach it to your message.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Used to attach photos to your messages.</string>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>Your permission helps World Notes provide ads that are more relevant to you.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
