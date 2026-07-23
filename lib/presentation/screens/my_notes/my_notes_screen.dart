@@ -418,16 +418,19 @@ class _NoteLimitSummary extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          Flexible(
-            child: NoteSortChip(
-              selected: sort,
-              provider: myNotesSortProvider,
-              options: const [
-                NoteListSort.lastActivity,
-                NoteListSort.newest,
-                NoteListSort.expiresSoonest,
-              ],
-              semanticIdentifier: 'action-sort-my-notes',
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: NoteSortChip(
+                selected: sort,
+                provider: myNotesSortProvider,
+                options: const [
+                  NoteListSort.lastActivity,
+                  NoteListSort.newest,
+                  NoteListSort.expiresSoonest,
+                ],
+                semanticIdentifier: 'action-sort-my-notes',
+              ),
             ),
           ),
         ],
@@ -501,15 +504,18 @@ class _ArchivedNotesSummary extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-            Flexible(
-              child: NoteSortChip(
-                selected: sort,
-                provider: archivedMyNotesSortProvider,
-                options: const [
-                  NoteListSort.archivedNewest,
-                  NoteListSort.archivedOldest,
-                ],
-                semanticIdentifier: 'action-sort-archived-notes',
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: NoteSortChip(
+                  selected: sort,
+                  provider: archivedMyNotesSortProvider,
+                  options: const [
+                    NoteListSort.archivedNewest,
+                    NoteListSort.archivedOldest,
+                  ],
+                  semanticIdentifier: 'action-sort-archived-notes',
+                ),
               ),
             ),
           ],
