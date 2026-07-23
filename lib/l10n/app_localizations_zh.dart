@@ -245,6 +245,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noMessages => '还没有消息。\n来写下第一条吧！';
 
   @override
+  String get noNotifications => '暂无通知。';
+
+  @override
+  String get noFollowers => '暂无关注者。';
+
+  @override
+  String get noFollowing => '尚未关注任何人。';
+
+  @override
+  String get noFootprints => '暂无足迹。';
+
+  @override
+  String get noFootprintsDescription => '访客打开此笔记后会显示在这里。';
+
+  @override
+  String get noAccessMembers => '尚无人拥有访问权限。分享链接即可添加成员。';
+
+  @override
+  String get noModerationReviews => '暂无审核项目。';
+
+  @override
   String get youLabel => '你';
 
   @override
@@ -1115,6 +1136,27 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get noMessages => '还没有消息。\n来写下第一条吧！';
 
   @override
+  String get noNotifications => '暂无通知。';
+
+  @override
+  String get noFollowers => '暂无关注者。';
+
+  @override
+  String get noFollowing => '尚未关注任何人。';
+
+  @override
+  String get noFootprints => '暂无足迹。';
+
+  @override
+  String get noFootprintsDescription => '访客打开此笔记后会显示在这里。';
+
+  @override
+  String get noAccessMembers => '尚无人拥有访问权限。分享链接即可添加成员。';
+
+  @override
+  String get noModerationReviews => '暂无审核项目。';
+
+  @override
   String get youLabel => '你';
 
   @override
@@ -1983,6 +2025,27 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get noMessages => '還沒有訊息。\n來寫下第一則吧！';
+
+  @override
+  String get noNotifications => '目前沒有通知。';
+
+  @override
+  String get noFollowers => '目前沒有追蹤者。';
+
+  @override
+  String get noFollowing => '尚未追蹤任何人。';
+
+  @override
+  String get noFootprints => '目前沒有足跡。';
+
+  @override
+  String get noFootprintsDescription => '訪客開啟此筆記後會顯示在這裡。';
+
+  @override
+  String get noAccessMembers => '目前尚無人擁有存取權限。分享連結即可新增成員。';
+
+  @override
+  String get noModerationReviews => '目前沒有審查項目。';
 
   @override
   String get youLabel => '你';

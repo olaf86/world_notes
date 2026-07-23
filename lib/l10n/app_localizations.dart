@@ -524,6 +524,48 @@ abstract class AppLocalizations {
   /// **'No messages yet.\nBe the first to write!'**
   String get noMessages;
 
+  /// No description provided for @noNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'No notifications yet.'**
+  String get noNotifications;
+
+  /// No description provided for @noFollowers.
+  ///
+  /// In en, this message translates to:
+  /// **'No followers yet.'**
+  String get noFollowers;
+
+  /// No description provided for @noFollowing.
+  ///
+  /// In en, this message translates to:
+  /// **'Not following anyone yet.'**
+  String get noFollowing;
+
+  /// No description provided for @noFootprints.
+  ///
+  /// In en, this message translates to:
+  /// **'No footprints yet.'**
+  String get noFootprints;
+
+  /// No description provided for @noFootprintsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Visitors will appear here after they open this note.'**
+  String get noFootprintsDescription;
+
+  /// No description provided for @noAccessMembers.
+  ///
+  /// In en, this message translates to:
+  /// **'No one has access yet. Share the link to add people.'**
+  String get noAccessMembers;
+
+  /// No description provided for @noModerationReviews.
+  ///
+  /// In en, this message translates to:
+  /// **'No reviews.'**
+  String get noModerationReviews;
+
   /// No description provided for @youLabel.
   ///
   /// In en, this message translates to:

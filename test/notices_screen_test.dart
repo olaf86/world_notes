@@ -7,10 +7,34 @@ import 'package:go_router/go_router.dart';
 import 'package:world_notes/domain/entities/notice_entity.dart';
 import 'package:world_notes/domain/entities/user_entity.dart';
 import 'package:world_notes/domain/repositories/notice_repository.dart';
+import 'package:world_notes/l10n/app_localizations.dart';
 import 'package:world_notes/presentation/providers/providers.dart';
 import 'package:world_notes/presentation/screens/notices/notices_screen.dart';
 
 void main() {
+  testWidgets('localizes the empty notifications state', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          noticesProvider.overrideWith(
+            (ref) => Stream<List<NoticeEntity>>.value(const []),
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('ja'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const NoticesScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('お知らせ'), findsOneWidget);
+    expect(find.text('通知はまだありません。'), findsOneWidget);
+    expect(find.text('No notifications yet.'), findsNothing);
+  });
+
   testWidgets('social notice navigates without waiting for mark-read write', (
     tester,
   ) async {
@@ -59,7 +83,11 @@ void main() {
           ),
           noticeRepositoryProvider.overrideWithValue(repository),
         ],
-        child: MaterialApp.router(routerConfig: router),
+        child: MaterialApp.router(
+          routerConfig: router,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+        ),
       ),
     );
     await tester.pump();

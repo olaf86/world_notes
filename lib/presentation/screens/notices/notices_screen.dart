@@ -17,7 +17,7 @@ class NoticesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final noticesAsync = ref.watch(noticesProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Notifications')),
+      appBar: AppBar(title: Text(context.l10n.navNotifications)),
       body: noticesAsync.when(
         loading: () => const SkeletonView(child: SkeletonListView()),
         error: (error, _) => Center(
@@ -112,7 +112,7 @@ class _EmptyNotices extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'No notifications yet.',
+              context.l10n.noNotifications,
               style: theme.textTheme.titleMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),

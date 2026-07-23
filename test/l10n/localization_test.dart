@@ -26,6 +26,17 @@ void main() {
           isNotEmpty,
           reason: locale.toLanguageTag(),
         );
+        for (final emptyStateLabel in [
+          l10n.noNotifications,
+          l10n.noFollowers,
+          l10n.noFollowing,
+          l10n.noFootprints,
+          l10n.noFootprintsDescription,
+          l10n.noAccessMembers,
+          l10n.noModerationReviews,
+        ]) {
+          expect(emptyStateLabel, isNotEmpty, reason: locale.toLanguageTag());
+        }
         for (final preference in AppLanguagePreference.values) {
           expect(
             preference.localizedLabel(l10n),

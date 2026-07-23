@@ -165,7 +165,9 @@ class _ReviewList extends ConsumerWidget {
         onRetry: () => ref.invalidate(adminModerationReviewsProvider(status)),
       ),
       data: (items) {
-        if (items.isEmpty) return const Center(child: Text('No reviews.'));
+        if (items.isEmpty) {
+          return Center(child: Text(context.l10n.noModerationReviews));
+        }
         return RefreshIndicator(
           onRefresh: () async {
             ref.invalidate(adminModerationReviewsProvider(status));

@@ -282,6 +282,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noMessages => 'No messages yet.\nBe the first to write!';
 
   @override
+  String get noNotifications => 'No notifications yet.';
+
+  @override
+  String get noFollowers => 'No followers yet.';
+
+  @override
+  String get noFollowing => 'Not following anyone yet.';
+
+  @override
+  String get noFootprints => 'No footprints yet.';
+
+  @override
+  String get noFootprintsDescription =>
+      'Visitors will appear here after they open this note.';
+
+  @override
+  String get noAccessMembers =>
+      'No one has access yet. Share the link to add people.';
+
+  @override
+  String get noModerationReviews => 'No reviews.';
+
+  @override
   String get youLabel => 'You';
 
   @override

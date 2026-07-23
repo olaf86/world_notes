@@ -246,6 +246,27 @@ class AppLocalizationsKo extends AppLocalizations {
   String get noMessages => '아직 메시지가 없습니다.\n첫 메시지를 남겨 보세요!';
 
   @override
+  String get noNotifications => '아직 알림이 없습니다.';
+
+  @override
+  String get noFollowers => '아직 팔로워가 없습니다.';
+
+  @override
+  String get noFollowing => '아직 팔로우하는 사람이 없습니다.';
+
+  @override
+  String get noFootprints => '아직 발자국이 없습니다.';
+
+  @override
+  String get noFootprintsDescription => '방문자가 이 노트를 열면 여기에 표시됩니다.';
+
+  @override
+  String get noAccessMembers => '아직 접근 권한이 있는 사람이 없습니다. 링크를 공유해 추가하세요.';
+
+  @override
+  String get noModerationReviews => '검토할 항목이 없습니다.';
+
+  @override
   String get youLabel => '나';
 
   @override

@@ -306,10 +306,10 @@ class _EmptyVisitors extends StatelessWidget {
               color: theme.colorScheme.onSurfaceVariant,
             ),
             const SizedBox(height: 12),
-            Text('No footprints yet', style: theme.textTheme.titleMedium),
+            Text(context.l10n.noFootprints, style: theme.textTheme.titleMedium),
             const SizedBox(height: 4),
             Text(
-              'Visitors will appear here after they open this note.',
+              context.l10n.noFootprintsDescription,
               textAlign: TextAlign.center,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,

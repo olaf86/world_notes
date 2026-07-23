@@ -248,6 +248,27 @@ class AppLocalizationsJa extends AppLocalizations {
   String get noMessages => 'メッセージはまだありません。\n最初のメッセージを書いてみましょう！';
 
   @override
+  String get noNotifications => '通知はまだありません。';
+
+  @override
+  String get noFollowers => 'フォロワーはまだいません。';
+
+  @override
+  String get noFollowing => 'まだ誰もフォローしていません。';
+
+  @override
+  String get noFootprints => '足あとはまだありません。';
+
+  @override
+  String get noFootprintsDescription => '訪問者がこのノートを開くと、ここに表示されます。';
+
+  @override
+  String get noAccessMembers => 'アクセスできるユーザーはまだいません。リンクを共有して追加してください。';
+
+  @override
+  String get noModerationReviews => 'レビューはありません。';
+
+  @override
   String get youLabel => 'あなた';
 
   @override
