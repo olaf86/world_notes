@@ -584,6 +584,18 @@ abstract class AppLocalizations {
   /// **'Note theme'**
   String get noteThemeLabel;
 
+  /// No description provided for @noteThemeChangeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Change theme'**
+  String get noteThemeChangeTitle;
+
+  /// No description provided for @noteThemeChangeDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'This changes the note appearance for everyone.'**
+  String get noteThemeChangeDescription;
+
   /// No description provided for @pinColorLabel.
   ///
   /// In en, this message translates to:

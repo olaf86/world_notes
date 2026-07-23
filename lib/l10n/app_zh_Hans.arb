@@ -86,6 +86,8 @@
   "noteDescriptionOptionalLabel": "描述（可选）",
   "noteDescriptionHint": "介绍一下这个地方…",
   "noteThemeLabel": "笔记主题",
+  "noteThemeChangeTitle": "更改主题",
+  "noteThemeChangeDescription": "此更改会影响所有人看到的笔记外观。",
   "pinColorLabel": "图钉颜色",
   "pinStyleLabel": "图钉样式",
   "pinImageLabel": "图钉图片",

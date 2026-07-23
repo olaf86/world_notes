@@ -280,6 +280,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get noteThemeLabel => 'ノートテーマ';
 
   @override
+  String get noteThemeChangeTitle => 'テーマを変更';
+
+  @override
+  String get noteThemeChangeDescription => 'この変更は、すべてのユーザーが見るノートの外観に反映されます。';
+
+  @override
   String get pinColorLabel => 'ピンの色';
 
   @override

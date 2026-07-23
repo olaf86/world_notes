@@ -86,6 +86,8 @@
   "noteDescriptionOptionalLabel": "説明（任意）",
   "noteDescriptionHint": "この場所について教えてください…",
   "noteThemeLabel": "ノートテーマ",
+  "noteThemeChangeTitle": "テーマを変更",
+  "noteThemeChangeDescription": "この変更は、すべてのユーザーが見るノートの外観に反映されます。",
   "pinColorLabel": "ピンの色",
   "pinStyleLabel": "ピンのスタイル",
   "pinImageLabel": "ピン画像",

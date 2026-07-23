@@ -395,8 +395,8 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     final themeId = await showNoteThemePicker(
       context: context,
       selected: place.themeId,
-      title: 'Change theme',
-      description: 'This changes the note appearance for everyone.',
+      title: context.l10n.noteThemeChangeTitle,
+      description: context.l10n.noteThemeChangeDescription,
       sheetTheme: NoteThemes.themed(context, place.themeId),
     );
     if (themeId != null && themeId != place.themeId) {

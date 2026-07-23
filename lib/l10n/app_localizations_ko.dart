@@ -278,6 +278,13 @@ class AppLocalizationsKo extends AppLocalizations {
   String get noteThemeLabel => '노트 테마';
 
   @override
+  String get noteThemeChangeTitle => '테마 변경';
+
+  @override
+  String get noteThemeChangeDescription =>
+      '이 변경 사항은 모든 사용자에게 표시되는 노트 디자인에 적용됩니다.';
+
+  @override
   String get pinColorLabel => '핀 색상';
 
   @override

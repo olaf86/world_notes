@@ -16,6 +16,16 @@ void main() {
           isNotEmpty,
           reason: locale.toLanguageTag(),
         );
+        expect(
+          l10n.noteThemeChangeTitle,
+          isNotEmpty,
+          reason: locale.toLanguageTag(),
+        );
+        expect(
+          l10n.noteThemeChangeDescription,
+          isNotEmpty,
+          reason: locale.toLanguageTag(),
+        );
         for (final preference in AppLanguagePreference.values) {
           expect(
             preference.localizedLabel(l10n),

@@ -277,6 +277,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noteThemeLabel => '笔记主题';
 
   @override
+  String get noteThemeChangeTitle => '更改主题';
+
+  @override
+  String get noteThemeChangeDescription => '此更改会影响所有人看到的笔记外观。';
+
+  @override
   String get pinColorLabel => '图钉颜色';
 
   @override
@@ -1141,6 +1147,12 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get noteThemeLabel => '笔记主题';
 
   @override
+  String get noteThemeChangeTitle => '更改主题';
+
+  @override
+  String get noteThemeChangeDescription => '此更改会影响所有人看到的笔记外观。';
+
+  @override
   String get pinColorLabel => '图钉颜色';
 
   @override
@@ -2003,6 +2015,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get noteThemeLabel => '筆記主題';
+
+  @override
+  String get noteThemeChangeTitle => '變更主題';
+
+  @override
+  String get noteThemeChangeDescription => '此變更會影響所有人看到的筆記外觀。';
 
   @override
   String get pinColorLabel => '圖釘顏色';

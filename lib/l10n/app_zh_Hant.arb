@@ -86,6 +86,8 @@
   "noteDescriptionOptionalLabel": "描述（選填）",
   "noteDescriptionHint": "介紹一下這個地方…",
   "noteThemeLabel": "筆記主題",
+  "noteThemeChangeTitle": "變更主題",
+  "noteThemeChangeDescription": "此變更會影響所有人看到的筆記外觀。",
   "pinColorLabel": "圖釘顏色",
   "pinStyleLabel": "圖釘樣式",
   "pinImageLabel": "圖釘圖片",

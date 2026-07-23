@@ -314,6 +314,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noteThemeLabel => 'Note theme';
 
   @override
+  String get noteThemeChangeTitle => 'Change theme';
+
+  @override
+  String get noteThemeChangeDescription =>
+      'This changes the note appearance for everyone.';
+
+  @override
   String get pinColorLabel => 'Pin color';
 
   @override
