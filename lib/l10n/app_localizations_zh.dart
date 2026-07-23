@@ -256,6 +256,300 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get noteCreateTitle => '新建笔记';
+
+  @override
+  String get noteTitleLabel => '标题';
+
+  @override
+  String get noteTitleHint => '这是一个怎样的地方？';
+
+  @override
+  String get noteTitleRequired => '请输入标题';
+
+  @override
+  String get noteDescriptionOptionalLabel => '描述（可选）';
+
+  @override
+  String get noteDescriptionHint => '介绍一下这个地方…';
+
+  @override
+  String get noteThemeLabel => '笔记主题';
+
+  @override
+  String get pinColorLabel => '图钉颜色';
+
+  @override
+  String get pinStyleLabel => '图钉样式';
+
+  @override
+  String get pinImageLabel => '图钉图片';
+
+  @override
+  String get iconLabel => '图标';
+
+  @override
+  String get imageLabel => '图片';
+
+  @override
+  String get publishLabel => '发布';
+
+  @override
+  String get publishNow => '立即';
+
+  @override
+  String get publishLater => '稍后';
+
+  @override
+  String get publishLaterSchedule => '稍后发布';
+
+  @override
+  String get publishIn15Minutes => '15分钟后';
+
+  @override
+  String get publishIn30Minutes => '30分钟后';
+
+  @override
+  String get publishIn1Hour => '1小时后';
+
+  @override
+  String get publishIn3Hours => '3小时后';
+
+  @override
+  String get publishTomorrow => '明天';
+
+  @override
+  String get publishCustom => '自定义';
+
+  @override
+  String get autoCloseAfter => '自动关闭时间';
+
+  @override
+  String get autoCloseDescription => '超过此期限后将停止接收消息并归档笔记。';
+
+  @override
+  String get expiryOneWeek => '1周';
+
+  @override
+  String get expiryOneMonth => '1个月';
+
+  @override
+  String expiryMonths(int count) {
+    return '$count个月';
+  }
+
+  @override
+  String get expiryOneYear => '1年';
+
+  @override
+  String expiryDays(int count) {
+    return '$count天';
+  }
+
+  @override
+  String get noteAccessLabel => '访问权限';
+
+  @override
+  String get createNoteAction => '创建笔记';
+
+  @override
+  String get noteCapacityChecking => '正在检查可用笔记名额…';
+
+  @override
+  String get noteLimitReached => '已达到笔记上限';
+
+  @override
+  String premiumNoteLimitMessage(int count, int limit) {
+    return '您正在使用$limit个有效笔记名额中的$count个。请归档一个笔记或等待其到期后再创建。';
+  }
+
+  @override
+  String freeNoteLimitMessage(int limit, int proLimit) {
+    return '免费账户最多可保留$limit个有效笔记。请归档一个笔记，或升级到PRO以使用最多$proLimit个。';
+  }
+
+  @override
+  String get forkLocationNotice => '新笔记将沿用已归档笔记的位置。';
+
+  @override
+  String get noteCreateLocationPermissionRequired => '创建笔记需要位置权限。';
+
+  @override
+  String get noteCreateLocationPermissionDisabledMessage =>
+      '位置权限已关闭。请打开系统设置并允许位置访问，以便创建笔记。';
+
+  @override
+  String get noteCreateLocationServiceDisabledMessage =>
+      '位置服务已关闭。请将其打开，以便在当前位置创建笔记。';
+
+  @override
+  String get noteCreateLocationUnavailable => '无法获取当前位置，请重试。';
+
+  @override
+  String get imagePin => '图片图钉';
+
+  @override
+  String get imagePinReady => '图片图钉已就绪';
+
+  @override
+  String get pinImageEmptyDescription => '添加裁剪后的缩略图。未设置时将使用默认图钉。';
+
+  @override
+  String get pinImageReadyDescription => '将上传此缩略图。';
+
+  @override
+  String get chooseImage => '选择图片';
+
+  @override
+  String get changeImage => '更换图片';
+
+  @override
+  String get removeImage => '移除图片';
+
+  @override
+  String get passwordLabel => '密码';
+
+  @override
+  String get patternLabel => '图案';
+
+  @override
+  String get publicNote => '公开笔记';
+
+  @override
+  String get lockedNote => '已锁定笔记';
+
+  @override
+  String noteLockSummary(String type) {
+    return '$type锁';
+  }
+
+  @override
+  String noteLockSummaryWithHint(String type) {
+    return '带提示的$type锁';
+  }
+
+  @override
+  String get anyoneNearbyCanOpen => '附近的任何人都可以打开。';
+
+  @override
+  String get setLock => '设置锁';
+
+  @override
+  String get changeLock => '更改锁';
+
+  @override
+  String get removeLock => '移除锁';
+
+  @override
+  String get noteThemeStandard => '标准';
+
+  @override
+  String get noteThemeStandardDescription => '沉静而熟悉的World Notes标准外观。';
+
+  @override
+  String get noteThemeAurora => '极光';
+
+  @override
+  String get noteThemeAuroraDescription => '靛蓝与水蓝、紫罗兰光影交织。';
+
+  @override
+  String get noteThemeCitrus => '柑橘活力';
+
+  @override
+  String get noteThemeCitrusDescription => '温暖的珊瑚橙搭配青绿色点缀。';
+
+  @override
+  String get noteThemeBotanical => '植物园';
+
+  @override
+  String get noteThemeBotanicalDescription => '沉稳的翡翠色与叶绿色。';
+
+  @override
+  String get noteThemeNeon => '霓虹网格';
+
+  @override
+  String get noteThemeNeonDescription => '暗色中的青蓝与紫红霓虹。';
+
+  @override
+  String get noteThemeEditorial => '杂志';
+
+  @override
+  String get noteThemeEditorialDescription => '纸张般的中性色配以钴蓝点缀。';
+
+  @override
+  String get noteFallbackTitle => '笔记';
+
+  @override
+  String get noteUnavailableTitle => '此笔记当前不可用。';
+
+  @override
+  String get noteUnavailableMessage => '它可能尚未发布、已经过期，或无法再从当前位置访问。';
+
+  @override
+  String get noteOpenFailedTitle => '无法打开此笔记。';
+
+  @override
+  String get noteOpenFailedMessage => '请检查网络连接，并确认您仍在笔记附近。';
+
+  @override
+  String get noteReadOnlyFromMyNotes => '从“我的笔记”打开时为只读。';
+
+  @override
+  String get notePrivateTitle => '这是一则私密笔记';
+
+  @override
+  String get notePrivatePasswordDescription => '请输入密码以阅读和发布消息。';
+
+  @override
+  String get notePrivatePatternDescription => '请绘制图案以阅读和发布消息。';
+
+  @override
+  String get notePrivateDescription => '请解锁笔记以阅读和发布消息。';
+
+  @override
+  String get enterPassword => '输入密码';
+
+  @override
+  String get drawPattern => '绘制图案';
+
+  @override
+  String get unlockAction => '解锁';
+
+  @override
+  String noteLockHint(String hint) {
+    return '提示：$hint';
+  }
+
+  @override
+  String get noteScheduledReadOnly => '此笔记已预约发布，目前尚不接收消息。';
+
+  @override
+  String get noteArchivedReadOnly => '此笔记已归档，仅供阅读。';
+
+  @override
+  String threadMessageLimitReached(int count) {
+    return '此讨论串已达到$count条消息的上限，现已关闭。';
+  }
+
+  @override
+  String get threadFullClosed => '此讨论串已满并关闭。';
+
+  @override
+  String get threadMaintainerClosed => '管理员已关闭此讨论串，仅供阅读。';
+
+  @override
+  String get closeThreadAction => '关闭讨论串';
+
+  @override
+  String get reopenThreadAction => '重新打开讨论串';
+
+  @override
+  String get changeThemeAction => '更改主题';
+
+  @override
+  String get manageAccessAction => '管理访问权限';
+
+  @override
   String sortNotesTooltip(String sort) {
     return '排序笔记：$sort';
   }
@@ -826,6 +1120,300 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
+  String get noteCreateTitle => '新建笔记';
+
+  @override
+  String get noteTitleLabel => '标题';
+
+  @override
+  String get noteTitleHint => '这是一个怎样的地方？';
+
+  @override
+  String get noteTitleRequired => '请输入标题';
+
+  @override
+  String get noteDescriptionOptionalLabel => '描述（可选）';
+
+  @override
+  String get noteDescriptionHint => '介绍一下这个地方…';
+
+  @override
+  String get noteThemeLabel => '笔记主题';
+
+  @override
+  String get pinColorLabel => '图钉颜色';
+
+  @override
+  String get pinStyleLabel => '图钉样式';
+
+  @override
+  String get pinImageLabel => '图钉图片';
+
+  @override
+  String get iconLabel => '图标';
+
+  @override
+  String get imageLabel => '图片';
+
+  @override
+  String get publishLabel => '发布';
+
+  @override
+  String get publishNow => '立即';
+
+  @override
+  String get publishLater => '稍后';
+
+  @override
+  String get publishLaterSchedule => '稍后发布';
+
+  @override
+  String get publishIn15Minutes => '15分钟后';
+
+  @override
+  String get publishIn30Minutes => '30分钟后';
+
+  @override
+  String get publishIn1Hour => '1小时后';
+
+  @override
+  String get publishIn3Hours => '3小时后';
+
+  @override
+  String get publishTomorrow => '明天';
+
+  @override
+  String get publishCustom => '自定义';
+
+  @override
+  String get autoCloseAfter => '自动关闭时间';
+
+  @override
+  String get autoCloseDescription => '超过此期限后将停止接收消息并归档笔记。';
+
+  @override
+  String get expiryOneWeek => '1周';
+
+  @override
+  String get expiryOneMonth => '1个月';
+
+  @override
+  String expiryMonths(int count) {
+    return '$count个月';
+  }
+
+  @override
+  String get expiryOneYear => '1年';
+
+  @override
+  String expiryDays(int count) {
+    return '$count天';
+  }
+
+  @override
+  String get noteAccessLabel => '访问权限';
+
+  @override
+  String get createNoteAction => '创建笔记';
+
+  @override
+  String get noteCapacityChecking => '正在检查可用笔记名额…';
+
+  @override
+  String get noteLimitReached => '已达到笔记上限';
+
+  @override
+  String premiumNoteLimitMessage(int count, int limit) {
+    return '您正在使用$limit个有效笔记名额中的$count个。请归档一个笔记或等待其到期后再创建。';
+  }
+
+  @override
+  String freeNoteLimitMessage(int limit, int proLimit) {
+    return '免费账户最多可保留$limit个有效笔记。请归档一个笔记，或升级到PRO以使用最多$proLimit个。';
+  }
+
+  @override
+  String get forkLocationNotice => '新笔记将沿用已归档笔记的位置。';
+
+  @override
+  String get noteCreateLocationPermissionRequired => '创建笔记需要位置权限。';
+
+  @override
+  String get noteCreateLocationPermissionDisabledMessage =>
+      '位置权限已关闭。请打开系统设置并允许位置访问，以便创建笔记。';
+
+  @override
+  String get noteCreateLocationServiceDisabledMessage =>
+      '位置服务已关闭。请将其打开，以便在当前位置创建笔记。';
+
+  @override
+  String get noteCreateLocationUnavailable => '无法获取当前位置，请重试。';
+
+  @override
+  String get imagePin => '图片图钉';
+
+  @override
+  String get imagePinReady => '图片图钉已就绪';
+
+  @override
+  String get pinImageEmptyDescription => '添加裁剪后的缩略图。未设置时将使用默认图钉。';
+
+  @override
+  String get pinImageReadyDescription => '将上传此缩略图。';
+
+  @override
+  String get chooseImage => '选择图片';
+
+  @override
+  String get changeImage => '更换图片';
+
+  @override
+  String get removeImage => '移除图片';
+
+  @override
+  String get passwordLabel => '密码';
+
+  @override
+  String get patternLabel => '图案';
+
+  @override
+  String get publicNote => '公开笔记';
+
+  @override
+  String get lockedNote => '已锁定笔记';
+
+  @override
+  String noteLockSummary(String type) {
+    return '$type锁';
+  }
+
+  @override
+  String noteLockSummaryWithHint(String type) {
+    return '带提示的$type锁';
+  }
+
+  @override
+  String get anyoneNearbyCanOpen => '附近的任何人都可以打开。';
+
+  @override
+  String get setLock => '设置锁';
+
+  @override
+  String get changeLock => '更改锁';
+
+  @override
+  String get removeLock => '移除锁';
+
+  @override
+  String get noteThemeStandard => '标准';
+
+  @override
+  String get noteThemeStandardDescription => '沉静而熟悉的World Notes标准外观。';
+
+  @override
+  String get noteThemeAurora => '极光';
+
+  @override
+  String get noteThemeAuroraDescription => '靛蓝与水蓝、紫罗兰光影交织。';
+
+  @override
+  String get noteThemeCitrus => '柑橘活力';
+
+  @override
+  String get noteThemeCitrusDescription => '温暖的珊瑚橙搭配青绿色点缀。';
+
+  @override
+  String get noteThemeBotanical => '植物园';
+
+  @override
+  String get noteThemeBotanicalDescription => '沉稳的翡翠色与叶绿色。';
+
+  @override
+  String get noteThemeNeon => '霓虹网格';
+
+  @override
+  String get noteThemeNeonDescription => '暗色中的青蓝与紫红霓虹。';
+
+  @override
+  String get noteThemeEditorial => '杂志';
+
+  @override
+  String get noteThemeEditorialDescription => '纸张般的中性色配以钴蓝点缀。';
+
+  @override
+  String get noteFallbackTitle => '笔记';
+
+  @override
+  String get noteUnavailableTitle => '此笔记当前不可用。';
+
+  @override
+  String get noteUnavailableMessage => '它可能尚未发布、已经过期，或无法再从当前位置访问。';
+
+  @override
+  String get noteOpenFailedTitle => '无法打开此笔记。';
+
+  @override
+  String get noteOpenFailedMessage => '请检查网络连接，并确认您仍在笔记附近。';
+
+  @override
+  String get noteReadOnlyFromMyNotes => '从“我的笔记”打开时为只读。';
+
+  @override
+  String get notePrivateTitle => '这是一则私密笔记';
+
+  @override
+  String get notePrivatePasswordDescription => '请输入密码以阅读和发布消息。';
+
+  @override
+  String get notePrivatePatternDescription => '请绘制图案以阅读和发布消息。';
+
+  @override
+  String get notePrivateDescription => '请解锁笔记以阅读和发布消息。';
+
+  @override
+  String get enterPassword => '输入密码';
+
+  @override
+  String get drawPattern => '绘制图案';
+
+  @override
+  String get unlockAction => '解锁';
+
+  @override
+  String noteLockHint(String hint) {
+    return '提示：$hint';
+  }
+
+  @override
+  String get noteScheduledReadOnly => '此笔记已预约发布，目前尚不接收消息。';
+
+  @override
+  String get noteArchivedReadOnly => '此笔记已归档，仅供阅读。';
+
+  @override
+  String threadMessageLimitReached(int count) {
+    return '此讨论串已达到$count条消息的上限，现已关闭。';
+  }
+
+  @override
+  String get threadFullClosed => '此讨论串已满并关闭。';
+
+  @override
+  String get threadMaintainerClosed => '管理员已关闭此讨论串，仅供阅读。';
+
+  @override
+  String get closeThreadAction => '关闭讨论串';
+
+  @override
+  String get reopenThreadAction => '重新打开讨论串';
+
+  @override
+  String get changeThemeAction => '更改主题';
+
+  @override
+  String get manageAccessAction => '管理访问权限';
+
+  @override
   String sortNotesTooltip(String sort) {
     return '排序笔记：$sort';
   }
@@ -1394,6 +1982,300 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String messageScheduledAt(String time) {
     return '預定於 $time 發佈';
   }
+
+  @override
+  String get noteCreateTitle => '新增筆記';
+
+  @override
+  String get noteTitleLabel => '標題';
+
+  @override
+  String get noteTitleHint => '這是什麼樣的地方？';
+
+  @override
+  String get noteTitleRequired => '請輸入標題';
+
+  @override
+  String get noteDescriptionOptionalLabel => '描述（選填）';
+
+  @override
+  String get noteDescriptionHint => '介紹一下這個地方…';
+
+  @override
+  String get noteThemeLabel => '筆記主題';
+
+  @override
+  String get pinColorLabel => '圖釘顏色';
+
+  @override
+  String get pinStyleLabel => '圖釘樣式';
+
+  @override
+  String get pinImageLabel => '圖釘圖片';
+
+  @override
+  String get iconLabel => '圖示';
+
+  @override
+  String get imageLabel => '圖片';
+
+  @override
+  String get publishLabel => '發布';
+
+  @override
+  String get publishNow => '立即';
+
+  @override
+  String get publishLater => '稍後';
+
+  @override
+  String get publishLaterSchedule => '稍後發布';
+
+  @override
+  String get publishIn15Minutes => '15分鐘後';
+
+  @override
+  String get publishIn30Minutes => '30分鐘後';
+
+  @override
+  String get publishIn1Hour => '1小時後';
+
+  @override
+  String get publishIn3Hours => '3小時後';
+
+  @override
+  String get publishTomorrow => '明天';
+
+  @override
+  String get publishCustom => '自訂';
+
+  @override
+  String get autoCloseAfter => '自動關閉時間';
+
+  @override
+  String get autoCloseDescription => '超過此期限後將停止接收訊息並封存筆記。';
+
+  @override
+  String get expiryOneWeek => '1週';
+
+  @override
+  String get expiryOneMonth => '1個月';
+
+  @override
+  String expiryMonths(int count) {
+    return '$count個月';
+  }
+
+  @override
+  String get expiryOneYear => '1年';
+
+  @override
+  String expiryDays(int count) {
+    return '$count天';
+  }
+
+  @override
+  String get noteAccessLabel => '存取權限';
+
+  @override
+  String get createNoteAction => '建立筆記';
+
+  @override
+  String get noteCapacityChecking => '正在檢查可用筆記名額…';
+
+  @override
+  String get noteLimitReached => '已達筆記上限';
+
+  @override
+  String premiumNoteLimitMessage(int count, int limit) {
+    return '您正在使用$limit個有效筆記名額中的$count個。請封存一則筆記或等待其到期後再建立。';
+  }
+
+  @override
+  String freeNoteLimitMessage(int limit, int proLimit) {
+    return '免費帳戶最多可保留$limit則有效筆記。請封存一則筆記，或升級至PRO以使用最多$proLimit則。';
+  }
+
+  @override
+  String get forkLocationNotice => '新筆記將沿用已封存筆記的位置。';
+
+  @override
+  String get noteCreateLocationPermissionRequired => '建立筆記需要位置權限。';
+
+  @override
+  String get noteCreateLocationPermissionDisabledMessage =>
+      '位置權限已關閉。請開啟系統設定並允許位置存取，以便建立筆記。';
+
+  @override
+  String get noteCreateLocationServiceDisabledMessage =>
+      '位置服務已關閉。請將其開啟，以便在目前位置建立筆記。';
+
+  @override
+  String get noteCreateLocationUnavailable => '無法取得目前位置，請再試一次。';
+
+  @override
+  String get imagePin => '圖片圖釘';
+
+  @override
+  String get imagePinReady => '圖片圖釘已就緒';
+
+  @override
+  String get pinImageEmptyDescription => '加入裁切後的縮圖。未設定時將使用預設圖釘。';
+
+  @override
+  String get pinImageReadyDescription => '將上傳此縮圖。';
+
+  @override
+  String get chooseImage => '選擇圖片';
+
+  @override
+  String get changeImage => '更換圖片';
+
+  @override
+  String get removeImage => '移除圖片';
+
+  @override
+  String get passwordLabel => '密碼';
+
+  @override
+  String get patternLabel => '圖形';
+
+  @override
+  String get publicNote => '公開筆記';
+
+  @override
+  String get lockedNote => '已鎖定筆記';
+
+  @override
+  String noteLockSummary(String type) {
+    return '$type鎖';
+  }
+
+  @override
+  String noteLockSummaryWithHint(String type) {
+    return '附提示的$type鎖';
+  }
+
+  @override
+  String get anyoneNearbyCanOpen => '附近的任何人都可以開啟。';
+
+  @override
+  String get setLock => '設定鎖';
+
+  @override
+  String get changeLock => '變更鎖';
+
+  @override
+  String get removeLock => '移除鎖';
+
+  @override
+  String get noteThemeStandard => '標準';
+
+  @override
+  String get noteThemeStandardDescription => '沉靜而熟悉的World Notes標準外觀。';
+
+  @override
+  String get noteThemeAurora => '極光';
+
+  @override
+  String get noteThemeAuroraDescription => '靛藍與水藍、紫羅蘭光影交織。';
+
+  @override
+  String get noteThemeCitrus => '柑橘活力';
+
+  @override
+  String get noteThemeCitrusDescription => '溫暖的珊瑚橙搭配藍綠色點綴。';
+
+  @override
+  String get noteThemeBotanical => '植物園';
+
+  @override
+  String get noteThemeBotanicalDescription => '沉穩的翡翠色與葉綠色。';
+
+  @override
+  String get noteThemeNeon => '霓虹網格';
+
+  @override
+  String get noteThemeNeonDescription => '暗色中的青藍與紫紅霓虹。';
+
+  @override
+  String get noteThemeEditorial => '雜誌';
+
+  @override
+  String get noteThemeEditorialDescription => '紙張般的中性色配以鈷藍點綴。';
+
+  @override
+  String get noteFallbackTitle => '筆記';
+
+  @override
+  String get noteUnavailableTitle => '此筆記目前無法使用。';
+
+  @override
+  String get noteUnavailableMessage => '它可能尚未發布、已經過期，或無法再從目前位置存取。';
+
+  @override
+  String get noteOpenFailedTitle => '無法開啟此筆記。';
+
+  @override
+  String get noteOpenFailedMessage => '請檢查網路連線，並確認您仍在筆記附近。';
+
+  @override
+  String get noteReadOnlyFromMyNotes => '從「我的筆記」開啟時為唯讀。';
+
+  @override
+  String get notePrivateTitle => '這是一則私人筆記';
+
+  @override
+  String get notePrivatePasswordDescription => '請輸入密碼以閱讀和發布訊息。';
+
+  @override
+  String get notePrivatePatternDescription => '請繪製圖形以閱讀和發布訊息。';
+
+  @override
+  String get notePrivateDescription => '請解鎖筆記以閱讀和發布訊息。';
+
+  @override
+  String get enterPassword => '輸入密碼';
+
+  @override
+  String get drawPattern => '繪製圖形';
+
+  @override
+  String get unlockAction => '解鎖';
+
+  @override
+  String noteLockHint(String hint) {
+    return '提示：$hint';
+  }
+
+  @override
+  String get noteScheduledReadOnly => '此筆記已預約發布，目前尚不接收訊息。';
+
+  @override
+  String get noteArchivedReadOnly => '此筆記已封存，僅供閱讀。';
+
+  @override
+  String threadMessageLimitReached(int count) {
+    return '此討論串已達$count則訊息的上限，現已關閉。';
+  }
+
+  @override
+  String get threadFullClosed => '此討論串已滿並關閉。';
+
+  @override
+  String get threadMaintainerClosed => '管理員已關閉此討論串，僅供閱讀。';
+
+  @override
+  String get closeThreadAction => '關閉討論串';
+
+  @override
+  String get reopenThreadAction => '重新開啟討論串';
+
+  @override
+  String get changeThemeAction => '變更主題';
+
+  @override
+  String get manageAccessAction => '管理存取權限';
 
   @override
   String sortNotesTooltip(String sort) {

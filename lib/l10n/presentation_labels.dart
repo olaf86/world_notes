@@ -1,4 +1,5 @@
 import '../domain/entities/note_list_sort.dart';
+import '../domain/entities/note_theme.dart';
 import 'app_locale.dart';
 import 'app_localizations.dart';
 
@@ -33,5 +34,25 @@ extension NoteListSortPresentationLabel on NoteListSort {
     NoteListSort.mostLiked => l10n.sortMostLiked,
     NoteListSort.archivedNewest => l10n.sortArchivedNewest,
     NoteListSort.archivedOldest => l10n.sortArchivedOldest,
+  };
+}
+
+extension NoteThemePresentationLabel on NoteThemeId {
+  String localizedLabel(AppLocalizations l10n) => switch (this) {
+    NoteThemeId.standard => l10n.noteThemeStandard,
+    NoteThemeId.aurora => l10n.noteThemeAurora,
+    NoteThemeId.citrus => l10n.noteThemeCitrus,
+    NoteThemeId.botanical => l10n.noteThemeBotanical,
+    NoteThemeId.neon => l10n.noteThemeNeon,
+    NoteThemeId.editorial => l10n.noteThemeEditorial,
+  };
+
+  String localizedDescription(AppLocalizations l10n) => switch (this) {
+    NoteThemeId.standard => l10n.noteThemeStandardDescription,
+    NoteThemeId.aurora => l10n.noteThemeAuroraDescription,
+    NoteThemeId.citrus => l10n.noteThemeCitrusDescription,
+    NoteThemeId.botanical => l10n.noteThemeBotanicalDescription,
+    NoteThemeId.neon => l10n.noteThemeNeonDescription,
+    NoteThemeId.editorial => l10n.noteThemeEditorialDescription,
   };
 }

@@ -542,6 +542,558 @@ abstract class AppLocalizations {
   /// **'Scheduled {time}'**
   String messageScheduledAt(String time);
 
+  /// No description provided for @noteCreateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New Note'**
+  String get noteCreateTitle;
+
+  /// No description provided for @noteTitleLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Title'**
+  String get noteTitleLabel;
+
+  /// No description provided for @noteTitleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'What is this place?'**
+  String get noteTitleHint;
+
+  /// No description provided for @noteTitleRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Title is required'**
+  String get noteTitleRequired;
+
+  /// No description provided for @noteDescriptionOptionalLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Description (optional)'**
+  String get noteDescriptionOptionalLabel;
+
+  /// No description provided for @noteDescriptionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tell us about this place…'**
+  String get noteDescriptionHint;
+
+  /// No description provided for @noteThemeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Note theme'**
+  String get noteThemeLabel;
+
+  /// No description provided for @pinColorLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin color'**
+  String get pinColorLabel;
+
+  /// No description provided for @pinStyleLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin style'**
+  String get pinStyleLabel;
+
+  /// No description provided for @pinImageLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin image'**
+  String get pinImageLabel;
+
+  /// No description provided for @iconLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Icon'**
+  String get iconLabel;
+
+  /// No description provided for @imageLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Image'**
+  String get imageLabel;
+
+  /// No description provided for @publishLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Publish'**
+  String get publishLabel;
+
+  /// No description provided for @publishNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Now'**
+  String get publishNow;
+
+  /// No description provided for @publishLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Later'**
+  String get publishLater;
+
+  /// No description provided for @publishLaterSchedule.
+  ///
+  /// In en, this message translates to:
+  /// **'Publish later'**
+  String get publishLaterSchedule;
+
+  /// No description provided for @publishIn15Minutes.
+  ///
+  /// In en, this message translates to:
+  /// **'15 minutes'**
+  String get publishIn15Minutes;
+
+  /// No description provided for @publishIn30Minutes.
+  ///
+  /// In en, this message translates to:
+  /// **'30 minutes'**
+  String get publishIn30Minutes;
+
+  /// No description provided for @publishIn1Hour.
+  ///
+  /// In en, this message translates to:
+  /// **'1 hour'**
+  String get publishIn1Hour;
+
+  /// No description provided for @publishIn3Hours.
+  ///
+  /// In en, this message translates to:
+  /// **'3 hours'**
+  String get publishIn3Hours;
+
+  /// No description provided for @publishTomorrow.
+  ///
+  /// In en, this message translates to:
+  /// **'Tomorrow'**
+  String get publishTomorrow;
+
+  /// No description provided for @publishCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get publishCustom;
+
+  /// No description provided for @autoCloseAfter.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-close after'**
+  String get autoCloseAfter;
+
+  /// No description provided for @autoCloseDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Stops accepting messages and archives the note after this period.'**
+  String get autoCloseDescription;
+
+  /// No description provided for @expiryOneWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'1 week'**
+  String get expiryOneWeek;
+
+  /// No description provided for @expiryOneMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'1 month'**
+  String get expiryOneMonth;
+
+  /// No description provided for @expiryMonths.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} months'**
+  String expiryMonths(int count);
+
+  /// No description provided for @expiryOneYear.
+  ///
+  /// In en, this message translates to:
+  /// **'1 year'**
+  String get expiryOneYear;
+
+  /// No description provided for @expiryDays.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} days'**
+  String expiryDays(int count);
+
+  /// No description provided for @noteAccessLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Access'**
+  String get noteAccessLabel;
+
+  /// No description provided for @createNoteAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Note'**
+  String get createNoteAction;
+
+  /// No description provided for @noteCapacityChecking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking available note slots…'**
+  String get noteCapacityChecking;
+
+  /// No description provided for @noteLimitReached.
+  ///
+  /// In en, this message translates to:
+  /// **'Note limit reached'**
+  String get noteLimitReached;
+
+  /// No description provided for @premiumNoteLimitMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'You have {count} of {limit} active notes. Archive one or wait for one to expire before creating another.'**
+  String premiumNoteLimitMessage(int count, int limit);
+
+  /// No description provided for @freeNoteLimitMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Free accounts can keep {limit} active notes. Archive one or upgrade to PRO for up to {proLimit}.'**
+  String freeNoteLimitMessage(int limit, int proLimit);
+
+  /// No description provided for @forkLocationNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'This new note will use the archived note\'\'s location.'**
+  String get forkLocationNotice;
+
+  /// No description provided for @noteCreateLocationPermissionRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Location permission is required to create a note.'**
+  String get noteCreateLocationPermissionRequired;
+
+  /// No description provided for @noteCreateLocationPermissionDisabledMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Location permission is disabled. Open system settings and allow location access to create notes.'**
+  String get noteCreateLocationPermissionDisabledMessage;
+
+  /// No description provided for @noteCreateLocationServiceDisabledMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Location services are turned off. Turn them on to create a note at your current location.'**
+  String get noteCreateLocationServiceDisabledMessage;
+
+  /// No description provided for @noteCreateLocationUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not get your current location. Please try again.'**
+  String get noteCreateLocationUnavailable;
+
+  /// No description provided for @imagePin.
+  ///
+  /// In en, this message translates to:
+  /// **'Image pin'**
+  String get imagePin;
+
+  /// No description provided for @imagePinReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Image pin ready'**
+  String get imagePinReady;
+
+  /// No description provided for @pinImageEmptyDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a cropped thumbnail. The default pin is used as fallback.'**
+  String get pinImageEmptyDescription;
+
+  /// No description provided for @pinImageReadyDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'This cropped thumbnail will be uploaded.'**
+  String get pinImageReadyDescription;
+
+  /// No description provided for @chooseImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose image'**
+  String get chooseImage;
+
+  /// No description provided for @changeImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Change image'**
+  String get changeImage;
+
+  /// No description provided for @removeImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove image'**
+  String get removeImage;
+
+  /// No description provided for @passwordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get passwordLabel;
+
+  /// No description provided for @patternLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Pattern'**
+  String get patternLabel;
+
+  /// No description provided for @publicNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Public note'**
+  String get publicNote;
+
+  /// No description provided for @lockedNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked note'**
+  String get lockedNote;
+
+  /// No description provided for @noteLockSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{type} lock'**
+  String noteLockSummary(String type);
+
+  /// No description provided for @noteLockSummaryWithHint.
+  ///
+  /// In en, this message translates to:
+  /// **'{type} lock with hint'**
+  String noteLockSummaryWithHint(String type);
+
+  /// No description provided for @anyoneNearbyCanOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Anyone nearby can open it.'**
+  String get anyoneNearbyCanOpen;
+
+  /// No description provided for @setLock.
+  ///
+  /// In en, this message translates to:
+  /// **'Set lock'**
+  String get setLock;
+
+  /// No description provided for @changeLock.
+  ///
+  /// In en, this message translates to:
+  /// **'Change lock'**
+  String get changeLock;
+
+  /// No description provided for @removeLock.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove lock'**
+  String get removeLock;
+
+  /// No description provided for @noteThemeStandard.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard'**
+  String get noteThemeStandard;
+
+  /// No description provided for @noteThemeStandardDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'The calm, familiar World Notes appearance.'**
+  String get noteThemeStandardDescription;
+
+  /// No description provided for @noteThemeAurora.
+  ///
+  /// In en, this message translates to:
+  /// **'Aurora'**
+  String get noteThemeAurora;
+
+  /// No description provided for @noteThemeAuroraDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Indigo with aqua and violet light.'**
+  String get noteThemeAuroraDescription;
+
+  /// No description provided for @noteThemeCitrus.
+  ///
+  /// In en, this message translates to:
+  /// **'Citrus Pop'**
+  String get noteThemeCitrus;
+
+  /// No description provided for @noteThemeCitrusDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Warm coral, orange, and a teal lift.'**
+  String get noteThemeCitrusDescription;
+
+  /// No description provided for @noteThemeBotanical.
+  ///
+  /// In en, this message translates to:
+  /// **'Botanical'**
+  String get noteThemeBotanical;
+
+  /// No description provided for @noteThemeBotanicalDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Grounded jade and leaf green.'**
+  String get noteThemeBotanicalDescription;
+
+  /// No description provided for @noteThemeNeon.
+  ///
+  /// In en, this message translates to:
+  /// **'Neon Grid'**
+  String get noteThemeNeon;
+
+  /// No description provided for @noteThemeNeonDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Cyber cyan and fuchsia after dark.'**
+  String get noteThemeNeonDescription;
+
+  /// No description provided for @noteThemeEditorial.
+  ///
+  /// In en, this message translates to:
+  /// **'Editorial'**
+  String get noteThemeEditorial;
+
+  /// No description provided for @noteThemeEditorialDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Paper neutrals with a cobalt signal.'**
+  String get noteThemeEditorialDescription;
+
+  /// No description provided for @noteFallbackTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Note'**
+  String get noteFallbackTitle;
+
+  /// No description provided for @noteUnavailableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This note is not available.'**
+  String get noteUnavailableTitle;
+
+  /// No description provided for @noteUnavailableMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'It may not be published yet, may have expired, or may no longer be accessible from here.'**
+  String get noteUnavailableMessage;
+
+  /// No description provided for @noteOpenFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open this note.'**
+  String get noteOpenFailedTitle;
+
+  /// No description provided for @noteOpenFailedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Check your connection and make sure you are still nearby.'**
+  String get noteOpenFailedMessage;
+
+  /// No description provided for @noteReadOnlyFromMyNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Read-only from My Notes.'**
+  String get noteReadOnlyFromMyNotes;
+
+  /// No description provided for @notePrivateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This note is private'**
+  String get notePrivateTitle;
+
+  /// No description provided for @notePrivatePasswordDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the password to read and post messages.'**
+  String get notePrivatePasswordDescription;
+
+  /// No description provided for @notePrivatePatternDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Draw the pattern to read and post messages.'**
+  String get notePrivatePatternDescription;
+
+  /// No description provided for @notePrivateDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock this note to read and post messages.'**
+  String get notePrivateDescription;
+
+  /// No description provided for @enterPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter password'**
+  String get enterPassword;
+
+  /// No description provided for @drawPattern.
+  ///
+  /// In en, this message translates to:
+  /// **'Draw pattern'**
+  String get drawPattern;
+
+  /// No description provided for @unlockAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock'**
+  String get unlockAction;
+
+  /// No description provided for @noteLockHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Hint: {hint}'**
+  String noteLockHint(String hint);
+
+  /// No description provided for @noteScheduledReadOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'This note is scheduled and is not accepting messages yet.'**
+  String get noteScheduledReadOnly;
+
+  /// No description provided for @noteArchivedReadOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'This note has been archived. It is read-only.'**
+  String get noteArchivedReadOnly;
+
+  /// No description provided for @threadMessageLimitReached.
+  ///
+  /// In en, this message translates to:
+  /// **'This thread reached its {count}-message limit and is now closed.'**
+  String threadMessageLimitReached(int count);
+
+  /// No description provided for @threadFullClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'This thread is full and closed.'**
+  String get threadFullClosed;
+
+  /// No description provided for @threadMaintainerClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'A maintainer closed this thread. It is read-only.'**
+  String get threadMaintainerClosed;
+
+  /// No description provided for @closeThreadAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Close thread'**
+  String get closeThreadAction;
+
+  /// No description provided for @reopenThreadAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-open thread'**
+  String get reopenThreadAction;
+
+  /// No description provided for @changeThemeAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Change theme'**
+  String get changeThemeAction;
+
+  /// No description provided for @manageAccessAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage access'**
+  String get manageAccessAction;
+
   /// No description provided for @sortNotesTooltip.
   ///
   /// In en, this message translates to:

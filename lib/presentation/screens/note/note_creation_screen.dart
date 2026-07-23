@@ -25,18 +25,17 @@ import '../../widgets/note/pin_image_summary.dart';
 import '../../widgets/note/pin_thumbnail_crop_dialog.dart';
 
 enum _PublicationPreset {
-  now('Now', null),
-  in15Minutes('15 minutes', Duration(minutes: 15)),
-  in30Minutes('30 minutes', Duration(minutes: 30)),
-  in1Hour('1 hour', Duration(hours: 1)),
-  in3Hours('3 hours', Duration(hours: 3)),
-  tomorrow('Tomorrow', Duration(hours: 24)),
-  custom('Custom', null);
+  now(null),
+  in15Minutes(Duration(minutes: 15)),
+  in30Minutes(Duration(minutes: 30)),
+  in1Hour(Duration(hours: 1)),
+  in3Hours(Duration(hours: 3)),
+  tomorrow(Duration(hours: 24)),
+  custom(null);
 
-  final String label;
   final Duration? delay;
 
-  const _PublicationPreset(this.label, this.delay);
+  const _PublicationPreset(this.delay);
 }
 
 enum _PinMarkerStyle { icon, image }
@@ -105,13 +104,23 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
   bool _showMoreIcons = false;
 
   /// Human-readable label for an expiry preset (in days).
-  static String _expiryLabel(int days) => switch (days) {
-    7 => '1 week',
-    30 => '1 month',
-    90 => '3 months',
-    180 => '6 months',
-    365 => '1 year',
-    _ => '$days days',
+  String _expiryLabel(int days) => switch (days) {
+    7 => context.l10n.expiryOneWeek,
+    30 => context.l10n.expiryOneMonth,
+    90 => context.l10n.expiryMonths(3),
+    180 => context.l10n.expiryMonths(6),
+    365 => context.l10n.expiryOneYear,
+    _ => context.l10n.expiryDays(days),
+  };
+
+  String _publicationPresetLabel(_PublicationPreset preset) => switch (preset) {
+    _PublicationPreset.now => context.l10n.publishNow,
+    _PublicationPreset.in15Minutes => context.l10n.publishIn15Minutes,
+    _PublicationPreset.in30Minutes => context.l10n.publishIn30Minutes,
+    _PublicationPreset.in1Hour => context.l10n.publishIn1Hour,
+    _PublicationPreset.in3Hours => context.l10n.publishIn3Hours,
+    _PublicationPreset.tomorrow => context.l10n.publishTomorrow,
+    _PublicationPreset.custom => context.l10n.publishCustom,
   };
 
   static const List<Color> _colors = [
@@ -309,7 +318,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(ctx.l10n.commonCancel),
           ),
           FilledButton.icon(
             onPressed: () => Navigator.pop(ctx, true),
@@ -328,22 +337,18 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
     switch (issue) {
       case LocationAvailabilityIssue.permissionPermanentlyDenied:
         await _showLocationSetupDialog(
-          title: 'Location permission needed',
-          message:
-              'Location permission is disabled. Open system settings and '
-              'allow location access to create notes.',
-          actionLabel: 'Open settings',
+          title: context.l10n.locationPermissionTitle,
+          message: context.l10n.noteCreateLocationPermissionDisabledMessage,
+          actionLabel: context.l10n.locationPermissionOpenSettings,
           openSettings: Geolocator.openAppSettings,
         );
       case LocationAvailabilityIssue.permissionDenied:
-        _showSnack('Location permission is required to create a note.');
+        _showSnack(context.l10n.noteCreateLocationPermissionRequired);
       case LocationAvailabilityIssue.serviceDisabled:
         await _showLocationSetupDialog(
-          title: 'Turn on location services',
-          message:
-              'Location services are turned off. Turn them on to create a note '
-              'at your current location.',
-          actionLabel: 'Open settings',
+          title: context.l10n.locationServiceDisabledTitle,
+          message: context.l10n.noteCreateLocationServiceDisabledMessage,
+          actionLabel: context.l10n.locationServiceOpenSettings,
           openSettings: Geolocator.openLocationSettings,
         );
     }
@@ -359,7 +364,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
         await _handleLocationAvailabilityIssue(issue);
         return null;
       }
-      _showSnack('Could not get your current location. Please try again.');
+      _showSnack(context.l10n.noteCreateLocationUnavailable);
       return null;
     }
   }
@@ -523,6 +528,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final forkDraft = widget.forkDraft;
     final activeCount = ref.watch(activeMyPlacesCountProvider);
     final noteLimit = ref.watch(noteLimitProvider);
@@ -533,7 +539,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
     };
     final canSubmit = !_loading && !activeCount.isLoading && !limitReached;
     return Scaffold(
-      appBar: AppBar(title: const Text('New Note')),
+      appBar: AppBar(title: Text(l10n.noteCreateTitle)),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -547,19 +553,19 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
             const SizedBox(height: 16),
             TextFormField(
               controller: _titleController,
-              decoration: const InputDecoration(
-                labelText: 'Title',
-                hintText: 'What is this place?',
+              decoration: InputDecoration(
+                labelText: l10n.noteTitleLabel,
+                hintText: l10n.noteTitleHint,
               ),
               validator: (v) =>
-                  v == null || v.trim().isEmpty ? 'Title is required' : null,
+                  v == null || v.trim().isEmpty ? l10n.noteTitleRequired : null,
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _subtitleController,
-              decoration: const InputDecoration(
-                labelText: 'Description (optional)',
-                hintText: 'Tell us about this place...',
+              decoration: InputDecoration(
+                labelText: l10n.noteDescriptionOptionalLabel,
+                hintText: l10n.noteDescriptionHint,
               ),
               maxLines: 3,
             ),
@@ -568,14 +574,20 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
               const ForkLocationNotice(),
             ],
             const SizedBox(height: 24),
-            Text('Note theme', style: Theme.of(context).textTheme.titleSmall),
+            Text(
+              l10n.noteThemeLabel,
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
             const SizedBox(height: 8),
             NoteThemePicker(
               selected: _selectedTheme,
               onChanged: (theme) => setState(() => _selectedTheme = theme),
             ),
             const SizedBox(height: 16),
-            Text('Pin color', style: Theme.of(context).textTheme.titleSmall),
+            Text(
+              l10n.pinColorLabel,
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
             const SizedBox(height: 8),
             PinColorPicker(
               colors: _colors,
@@ -588,20 +600,23 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
               },
             ),
             const SizedBox(height: 24),
-            Text('Pin style', style: Theme.of(context).textTheme.titleSmall),
+            Text(
+              l10n.pinStyleLabel,
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
             const SizedBox(height: 8),
             SegmentedButton<_PinMarkerStyle>(
               showSelectedIcon: false,
-              segments: const [
+              segments: [
                 ButtonSegment(
                   value: _PinMarkerStyle.image,
-                  icon: Icon(Icons.image_outlined),
-                  label: Text('Pin image'),
+                  icon: const Icon(Icons.image_outlined),
+                  label: Text(l10n.pinImageLabel),
                 ),
                 ButtonSegment(
                   value: _PinMarkerStyle.icon,
-                  icon: Icon(Icons.place_outlined),
-                  label: Text('Icon'),
+                  icon: const Icon(Icons.place_outlined),
+                  label: Text(l10n.iconLabel),
                 ),
               ],
               selected: {_pinMarkerStyle},
@@ -611,7 +626,10 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
             ),
             const SizedBox(height: 16),
             if (_pinMarkerStyle == _PinMarkerStyle.icon) ...[
-              Text('Icon', style: Theme.of(context).textTheme.titleSmall),
+              Text(
+                l10n.iconLabel,
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
               const SizedBox(height: 8),
               PinIconPicker(
                 icons: _icons,
@@ -625,7 +643,10 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
                 },
               ),
             ] else ...[
-              Text('Image', style: Theme.of(context).textTheme.titleSmall),
+              Text(
+                l10n.imageLabel,
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
               const SizedBox(height: 8),
               PinImageSummary(
                 bytes: _pinThumbnailBytes,
@@ -637,13 +658,16 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
               ),
             ],
             const SizedBox(height: 24),
-            Text('Publish', style: Theme.of(context).textTheme.titleSmall),
+            Text(
+              l10n.publishLabel,
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
             const SizedBox(height: 8),
             SegmentedButton<bool>(
               showSelectedIcon: false,
-              segments: const [
-                ButtonSegment(value: false, label: Text('Now')),
-                ButtonSegment(value: true, label: Text('Later')),
+              segments: [
+                ButtonSegment(value: false, label: Text(l10n.publishNow)),
+                ButtonSegment(value: true, label: Text(l10n.publishLater)),
               ],
               selected: {_publicationPreset != _PublicationPreset.now},
               onSelectionChanged: (selection) {
@@ -662,16 +686,16 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
               DropdownButtonFormField<_PublicationPreset>(
                 initialValue: _publicationPreset,
                 isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'Publish later',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: l10n.publishLaterSchedule,
+                  border: const OutlineInputBorder(),
                 ),
                 items: _PublicationPreset.values
                     .where((preset) => preset != _PublicationPreset.now)
                     .map(
                       (preset) => DropdownMenuItem(
                         value: preset,
-                        child: Text(preset.label),
+                        child: Text(_publicationPresetLabel(preset)),
                       ),
                     )
                     .toList(),
@@ -702,13 +726,12 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    'Auto-close after',
+                    l10n.autoCloseAfter,
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
                 ),
                 Tooltip(
-                  message:
-                      'Stops accepting messages and archives the note after this period.',
+                  message: l10n.autoCloseDescription,
                   child: Icon(
                     Icons.info_outline,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -734,7 +757,10 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
               ],
             ),
             const SizedBox(height: 24),
-            Text('Access', style: Theme.of(context).textTheme.titleSmall),
+            Text(
+              l10n.noteAccessLabel,
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
             const SizedBox(height: 8),
             NoteLockSummary(
               value: _lockSetup,
@@ -750,7 +776,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
                       width: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Create Note'),
+                  : Text(l10n.createNoteAction),
             ),
           ],
         ),
@@ -773,12 +799,12 @@ class _NoteCapacityStatus extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (activeCount.isLoading) {
-      return const Column(
+      return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          LinearProgressIndicator(),
-          SizedBox(height: 8),
-          Text('Checking available note slots...'),
+          const LinearProgressIndicator(),
+          const SizedBox(height: 8),
+          Text(context.l10n.noteCapacityChecking),
         ],
       );
     }
@@ -795,7 +821,7 @@ class _NoteCapacityStatus extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Note limit reached',
+              context.l10n.noteLimitReached,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 color: colorScheme.onErrorContainer,
                 fontWeight: FontWeight.bold,
@@ -804,18 +830,18 @@ class _NoteCapacityStatus extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               isPremium
-                  ? 'You have $count of $limit active notes. Archive one or '
-                        'wait for one to expire before creating another.'
-                  : 'Free accounts can keep $limit active notes. Archive one '
-                        'or upgrade to PRO for up to '
-                        '${AppConfig.proNoteLimit}.',
+                  ? context.l10n.premiumNoteLimitMessage(count, limit)
+                  : context.l10n.freeNoteLimitMessage(
+                      limit,
+                      AppConfig.proNoteLimit,
+                    ),
               style: TextStyle(color: colorScheme.onErrorContainer),
             ),
             if (!isPremium) ...[
               const SizedBox(height: 12),
               FilledButton(
                 onPressed: () => context.push('/subscription'),
-                child: const Text('Go PRO'),
+                child: Text(context.l10n.goPro),
               ),
             ],
           ],

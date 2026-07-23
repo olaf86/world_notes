@@ -842,22 +842,24 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                             },
                             itemBuilder: (ctx) => [
                               if (permissions.canCloseThread)
-                                const PopupMenuItem(
+                                PopupMenuItem(
                                   value: 'close',
                                   child: ListTile(
-                                    leading: Icon(
+                                    leading: const Icon(
                                       Icons.do_not_disturb_on_outlined,
                                     ),
-                                    title: Text('Close thread'),
+                                    title: Text(l10n.closeThreadAction),
                                     contentPadding: EdgeInsets.zero,
                                   ),
                                 ),
                               if (permissions.canReopenThread)
-                                const PopupMenuItem(
+                                PopupMenuItem(
                                   value: 'reopen',
                                   child: ListTile(
-                                    leading: Icon(Icons.lock_open_outlined),
-                                    title: Text('Re-open thread'),
+                                    leading: const Icon(
+                                      Icons.lock_open_outlined,
+                                    ),
+                                    title: Text(l10n.reopenThreadAction),
                                     contentPadding: EdgeInsets.zero,
                                   ),
                                 ),
@@ -872,37 +874,37 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                                     ),
                                     title: Text(
                                       place.isPrivate
-                                          ? 'Change lock'
-                                          : 'Set lock',
+                                          ? l10n.changeLock
+                                          : l10n.setLock,
                                     ),
                                     contentPadding: EdgeInsets.zero,
                                   ),
                                 ),
                               if (permissions.canChangeTheme)
-                                const PopupMenuItem(
+                                PopupMenuItem(
                                   value: 'theme',
                                   child: ListTile(
-                                    leading: Icon(Icons.palette_outlined),
-                                    title: Text('Change theme'),
+                                    leading: const Icon(Icons.palette_outlined),
+                                    title: Text(l10n.changeThemeAction),
                                     contentPadding: EdgeInsets.zero,
                                   ),
                                 ),
                               if (permissions.canManageAccess)
-                                const PopupMenuItem(
+                                PopupMenuItem(
                                   value: 'access',
                                   child: ListTile(
-                                    leading: Icon(Icons.group_outlined),
-                                    title: Text('Manage access'),
+                                    leading: const Icon(Icons.group_outlined),
+                                    title: Text(l10n.manageAccessAction),
                                     contentPadding: EdgeInsets.zero,
                                   ),
                                 ),
                               if (permissions.canArchive) ...[
                                 const PopupMenuDivider(),
-                                const PopupMenuItem(
+                                PopupMenuItem(
                                   value: 'archive',
                                   child: ListTile(
-                                    leading: Icon(Icons.archive_outlined),
-                                    title: Text('Archive note'),
+                                    leading: const Icon(Icons.archive_outlined),
+                                    title: Text(l10n.archiveNoteTooltip),
                                     contentPadding: EdgeInsets.zero,
                                   ),
                                 ),
@@ -1376,30 +1378,27 @@ class _ThreadStatusBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
 
     // Resolve the most relevant reason, in priority order.
     final (IconData icon, String text) = switch (place) {
       _ when !place.isPublishedAt(now) => (
         Icons.event_outlined,
-        'This note is scheduled and is not accepting messages yet.',
+        l10n.noteScheduledReadOnly,
       ),
       _ when place.isArchived || place.isExpiredAt(now) => (
         Icons.inventory_2_outlined,
-        'This note has been archived. It is read-only.',
+        l10n.noteArchivedReadOnly,
       ),
       _ when place.isAtMessageLimit => (
         Icons.do_not_disturb_on_outlined,
-        'This thread reached its ${AppConfig.maxMessagesPerThread}-message '
-            'limit and is now closed.',
+        l10n.threadMessageLimitReached(AppConfig.maxMessagesPerThread),
       ),
       _ when place.closedReason == ClosedReason.messageLimit => (
         Icons.do_not_disturb_on_outlined,
-        'This thread is full and closed.',
+        l10n.threadFullClosed,
       ),
-      _ => (
-        Icons.lock_outline,
-        'A maintainer closed this thread. It is read-only.',
-      ),
+      _ => (Icons.lock_outline, l10n.threadMaintainerClosed),
     };
 
     return Material(
@@ -1455,10 +1454,11 @@ class _UnavailableNoteView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
     return Scaffold(
       appBar: AppBar(
         leading: const _NoteBackButton(),
-        title: Text(title.isEmpty ? 'Note' : title),
+        title: Text(title.isEmpty ? l10n.noteFallbackTitle : title),
       ),
       body: Center(
         child: Padding(
@@ -1473,13 +1473,12 @@ class _UnavailableNoteView extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                'This note is not available.',
+                l10n.noteUnavailableTitle,
                 style: theme.textTheme.titleMedium,
               ),
               const SizedBox(height: 6),
               Text(
-                'It may not be published yet, may have expired, or may no '
-                'longer be accessible from here.',
+                l10n.noteUnavailableMessage,
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
@@ -1502,10 +1501,11 @@ class _NoteAccessErrorView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
     return Scaffold(
       appBar: AppBar(
         leading: const _NoteBackButton(),
-        title: Text(title.isEmpty ? 'Note' : title),
+        title: Text(title.isEmpty ? l10n.noteFallbackTitle : title),
       ),
       body: Center(
         child: Padding(
@@ -1520,12 +1520,12 @@ class _NoteAccessErrorView extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                'Could not open this note.',
+                l10n.noteOpenFailedTitle,
                 style: theme.textTheme.titleMedium,
               ),
               const SizedBox(height: 6),
               Text(
-                'Check your connection and make sure you are still nearby.',
+                l10n.noteOpenFailedMessage,
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
@@ -1535,7 +1535,7 @@ class _NoteAccessErrorView extends StatelessWidget {
               FilledButton.icon(
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Try again'),
+                label: Text(l10n.commonTryAgain),
               ),
             ],
           ),
@@ -1552,10 +1552,11 @@ class _LoadingNoteView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
       appBar: AppBar(
         leading: const _NoteBackButton(),
-        title: Text(title.isEmpty ? 'Note' : title),
+        title: Text(title.isEmpty ? l10n.noteFallbackTitle : title),
       ),
       body: const SkeletonView(
         child: Column(
@@ -1617,7 +1618,7 @@ class _ReadOnlyBanner extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Read-only from My Notes.',
+                context.l10n.noteReadOnlyFromMyNotes,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -1650,15 +1651,16 @@ class _LockedNoteView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
     final bodyText = switch (lockType) {
-      NoteLockType.password => 'Enter the password to read and post messages.',
-      NoteLockType.pattern => 'Draw the pattern to read and post messages.',
-      null => 'Unlock this note to read and post messages.',
+      NoteLockType.password => l10n.notePrivatePasswordDescription,
+      NoteLockType.pattern => l10n.notePrivatePatternDescription,
+      null => l10n.notePrivateDescription,
     };
     final buttonText = switch (lockType) {
-      NoteLockType.password => 'Enter password',
-      NoteLockType.pattern => 'Draw pattern',
-      null => 'Unlock',
+      NoteLockType.password => l10n.enterPassword,
+      NoteLockType.pattern => l10n.drawPattern,
+      null => l10n.unlockAction,
     };
     final buttonIcon = switch (lockType) {
       NoteLockType.pattern => Icons.grid_3x3,
@@ -1679,7 +1681,7 @@ class _LockedNoteView extends StatelessWidget {
                 color: theme.colorScheme.outline,
               ),
               const SizedBox(height: 16),
-              Text('This note is private', style: theme.textTheme.titleMedium),
+              Text(l10n.notePrivateTitle, style: theme.textTheme.titleMedium),
               const SizedBox(height: 8),
               Text(
                 bodyText,
@@ -1691,7 +1693,7 @@ class _LockedNoteView extends StatelessWidget {
               if (lockHint case final hint? when hint.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Text(
-                  'Hint: $hint',
+                  l10n.noteLockHint(hint),
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,

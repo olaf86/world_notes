@@ -151,8 +151,8 @@ void main() {
 
       expect(locationService.getCurrentPositionCallCount, 1);
       expect(placeRepository.createNoteCallCount, 0);
-      expect(find.text('Location permission needed'), findsOneWidget);
-      expect(find.text('Open settings'), findsOneWidget);
+      expect(find.text('Location Required'), findsOneWidget);
+      expect(find.text('Open Settings'), findsOneWidget);
 
       await tester.tap(find.text('Cancel'));
       await tester.pump();

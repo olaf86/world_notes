@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/note_themes.dart';
 import '../../../domain/entities/note_theme.dart';
+import '../../../l10n/l10n.dart';
+import '../../../l10n/presentation_labels.dart';
 
 class NoteThemePicker extends StatelessWidget {
   final NoteThemeId selected;
@@ -60,7 +62,7 @@ class NoteThemePicker extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            definition.name,
+                            definition.id.localizedLabel(context.l10n),
                             style: Theme.of(context).textTheme.titleSmall
                                 ?.copyWith(
                                   color: palette.colorScheme.onSurface,
@@ -68,7 +70,7 @@ class NoteThemePicker extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            definition.description,
+                            definition.id.localizedDescription(context.l10n),
                             style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(
                                   color: palette.colorScheme.onSurfaceVariant,

@@ -259,6 +259,301 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String get noteCreateTitle => '新しいノート';
+
+  @override
+  String get noteTitleLabel => 'タイトル';
+
+  @override
+  String get noteTitleHint => 'どんな場所ですか？';
+
+  @override
+  String get noteTitleRequired => 'タイトルを入力してください';
+
+  @override
+  String get noteDescriptionOptionalLabel => '説明（任意）';
+
+  @override
+  String get noteDescriptionHint => 'この場所について教えてください…';
+
+  @override
+  String get noteThemeLabel => 'ノートテーマ';
+
+  @override
+  String get pinColorLabel => 'ピンの色';
+
+  @override
+  String get pinStyleLabel => 'ピンのスタイル';
+
+  @override
+  String get pinImageLabel => 'ピン画像';
+
+  @override
+  String get iconLabel => 'アイコン';
+
+  @override
+  String get imageLabel => '画像';
+
+  @override
+  String get publishLabel => '公開';
+
+  @override
+  String get publishNow => '今すぐ';
+
+  @override
+  String get publishLater => 'あとで';
+
+  @override
+  String get publishLaterSchedule => 'あとで公開';
+
+  @override
+  String get publishIn15Minutes => '15分後';
+
+  @override
+  String get publishIn30Minutes => '30分後';
+
+  @override
+  String get publishIn1Hour => '1時間後';
+
+  @override
+  String get publishIn3Hours => '3時間後';
+
+  @override
+  String get publishTomorrow => '明日';
+
+  @override
+  String get publishCustom => '日時を指定';
+
+  @override
+  String get autoCloseAfter => '自動で閉じるまで';
+
+  @override
+  String get autoCloseDescription => 'この期間を過ぎるとメッセージの受付を終了し、ノートをアーカイブします。';
+
+  @override
+  String get expiryOneWeek => '1週間';
+
+  @override
+  String get expiryOneMonth => '1か月';
+
+  @override
+  String expiryMonths(int count) {
+    return '$countか月';
+  }
+
+  @override
+  String get expiryOneYear => '1年';
+
+  @override
+  String expiryDays(int count) {
+    return '$count日';
+  }
+
+  @override
+  String get noteAccessLabel => 'アクセス';
+
+  @override
+  String get createNoteAction => 'ノートを作成';
+
+  @override
+  String get noteCapacityChecking => '利用可能なノート枠を確認中…';
+
+  @override
+  String get noteLimitReached => 'ノートの上限に達しました';
+
+  @override
+  String premiumNoteLimitMessage(int count, int limit) {
+    return '有効なノートは$limit件中$count件です。新しく作成するには、いずれかをアーカイブするか期限切れをお待ちください。';
+  }
+
+  @override
+  String freeNoteLimitMessage(int limit, int proLimit) {
+    return '無料アカウントでは有効なノートを$limit件まで保持できます。いずれかをアーカイブするか、PROにアップグレードすると$proLimit件まで利用できます。';
+  }
+
+  @override
+  String get forkLocationNotice => 'アーカイブしたノートの場所を引き継いで新しいノートを作成します。';
+
+  @override
+  String get noteCreateLocationPermissionRequired => 'ノートを作成するには位置情報の許可が必要です。';
+
+  @override
+  String get noteCreateLocationPermissionDisabledMessage =>
+      '位置情報の許可が無効です。システム設定を開き、ノートを作成できるよう位置情報へのアクセスを許可してください。';
+
+  @override
+  String get noteCreateLocationServiceDisabledMessage =>
+      '位置情報サービスがオフです。現在地にノートを作成するにはオンにしてください。';
+
+  @override
+  String get noteCreateLocationUnavailable => '現在地を取得できませんでした。もう一度お試しください。';
+
+  @override
+  String get imagePin => '画像ピン';
+
+  @override
+  String get imagePinReady => '画像ピンの準備完了';
+
+  @override
+  String get pinImageEmptyDescription => '切り抜いたサムネイルを追加できます。未設定時は標準のピンを使用します。';
+
+  @override
+  String get pinImageReadyDescription => 'このサムネイルをアップロードします。';
+
+  @override
+  String get chooseImage => '画像を選択';
+
+  @override
+  String get changeImage => '画像を変更';
+
+  @override
+  String get removeImage => '画像を削除';
+
+  @override
+  String get passwordLabel => 'パスワード';
+
+  @override
+  String get patternLabel => 'パターン';
+
+  @override
+  String get publicNote => '公開ノート';
+
+  @override
+  String get lockedNote => 'ロック付きノート';
+
+  @override
+  String noteLockSummary(String type) {
+    return '$typeロック';
+  }
+
+  @override
+  String noteLockSummaryWithHint(String type) {
+    return 'ヒント付き$typeロック';
+  }
+
+  @override
+  String get anyoneNearbyCanOpen => '近くにいる人なら誰でも開けます。';
+
+  @override
+  String get setLock => 'ロックを設定';
+
+  @override
+  String get changeLock => 'ロックを変更';
+
+  @override
+  String get removeLock => 'ロックを解除';
+
+  @override
+  String get noteThemeStandard => 'スタンダード';
+
+  @override
+  String get noteThemeStandardDescription => '落ち着きのある、親しみやすい標準デザイン。';
+
+  @override
+  String get noteThemeAurora => 'オーロラ';
+
+  @override
+  String get noteThemeAuroraDescription => '藍色にアクアと紫の光を重ねたデザイン。';
+
+  @override
+  String get noteThemeCitrus => 'シトラスポップ';
+
+  @override
+  String get noteThemeCitrusDescription => '暖かなコーラルとオレンジにティールのアクセント。';
+
+  @override
+  String get noteThemeBotanical => 'ボタニカル';
+
+  @override
+  String get noteThemeBotanicalDescription => '翡翠色と葉の緑を基調にしたデザイン。';
+
+  @override
+  String get noteThemeNeon => 'ネオングリッド';
+
+  @override
+  String get noteThemeNeonDescription => '暗闇に映えるシアンとフューシャのデザイン。';
+
+  @override
+  String get noteThemeEditorial => 'エディトリアル';
+
+  @override
+  String get noteThemeEditorialDescription => '紙のような中間色にコバルトのアクセント。';
+
+  @override
+  String get noteFallbackTitle => 'ノート';
+
+  @override
+  String get noteUnavailableTitle => 'このノートは利用できません。';
+
+  @override
+  String get noteUnavailableMessage =>
+      'まだ公開されていない、期限切れになった、または現在地からアクセスできなくなった可能性があります。';
+
+  @override
+  String get noteOpenFailedTitle => 'ノートを開けませんでした。';
+
+  @override
+  String get noteOpenFailedMessage => '通信状態と、ノートの近くにいることを確認してください。';
+
+  @override
+  String get noteReadOnlyFromMyNotes => 'マイノートからは閲覧のみです。';
+
+  @override
+  String get notePrivateTitle => 'このノートは非公開です';
+
+  @override
+  String get notePrivatePasswordDescription => 'メッセージを読む・投稿するにはパスワードを入力してください。';
+
+  @override
+  String get notePrivatePatternDescription => 'メッセージを読む・投稿するにはパターンを描いてください。';
+
+  @override
+  String get notePrivateDescription => 'メッセージを読む・投稿するにはノートのロックを解除してください。';
+
+  @override
+  String get enterPassword => 'パスワードを入力';
+
+  @override
+  String get drawPattern => 'パターンを描く';
+
+  @override
+  String get unlockAction => 'ロックを解除';
+
+  @override
+  String noteLockHint(String hint) {
+    return 'ヒント: $hint';
+  }
+
+  @override
+  String get noteScheduledReadOnly => 'このノートは公開予約中のため、まだメッセージを受け付けていません。';
+
+  @override
+  String get noteArchivedReadOnly => 'このノートはアーカイブ済みです。閲覧のみできます。';
+
+  @override
+  String threadMessageLimitReached(int count) {
+    return 'このスレッドはメッセージ上限の$count件に達したため終了しました。';
+  }
+
+  @override
+  String get threadFullClosed => 'このスレッドは満杯のため終了しました。';
+
+  @override
+  String get threadMaintainerClosed => '管理者がこのスレッドを終了しました。閲覧のみできます。';
+
+  @override
+  String get closeThreadAction => 'スレッドを終了';
+
+  @override
+  String get reopenThreadAction => 'スレッドを再開';
+
+  @override
+  String get changeThemeAction => 'テーマを変更';
+
+  @override
+  String get manageAccessAction => 'アクセスを管理';
+
+  @override
   String sortNotesTooltip(String sort) {
     return 'ノートを並べ替え: $sort';
   }

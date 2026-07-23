@@ -293,6 +293,317 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get noteCreateTitle => 'New Note';
+
+  @override
+  String get noteTitleLabel => 'Title';
+
+  @override
+  String get noteTitleHint => 'What is this place?';
+
+  @override
+  String get noteTitleRequired => 'Title is required';
+
+  @override
+  String get noteDescriptionOptionalLabel => 'Description (optional)';
+
+  @override
+  String get noteDescriptionHint => 'Tell us about this place…';
+
+  @override
+  String get noteThemeLabel => 'Note theme';
+
+  @override
+  String get pinColorLabel => 'Pin color';
+
+  @override
+  String get pinStyleLabel => 'Pin style';
+
+  @override
+  String get pinImageLabel => 'Pin image';
+
+  @override
+  String get iconLabel => 'Icon';
+
+  @override
+  String get imageLabel => 'Image';
+
+  @override
+  String get publishLabel => 'Publish';
+
+  @override
+  String get publishNow => 'Now';
+
+  @override
+  String get publishLater => 'Later';
+
+  @override
+  String get publishLaterSchedule => 'Publish later';
+
+  @override
+  String get publishIn15Minutes => '15 minutes';
+
+  @override
+  String get publishIn30Minutes => '30 minutes';
+
+  @override
+  String get publishIn1Hour => '1 hour';
+
+  @override
+  String get publishIn3Hours => '3 hours';
+
+  @override
+  String get publishTomorrow => 'Tomorrow';
+
+  @override
+  String get publishCustom => 'Custom';
+
+  @override
+  String get autoCloseAfter => 'Auto-close after';
+
+  @override
+  String get autoCloseDescription =>
+      'Stops accepting messages and archives the note after this period.';
+
+  @override
+  String get expiryOneWeek => '1 week';
+
+  @override
+  String get expiryOneMonth => '1 month';
+
+  @override
+  String expiryMonths(int count) {
+    return '$count months';
+  }
+
+  @override
+  String get expiryOneYear => '1 year';
+
+  @override
+  String expiryDays(int count) {
+    return '$count days';
+  }
+
+  @override
+  String get noteAccessLabel => 'Access';
+
+  @override
+  String get createNoteAction => 'Create Note';
+
+  @override
+  String get noteCapacityChecking => 'Checking available note slots…';
+
+  @override
+  String get noteLimitReached => 'Note limit reached';
+
+  @override
+  String premiumNoteLimitMessage(int count, int limit) {
+    return 'You have $count of $limit active notes. Archive one or wait for one to expire before creating another.';
+  }
+
+  @override
+  String freeNoteLimitMessage(int limit, int proLimit) {
+    return 'Free accounts can keep $limit active notes. Archive one or upgrade to PRO for up to $proLimit.';
+  }
+
+  @override
+  String get forkLocationNotice =>
+      'This new note will use the archived note\'s location.';
+
+  @override
+  String get noteCreateLocationPermissionRequired =>
+      'Location permission is required to create a note.';
+
+  @override
+  String get noteCreateLocationPermissionDisabledMessage =>
+      'Location permission is disabled. Open system settings and allow location access to create notes.';
+
+  @override
+  String get noteCreateLocationServiceDisabledMessage =>
+      'Location services are turned off. Turn them on to create a note at your current location.';
+
+  @override
+  String get noteCreateLocationUnavailable =>
+      'Could not get your current location. Please try again.';
+
+  @override
+  String get imagePin => 'Image pin';
+
+  @override
+  String get imagePinReady => 'Image pin ready';
+
+  @override
+  String get pinImageEmptyDescription =>
+      'Add a cropped thumbnail. The default pin is used as fallback.';
+
+  @override
+  String get pinImageReadyDescription =>
+      'This cropped thumbnail will be uploaded.';
+
+  @override
+  String get chooseImage => 'Choose image';
+
+  @override
+  String get changeImage => 'Change image';
+
+  @override
+  String get removeImage => 'Remove image';
+
+  @override
+  String get passwordLabel => 'Password';
+
+  @override
+  String get patternLabel => 'Pattern';
+
+  @override
+  String get publicNote => 'Public note';
+
+  @override
+  String get lockedNote => 'Locked note';
+
+  @override
+  String noteLockSummary(String type) {
+    return '$type lock';
+  }
+
+  @override
+  String noteLockSummaryWithHint(String type) {
+    return '$type lock with hint';
+  }
+
+  @override
+  String get anyoneNearbyCanOpen => 'Anyone nearby can open it.';
+
+  @override
+  String get setLock => 'Set lock';
+
+  @override
+  String get changeLock => 'Change lock';
+
+  @override
+  String get removeLock => 'Remove lock';
+
+  @override
+  String get noteThemeStandard => 'Standard';
+
+  @override
+  String get noteThemeStandardDescription =>
+      'The calm, familiar World Notes appearance.';
+
+  @override
+  String get noteThemeAurora => 'Aurora';
+
+  @override
+  String get noteThemeAuroraDescription => 'Indigo with aqua and violet light.';
+
+  @override
+  String get noteThemeCitrus => 'Citrus Pop';
+
+  @override
+  String get noteThemeCitrusDescription =>
+      'Warm coral, orange, and a teal lift.';
+
+  @override
+  String get noteThemeBotanical => 'Botanical';
+
+  @override
+  String get noteThemeBotanicalDescription => 'Grounded jade and leaf green.';
+
+  @override
+  String get noteThemeNeon => 'Neon Grid';
+
+  @override
+  String get noteThemeNeonDescription => 'Cyber cyan and fuchsia after dark.';
+
+  @override
+  String get noteThemeEditorial => 'Editorial';
+
+  @override
+  String get noteThemeEditorialDescription =>
+      'Paper neutrals with a cobalt signal.';
+
+  @override
+  String get noteFallbackTitle => 'Note';
+
+  @override
+  String get noteUnavailableTitle => 'This note is not available.';
+
+  @override
+  String get noteUnavailableMessage =>
+      'It may not be published yet, may have expired, or may no longer be accessible from here.';
+
+  @override
+  String get noteOpenFailedTitle => 'Could not open this note.';
+
+  @override
+  String get noteOpenFailedMessage =>
+      'Check your connection and make sure you are still nearby.';
+
+  @override
+  String get noteReadOnlyFromMyNotes => 'Read-only from My Notes.';
+
+  @override
+  String get notePrivateTitle => 'This note is private';
+
+  @override
+  String get notePrivatePasswordDescription =>
+      'Enter the password to read and post messages.';
+
+  @override
+  String get notePrivatePatternDescription =>
+      'Draw the pattern to read and post messages.';
+
+  @override
+  String get notePrivateDescription =>
+      'Unlock this note to read and post messages.';
+
+  @override
+  String get enterPassword => 'Enter password';
+
+  @override
+  String get drawPattern => 'Draw pattern';
+
+  @override
+  String get unlockAction => 'Unlock';
+
+  @override
+  String noteLockHint(String hint) {
+    return 'Hint: $hint';
+  }
+
+  @override
+  String get noteScheduledReadOnly =>
+      'This note is scheduled and is not accepting messages yet.';
+
+  @override
+  String get noteArchivedReadOnly =>
+      'This note has been archived. It is read-only.';
+
+  @override
+  String threadMessageLimitReached(int count) {
+    return 'This thread reached its $count-message limit and is now closed.';
+  }
+
+  @override
+  String get threadFullClosed => 'This thread is full and closed.';
+
+  @override
+  String get threadMaintainerClosed =>
+      'A maintainer closed this thread. It is read-only.';
+
+  @override
+  String get closeThreadAction => 'Close thread';
+
+  @override
+  String get reopenThreadAction => 'Re-open thread';
+
+  @override
+  String get changeThemeAction => 'Change theme';
+
+  @override
+  String get manageAccessAction => 'Manage access';
+
+  @override
   String sortNotesTooltip(String sort) {
     return 'Sort notes: $sort';
   }

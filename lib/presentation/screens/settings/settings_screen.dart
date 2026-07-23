@@ -152,6 +152,56 @@ class _LanguageSection extends ConsumerStatefulWidget {
 class _LanguageSectionState extends ConsumerState<_LanguageSection> {
   bool _updating = false;
 
+  Future<void> _showLanguagePicker() async {
+    if (_updating) return;
+    final selected = ref.read(appLanguagePreferenceProvider);
+    final preference = await showModalBottomSheet<AppLanguagePreference>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        final l10n = sheetContext.l10n;
+        return SafeArea(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+                  child: Text(
+                    l10n.settingsLanguageTitle,
+                    style: Theme.of(sheetContext).textTheme.titleLarge,
+                  ),
+                ),
+                RadioGroup<AppLanguagePreference>(
+                  groupValue: selected,
+                  onChanged: (value) {
+                    if (value != null) Navigator.pop(sheetContext, value);
+                  },
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: AppLanguagePreference.values.map((preference) {
+                      final description = preference.localizedDescription(l10n);
+                      return RadioListTile<AppLanguagePreference>(
+                        value: preference,
+                        title: Text(preference.localizedLabel(l10n)),
+                        subtitle: description == null
+                            ? null
+                            : Text(description),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    await _setPreference(preference);
+  }
+
   Future<void> _setPreference(AppLanguagePreference? preference) async {
     if (_updating || preference == null) return;
     setState(() => _updating = true);
@@ -175,33 +225,24 @@ class _LanguageSectionState extends ConsumerState<_LanguageSection> {
     final l10n = context.l10n;
     final selected = ref.watch(appLanguagePreferenceProvider);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          l10n.settingsLanguageTitle,
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        RadioGroup<AppLanguagePreference>(
-          groupValue: selected,
-          onChanged: _setPreference,
-          child: Column(
-            children: AppLanguagePreference.values.map((preference) {
-              final description = preference.localizedDescription(l10n);
-              return RadioListTile<AppLanguagePreference>(
-                value: preference,
-                enabled: !_updating,
-                contentPadding: EdgeInsets.zero,
-                title: Text(preference.localizedLabel(l10n)),
-                subtitle: description == null ? null : Text(description),
-              );
-            }).toList(),
-          ),
-        ),
-      ],
+    return ListTile(
+      key: const ValueKey('language-setting-tile'),
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.language_outlined),
+      title: Text(
+        l10n.settingsLanguageTitle,
+        style: Theme.of(
+          context,
+        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+      ),
+      subtitle: Text(selected.localizedLabel(l10n)),
+      trailing: _updating
+          ? const SizedBox.square(
+              dimension: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.chevron_right),
+      onTap: _updating ? null : _showLanguagePicker,
     );
   }
 }

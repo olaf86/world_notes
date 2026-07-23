@@ -257,6 +257,302 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
+  String get noteCreateTitle => '새 노트';
+
+  @override
+  String get noteTitleLabel => '제목';
+
+  @override
+  String get noteTitleHint => '어떤 장소인가요?';
+
+  @override
+  String get noteTitleRequired => '제목을 입력해 주세요';
+
+  @override
+  String get noteDescriptionOptionalLabel => '설명(선택 사항)';
+
+  @override
+  String get noteDescriptionHint => '이 장소에 대해 알려 주세요…';
+
+  @override
+  String get noteThemeLabel => '노트 테마';
+
+  @override
+  String get pinColorLabel => '핀 색상';
+
+  @override
+  String get pinStyleLabel => '핀 스타일';
+
+  @override
+  String get pinImageLabel => '핀 이미지';
+
+  @override
+  String get iconLabel => '아이콘';
+
+  @override
+  String get imageLabel => '이미지';
+
+  @override
+  String get publishLabel => '게시';
+
+  @override
+  String get publishNow => '지금';
+
+  @override
+  String get publishLater => '나중에';
+
+  @override
+  String get publishLaterSchedule => '나중에 게시';
+
+  @override
+  String get publishIn15Minutes => '15분 후';
+
+  @override
+  String get publishIn30Minutes => '30분 후';
+
+  @override
+  String get publishIn1Hour => '1시간 후';
+
+  @override
+  String get publishIn3Hours => '3시간 후';
+
+  @override
+  String get publishTomorrow => '내일';
+
+  @override
+  String get publishCustom => '직접 설정';
+
+  @override
+  String get autoCloseAfter => '자동 종료';
+
+  @override
+  String get autoCloseDescription => '이 기간이 지나면 메시지 수신을 중단하고 노트를 보관합니다.';
+
+  @override
+  String get expiryOneWeek => '1주';
+
+  @override
+  String get expiryOneMonth => '1개월';
+
+  @override
+  String expiryMonths(int count) {
+    return '$count개월';
+  }
+
+  @override
+  String get expiryOneYear => '1년';
+
+  @override
+  String expiryDays(int count) {
+    return '$count일';
+  }
+
+  @override
+  String get noteAccessLabel => '접근';
+
+  @override
+  String get createNoteAction => '노트 만들기';
+
+  @override
+  String get noteCapacityChecking => '사용 가능한 노트 수를 확인하는 중…';
+
+  @override
+  String get noteLimitReached => '노트 한도에 도달했습니다';
+
+  @override
+  String premiumNoteLimitMessage(int count, int limit) {
+    return '활성 노트 $limit개 중 $count개를 사용 중입니다. 새 노트를 만들려면 하나를 보관하거나 만료될 때까지 기다려 주세요.';
+  }
+
+  @override
+  String freeNoteLimitMessage(int limit, int proLimit) {
+    return '무료 계정은 활성 노트를 $limit개까지 보관할 수 있습니다. 하나를 보관하거나 PRO로 업그레이드하면 최대 $proLimit개까지 이용할 수 있습니다.';
+  }
+
+  @override
+  String get forkLocationNotice => '보관된 노트의 위치를 사용해 새 노트를 만듭니다.';
+
+  @override
+  String get noteCreateLocationPermissionRequired => '노트를 만들려면 위치 권한이 필요합니다.';
+
+  @override
+  String get noteCreateLocationPermissionDisabledMessage =>
+      '위치 권한이 비활성화되어 있습니다. 시스템 설정을 열어 노트를 만들 수 있도록 위치 접근을 허용해 주세요.';
+
+  @override
+  String get noteCreateLocationServiceDisabledMessage =>
+      '위치 서비스가 꺼져 있습니다. 현재 위치에 노트를 만들려면 켜 주세요.';
+
+  @override
+  String get noteCreateLocationUnavailable => '현재 위치를 가져올 수 없습니다. 다시 시도해 주세요.';
+
+  @override
+  String get imagePin => '이미지 핀';
+
+  @override
+  String get imagePinReady => '이미지 핀 준비 완료';
+
+  @override
+  String get pinImageEmptyDescription =>
+      '잘라낸 썸네일을 추가하세요. 설정하지 않으면 기본 핀이 사용됩니다.';
+
+  @override
+  String get pinImageReadyDescription => '이 썸네일이 업로드됩니다.';
+
+  @override
+  String get chooseImage => '이미지 선택';
+
+  @override
+  String get changeImage => '이미지 변경';
+
+  @override
+  String get removeImage => '이미지 삭제';
+
+  @override
+  String get passwordLabel => '비밀번호';
+
+  @override
+  String get patternLabel => '패턴';
+
+  @override
+  String get publicNote => '공개 노트';
+
+  @override
+  String get lockedNote => '잠긴 노트';
+
+  @override
+  String noteLockSummary(String type) {
+    return '$type 잠금';
+  }
+
+  @override
+  String noteLockSummaryWithHint(String type) {
+    return '힌트가 있는 $type 잠금';
+  }
+
+  @override
+  String get anyoneNearbyCanOpen => '근처에 있는 누구나 열 수 있습니다.';
+
+  @override
+  String get setLock => '잠금 설정';
+
+  @override
+  String get changeLock => '잠금 변경';
+
+  @override
+  String get removeLock => '잠금 해제';
+
+  @override
+  String get noteThemeStandard => '스탠다드';
+
+  @override
+  String get noteThemeStandardDescription => '차분하고 익숙한 World Notes 기본 디자인.';
+
+  @override
+  String get noteThemeAurora => '오로라';
+
+  @override
+  String get noteThemeAuroraDescription => '인디고에 아쿠아와 바이올렛 빛을 더한 디자인.';
+
+  @override
+  String get noteThemeCitrus => '시트러스 팝';
+
+  @override
+  String get noteThemeCitrusDescription => '따뜻한 코랄과 오렌지에 틸 포인트.';
+
+  @override
+  String get noteThemeBotanical => '보태니컬';
+
+  @override
+  String get noteThemeBotanicalDescription => '차분한 비취색과 잎사귀 초록.';
+
+  @override
+  String get noteThemeNeon => '네온 그리드';
+
+  @override
+  String get noteThemeNeonDescription => '어둠 속에서 빛나는 사이언과 푸크시아.';
+
+  @override
+  String get noteThemeEditorial => '에디토리얼';
+
+  @override
+  String get noteThemeEditorialDescription => '종이 느낌의 중간색과 코발트 포인트.';
+
+  @override
+  String get noteFallbackTitle => '노트';
+
+  @override
+  String get noteUnavailableTitle => '이 노트를 사용할 수 없습니다.';
+
+  @override
+  String get noteUnavailableMessage =>
+      '아직 게시되지 않았거나 만료되었거나 현재 위치에서 더 이상 접근할 수 없을 수 있습니다.';
+
+  @override
+  String get noteOpenFailedTitle => '노트를 열 수 없습니다.';
+
+  @override
+  String get noteOpenFailedMessage => '연결 상태와 노트 근처에 있는지 확인해 주세요.';
+
+  @override
+  String get noteReadOnlyFromMyNotes => '내 노트에서는 읽기 전용입니다.';
+
+  @override
+  String get notePrivateTitle => '비공개 노트입니다';
+
+  @override
+  String get notePrivatePasswordDescription => '메시지를 읽고 게시하려면 비밀번호를 입력하세요.';
+
+  @override
+  String get notePrivatePatternDescription => '메시지를 읽고 게시하려면 패턴을 그리세요.';
+
+  @override
+  String get notePrivateDescription => '메시지를 읽고 게시하려면 노트 잠금을 해제하세요.';
+
+  @override
+  String get enterPassword => '비밀번호 입력';
+
+  @override
+  String get drawPattern => '패턴 그리기';
+
+  @override
+  String get unlockAction => '잠금 해제';
+
+  @override
+  String noteLockHint(String hint) {
+    return '힌트: $hint';
+  }
+
+  @override
+  String get noteScheduledReadOnly => '이 노트는 게시 예약 중이라 아직 메시지를 받지 않습니다.';
+
+  @override
+  String get noteArchivedReadOnly => '이 노트는 보관되었습니다. 읽기 전용입니다.';
+
+  @override
+  String threadMessageLimitReached(int count) {
+    return '이 스레드는 메시지 한도 $count개에 도달하여 종료되었습니다.';
+  }
+
+  @override
+  String get threadFullClosed => '이 스레드는 가득 차서 종료되었습니다.';
+
+  @override
+  String get threadMaintainerClosed => '관리자가 이 스레드를 종료했습니다. 읽기 전용입니다.';
+
+  @override
+  String get closeThreadAction => '스레드 종료';
+
+  @override
+  String get reopenThreadAction => '스레드 다시 열기';
+
+  @override
+  String get changeThemeAction => '테마 변경';
+
+  @override
+  String get manageAccessAction => '접근 관리';
+
+  @override
   String sortNotesTooltip(String sort) {
     return '노트 정렬: $sort';
   }
