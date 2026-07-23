@@ -252,62 +252,112 @@ class _LanguageSectionState extends ConsumerState<_LanguageSection> {
 class _RegionSection extends ConsumerWidget {
   const _RegionSection();
 
+  Future<void> _showRegionPicker(
+    BuildContext context,
+    WidgetRef ref, {
+    required String? selected,
+    required String effective,
+  }) async {
+    final selection = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        final l10n = sheetContext.l10n;
+        return SafeArea(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 4),
+                  child: Text(
+                    l10n.settingsDataRegionTitle,
+                    style: Theme.of(sheetContext).textTheme.titleLarge,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+                  child: Text(
+                    l10n.settingsDataRegionDescription,
+                    style: Theme.of(sheetContext).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(
+                        sheetContext,
+                      ).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                RadioGroup<String>(
+                  groupValue: selected ?? '',
+                  onChanged: (value) {
+                    if (value != null) Navigator.pop(sheetContext, value);
+                  },
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      RadioListTile<String>(
+                        value: '',
+                        title: Text(l10n.settingsDataRegionAuto),
+                        subtitle: Text(
+                          l10n.settingsDataRegionCurrent(
+                            _localizedRegionLabel(l10n, effective),
+                          ),
+                        ),
+                      ),
+                      ...Regions.available.map(
+                        (region) => RadioListTile<String>(
+                          value: region.id,
+                          title: Text(_localizedRegionLabel(l10n, region.id)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    if (selection == null) return;
+    await ref
+        .read(regionPreferenceProvider.notifier)
+        .setOverride(selection.isEmpty ? null : selection);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final theme = Theme.of(context);
     final override = ref.watch(regionPreferenceProvider);
     final effective = ref.watch(effectiveRegionProvider);
-    final available = Regions.available;
+    final selectedLabel = override == null
+        ? '${l10n.settingsDataRegionAuto} · '
+              '${l10n.settingsDataRegionCurrent(_localizedRegionLabel(l10n, effective))}'
+        : _localizedRegionLabel(l10n, override);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          l10n.settingsDataRegionTitle,
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          l10n.settingsDataRegionDescription,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 8),
-
-        RadioGroup<String?>(
-          groupValue: override,
-          onChanged: (value) =>
-              ref.read(regionPreferenceProvider.notifier).setOverride(value),
-          child: Column(
-            children: [
-              // Auto option.
-              RadioListTile<String?>(
-                value: null,
-                contentPadding: EdgeInsets.zero,
-                title: Text(l10n.settingsDataRegionAuto),
-                subtitle: Text(
-                  l10n.settingsDataRegionCurrent(
-                    _localizedRegionLabel(l10n, effective),
-                  ),
-                ),
-              ),
-
-              // Explicit regions.
-              ...available.map(
-                (r) => RadioListTile<String?>(
-                  value: r.id,
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(_localizedRegionLabel(l10n, r.id)),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+    return ListTile(
+      key: const ValueKey('data-region-setting-tile'),
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.dns_outlined),
+      title: Text(
+        l10n.settingsDataRegionTitle,
+        style: Theme.of(
+          context,
+        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+      ),
+      subtitle: Text(
+        selectedLabel,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => _showRegionPicker(
+        context,
+        ref,
+        selected: override,
+        effective: effective,
+      ),
     );
   }
 }

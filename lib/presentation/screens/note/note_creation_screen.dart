@@ -574,11 +574,6 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
               const ForkLocationNotice(),
             ],
             const SizedBox(height: 24),
-            Text(
-              l10n.noteThemeLabel,
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-            const SizedBox(height: 8),
             NoteThemePicker(
               selected: _selectedTheme,
               onChanged: (theme) => setState(() => _selectedTheme = theme),

@@ -17,6 +17,87 @@ class NoteThemePicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = NoteThemes.paletteOf(context, selected);
+
+    return ListTile(
+      key: const ValueKey('note-theme-picker-tile'),
+      contentPadding: EdgeInsets.zero,
+      leading: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          gradient: palette.previewGradient,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: palette.colorScheme.outlineVariant),
+        ),
+      ),
+      title: Text(
+        context.l10n.noteThemeLabel,
+        style: Theme.of(context).textTheme.titleSmall,
+      ),
+      subtitle: Text(selected.localizedLabel(context.l10n)),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () async {
+        final themeId = await showNoteThemePicker(
+          context: context,
+          selected: selected,
+        );
+        if (themeId != null && themeId != selected) onChanged(themeId);
+      },
+    );
+  }
+}
+
+Future<NoteThemeId?> showNoteThemePicker({
+  required BuildContext context,
+  required NoteThemeId selected,
+  String? title,
+  String? description,
+  ThemeData? sheetTheme,
+}) {
+  return showModalBottomSheet<NoteThemeId>(
+    context: context,
+    showDragHandle: true,
+    isScrollControlled: true,
+    builder: (sheetContext) {
+      final content = SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title ?? sheetContext.l10n.noteThemeLabel,
+                style: Theme.of(sheetContext).textTheme.titleLarge,
+              ),
+              if (description != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  description,
+                  style: Theme.of(sheetContext).textTheme.bodySmall,
+                ),
+              ],
+              const SizedBox(height: 16),
+              _NoteThemeOptions(selected: selected),
+            ],
+          ),
+        ),
+      );
+      return sheetTheme == null
+          ? content
+          : Theme(data: sheetTheme, child: content);
+    },
+  );
+}
+
+class _NoteThemeOptions extends StatelessWidget {
+  final NoteThemeId selected;
+
+  const _NoteThemeOptions({required this.selected});
+
+  @override
+  Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
     return Column(
       children: NoteThemes.all.map((definition) {
@@ -36,8 +117,9 @@ class NoteThemePicker extends StatelessWidget {
               ),
             ),
             child: InkWell(
+              key: ValueKey('note-theme-option-${definition.id.name}'),
               borderRadius: BorderRadius.circular(14),
-              onTap: () => onChanged(definition.id),
+              onTap: () => Navigator.pop(context, definition.id),
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Row(

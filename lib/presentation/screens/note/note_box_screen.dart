@@ -391,44 +391,17 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     );
   }
 
-  void _showThemePicker(PlaceEntity place) {
-    showModalBottomSheet<void>(
+  Future<void> _showThemePicker(PlaceEntity place) async {
+    final themeId = await showNoteThemePicker(
       context: context,
-      isScrollControlled: true,
-      builder: (sheetContext) => Theme(
-        data: NoteThemes.themed(context, place.themeId),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Change theme',
-                    style: Theme.of(sheetContext).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'This changes the note appearance for everyone.',
-                    style: Theme.of(sheetContext).textTheme.bodySmall,
-                  ),
-                  const SizedBox(height: 16),
-                  NoteThemePicker(
-                    selected: place.themeId,
-                    onChanged: (themeId) {
-                      Navigator.of(sheetContext).pop();
-                      _setNoteTheme(themeId);
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
+      selected: place.themeId,
+      title: 'Change theme',
+      description: 'This changes the note appearance for everyone.',
+      sheetTheme: NoteThemes.themed(context, place.themeId),
     );
+    if (themeId != null && themeId != place.themeId) {
+      await _setNoteTheme(themeId);
+    }
   }
 
   Future<void> _setNoteTheme(NoteThemeId themeId) async {
