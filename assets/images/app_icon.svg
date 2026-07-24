@@ -25,21 +25,21 @@
   <use href="#pinOutline" fill="#FFFEFC"/>
 
   <g fill="none" stroke-linecap="round" stroke-linejoin="round" filter="url(#pencilWobble)">
-    <use href="#pinOutline" stroke="#29BFE8" stroke-width="48"/>
-    <use href="#pinOutline" stroke="#315BEA" stroke-width="41"/>
-    <use href="#pinOutline" stroke="#8A4DDD" stroke-width="34"/>
-    <use href="#pinOutline" stroke="#F34E8A" stroke-width="27"/>
-    <use href="#pinOutline" stroke="#FF6D3A" stroke-width="20"/>
-    <use href="#pinOutline" stroke="#F5C62A" stroke-width="13"/>
-    <use href="#pinOutline" stroke="#62C96B" stroke-width="7"/>
+    <use href="#pinOutline" stroke="#29BFE8" stroke-width="58"/>
+    <use href="#pinOutline" stroke="#315BEA" stroke-width="50"/>
+    <use href="#pinOutline" stroke="#8A4DDD" stroke-width="42"/>
+    <use href="#pinOutline" stroke="#F34E8A" stroke-width="34"/>
+    <use href="#pinOutline" stroke="#FF6D3A" stroke-width="26"/>
+    <use href="#pinOutline" stroke="#F5C62A" stroke-width="18"/>
+    <use href="#pinOutline" stroke="#62C96B" stroke-width="10"/>
 
-    <use href="#pinHole" stroke="#F34E8A" stroke-width="48"/>
-    <use href="#pinHole" stroke="#FF6D3A" stroke-width="41"/>
-    <use href="#pinHole" stroke="#8A4DDD" stroke-width="34"/>
-    <use href="#pinHole" stroke="#315BEA" stroke-width="27"/>
-    <use href="#pinHole" stroke="#29BFE8" stroke-width="20"/>
-    <use href="#pinHole" stroke="#62C96B" stroke-width="13"/>
-    <use href="#pinHole" stroke="#F5C62A" stroke-width="7"/>
+    <use href="#pinHole" stroke="#F34E8A" stroke-width="58"/>
+    <use href="#pinHole" stroke="#FF6D3A" stroke-width="50"/>
+    <use href="#pinHole" stroke="#8A4DDD" stroke-width="42"/>
+    <use href="#pinHole" stroke="#315BEA" stroke-width="34"/>
+    <use href="#pinHole" stroke="#29BFE8" stroke-width="26"/>
+    <use href="#pinHole" stroke="#62C96B" stroke-width="18"/>
+    <use href="#pinHole" stroke="#F5C62A" stroke-width="10"/>
   </g>
-  <circle cx="512" cy="430" r="81" fill="#FFFEFC"/>
+  <circle cx="512" cy="430" r="76" fill="#FFFEFC"/>
 </svg>
