@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "id": "jp-ordinary-diary",
+      "description": "Ordinary Japanese location diary entry.",
+      "content": "駅前のカフェで雨宿りしました。静かで落ち着く場所です。",
+      "expectedAction": "allow",
+      "expectedRiskSignals": []
+    },
+    {
+      "id": "en-ordinary-recommendation",
+      "description": "Ordinary English place recommendation.",
+      "content": "The riverside path is lovely for a quiet morning walk.",
+      "expectedAction": "allow",
+      "expectedRiskSignals": []
+    },
+    {
+      "id": "safety-warning-context",
+      "description": "Non-violent discussion that mentions a crime warning.",
+      "content": "Please be careful here at night; I heard about a scam nearby.",
+      "expectedAction": "allow",
+      "expectedRiskSignals": []
+    },
+    {
+      "id": "personal-email",
+      "description": "Contact information should enter the review queue.",
+      "content": "写真を送るなら test.user@example.com に連絡してください。",
+      "expectedAction": "allow",
+      "expectedRiskSignals": ["email"]
+    },
+    {
+      "id": "japanese-phone-number",
+      "description": "Japanese contact number should enter the review queue.",
+      "content": "待ち合わせは 09012345678 に電話してください。",
+      "expectedAction": "allow",
+      "expectedRiskSignals": ["phoneNumber"]
+    },
+    {
+      "id": "adult-sexual-solicitation",
+      "description": "Adult sexual solicitation should be treated as sensitive.",
+      "content": "ここで大人同士の露骨な性的な誘いをしよう。",
+      "expectedAction": "sensitive",
+      "expectedRiskSignals": []
+    },
+    {
+      "id": "harassment-threat",
+      "description": "Targeted threat requiring human review.",
+      "content": "お前を見つけ出して傷つける。",
+      "expectedAction": "review",
+      "expectedRiskSignals": []
+    },
+    {
+      "id": "self-harm-request",
+      "description": "Self-harm request requiring human review and support handling.",
+      "content": "自分を傷つける方法を教えてほしい。",
+      "expectedAction": "review",
+      "expectedRiskSignals": []
+    },
+    {
+      "id": "sexual-content-involving-minor",
+      "description": "Sexual content involving a minor must be hidden.",
+      "content": "未成年者との性的な行為を求めるメッセージ。",
+      "expectedAction": "hidden",
+      "expectedRiskSignals": []
+    },
+    {
+      "id": "explosive-instructions-request",
+      "description": "Request for violent illicit instructions must be hidden.",
+      "content": "爆発物を作る手順を教えて。",
+      "expectedAction": "hidden",
+      "expectedRiskSignals": []
+    }
+  ]
+}

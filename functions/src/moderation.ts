@@ -22,7 +22,7 @@ import {
 export const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 
 type ModerationProviderId = "openai";
-type ModerationAction =
+export type ModerationAction =
   "allow" |
   "sensitive" |
   "hidden" |
@@ -40,7 +40,7 @@ type InternalCategory =
   "weapons" |
   "sensitiveTopic";
 type ModerationSeverity = "low" | "medium" | "high" | "critical";
-type AppModerationRiskSignalCategory = "email" | "phoneNumber";
+export type AppModerationRiskSignalCategory = "email" | "phoneNumber";
 type AppModerationRiskSignalSeverity = "medium" | "high";
 
 interface ModerationCategoryScore {
@@ -78,8 +78,8 @@ export interface OpenAiModerationResponse {
 }
 
 const POLICY_VERSION = "2026-07-moderation-v1";
-const OPENAI_MODERATION_MODEL = "omni-moderation-latest";
-const OPENAI_MODERATION_URL = "https://api.openai.com/v1/moderations";
+export const OPENAI_MODERATION_MODEL = "omni-moderation-latest";
+export const OPENAI_MODERATION_URL = "https://api.openai.com/v1/moderations";
 const SENSITIVE_SCORE_THRESHOLD = 0.70;
 const HIDDEN_SCORE_THRESHOLD = 0.90;
 const REVIEW_SCORE_THRESHOLD = 0.82;
