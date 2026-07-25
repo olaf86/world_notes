@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/note_themes.dart';
+import '../../../domain/entities/note_theme.dart';
 import 'note_pin_avatar.dart';
 
 class NoteListCard extends StatelessWidget {
@@ -13,6 +15,8 @@ class NoteListCard extends StatelessWidget {
   final List<NoteListMeta> metadata;
   final Widget? trailing;
   final VoidCallback? onTap;
+  final NoteThemeId themeId;
+  final bool isArchived;
 
   const NoteListCard({
     super.key,
@@ -26,91 +30,110 @@ class NoteListCard extends StatelessWidget {
     this.metadata = const [],
     this.trailing,
     this.onTap,
+    this.themeId = NoteThemeId.standard,
+    this.isArchived = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final trimmedSubtitle = subtitle?.trim();
     final hasSubtitle = trimmedSubtitle?.isNotEmpty == true;
 
-    return Card(
-      margin: EdgeInsets.zero,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: colorScheme.outlineVariant),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              NotePinAvatar(
-                color: avatarColor,
-                icon: avatarIcon,
-                storagePath: avatarImageStoragePath,
-                badge: avatarBadge,
+    return Theme(
+      data: NoteThemes.themed(context, themeId),
+      child: Builder(
+        builder: (context) {
+          final theme = Theme.of(context);
+          final colorScheme = theme.colorScheme;
+          final palette = NoteThemes.paletteOf(context, themeId);
+          return Card(
+            margin: EdgeInsets.zero,
+            elevation: 0,
+            color: Colors.transparent,
+            clipBehavior: Clip.antiAlias,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+              side: BorderSide(color: colorScheme.outlineVariant),
+            ),
+            child: Ink(
+              key: ValueKey('note-theme-card-${themeId.name}'),
+              decoration: BoxDecoration(
+                gradient: palette.cardGradient(isArchived: isArchived),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            title,
-                            style: theme.textTheme.titleSmall,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (titleAccessory != null) ...[
-                          const SizedBox(width: 8),
-                          titleAccessory!,
-                        ],
-                        if (trailing != null) ...[
-                          const SizedBox(width: 8),
-                          trailing!,
-                        ],
-                      ],
-                    ),
-                    if (hasSubtitle)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          trimmedSubtitle!,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+              child: InkWell(
+                onTap: onTap,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      NotePinAvatar(
+                        color: avatarColor,
+                        icon: avatarIcon,
+                        storagePath: avatarImageStoragePath,
+                        badge: avatarBadge,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    title,
+                                    style: theme.textTheme.titleSmall,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (titleAccessory != null) ...[
+                                  const SizedBox(width: 8),
+                                  titleAccessory!,
+                                ],
+                                if (trailing != null) ...[
+                                  const SizedBox(width: 8),
+                                  trailing!,
+                                ],
+                              ],
+                            ),
+                            if (hasSubtitle)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  trimmedSubtitle!,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            if (metadata.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: Wrap(
+                                  spacing: 8,
+                                  runSpacing: 4,
+                                  children: metadata
+                                      .map(
+                                        (item) => _NoteListMetaView(item: item),
+                                      )
+                                      .toList(),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
-                    if (metadata.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Wrap(
-                          spacing: 8,
-                          runSpacing: 4,
-                          children: metadata
-                              .map((item) => _NoteListMetaView(item: item))
-                              .toList(),
-                        ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }

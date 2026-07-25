@@ -29,6 +29,7 @@ class ImageGridLayout extends StatelessWidget {
 
     if (count == 3) {
       return Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(child: itemBuilder(context, 0)),
           const SizedBox(width: gap),

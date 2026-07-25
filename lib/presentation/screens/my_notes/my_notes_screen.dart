@@ -6,7 +6,10 @@ import '../../../core/utils/place_icon.dart';
 import '../../../domain/entities/note_list_sort.dart';
 import '../../../domain/entities/place_entity.dart';
 import '../../../domain/policies/note_permissions.dart';
+import '../../../l10n/l10n.dart';
+import '../../../l10n/localized_formatters.dart';
 import '../../providers/providers.dart';
+import '../../widgets/loading_skeleton.dart';
 import '../../widgets/my_notes_notification_controls.dart';
 import '../../widgets/note/note_list_card.dart';
 import '../../widgets/note/note_sort_button.dart';
@@ -33,67 +36,22 @@ class MyNotesScreen extends ConsumerWidget {
   }
 }
 
-class _NotesAppBar extends ConsumerStatefulWidget
-    implements PreferredSizeWidget {
+class _NotesAppBar extends StatelessWidget implements PreferredSizeWidget {
   const _NotesAppBar();
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight + 48);
 
   @override
-  ConsumerState<_NotesAppBar> createState() => _NotesAppBarState();
-}
-
-class _NotesAppBarState extends ConsumerState<_NotesAppBar> {
-  TabController? _tabController;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final tabController = DefaultTabController.of(context);
-    if (_tabController == tabController) return;
-    _tabController?.removeListener(_onTabChanged);
-    _tabController = tabController..addListener(_onTabChanged);
-  }
-
-  @override
-  void dispose() {
-    _tabController?.removeListener(_onTabChanged);
-    super.dispose();
-  }
-
-  void _onTabChanged() {
-    if (mounted) setState(() {});
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final isArchivedTab = _tabController?.index == 1;
-    final sortProvider = isArchivedTab
-        ? archivedMyNotesSortProvider
-        : myNotesSortProvider;
-    final sort = ref.watch(sortProvider);
+    final l10n = context.l10n;
     return AppBar(
-      title: const Text('Notes'),
-      actions: [
-        NoteSortButton(
-          selected: sort,
-          provider: sortProvider,
-          options: isArchivedTab
-              ? const [NoteListSort.archivedNewest, NoteListSort.archivedOldest]
-              : const [
-                  NoteListSort.lastActivity,
-                  NoteListSort.newest,
-                  NoteListSort.expiresSoonest,
-                ],
-          semanticIdentifier: 'action-sort-my-notes',
-        ),
-        const MyNotesNotificationIconButton(),
-      ],
-      bottom: const TabBar(
+      title: Text(l10n.myNotesTitle),
+      actions: const [MyNotesNotificationIconButton()],
+      bottom: TabBar(
         tabs: [
-          Tab(text: 'My Notes'),
-          Tab(text: 'Archived'),
+          Tab(text: l10n.myNotesTab),
+          Tab(text: l10n.archivedNotesTab),
         ],
       ),
     );
@@ -108,23 +66,20 @@ class _MyNotesListView extends ConsumerWidget {
     WidgetRef ref,
     PlaceEntity place,
   ) async {
+    final l10n = context.l10n;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Archive this note?'),
-        content: const Text(
-          'It will disappear from the map, become read-only, and free one '
-          'note slot. You cannot restore the archived note, but you can '
-          'create a new note from its title, description, and location later.',
-        ),
+        title: Text(l10n.archiveNoteTitle),
+        content: Text(l10n.archiveNoteMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
+            child: Text(l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Archive'),
+            child: Text(l10n.archiveAction),
           ),
         ],
       ),
@@ -138,7 +93,7 @@ class _MyNotesListView extends ConsumerWidget {
       if (!context.mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Failed to archive note: $error')));
+      ).showSnackBar(SnackBar(content: Text(l10n.archiveFailed(error))));
     }
   }
 
@@ -163,11 +118,9 @@ class _MyNotesListView extends ConsumerWidget {
               await ref.read(myPlacesProvider.future);
             },
             child: placesAsync.when(
-              loading: () => const _ScrollableStatusView(
-                child: Center(child: CircularProgressIndicator()),
-              ),
+              loading: () => const SkeletonView(child: SkeletonListView()),
               error: (e, _) => _ScrollableStatusView(
-                child: Center(child: Text('Error: $e')),
+                child: Center(child: Text(context.l10n.commonError(e))),
               ),
               data: (places) {
                 if (places.isEmpty) {
@@ -354,13 +307,11 @@ class _ArchivedNotesListViewState
 
   Widget _buildList() {
     if (_initialLoading) {
-      return const _ScrollableStatusView(
-        child: Center(child: CircularProgressIndicator()),
-      );
+      return const SkeletonView(child: SkeletonListView());
     }
     if (_error != null && _places.isEmpty) {
       return _ScrollableStatusView(
-        child: Center(child: Text('Error: $_error')),
+        child: Center(child: Text(context.l10n.commonError(_error!))),
       );
     }
     if (_places.isEmpty) {
@@ -388,6 +339,7 @@ class _ArchivedNotesListViewState
   }
 
   Widget _loadMoreFooter() {
+    final l10n = context.l10n;
     if (_loadingMore) {
       return const Padding(
         padding: EdgeInsets.all(12),
@@ -398,7 +350,7 @@ class _ArchivedNotesListViewState
       child: TextButton.icon(
         onPressed: _loadMore,
         icon: const Icon(Icons.expand_more),
-        label: Text(_error == null ? 'Load more' : 'Retry loading more'),
+        label: Text(_error == null ? l10n.loadMore : l10n.retryLoadMore),
       ),
     );
   }
@@ -435,6 +387,7 @@ class _NoteLimitSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = context.l10n;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -443,26 +396,41 @@ class _NoteLimitSummary extends StatelessWidget {
           Icon(Icons.note_alt_outlined, size: 18, color: colorScheme.primary),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              'Created notes',
-              style: theme.textTheme.bodyMedium,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          Text(
-            '$currentCount / $limit',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: colorScheme.primary,
-              fontWeight: FontWeight.w700,
+            child: Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    l10n.createdNotes,
+                    style: theme.textTheme.bodyMedium,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '$currentCount / $limit',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(width: 12),
-          Flexible(
-            child: NoteSortStatus(
-              sort: sort,
-              semanticIdentifier: 'my-notes-sort-status',
-              inline: true,
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: NoteSortChip(
+                selected: sort,
+                provider: myNotesSortProvider,
+                options: const [
+                  NoteListSort.lastActivity,
+                  NoteListSort.newest,
+                  NoteListSort.expiresSoonest,
+                ],
+                semanticIdentifier: 'action-sort-my-notes',
+              ),
             ),
           ),
         ],
@@ -486,6 +454,7 @@ class _ArchivedNotesSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = context.l10n;
 
     return Semantics(
       identifier: 'archived-notes-count',
@@ -496,43 +465,57 @@ class _ArchivedNotesSummary extends StatelessWidget {
             Icon(Icons.archive_outlined, size: 18, color: colorScheme.primary),
             const SizedBox(width: 8),
             Expanded(
-              child: Text(
-                'Archived notes',
-                style: theme.textTheme.bodyMedium,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              child: Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      l10n.archivedNotes,
+                      style: theme.textTheme.bodyMedium,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  if (count != null)
+                    Text(
+                      '$count',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    )
+                  else if (isLoading)
+                    SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: colorScheme.primary,
+                      ),
+                    )
+                  else
+                    Text(
+                      '—',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                ],
               ),
             ),
-            if (count != null)
-              Text(
-                '$count',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.primary,
-                  fontWeight: FontWeight.w700,
-                ),
-              )
-            else if (isLoading)
-              SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: colorScheme.primary,
-                ),
-              )
-            else
-              Text(
-                '—',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
             const SizedBox(width: 12),
-            Flexible(
-              child: NoteSortStatus(
-                sort: sort,
-                semanticIdentifier: 'archived-notes-sort-status',
-                inline: true,
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: NoteSortChip(
+                  selected: sort,
+                  provider: archivedMyNotesSortProvider,
+                  options: const [
+                    NoteListSort.archivedNewest,
+                    NoteListSort.archivedOldest,
+                  ],
+                  semanticIdentifier: 'action-sort-archived-notes',
+                ),
               ),
             ),
           ],
@@ -557,6 +540,7 @@ class _MyNoteCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = parsePlaceColor(place.colorHex);
     final lastActivity = place.lastMessageAt ?? place.createdAt;
+    final l10n = context.l10n;
 
     return Semantics(
       identifier: 'my-note-card-${place.id}',
@@ -565,6 +549,8 @@ class _MyNoteCard extends StatelessWidget {
         avatarColor: color,
         avatarIcon: placeIconData(place.icon),
         avatarImageStoragePath: place.pinImageStoragePath,
+        themeId: place.themeId,
+        isArchived: place.isArchived,
         avatarBadge: UserAvatarBadge(
           name: place.creatorName,
           photoUrl: place.creatorPhotoUrl,
@@ -575,21 +561,22 @@ class _MyNoteCard extends StatelessWidget {
         metadata: [
           NoteListMeta(
             icon: Icons.schedule_outlined,
-            label: 'Last active ${_relativeTime(lastActivity)}',
+            label: l10n.lastActive(_relativeTime(l10n, lastActivity)),
           ),
           if (place.isArchived)
             NoteListMeta(
               icon: Icons.archive_outlined,
-              label:
-                  'Archived ${_relativeTime(place.archivedAt ?? place.expiresAt)}',
+              label: l10n.archivedAt(
+                _relativeTime(l10n, place.archivedAt ?? place.expiresAt),
+              ),
             )
           else if (place.isClosed)
-            const NoteListMeta(
+            NoteListMeta(
               icon: Icons.do_not_disturb_on_outlined,
-              label: 'Closed',
+              label: l10n.noteClosed,
             ),
           if (place.isPrivate)
-            const NoteListMeta(icon: Icons.lock_outline, label: 'Private'),
+            NoteListMeta(icon: Icons.lock_outline, label: l10n.notePrivate),
         ],
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
@@ -601,7 +588,7 @@ class _MyNoteCard extends StatelessWidget {
               const SizedBox(width: 4),
               IconButton(
                 visualDensity: VisualDensity.compact,
-                tooltip: 'Create new note from archive',
+                tooltip: l10n.createFromArchiveTooltip,
                 onPressed: onCreateFromArchive,
                 icon: const Icon(Icons.add_location_alt_outlined, size: 20),
               ),
@@ -610,7 +597,7 @@ class _MyNoteCard extends StatelessWidget {
               const SizedBox(width: 4),
               IconButton(
                 visualDensity: VisualDensity.compact,
-                tooltip: 'Archive note',
+                tooltip: l10n.archiveNoteTooltip,
                 onPressed: onArchive,
                 icon: const Icon(Icons.archive_outlined, size: 20),
               ),
@@ -622,19 +609,8 @@ class _MyNoteCard extends StatelessWidget {
     );
   }
 
-  String _relativeTime(DateTime time) {
-    final diff = DateTime.now().difference(time);
-    if (diff.inDays >= 1) {
-      return '${diff.inDays} day${diff.inDays == 1 ? '' : 's'} ago';
-    }
-    if (diff.inHours >= 1) {
-      return '${diff.inHours} hour${diff.inHours == 1 ? '' : 's'} ago';
-    }
-    if (diff.inMinutes >= 1) {
-      return '${diff.inMinutes} min ago';
-    }
-    return 'just now';
-  }
+  String _relativeTime(AppLocalizations l10n, DateTime time) =>
+      formatRelativeTime(l10n, time);
 }
 
 class _MessageCountBadge extends StatelessWidget {
@@ -703,6 +679,7 @@ class _EmptyArchivedNotesView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -716,7 +693,7 @@ class _EmptyArchivedNotesView extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'No archived notes yet.',
+              l10n.noArchivedNotes,
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
@@ -751,6 +728,7 @@ class _EmptyMyNotesView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -764,7 +742,7 @@ class _EmptyMyNotesView extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'No notes yet.\nCreate one from the Map tab.',
+              l10n.noMyNotes,
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,

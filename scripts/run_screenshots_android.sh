@@ -4,6 +4,16 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT_DIR"
 
+SCREENSHOT_LOCALE="${SCREENSHOT_LOCALE:-ja}"
+case "$SCREENSHOT_LOCALE" in
+  en|ja|zh_Hant|zh_Hans|ko) ;;
+  *)
+    echo "SCREENSHOT_LOCALE must be en, ja, zh_Hant, zh_Hans, or ko." >&2
+    exit 1
+    ;;
+esac
+SCREENSHOT_OUTPUT_DIR="artifacts/store_screenshots/android/$SCREENSHOT_LOCALE"
+
 if ! command -v maestro >/dev/null 2>&1; then
   echo "maestro command not found. Install Maestro CLI first." >&2
   exit 1
@@ -12,10 +22,13 @@ fi
 echo "[1/2] Seeding screenshot data..."
 (
   cd functions
-  npm run seed:screenshot
+  SCREENSHOT_LOCALE="$SCREENSHOT_LOCALE" npm run seed:screenshot
 )
 
 echo "[2/2] Running Maestro flow (Android)..."
-maestro test maestro/flows/android/store_screenshots.yaml
+mkdir -p "$SCREENSHOT_OUTPUT_DIR"
+maestro test \
+  -e SCREENSHOT_OUTPUT_DIR="$SCREENSHOT_OUTPUT_DIR" \
+  maestro/flows/android/store_screenshots.yaml
 
-echo "Done: artifacts/store_screenshots/android/"
+echo "Done: $SCREENSHOT_OUTPUT_DIR/"

@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/utils/time_format.dart';
+import '../../../l10n/l10n.dart';
+import '../../../l10n/localized_formatters.dart';
 import '../../../domain/entities/note_visitor_entity.dart';
 import '../../../domain/policies/note_permissions.dart';
 import '../../providers/providers.dart';
@@ -211,14 +212,20 @@ class _VisitorTile extends StatelessWidget {
     final theme = Theme.of(context);
     final photoUrl = visitor.photoUrl;
     final primaryDetail = switch (sort) {
-      NoteVisitorSort.latest => noteDateTimeLabel(visitor.lastVisitedAt),
+      NoteVisitorSort.latest => formatNoteDateTime(
+        visitor.lastVisitedAt,
+        locale: context.localeTag,
+      ),
       NoteVisitorSort.visitCount =>
         '${visitor.visitCount} visit${visitor.visitCount == 1 ? '' : 's'}',
     };
     final secondaryDetail = switch (sort) {
       NoteVisitorSort.latest =>
         '${visitor.visitCount} visit${visitor.visitCount == 1 ? '' : 's'}',
-      NoteVisitorSort.visitCount => noteDateTimeLabel(visitor.lastVisitedAt),
+      NoteVisitorSort.visitCount => formatNoteDateTime(
+        visitor.lastVisitedAt,
+        locale: context.localeTag,
+      ),
     };
 
     return Card(
@@ -299,10 +306,10 @@ class _EmptyVisitors extends StatelessWidget {
               color: theme.colorScheme.onSurfaceVariant,
             ),
             const SizedBox(height: 12),
-            Text('No footprints yet', style: theme.textTheme.titleMedium),
+            Text(context.l10n.noFootprints, style: theme.textTheme.titleMedium),
             const SizedBox(height: 4),
             Text(
-              'Visitors will appear here after they open this note.',
+              context.l10n.noFootprintsDescription,
               textAlign: TextAlign.center,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,

@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -33,11 +36,14 @@ import '../../domain/repositories/follow_repository.dart';
 import '../../domain/repositories/message_repository.dart';
 import '../../domain/repositories/notice_repository.dart';
 import '../../domain/repositories/place_repository.dart';
+import '../../l10n/app_locale.dart';
+import '../../services/ad_privacy_service.dart';
 import '../../services/location_service.dart';
 import '../../services/admin_moderation_service.dart';
 import '../../services/message_image_service.dart';
 import '../../services/my_notes_notification_service.dart';
 import '../../services/notice_notification_service.dart';
+import '../../services/note_open_interstitial_service.dart';
 import '../../services/subscription_service.dart';
 
 // --- Infrastructure ---
@@ -62,6 +68,11 @@ final firebaseCrashlyticsProvider = Provider<FirebaseCrashlytics>(
   (_) => FirebaseCrashlytics.instance,
 );
 
+/// Preloaded before [runApp] in production so persisted UI preferences are
+/// available on the first rendered frame. Tests may leave this null and get
+/// the system-language default.
+final sharedPreferencesProvider = Provider<SharedPreferences?>((_) => null);
+
 // The client must target a region where the functions are actually deployed,
 // or callable lookups 404. The region is resolved by [effectiveRegionProvider]
 // (manual override > nearest available to current location > default).
@@ -80,12 +91,62 @@ final subscriptionServiceProvider = Provider<SubscriptionService>(
   (_) => SubscriptionService(),
 );
 
+final adPrivacyServiceProvider = Provider<AdPrivacyService>(
+  (_) => GoogleAdPrivacyService(),
+);
+
+/// Starts UMP only after authentication and the subscription state have
+/// resolved. UMP decides whether a form is needed on this app launch and, on
+/// iOS, sequences a published IDFA explanation before the one-time ATT alert.
+final adPrivacyStatusProvider = FutureProvider<AdPrivacyStatus>((ref) async {
+  if (!AppConfig.supportsMobileAds || !AppConfig.hasRequiredAdUnitIds) {
+    return AdPrivacyStatus.disabled;
+  }
+
+  final user = ref.watch(authStateProvider).valueOrNull;
+  final isPremium = ref.watch(isPremiumProvider).valueOrNull;
+  if (user == null || isPremium != false) {
+    return AdPrivacyStatus.disabled;
+  }
+
+  return ref.watch(adPrivacyServiceProvider).gatherConsentAndInitialize();
+});
+
+final canRequestAdsProvider = Provider<bool>((ref) {
+  return ref.watch(adPrivacyStatusProvider).valueOrNull?.canRequestAds ?? false;
+});
+
 final messageImageServiceProvider = Provider<MessageImageService>((ref) {
   final service = MessageImageService(
     storage: ref.watch(firebaseStorageProvider),
   );
   ref.onDispose(service.dispose);
   return service;
+});
+
+/// Preloaded interstitial gate used only by the map note-opening flows.
+/// Premium must resolve explicitly to false before the ad client is created.
+final noteOpenInterstitialGateProvider = Provider<NoteOpenInterstitialGate>((
+  ref,
+) {
+  if (!AppConfig.supportsMobileAds || !ref.watch(canRequestAdsProvider)) {
+    return const DisabledNoteOpenInterstitialGate();
+  }
+
+  final user = ref.watch(authStateProvider).valueOrNull;
+  final isPremium = ref.watch(isPremiumProvider).valueOrNull;
+  if (user == null || isPremium != false) {
+    return const DisabledNoteOpenInterstitialGate();
+  }
+
+  final controller = NoteOpenInterstitialController(
+    userId: user.id,
+    stateStore: SharedPreferencesNoteOpenInterstitialStateStore(),
+    adClient: GoogleInterstitialAdClient(),
+  );
+  controller.preload();
+  ref.onDispose(controller.dispose);
+  return controller;
 });
 
 final messageImageUrlProvider = FutureProvider.autoDispose
@@ -124,6 +185,172 @@ final adminModerationServiceProvider = Provider<AdminModerationService>((ref) {
     functions: ref.watch(firebaseFunctionsProvider),
   );
 });
+
+// --- App language ---
+
+final appLanguagePreferenceProvider =
+    StateNotifierProvider<AppLanguagePreferenceNotifier, AppLanguagePreference>(
+      (ref) {
+        return AppLanguagePreferenceNotifier(
+          auth: ref.watch(firebaseAuthProvider),
+          firestore: ref.watch(firestoreProvider),
+          functions: ref.watch(firebaseFunctionsProvider),
+          preferences: ref.watch(sharedPreferencesProvider),
+          syncAccount: !screenshotMode,
+        );
+      },
+    );
+
+/// Keeps the signed-in account preference authoritative while mirroring it to
+/// local storage for a flicker-free and offline-capable next launch.
+class AppLanguagePreferenceNotifier
+    extends StateNotifier<AppLanguagePreference> {
+  AppLanguagePreferenceNotifier({
+    required FirebaseAuth auth,
+    required FirebaseFirestore firestore,
+    required FirebaseFunctions functions,
+    required SharedPreferences? preferences,
+    required bool syncAccount,
+  }) : _auth = auth,
+       _firestore = firestore,
+       _functions = functions,
+       _preferences = preferences,
+       super(
+         AppLanguagePreference.fromLocalStorage(
+           preferences?.getString(appLanguagePreferenceKey),
+         ),
+       ) {
+    if (syncAccount) {
+      _authSubscription = auth.authStateChanges().listen(_onAuthChanged);
+    }
+  }
+
+  AppLanguagePreferenceNotifier.localOnly({
+    required SharedPreferences preferences,
+  }) : _auth = null,
+       _firestore = null,
+       _functions = null,
+       _preferences = preferences,
+       super(
+         AppLanguagePreference.fromLocalStorage(
+           preferences.getString(appLanguagePreferenceKey),
+         ),
+       );
+
+  final FirebaseAuth? _auth;
+  final FirebaseFirestore? _firestore;
+  final FirebaseFunctions? _functions;
+  SharedPreferences? _preferences;
+  StreamSubscription<User?>? _authSubscription;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
+  _accountSubscription;
+  String? _accountBeingSeeded;
+  AppLanguagePreference? _pendingPreference;
+
+  Future<void> setPreference(AppLanguagePreference preference) async {
+    state = preference;
+    await _persistLocally(preference);
+
+    final functions = _functions;
+    if (_auth?.currentUser == null || functions == null) return;
+    _pendingPreference = preference;
+    try {
+      await functions.httpsCallable('setLanguagePreference').call<void>({
+        'languagePreference': preference.storageValue,
+      });
+    } catch (_) {
+      _pendingPreference = null;
+      rethrow;
+    }
+  }
+
+  void _onAuthChanged(User? user) {
+    _accountSubscription?.cancel();
+    _accountSubscription = null;
+    _accountBeingSeeded = null;
+    _pendingPreference = null;
+
+    if (user == null) {
+      _applyAccountPreference(AppLanguagePreference.system);
+      return;
+    }
+
+    final firestore = _firestore;
+    if (firestore == null) return;
+    _accountSubscription = firestore
+        .collection('users')
+        .doc(user.uid)
+        .snapshots()
+        .listen(
+          (snapshot) => _onAccountSnapshot(user.uid, snapshot),
+          onError: (Object error, StackTrace stack) {
+            debugPrint(
+              'Failed to sync account language preference: $error\n$stack',
+            );
+          },
+        );
+  }
+
+  void _onAccountSnapshot(
+    String userId,
+    DocumentSnapshot<Map<String, dynamic>> snapshot,
+  ) {
+    if (!snapshot.exists) return;
+    final rawPreference = snapshot.data()?['languagePreference'];
+    final saved = AppLanguagePreference.tryParse(
+      rawPreference is String ? rawPreference : null,
+    );
+    if (saved != null) {
+      if (_pendingPreference != null && saved != _pendingPreference) return;
+      _pendingPreference = null;
+      _accountBeingSeeded = null;
+      _applyAccountPreference(saved);
+      return;
+    }
+
+    // Existing accounts predate this field. Preserve the app's historical
+    // behavior by starting those accounts on the system-language setting.
+    if (_accountBeingSeeded == userId) return;
+    _accountBeingSeeded = userId;
+    _applyAccountPreference(AppLanguagePreference.system);
+    unawaited(_seedAccountPreference());
+  }
+
+  Future<void> _seedAccountPreference() async {
+    final functions = _functions;
+    if (functions == null) return;
+    try {
+      await functions.httpsCallable('setLanguagePreference').call<void>({
+        'languagePreference': AppLanguagePreference.system.storageValue,
+      });
+    } catch (error, stack) {
+      _accountBeingSeeded = null;
+      debugPrint(
+        'Failed to initialize account language preference: $error\n$stack',
+      );
+    }
+  }
+
+  void _applyAccountPreference(AppLanguagePreference preference) {
+    state = preference;
+    unawaited(_persistLocally(preference));
+  }
+
+  Future<void> _persistLocally(AppLanguagePreference preference) async {
+    final preferences = _preferences ??= await SharedPreferences.getInstance();
+    await preferences.setString(
+      appLanguagePreferenceKey,
+      preference.storageValue,
+    );
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    _accountSubscription?.cancel();
+    super.dispose();
+  }
+}
 
 // --- Repositories ---
 
@@ -428,6 +655,59 @@ final placeProvider = StreamProvider.family<PlaceEntity?, String>((
   return ref.watch(placeRepositoryProvider).watchPlace(placeId);
 });
 
+/// A proximity check performed after the note route is already visible.
+/// Keeping this in Riverpod deduplicates retries for the same route arguments
+/// and lets the destination own its loading and error states.
+class NoteAccessValidationRequest {
+  final String placeId;
+  final double latitude;
+  final double longitude;
+
+  const NoteAccessValidationRequest({
+    required this.placeId,
+    required this.latitude,
+    required this.longitude,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      other is NoteAccessValidationRequest &&
+      other.placeId == placeId &&
+      other.latitude == latitude &&
+      other.longitude == longitude;
+
+  @override
+  int get hashCode => Object.hash(placeId, latitude, longitude);
+}
+
+final noteAccessValidationProvider = FutureProvider.autoDispose
+    .family<void, NoteAccessValidationRequest>((ref, request) async {
+      try {
+        await ref
+            .watch(placeRepositoryProvider)
+            .validateNoteAccess(
+              placeId: request.placeId,
+              latitude: request.latitude,
+              longitude: request.longitude,
+            );
+      } catch (error, stack) {
+        try {
+          await ref
+              .read(firebaseCrashlyticsProvider)
+              .recordError(
+                error,
+                stack,
+                reason: 'Note destination access validation failed',
+                fatal: false,
+              );
+        } catch (_) {
+          // Access errors still belong in the destination UI even when
+          // Crashlytics itself is unavailable.
+        }
+        rethrow;
+      }
+    });
+
 /// The current user's access grant for a (private) note — null if none.
 /// For public notes this isn't needed; callers gate on PlaceEntity.isPublic.
 final noteMembershipProvider = StreamProvider.family<NoteMembership?, String>((
@@ -502,6 +782,17 @@ final myPlacesProvider = StreamProvider<List<PlaceEntity>>((ref) {
   final user = ref.watch(authStateProvider).valueOrNull;
   if (user == null) return Stream.value(const []);
   return ref.watch(placeRepositoryProvider).watchMyPlaces(user.id);
+});
+
+/// Server-backed note-cap precheck used by the creation destination. The form
+/// can render while this runs; createNote remains the authoritative check.
+final activeMyPlacesCountProvider = FutureProvider.autoDispose<int?>((
+  ref,
+) async {
+  final repository = ref.watch(placeRepositoryProvider);
+  final user = await ref.watch(authStateProvider.future);
+  if (user == null) return null;
+  return repository.countUserActivePlaces(user.id);
 });
 
 /// Total archived notes owned by the current user. The archived list itself is

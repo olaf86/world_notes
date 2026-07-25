@@ -31,6 +31,7 @@ inside widgets. Cloud Functions should use named helpers in
 | Remove a regular member's access | Yes | Yes | No | No |
 | Promote or demote maintainers | Yes | No | No | No |
 | Set or change the note lock | Yes | No | No | No |
+| Change the note theme | Yes | Yes | No | No |
 | Archive a note | Yes | No | No | No |
 
 Operational notes:

@@ -45,9 +45,9 @@ export {
   setMyNotesNotificationPreviewEnabled,
 } from "./notifications";
 
-// User profile updates. Nickname changes keep future posts using the new name
-// and refresh note access-list member labels.
-export {updateDisplayName} from "./userProfile";
+// Private account preferences and profile updates. Nickname changes also keep
+// future posts and note access-list member labels in sync.
+export {setLanguagePreference, updateDisplayName} from "./userProfile";
 export {syncCreatorPhotoSnapshot} from "./creatorProfileSnapshots";
 
 // Map exploration pin summaries and detail-entry proximity checks.
@@ -63,5 +63,11 @@ export {setNoteLike} from "./likes";
 export {setUserFollow} from "./social";
 
 // Note lifecycle and metadata functions. Region set in their own options.
-export {createNote, setNotePinImage, archiveNote, archiveExpiredNotes}
+export {
+  createNote,
+  setNotePinImage,
+  setNoteTheme,
+  archiveNote,
+  archiveExpiredNotes,
+}
   from "./notes";

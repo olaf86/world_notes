@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import '../../../core/utils/place_icon.dart';
+import '../../../l10n/l10n.dart';
 
 /// Shows the selected map-pin image and actions to add, replace, or remove it.
 class PinImageSummary extends StatelessWidget {
@@ -26,6 +27,7 @@ class PinImageSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
     final thumbnail = bytes;
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -54,14 +56,14 @@ class PinImageSummary extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    thumbnail == null ? 'Image pin' : 'Image pin ready',
+                    thumbnail == null ? l10n.imagePin : l10n.imagePinReady,
                     style: theme.textTheme.titleSmall,
                   ),
                   const SizedBox(height: 2),
                   Text(
                     thumbnail == null
-                        ? 'Add a cropped thumbnail. The default pin is used as fallback.'
-                        : 'This cropped thumbnail will be uploaded.',
+                        ? l10n.pinImageEmptyDescription
+                        : l10n.pinImageReadyDescription,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -70,7 +72,7 @@ class PinImageSummary extends StatelessWidget {
               ),
             ),
             IconButton(
-              tooltip: thumbnail == null ? 'Choose image' : 'Change image',
+              tooltip: thumbnail == null ? l10n.chooseImage : l10n.changeImage,
               onPressed: picking ? null : onPick,
               icon: picking
                   ? const SizedBox(
@@ -86,7 +88,7 @@ class PinImageSummary extends StatelessWidget {
             ),
             if (thumbnail != null)
               IconButton(
-                tooltip: 'Remove image',
+                tooltip: l10n.removeImage,
                 onPressed: picking ? null : onRemove,
                 icon: const Icon(Icons.close),
               ),

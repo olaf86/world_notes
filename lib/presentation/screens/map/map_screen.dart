@@ -11,6 +11,7 @@ import '../../../config/route_observer.dart';
 import '../../../core/map_style.dart';
 import '../../../core/utils/image_upload_util.dart';
 import '../../../domain/entities/pin_summary_entity.dart';
+import '../../../l10n/l10n.dart';
 import '../../../services/location_service.dart';
 import '../../providers/providers.dart';
 import '../../widgets/map/location_checking_view.dart';
@@ -144,40 +145,27 @@ class _MapScreenState extends ConsumerState<MapScreen>
         ref.read(anchorPositionProvider);
     if (!mounted) return false;
     if (anchor == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not get your current location.')),
-      );
+      final l10n = context.l10n;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.currentLocationUnavailable)));
       return false;
     }
 
     try {
       await ref
-          .read(placeRepositoryProvider)
-          .validateNoteAccess(
-            placeId: pin.placeId,
-            latitude: anchor.latitude,
-            longitude: anchor.longitude,
-          );
-    } catch (error, stack) {
-      await reportMapNotesError(
-        crashlytics: ref.read(firebaseCrashlyticsProvider),
-        operation: 'open map pin',
-        error: error,
-        stack: stack,
-      );
+          .read(noteOpenInterstitialGateProvider)
+          .beforeNoteOpen(placeId: pin.placeId);
       if (!mounted) return false;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text(mapNoteOpenErrorMessage)));
-      return false;
-    }
-
-    if (!mounted) return false;
-    try {
       unawaited(
         context
             .push(
               '/note/${pin.placeId}?title=${Uri.encodeComponent(pin.title)}',
+              extra: NoteAccessValidationRequest(
+                placeId: pin.placeId,
+                latitude: anchor.latitude,
+                longitude: anchor.longitude,
+              ),
             )
             .then((_) => _refreshMapNotes()),
       );
@@ -233,27 +221,28 @@ class _MapScreenState extends ConsumerState<MapScreen>
   _LocationRecoveryAction? _locationRecoveryActionFor(
     LocationAvailabilityIssue? issue,
   ) {
+    final l10n = context.l10n;
     return switch (issue) {
       LocationAvailabilityIssue.permissionPermanentlyDenied =>
         _LocationRecoveryAction(
-          label: 'Enable Location',
-          tooltip: 'Open settings to enable location',
+          label: l10n.enableLocation,
+          tooltip: l10n.enableLocationSettingsTooltip,
           icon: Icons.settings_outlined,
           onPressed: () {
             unawaited(Geolocator.openAppSettings());
           },
         ),
       LocationAvailabilityIssue.permissionDenied => _LocationRecoveryAction(
-        label: 'Enable Location',
-        tooltip: 'Allow location to add notes',
+        label: l10n.enableLocation,
+        tooltip: l10n.enableLocationPermissionTooltip,
         icon: Icons.location_on_outlined,
         onPressed: () {
           ref.invalidate(positionStreamProvider);
         },
       ),
       LocationAvailabilityIssue.serviceDisabled => _LocationRecoveryAction(
-        label: 'Enable Location',
-        tooltip: 'Open location settings',
+        label: l10n.enableLocation,
+        tooltip: l10n.enableLocationServiceTooltip,
         icon: Icons.settings_outlined,
         onPressed: () {
           unawaited(Geolocator.openLocationSettings());
@@ -263,32 +252,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
     };
   }
 
-  Future<void> _onAddNote() async {
+  void _onAddNote() {
     if (!mounted) return;
 
     final user = ref.read(authStateProvider).valueOrNull;
     if (user == null) return;
 
-    // Fast client-side PRE-CHECK only (for UX) — blocks opening the creation
-    // form when the user is already at their cap, so they don't fill it out
-    // just to be rejected. This is NOT the source of truth and is bypassable
-    // by a direct Firestore write: rules can't aggregate a per-user count.
-    // Authoritative enforcement of the free / premium cap lives in the
-    // `createNote` Cloud Function in Phase 3, which counts and creates inside
-    // a transaction (rules will then deny direct client place creation).
-    final limit = ref.read(noteLimitProvider);
-    final isPremium = ref.read(isPremiumProvider).valueOrNull ?? false;
-    final current = await ref
-        .read(placeRepositoryProvider)
-        .countUserActivePlaces(user.id);
-    if (!mounted) return;
-
-    if (current >= limit) {
-      await _showLimitReachedDialog(limit: limit, isPremium: isPremium);
-      return;
-    }
-
-    if (!mounted) return;
     logMapDiagnostics('MapScreen.push note/create');
     context.push('/note/create');
   }
@@ -356,40 +325,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
     ref.read(mapSearchCenterProvider.notifier).state = center;
     ref.read(mapSearchRadiusKmProvider.notifier).state = radiusKm;
     logMapDiagnostics('MapScreen.cameraIdle updates search center');
-  }
-
-  Future<void> _showLimitReachedDialog({
-    required int limit,
-    required bool isPremium,
-  }) async {
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Note limit reached'),
-        content: Text(
-          isPremium
-              ? 'You\'ve reached the maximum of $limit active notes. '
-                    'Archive or let an existing note expire to create a new one.'
-              : 'Free accounts can keep $limit active notes. '
-                    'Upgrade to PRO for up to ${AppConfig.proNoteLimit}, '
-                    'or let an existing note expire to free up a slot.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('OK'),
-          ),
-          if (!isPremium)
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                context.push('/subscription');
-              },
-              child: const Text('Go PRO'),
-            ),
-        ],
-      ),
-    );
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -580,6 +515,7 @@ class _MapNotesLoadingStatus extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = context.l10n;
     return Positioned(
       top: 12,
       left: 16,
@@ -626,7 +562,7 @@ class _MapNotesLoadingStatus extends StatelessWidget {
                         ),
                         const SizedBox(width: 10),
                         Text(
-                          'Loading map notes...',
+                          l10n.mapLoadingNotes,
                           style: Theme.of(context).textTheme.labelLarge
                               ?.copyWith(color: colorScheme.onSurface),
                         ),
@@ -664,6 +600,8 @@ class _AccessAreaButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = context.l10n;
+    final radiusLabel = _radiusLabel(radiusMeters);
     return Positioned(
       bottom: 264,
       right: 16,
@@ -673,8 +611,8 @@ class _AccessAreaButton extends StatelessWidget {
         child: FloatingActionButton.small(
           heroTag: 'noteAccessArea',
           tooltip: visible
-              ? 'Hide ${_radiusLabel(radiusMeters)} access area'
-              : 'Show ${_radiusLabel(radiusMeters)} access area',
+              ? l10n.mapHideAccessArea(radiusLabel)
+              : l10n.mapShowAccessArea(radiusLabel),
           onPressed: onPressed,
           backgroundColor: visible ? colorScheme.primary : colorScheme.surface,
           elevation: 2,
@@ -697,6 +635,7 @@ class _RefreshButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = context.l10n;
     return Positioned(
       bottom: 208,
       right: 16,
@@ -705,7 +644,7 @@ class _RefreshButton extends StatelessWidget {
         button: true,
         child: FloatingActionButton.small(
           heroTag: 'mapNotesRefresh',
-          tooltip: 'Refresh map notes',
+          tooltip: l10n.mapRefreshNotes,
           onPressed: refreshing ? null : onPressed,
           backgroundColor: colorScheme.surface,
           elevation: 2,
@@ -730,6 +669,7 @@ class _ListButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = context.l10n;
     return Positioned(
       bottom: 152,
       right: 16,
@@ -738,7 +678,7 @@ class _ListButton extends StatelessWidget {
         button: true,
         child: FloatingActionButton.small(
           heroTag: 'mapNotesList',
-          tooltip: 'List',
+          tooltip: l10n.mapList,
           onPressed: onPressed,
           backgroundColor: colorScheme.surface,
           elevation: 2,
@@ -793,6 +733,7 @@ class _AddNoteFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final recoveryAction = locationRecoveryAction;
+    final l10n = context.l10n;
     return Positioned(
       bottom: 24,
       right: 16,
@@ -801,10 +742,10 @@ class _AddNoteFab extends StatelessWidget {
         button: true,
         child: FloatingActionButton.extended(
           heroTag: 'mapAddNote',
-          tooltip: recoveryAction?.tooltip ?? 'Add Note',
+          tooltip: recoveryAction?.tooltip ?? l10n.mapAddNote,
           onPressed: recoveryAction?.onPressed ?? onPressed,
           icon: Icon(recoveryAction?.icon ?? Icons.add_location_alt_outlined),
-          label: Text(recoveryAction?.label ?? 'Add Note'),
+          label: Text(recoveryAction?.label ?? l10n.mapAddNote),
         ),
       ),
     );

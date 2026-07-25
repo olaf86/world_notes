@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../domain/entities/follow_entity.dart';
 import '../../../domain/entities/public_profile_entity.dart';
+import '../../../l10n/l10n.dart';
 import '../../providers/providers.dart';
+import '../../widgets/loading_skeleton.dart';
 
 class FollowListScreen extends ConsumerStatefulWidget {
   final String userId;
@@ -114,7 +116,8 @@ class _FollowListScreenState extends ConsumerState<FollowListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final title = widget.followers ? 'Followers' : 'Following';
+    final l10n = context.l10n;
+    final title = widget.followers ? l10n.followers : l10n.following;
     return Scaffold(
       appBar: AppBar(title: Text(title)),
       body: RefreshIndicator(onRefresh: _loadFirstPage, child: _body(title)),
@@ -123,7 +126,7 @@ class _FollowListScreenState extends ConsumerState<FollowListScreen> {
 
   Widget _body(String title) {
     if (_initialLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const SkeletonView(child: SkeletonListView());
     }
     if (_error != null && _items.isEmpty) {
       return ListView(
@@ -142,7 +145,7 @@ class _FollowListScreenState extends ConsumerState<FollowListScreen> {
       return ListView(
         children: [
           const SizedBox(height: 120),
-          _EmptyFollowList(title: title),
+          _EmptyFollowList(followers: widget.followers),
         ],
       );
     }
@@ -213,9 +216,9 @@ class _ProfileAvatar extends StatelessWidget {
 }
 
 class _EmptyFollowList extends StatelessWidget {
-  final String title;
+  final bool followers;
 
-  const _EmptyFollowList({required this.title});
+  const _EmptyFollowList({required this.followers});
 
   @override
   Widget build(BuildContext context) {
@@ -232,7 +235,10 @@ class _EmptyFollowList extends StatelessWidget {
               color: theme.colorScheme.onSurfaceVariant,
             ),
             const SizedBox(height: 12),
-            Text('No $title yet', style: theme.textTheme.titleMedium),
+            Text(
+              followers ? context.l10n.noFollowers : context.l10n.noFollowing,
+              style: theme.textTheme.titleMedium,
+            ),
           ],
         ),
       ),

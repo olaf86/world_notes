@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/entities/note_list_sort.dart';
+import '../../../l10n/l10n.dart';
+import '../../../l10n/presentation_labels.dart';
 
 class NoteSortButton extends ConsumerWidget {
   final NoteListSort selected;
@@ -19,33 +21,91 @@ class NoteSortButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final selectedLabel = selected.localizedLabel(l10n);
     return Semantics(
       identifier: semanticIdentifier,
       button: true,
       child: PopupMenuButton<NoteListSort>(
-        tooltip: 'Sort notes: ${selected.label}',
+        tooltip: l10n.sortNotesTooltip(selectedLabel),
         icon: const Icon(Icons.sort_outlined),
         onSelected: (sort) => ref.read(provider.notifier).state = sort,
-        itemBuilder: (context) => options
-            .map(
-              (sort) => PopupMenuItem(
-                value: sort,
-                child: Row(
-                  children: [
-                    Icon(sort.icon, size: 20),
-                    const SizedBox(width: 12),
-                    Expanded(child: Text(sort.label)),
-                    if (sort == selected)
-                      Icon(
-                        Icons.check,
-                        size: 20,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                  ],
+        itemBuilder: (context) =>
+            _buildSortMenuItems(context, options: options, selected: selected),
+      ),
+    );
+  }
+}
+
+class NoteSortChip extends ConsumerWidget {
+  final NoteListSort selected;
+  final StateProvider<NoteListSort> provider;
+  final List<NoteListSort> options;
+  final String semanticIdentifier;
+
+  const NoteSortChip({
+    super.key,
+    required this.selected,
+    required this.provider,
+    required this.options,
+    required this.semanticIdentifier,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final l10n = context.l10n;
+    final selectedLabel = selected.localizedLabel(l10n);
+
+    return Semantics(
+      identifier: semanticIdentifier,
+      label: l10n.sortNotesSelected(selectedLabel),
+      button: true,
+      child: PopupMenuButton<NoteListSort>(
+        tooltip: l10n.sortNotesTooltip(selectedLabel),
+        padding: EdgeInsets.zero,
+        position: PopupMenuPosition.under,
+        onSelected: (sort) => ref.read(provider.notifier).state = sort,
+        itemBuilder: (context) =>
+            _buildSortMenuItems(context, options: options, selected: selected),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(10, 7, 8, 7),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.sort_outlined,
+                  size: 16,
+                  color: colorScheme.onSurfaceVariant,
                 ),
-              ),
-            )
-            .toList(),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    selectedLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 2),
+                Icon(
+                  Icons.arrow_drop_down,
+                  size: 18,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -66,10 +126,12 @@ class NoteSortStatus extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final label = 'Sorted by: ${sort.label}';
+    final l10n = context.l10n;
+    final sortLabel = sort.localizedLabel(l10n);
+    final label = l10n.sortedBy(sortLabel);
     return Semantics(
       identifier: semanticIdentifier,
-      label: 'Sorted by ${sort.label}',
+      label: label,
       child: inline
           ? Text(
               label,
@@ -96,17 +158,34 @@ class NoteSortStatus extends StatelessWidget {
   }
 }
 
-extension NoteListSortPresentation on NoteListSort {
-  String get label => switch (this) {
-    NoteListSort.distance => 'Distance',
-    NoteListSort.lastActivity => 'Last activity',
-    NoteListSort.newest => 'Newest',
-    NoteListSort.expiresSoonest => 'Expires soon',
-    NoteListSort.mostLiked => 'Most liked',
-    NoteListSort.archivedNewest => 'Recently archived',
-    NoteListSort.archivedOldest => 'Oldest archived',
-  };
+List<PopupMenuEntry<NoteListSort>> _buildSortMenuItems(
+  BuildContext context, {
+  required List<NoteListSort> options,
+  required NoteListSort selected,
+}) {
+  return options
+      .map(
+        (sort) => PopupMenuItem<NoteListSort>(
+          value: sort,
+          child: Row(
+            children: [
+              Icon(sort.icon, size: 20),
+              const SizedBox(width: 12),
+              Expanded(child: Text(sort.localizedLabel(context.l10n))),
+              if (sort == selected)
+                Icon(
+                  Icons.check,
+                  size: 20,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+            ],
+          ),
+        ),
+      )
+      .toList();
+}
 
+extension NoteListSortIcon on NoteListSort {
   IconData get icon => switch (this) {
     NoteListSort.distance => Icons.near_me_outlined,
     NoteListSort.lastActivity => Icons.forum_outlined,

@@ -140,6 +140,7 @@ PinSummary _pin({double latitude = 35, PinAccess access = PinAccess.openable}) {
     colorHex: '#4CAF50',
     icon: 'place',
     creatorName: 'Alice',
+    creatorPhotoVersion: 1,
     messageCount: 0,
     likeCount: 0,
     visitorCount: 0,

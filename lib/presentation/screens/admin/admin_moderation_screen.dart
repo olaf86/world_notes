@@ -1,9 +1,10 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../../domain/entities/admin_moderation_review_entity.dart';
+import '../../../l10n/l10n.dart';
+import '../../../l10n/localized_formatters.dart';
 import '../../providers/providers.dart';
 
 class AdminModerationScreen extends ConsumerStatefulWidget {
@@ -164,7 +165,9 @@ class _ReviewList extends ConsumerWidget {
         onRetry: () => ref.invalidate(adminModerationReviewsProvider(status)),
       ),
       data: (items) {
-        if (items.isEmpty) return const Center(child: Text('No reviews.'));
+        if (items.isEmpty) {
+          return Center(child: Text(context.l10n.noModerationReviews));
+        }
         return RefreshIndicator(
           onRefresh: () async {
             ref.invalidate(adminModerationReviewsProvider(status));
@@ -279,7 +282,10 @@ class _ReviewCard extends StatelessWidget {
             if (review.createdAt != null)
               _MetaLine(
                 icon: Icons.schedule_outlined,
-                text: DateFormat.yMMMd().add_Hm().format(review.createdAt!),
+                text: formatNoteDateTime(
+                  review.createdAt!,
+                  locale: context.localeTag,
+                ),
               ),
             if (!showActions && review.humanDecision != null)
               _MetaLine(

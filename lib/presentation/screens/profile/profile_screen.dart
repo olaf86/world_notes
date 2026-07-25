@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 
 import '../../../config/app_config.dart';
+import '../../../l10n/l10n.dart';
 import '../../../services/subscription_service.dart';
 import '../../providers/providers.dart';
 
@@ -16,6 +17,7 @@ class ProfileScreen extends ConsumerWidget {
     WidgetRef ref,
     String currentName,
   ) async {
+    final l10n = context.l10n;
     final controller = TextEditingController(text: currentName);
     var saving = false;
 
@@ -23,14 +25,14 @@ class ProfileScreen extends ConsumerWidget {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Edit nickname'),
+          title: Text(l10n.editNickname),
           content: TextField(
             controller: controller,
             autofocus: true,
             enabled: !saving,
             maxLength: 20,
             textInputAction: TextInputAction.done,
-            decoration: const InputDecoration(labelText: 'Nickname'),
+            decoration: InputDecoration(labelText: l10n.nicknameLabel),
             onSubmitted: (_) async {
               final value = controller.text.trim();
               if (value.isEmpty) return;
@@ -41,7 +43,7 @@ class ProfileScreen extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: saving ? null : () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
+              child: Text(l10n.commonCancel),
             ),
             FilledButton(
               onPressed: saving
@@ -58,7 +60,7 @@ class ProfileScreen extends ConsumerWidget {
                       height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Save'),
+                  : Text(l10n.commonSave),
             ),
           ],
         ),
@@ -74,17 +76,18 @@ class ProfileScreen extends ConsumerWidget {
       if (!context.mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Nickname updated.')));
+      ).showSnackBar(SnackBar(content: Text(l10n.nicknameUpdated)));
     } catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Failed to update nickname: $e')));
+      ).showSnackBar(SnackBar(content: Text(l10n.nicknameUpdateFailed(e))));
     }
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final userAsync = ref.watch(authStateProvider);
     final isPremiumAsync = ref.watch(isPremiumProvider);
     final adminClaim = ref.watch(adminClaimProvider);
@@ -93,18 +96,18 @@ class ProfileScreen extends ConsumerWidget {
       identifier: 'screen-profile',
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Profile'),
+          title: Text(l10n.profileTitle),
           actions: [
             IconButton(
               icon: const Icon(Icons.settings_outlined),
-              tooltip: 'Settings',
+              tooltip: l10n.settingsTitle,
               onPressed: () => context.push('/settings'),
             ),
           ],
         ),
         body: userAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Error: $e')),
+          error: (e, _) => Center(child: Text(l10n.commonError(e))),
           data: (user) {
             if (user == null) return const SizedBox();
             final publicProfileAsync = ref.watch(
@@ -142,7 +145,7 @@ class ProfileScreen extends ConsumerWidget {
                       TextButton.icon(
                         onPressed: () => _editNickname(context, ref, user.name),
                         icon: const Icon(Icons.edit_outlined, size: 18),
-                        label: const Text('Edit nickname'),
+                        label: Text(l10n.editNickname),
                       ),
                       if (user.email != null)
                         Text(
@@ -181,14 +184,19 @@ class ProfileScreen extends ConsumerWidget {
                                     TextButton(
                                       onPressed: () =>
                                           RevenueCatUI.presentCustomerCenter(),
-                                      child: const Text('Manage Subscription'),
+                                      child: Text(l10n.manageSubscription),
                                     ),
                                 ],
                               )
-                            : OutlinedButton.icon(
-                                onPressed: () => context.push('/subscription'),
-                                icon: const Icon(Icons.star_outline),
-                                label: const Text('Upgrade to PRO'),
+                            : Semantics(
+                                identifier: 'action-upgrade-to-pro',
+                                button: true,
+                                child: OutlinedButton.icon(
+                                  onPressed: () =>
+                                      context.push('/subscription'),
+                                  icon: const Icon(Icons.star_outline),
+                                  label: Text(l10n.upgradeToPro),
+                                ),
                               ),
                       ),
                     ],
@@ -199,9 +207,7 @@ class ProfileScreen extends ConsumerWidget {
                 ListTile(
                   leading: const Icon(Icons.star_outline),
                   title: const Text(AppConfig.proPlanName),
-                  subtitle: const Text(
-                    'Remove ads, keep 200 notes, and unlock PRO features',
-                  ),
+                  subtitle: Text(l10n.proBenefitsSummary),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.push('/subscription'),
                 ),
@@ -209,8 +215,8 @@ class ProfileScreen extends ConsumerWidget {
                   const Divider(),
                   ListTile(
                     leading: const Icon(Icons.manage_accounts_outlined),
-                    title: const Text('Manage Subscription'),
-                    subtitle: const Text('Billing, cancellation & support'),
+                    title: Text(l10n.manageSubscription),
+                    subtitle: Text(l10n.subscriptionManagementSummary),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => RevenueCatUI.presentCustomerCenter(),
                   ),
@@ -223,7 +229,7 @@ class ProfileScreen extends ConsumerWidget {
                         const Divider(),
                         ListTile(
                           leading: const Icon(Icons.admin_panel_settings),
-                          title: const Text('Moderation'),
+                          title: Text(l10n.moderation),
                           trailing: const Icon(Icons.chevron_right),
                           onTap: () => context.push('/admin/moderation'),
                         ),
@@ -239,7 +245,7 @@ class ProfileScreen extends ConsumerWidget {
                     color: Theme.of(context).colorScheme.error,
                   ),
                   title: Text(
-                    'Sign Out',
+                    l10n.signOut,
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.error,
                     ),
@@ -273,17 +279,18 @@ class _ProfileSocialCounts extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         _ProfileCountButton(
-          label: 'Followers',
+          label: l10n.followers,
           value: followerCount,
           onTap: onFollowersTap,
         ),
         const SizedBox(width: 24),
         _ProfileCountButton(
-          label: 'Following',
+          label: l10n.following,
           value: followingCount,
           onTap: onFollowingTap,
         ),

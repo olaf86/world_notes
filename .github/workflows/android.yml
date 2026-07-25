@@ -22,7 +22,9 @@ jobs:
     env:
       STADIA_API_KEY: ${{ secrets.STADIA_API_KEY }}
       REVENUECAT_API_KEY_ANDROID: ${{ secrets.REVENUECAT_API_KEY_ANDROID }}
-      BANNER_AD_UNIT_ID: ${{ secrets.BANNER_AD_UNIT_ID }}
+      ADMOB_ANDROID_APP_ID_PROD: ${{ secrets.ADMOB_ANDROID_APP_ID_PROD }}
+      ADMOB_ANDROID_BANNER_AD_UNIT_ID_PROD: ${{ secrets.ADMOB_ANDROID_BANNER_AD_UNIT_ID_PROD }}
+      ADMOB_ANDROID_INTERSTITIAL_AD_UNIT_ID_PROD: ${{ secrets.ADMOB_ANDROID_INTERSTITIAL_AD_UNIT_ID_PROD }}
 
     steps:
       - name: Checkout
@@ -58,7 +60,8 @@ jobs:
           flutter build apk --debug
           --dart-define=STADIA_API_KEY=${STADIA_API_KEY}
           --dart-define=REVENUECAT_API_KEY_ANDROID=${REVENUECAT_API_KEY_ANDROID}
-          --dart-define=BANNER_AD_UNIT_ID=${BANNER_AD_UNIT_ID}
+          --dart-define=BANNER_AD_UNIT_ID=${ADMOB_ANDROID_BANNER_AD_UNIT_ID_PROD}
+          --dart-define=INTERSTITIAL_AD_UNIT_ID=${ADMOB_ANDROID_INTERSTITIAL_AD_UNIT_ID_PROD}
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4

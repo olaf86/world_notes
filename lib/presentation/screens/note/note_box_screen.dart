@@ -3,21 +3,27 @@ import 'dart:async';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../../../config/app_config.dart';
+import '../../../core/theme/note_themes.dart';
 import '../../../core/utils/password_util.dart';
 import '../../../core/utils/pattern_lock_util.dart';
 import '../../../domain/entities/message_entity.dart';
 import '../../../domain/entities/place_entity.dart';
+import '../../../domain/entities/note_theme.dart';
 import '../../../domain/policies/note_permissions.dart';
+import '../../../l10n/l10n.dart';
 import '../../providers/providers.dart';
 import '../../widgets/map/static_note_mini_map.dart';
+import '../../widgets/loading_skeleton.dart';
 import '../../widgets/note/manage_access_sheet.dart';
 import '../../widgets/note/message_bubble.dart';
 import '../../widgets/note/message_creation_overlay.dart';
 import '../../widgets/note/note_lock_setup_dialog.dart';
+import '../../widgets/note/note_theme_picker.dart';
 import '../../widgets/note/user_avatar_badge.dart';
 import '../../widgets/note/visitor_map_overlay.dart';
 import 'note_creation_screen.dart';
@@ -30,12 +36,14 @@ class NoteBoxScreen extends ConsumerStatefulWidget {
   final String placeId;
   final String placeTitle;
   final bool readOnly;
+  final NoteAccessValidationRequest? accessValidation;
 
   const NoteBoxScreen({
     super.key,
     required this.placeId,
     required this.placeTitle,
     this.readOnly = false,
+    this.accessValidation,
   });
 
   @override
@@ -52,6 +60,8 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
   // subtree is rebuilt when the ad loads; the rest of the screen is untouched.
   BannerAd? _bannerAd;
   final _adLoaded = ValueNotifier<bool>(false);
+  Timer? _bannerAdRetryTimer;
+  int _bannerAdFailureCount = 0;
 
   // ── Message editor overlay state ──────────────────────────────────────────
   //
@@ -77,14 +87,23 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
       vsync: this,
       duration: const Duration(milliseconds: 280),
     );
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadAdIfNeeded());
+    ref.listenManual<bool>(canRequestAdsProvider, (_, canRequestAds) {
+      if (canRequestAds) {
+        _loadAdIfNeeded();
+      } else {
+        _disposeBannerAd();
+      }
+    }, fireImmediately: true);
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
+    _bannerAdRetryTimer?.cancel();
+    final bannerAd = _bannerAd;
+    _bannerAd = null;
+    bannerAd?.dispose();
     _adLoaded.dispose();
-    _bannerAd?.dispose();
     _messageEditorController.dispose();
     super.dispose();
   }
@@ -93,19 +112,59 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
 
   void _loadAdIfNeeded() {
     if (!AppConfig.supportsMobileAds) return;
-    if (ref.read(isPremiumProvider).valueOrNull == true) return;
+    if (!ref.read(canRequestAdsProvider)) return;
+    if (ref.read(isPremiumProvider).valueOrNull != false) return;
+    if (_bannerAd != null) return;
+    _bannerAdRetryTimer?.cancel();
+    _bannerAdRetryTimer = null;
     _bannerAd = BannerAd(
       adUnitId: AppConfig.bannerAdUnitId,
       size: AdSize.banner,
       request: const AdRequest(),
       listener: BannerAdListener(
-        onAdLoaded: (_) => _adLoaded.value = true,
+        onAdLoaded: (ad) {
+          if (!mounted || !identical(_bannerAd, ad)) {
+            ad.dispose();
+            return;
+          }
+          _bannerAdFailureCount = 0;
+          _adLoaded.value = true;
+        },
         onAdFailedToLoad: (ad, error) {
           ad.dispose();
+          if (!mounted || !identical(_bannerAd, ad)) return;
           _bannerAd = null;
+          _adLoaded.value = false;
+          _scheduleBannerAdRetry();
         },
       ),
     )..load();
+  }
+
+  void _disposeBannerAd() {
+    _bannerAdRetryTimer?.cancel();
+    _bannerAdRetryTimer = null;
+    _bannerAdFailureCount = 0;
+    final bannerAd = _bannerAd;
+    _bannerAd = null;
+    bannerAd?.dispose();
+    _adLoaded.value = false;
+  }
+
+  void _scheduleBannerAdRetry() {
+    if (!mounted ||
+        !ref.read(canRequestAdsProvider) ||
+        ref.read(isPremiumProvider).valueOrNull != false) {
+      return;
+    }
+
+    final delay = AppConfig.bannerAdRetryDelayForFailure(_bannerAdFailureCount);
+    _bannerAdFailureCount += 1;
+    _bannerAdRetryTimer?.cancel();
+    _bannerAdRetryTimer = Timer(delay, () {
+      _bannerAdRetryTimer = null;
+      if (mounted) _loadAdIfNeeded();
+    });
   }
 
   // ── Message editor overlay ────────────────────────────────────────────────
@@ -331,6 +390,37 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
       isScrollControlled: true,
       builder: (_) => ManageAccessSheet(placeId: widget.placeId),
     );
+  }
+
+  Future<void> _showThemePicker(PlaceEntity place) async {
+    final themeId = await showNoteThemePicker(
+      context: context,
+      selected: place.themeId,
+      title: context.l10n.noteThemeChangeTitle,
+      description: context.l10n.noteThemeChangeDescription,
+      sheetTheme: NoteThemes.themed(context, place.themeId),
+    );
+    if (themeId != null && themeId != place.themeId) {
+      await _setNoteTheme(themeId);
+    }
+  }
+
+  Future<void> _setNoteTheme(NoteThemeId themeId) async {
+    try {
+      await ref
+          .read(placeRepositoryProvider)
+          .setNoteTheme(placeId: widget.placeId, themeId: themeId);
+    } on FirebaseFunctionsException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'Could not change theme.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not change theme.')));
+    }
   }
 
   void _recordVisitIfNeeded({
@@ -589,12 +679,27 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final isPremium = ref.watch(isPremiumProvider).valueOrNull ?? false;
     final currentUser = ref.watch(authStateProvider).valueOrNull;
     final placeAsync = ref.watch(placeProvider(widget.placeId));
+    final accessValidation = widget.accessValidation;
+    final accessAsync = accessValidation == null
+        ? null
+        : ref.watch(noteAccessValidationProvider(accessValidation));
     final place = placeAsync.valueOrNull;
     final now = DateTime.now();
 
+    if (accessAsync?.isLoading ?? false) {
+      return _LoadingNoteView(title: widget.placeTitle);
+    }
+    if (accessAsync?.hasError ?? false) {
+      return _NoteAccessErrorView(
+        title: widget.placeTitle,
+        onRetry: () =>
+            ref.invalidate(noteAccessValidationProvider(accessValidation!)),
+      );
+    }
     if (placeAsync.hasError && place == null) {
       return _UnavailableNoteView(title: widget.placeTitle);
     }
@@ -639,289 +744,320 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     // coexist.
     final bool isCurrent = ModalRoute.of(context)?.isCurrent ?? true;
 
-    // Defensive constraint clamp.  Even with opaque:false on all push routes,
-    // any future route that lands on top of NoteBoxScreen with opaque:true
-    // would wrap this Scaffold in Offstage(offstage:true), pushing
-    // BoxConstraints() (0..∞) into the FAB Column / Scaffold body and
-    // re-triggering '!semantics.parentDataDirty' loops.  Same pattern as
-    // _MainShell in router.dart.
+    // Defensive size boundary. A route above this one may put the screen
+    // offstage; retaining finite constraints keeps its Scaffold, FAB, and ad
+    // slot stable until the user returns.
     final size = MediaQuery.sizeOf(context);
+    final palette = NoteThemes.paletteOf(context, place.themeId);
 
-    return PopScope(
-      // Intercept back gesture / hardware back when the message editor is
-      // visible — close the overlay instead of popping the route.
-      canPop: !_isMessageEditorOpen,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && _isMessageEditorOpen) _closeMessageEditor();
-      },
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: size.width,
-          maxHeight: size.height,
-        ),
-        child: ExcludeSemantics(
-          excluding: !isCurrent,
-          child: Stack(
-            children: [
-              // ── Base layer: the message-box screen ──────────────────────
-              Semantics(
-                identifier: 'screen-note-detail-${place.id}',
-                child: Scaffold(
-                  appBar: AppBar(
-                    title: Text(displayTitle),
-                    actions: [
-                      if (!isPremium)
-                        IconButton(
-                          icon: const Icon(Icons.star_outline),
-                          tooltip: 'Go PRO',
-                          onPressed: () => context.push('/subscription'),
-                        ),
-                      if (place.isArchived &&
-                          place.isMaintainedBy(currentUser?.id))
-                        IconButton(
-                          icon: const Icon(Icons.add_location_alt_outlined),
-                          tooltip: 'Create new note from archive',
-                          onPressed: () => context.push(
-                            '/note/create',
-                            extra: NoteCreationDraft.fromPlace(place),
-                          ),
-                        ),
-                      if (permissions.hasThreadActions)
-                        PopupMenuButton<String>(
-                          tooltip: 'Thread options',
-                          onSelected: (value) {
-                            if (value == 'close') _closeThread();
-                            if (value == 'reopen') _reopenThread();
-                            if (value == 'archive') _archiveNote();
-                            if (value == 'password') {
-                              _promptSetPassword(isChange: place.isPrivate);
-                            }
-                            if (value == 'access') _showManageAccess();
-                          },
-                          itemBuilder: (ctx) => [
-                            if (permissions.canCloseThread)
-                              const PopupMenuItem(
-                                value: 'close',
-                                child: ListTile(
-                                  leading: Icon(
-                                    Icons.do_not_disturb_on_outlined,
-                                  ),
-                                  title: Text('Close thread'),
-                                  contentPadding: EdgeInsets.zero,
-                                ),
-                              ),
-                            if (permissions.canReopenThread)
-                              const PopupMenuItem(
-                                value: 'reopen',
-                                child: ListTile(
-                                  leading: Icon(Icons.lock_open_outlined),
-                                  title: Text('Re-open thread'),
-                                  contentPadding: EdgeInsets.zero,
-                                ),
-                              ),
-                            if (permissions.canChangeLock)
-                              PopupMenuItem(
-                                value: 'password',
-                                child: ListTile(
-                                  leading: Icon(
-                                    place.isPrivate
-                                        ? Icons.lock_reset
-                                        : Icons.lock_person_outlined,
-                                  ),
-                                  title: Text(
-                                    place.isPrivate
-                                        ? 'Change lock'
-                                        : 'Set lock',
-                                  ),
-                                  contentPadding: EdgeInsets.zero,
-                                ),
-                              ),
-                            if (permissions.canManageAccess)
-                              const PopupMenuItem(
-                                value: 'access',
-                                child: ListTile(
-                                  leading: Icon(Icons.group_outlined),
-                                  title: Text('Manage access'),
-                                  contentPadding: EdgeInsets.zero,
-                                ),
-                              ),
-                            if (permissions.canArchive) ...[
-                              const PopupMenuDivider(),
-                              const PopupMenuItem(
-                                value: 'archive',
-                                child: ListTile(
-                                  leading: Icon(Icons.archive_outlined),
-                                  title: Text('Archive note'),
-                                  contentPadding: EdgeInsets.zero,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                    ],
-                  ),
-                  // Body = optional status banner + message list.
-                  body: Column(
-                    children: [
-                      if (widget.readOnly) const _ReadOnlyBanner(),
-                      if (!place.canAcceptMessagesAt(now))
-                        _ThreadStatusBanner(place: place, now: now),
-                      StaticNoteMiniMap(
-                        place: place,
-                        topLeftOverlay: _CreatorMapOverlay(
-                          name: creator?.name,
-                          photoUrl: creator?.photoUrl,
-                          onTap: () =>
-                              context.push('/users/${place.createdByUserId}'),
-                        ),
-                        showTopLeftConnector: true,
-                        topRightOverlay: VisitorMapOverlay(
-                          placeId: widget.placeId,
-                          footprintEnabled: place.footprintEnabled,
-                          visitorCount: place.visitorCount,
-                        ),
-                      ),
-                      _NoteLikeRow(
-                        placeId: widget.placeId,
-                        serverLikeCount: place.likeCount,
-                        canLike: permissions.canLikeNote,
-                        isOwnNote: currentUser?.id == place.createdByUserId,
-                      ),
-                      Expanded(
-                        child: messagesAsync.when(
-                          loading: () =>
-                              const Center(child: CircularProgressIndicator()),
-                          error: (e, _) => Center(child: Text('Error: $e')),
-                          data: (messages) {
-                            return messages.isEmpty
-                                ? const _EmptyState()
-                                : ListView.builder(
-                                    controller: _scrollController,
-                                    // Extra bottom padding so the FAB never
-                                    // obscures the last message.
-                                    padding: const EdgeInsets.only(
-                                      top: 8,
-                                      bottom: 88,
-                                    ),
-                                    itemCount: messages.length,
-                                    itemBuilder: (context, index) {
-                                      final item = messages[index];
-                                      final message = item.message;
-                                      final isOwn =
-                                          message.author.id == currentUser?.id;
-                                      return MessageBubble(
-                                        key: ValueKey(message.id),
-                                        message: message,
-                                        likeState: item.likeState,
-                                        isOwn: isOwn,
-                                        canLike: permissions.canLikeMessage(
-                                          message,
-                                          now: now,
-                                        ),
-                                        onLikeChanged: (liked) =>
-                                            _setMessageLike(message, liked),
-                                        isAuthorHighlighted:
-                                            _highlightedAuthorId ==
-                                            message.author.id,
-                                        onAuthorTap: _toggleAuthorHighlight,
-                                        onDelete: isOwn
-                                            ? () =>
-                                                  _confirmDeleteMessage(message)
-                                            : null,
-                                        onReport: !isOwn
-                                            ? () => _openReportMessageScreen(
-                                                message,
-                                              )
-                                            : null,
-                                      );
-                                    },
-                                  );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // FAB — opens the message editor (state flag + slide-up animation
-                  // in a Stack sibling layer below).  heroTag is unique to prevent
-                  // Hero conflicts with the map screen's FABs ('mapAddNote',
-                  // 'tracking').  Hidden when the thread is closed / expired / full.
-                  floatingActionButton: permissions.canPostMessage
-                      ? Semantics(
-                          identifier: 'action-write-message',
-                          button: true,
-                          child: FloatingActionButton(
-                            heroTag: 'noteMessageEditor',
-                            onPressed: _preparingMessageEditor
-                                ? null
-                                : _openMessageEditor,
-                            tooltip: 'Write a message',
-                            child: _preparingMessageEditor
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Icon(Icons.edit_outlined),
-                          ),
-                        )
-                      : null,
-
-                  // Banner ad — placed in bottomNavigationBar so the Scaffold
-                  // automatically lifts the FAB above it when the ad is loaded.
-                  bottomNavigationBar: ValueListenableBuilder<bool>(
-                    valueListenable: _adLoaded,
-                    builder: (context, loaded, _) {
-                      final ad = _bannerAd;
-                      return AnimatedSize(
-                        duration: const Duration(milliseconds: 250),
-                        curve: Curves.easeOut,
-                        child: (loaded && ad != null && !isPremium)
-                            ? SafeArea(
-                                top: false,
-                                child: SizedBox(
-                                  height: ad.size.height.toDouble(),
-                                  child: AdWidget(ad: ad),
-                                ),
-                              )
-                            : const SizedBox.shrink(),
-                      );
-                    },
+    return Theme(
+      data: NoteThemes.themed(context, place.themeId),
+      child: PopScope(
+        // Intercept back gesture / hardware back when the message editor is
+        // visible — close the overlay instead of popping the route.
+        canPop: !_isMessageEditorOpen,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop && _isMessageEditorOpen) _closeMessageEditor();
+        },
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: size.width,
+            maxHeight: size.height,
+          ),
+          child: ExcludeSemantics(
+            excluding: !isCurrent,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: DecoratedBox(
+                    key: ValueKey('note-theme-page-${place.themeId.name}'),
+                    decoration: BoxDecoration(gradient: palette.pageGradient),
                   ),
                 ),
-              ),
-
-              // ── Overlay layer: message editor, slides up from the bottom ─
-              //
-              // Rendered only while `_isMessageEditorOpen` is true.  The animation
-              // controller drives a SlideTransition from (0, 1) → (0, 0).
-              // Because this overlay lives in the SAME Stack as the base
-              // Scaffold (not a Navigator route), no ModalBarrier /
-              // BlockSemantics is added to the tree — sidestepping the
-              // '!semantics.parentDataDirty' loop seen with route pushes.
-              if (_isMessageEditorOpen)
-                Positioned.fill(
-                  child: SlideTransition(
-                    position:
-                        Tween<Offset>(
-                          begin: const Offset(0, 1),
-                          end: Offset.zero,
-                        ).animate(
-                          CurvedAnimation(
-                            parent: _messageEditorController,
-                            curve: Curves.easeOutCubic,
-                            reverseCurve: Curves.easeInCubic,
+                // ── Base layer: the message-box screen ──────────────────────
+                Semantics(
+                  identifier: 'screen-note-detail-${place.id}',
+                  child: Scaffold(
+                    backgroundColor: Colors.transparent,
+                    appBar: AppBar(
+                      backgroundColor: Colors.transparent,
+                      surfaceTintColor: Colors.transparent,
+                      systemOverlayStyle:
+                          palette.colorScheme.brightness == Brightness.dark
+                          ? SystemUiOverlayStyle.light
+                          : SystemUiOverlayStyle.dark,
+                      leading: const _NoteBackButton(),
+                      title: Text(displayTitle),
+                      actions: [
+                        if (!isPremium)
+                          IconButton(
+                            icon: const Icon(Icons.star_outline),
+                            tooltip: l10n.goPro,
+                            onPressed: () => context.push('/subscription'),
+                          ),
+                        if (place.isArchived &&
+                            place.isMaintainedBy(currentUser?.id))
+                          IconButton(
+                            icon: const Icon(Icons.add_location_alt_outlined),
+                            tooltip: l10n.createFromArchiveTooltip,
+                            onPressed: () => context.push(
+                              '/note/create',
+                              extra: NoteCreationDraft.fromPlace(place),
+                            ),
+                          ),
+                        if (permissions.hasThreadActions)
+                          PopupMenuButton<String>(
+                            tooltip: l10n.threadOptions,
+                            onSelected: (value) {
+                              if (value == 'close') _closeThread();
+                              if (value == 'reopen') _reopenThread();
+                              if (value == 'archive') _archiveNote();
+                              if (value == 'password') {
+                                _promptSetPassword(isChange: place.isPrivate);
+                              }
+                              if (value == 'access') _showManageAccess();
+                              if (value == 'theme') _showThemePicker(place);
+                            },
+                            itemBuilder: (ctx) => [
+                              if (permissions.canCloseThread)
+                                PopupMenuItem(
+                                  value: 'close',
+                                  child: ListTile(
+                                    leading: const Icon(
+                                      Icons.do_not_disturb_on_outlined,
+                                    ),
+                                    title: Text(l10n.closeThreadAction),
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                ),
+                              if (permissions.canReopenThread)
+                                PopupMenuItem(
+                                  value: 'reopen',
+                                  child: ListTile(
+                                    leading: const Icon(
+                                      Icons.lock_open_outlined,
+                                    ),
+                                    title: Text(l10n.reopenThreadAction),
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                ),
+                              if (permissions.canChangeLock)
+                                PopupMenuItem(
+                                  value: 'password',
+                                  child: ListTile(
+                                    leading: Icon(
+                                      place.isPrivate
+                                          ? Icons.lock_reset
+                                          : Icons.lock_person_outlined,
+                                    ),
+                                    title: Text(
+                                      place.isPrivate
+                                          ? l10n.changeLock
+                                          : l10n.setLock,
+                                    ),
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                ),
+                              if (permissions.canChangeTheme)
+                                PopupMenuItem(
+                                  value: 'theme',
+                                  child: ListTile(
+                                    leading: const Icon(Icons.palette_outlined),
+                                    title: Text(l10n.changeThemeAction),
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                ),
+                              if (permissions.canManageAccess)
+                                PopupMenuItem(
+                                  value: 'access',
+                                  child: ListTile(
+                                    leading: const Icon(Icons.group_outlined),
+                                    title: Text(l10n.manageAccessAction),
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                ),
+                              if (permissions.canArchive) ...[
+                                const PopupMenuDivider(),
+                                PopupMenuItem(
+                                  value: 'archive',
+                                  child: ListTile(
+                                    leading: const Icon(Icons.archive_outlined),
+                                    title: Text(l10n.archiveNoteTooltip),
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                      ],
+                    ),
+                    // Body = optional status banner + message list.
+                    body: Column(
+                      children: [
+                        if (widget.readOnly) const _ReadOnlyBanner(),
+                        if (!place.canAcceptMessagesAt(now))
+                          _ThreadStatusBanner(place: place, now: now),
+                        StaticNoteMiniMap(
+                          place: place,
+                          topLeftOverlay: _CreatorMapOverlay(
+                            name: creator?.name,
+                            photoUrl: creator?.photoUrl,
+                            onTap: () =>
+                                context.push('/users/${place.createdByUserId}'),
+                          ),
+                          showTopLeftConnector: true,
+                          topRightOverlay: VisitorMapOverlay(
+                            placeId: widget.placeId,
+                            footprintEnabled: place.footprintEnabled,
+                            visitorCount: place.visitorCount,
                           ),
                         ),
-                    child: MessageCreationOverlay(
-                      placeId: widget.placeId,
-                      onClose: _closeMessageEditor,
+                        _NoteLikeRow(
+                          placeId: widget.placeId,
+                          serverLikeCount: place.likeCount,
+                          canLike: permissions.canLikeNote,
+                          isOwnNote: currentUser?.id == place.createdByUserId,
+                        ),
+                        Expanded(
+                          child: messagesAsync.when(
+                            loading: () => const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                            error: (e, _) =>
+                                Center(child: Text(l10n.commonError(e))),
+                            data: (messages) {
+                              return messages.isEmpty
+                                  ? const _EmptyState()
+                                  : ListView.builder(
+                                      controller: _scrollController,
+                                      // Extra bottom padding so the FAB never
+                                      // obscures the last message.
+                                      padding: const EdgeInsets.only(
+                                        top: 8,
+                                        bottom: 88,
+                                      ),
+                                      itemCount: messages.length,
+                                      itemBuilder: (context, index) {
+                                        final item = messages[index];
+                                        final message = item.message;
+                                        final isOwn =
+                                            message.author.id ==
+                                            currentUser?.id;
+                                        return MessageBubble(
+                                          key: ValueKey(message.id),
+                                          message: message,
+                                          likeState: item.likeState,
+                                          isOwn: isOwn,
+                                          canLike: permissions.canLikeMessage(
+                                            message,
+                                            now: now,
+                                          ),
+                                          onLikeChanged: (liked) =>
+                                              _setMessageLike(message, liked),
+                                          isAuthorHighlighted:
+                                              _highlightedAuthorId ==
+                                              message.author.id,
+                                          onAuthorTap: _toggleAuthorHighlight,
+                                          onDelete: isOwn
+                                              ? () => _confirmDeleteMessage(
+                                                  message,
+                                                )
+                                              : null,
+                                          onReport: !isOwn
+                                              ? () => _openReportMessageScreen(
+                                                  message,
+                                                )
+                                              : null,
+                                        );
+                                      },
+                                    );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // FAB — opens the message editor (state flag + slide-up animation
+                    // in a Stack sibling layer below).  heroTag is unique to prevent
+                    // Hero conflicts with the map screen's FABs ('mapAddNote',
+                    // 'tracking').  Hidden when the thread is closed / expired / full.
+                    floatingActionButton: permissions.canPostMessage
+                        ? Semantics(
+                            identifier: 'action-write-message',
+                            button: true,
+                            child: FloatingActionButton(
+                              heroTag: 'noteMessageEditor',
+                              onPressed: _preparingMessageEditor
+                                  ? null
+                                  : _openMessageEditor,
+                              tooltip: l10n.writeMessage,
+                              child: _preparingMessageEditor
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.edit_outlined),
+                            ),
+                          )
+                        : null,
+
+                    // Banner ad — placed in bottomNavigationBar so the Scaffold
+                    // automatically lifts the FAB above it when the ad is loaded.
+                    bottomNavigationBar: ValueListenableBuilder<bool>(
+                      valueListenable: _adLoaded,
+                      builder: (context, loaded, _) {
+                        final ad = _bannerAd;
+                        return AnimatedSize(
+                          duration: const Duration(milliseconds: 250),
+                          curve: Curves.easeOut,
+                          child: (loaded && ad != null && !isPremium)
+                              ? SafeArea(
+                                  top: false,
+                                  child: SizedBox(
+                                    height: ad.size.height.toDouble(),
+                                    child: AdWidget(ad: ad),
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
+                        );
+                      },
                     ),
                   ),
                 ),
-            ],
+
+                // ── Overlay layer: message editor, slides up from the bottom ─
+                //
+                // Rendered only while `_isMessageEditorOpen` is true.  The animation
+                // controller drives a SlideTransition from (0, 1) → (0, 0).
+                // Because this overlay lives in the SAME Stack as the base
+                // Scaffold (not a Navigator route), no ModalBarrier /
+                // BlockSemantics is added to the tree — sidestepping the
+                // '!semantics.parentDataDirty' loop seen with route pushes.
+                if (_isMessageEditorOpen)
+                  Positioned.fill(
+                    child: SlideTransition(
+                      position:
+                          Tween<Offset>(
+                            begin: const Offset(0, 1),
+                            end: Offset.zero,
+                          ).animate(
+                            CurvedAnimation(
+                              parent: _messageEditorController,
+                              curve: Curves.easeOutCubic,
+                              reverseCurve: Curves.easeInCubic,
+                            ),
+                          ),
+                      child: MessageCreationOverlay(
+                        placeId: widget.placeId,
+                        onClose: _closeMessageEditor,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1150,6 +1286,7 @@ class _NoteLikeRowState extends ConsumerState<_NoteLikeRow> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = context.l10n;
     final likedAsync = ref.watch(noteLikeProvider(widget.placeId));
     final serverLiked = likedAsync.valueOrNull ?? false;
     _applyServerLikeState(
@@ -1162,13 +1299,13 @@ class _NoteLikeRowState extends ConsumerState<_NoteLikeRow> {
         ? colorScheme.error
         : colorScheme.onSurfaceVariant;
     final tooltip = widget.canLike
-        ? (_displayLiked ? 'Unlike note' : 'Like note')
+        ? (_displayLiked ? l10n.unlikeNote : l10n.likeNote)
         : widget.isOwnNote
-        ? 'You cannot like your own note'
-        : 'Like unavailable';
+        ? l10n.cannotLikeOwnNote
+        : l10n.likeUnavailable;
 
     return Material(
-      color: colorScheme.surface,
+      color: colorScheme.surface.withValues(alpha: 0.78),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
         child: Row(
@@ -1185,7 +1322,7 @@ class _NoteLikeRowState extends ConsumerState<_NoteLikeRow> {
             ),
             const SizedBox(width: 4),
             Text(
-              '$_displayLikeCount like${_displayLikeCount == 1 ? '' : 's'}',
+              l10n.likeCount(_displayLikeCount),
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: colorScheme.onSurfaceVariant,
               ),
@@ -1219,34 +1356,31 @@ class _ThreadStatusBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
 
     // Resolve the most relevant reason, in priority order.
     final (IconData icon, String text) = switch (place) {
       _ when !place.isPublishedAt(now) => (
         Icons.event_outlined,
-        'This note is scheduled and is not accepting messages yet.',
+        l10n.noteScheduledReadOnly,
       ),
       _ when place.isArchived || place.isExpiredAt(now) => (
         Icons.inventory_2_outlined,
-        'This note has been archived. It is read-only.',
+        l10n.noteArchivedReadOnly,
       ),
       _ when place.isAtMessageLimit => (
         Icons.do_not_disturb_on_outlined,
-        'This thread reached its ${AppConfig.maxMessagesPerThread}-message '
-            'limit and is now closed.',
+        l10n.threadMessageLimitReached(AppConfig.maxMessagesPerThread),
       ),
       _ when place.closedReason == ClosedReason.messageLimit => (
         Icons.do_not_disturb_on_outlined,
-        'This thread is full and closed.',
+        l10n.threadFullClosed,
       ),
-      _ => (
-        Icons.lock_outline,
-        'A maintainer closed this thread. It is read-only.',
-      ),
+      _ => (Icons.lock_outline, l10n.threadMaintainerClosed),
     };
 
     return Material(
-      color: theme.colorScheme.surfaceContainerHighest,
+      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.82),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(
@@ -1268,6 +1402,28 @@ class _ThreadStatusBanner extends StatelessWidget {
   }
 }
 
+class _NoteBackButton extends StatelessWidget {
+  const _NoteBackButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      identifier: 'action-close-note-detail',
+      button: true,
+      child: BackButton(
+        key: const ValueKey('note-detail-back-button'),
+        onPressed: () {
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/map');
+          }
+        },
+      ),
+    );
+  }
+}
+
 class _UnavailableNoteView extends StatelessWidget {
   final String title;
 
@@ -1276,8 +1432,12 @@ class _UnavailableNoteView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
     return Scaffold(
-      appBar: AppBar(title: Text(title.isEmpty ? 'Note' : title)),
+      appBar: AppBar(
+        leading: const _NoteBackButton(),
+        title: Text(title.isEmpty ? l10n.noteFallbackTitle : title),
+      ),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -1291,17 +1451,69 @@ class _UnavailableNoteView extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                'This note is not available.',
+                l10n.noteUnavailableTitle,
                 style: theme.textTheme.titleMedium,
               ),
               const SizedBox(height: 6),
               Text(
-                'It may not be published yet, may have expired, or may no '
-                'longer be accessible from here.',
+                l10n.noteUnavailableMessage,
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NoteAccessErrorView extends StatelessWidget {
+  final String title;
+  final VoidCallback onRetry;
+
+  const _NoteAccessErrorView({required this.title, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = context.l10n;
+    return Scaffold(
+      appBar: AppBar(
+        leading: const _NoteBackButton(),
+        title: Text(title.isEmpty ? l10n.noteFallbackTitle : title),
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.near_me_disabled_outlined,
+                size: 48,
+                color: theme.colorScheme.outline,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                l10n.noteOpenFailedTitle,
+                style: theme.textTheme.titleMedium,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                l10n.noteOpenFailedMessage,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh),
+                label: Text(l10n.commonTryAgain),
               ),
             ],
           ),
@@ -1318,9 +1530,44 @@ class _LoadingNoteView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
-      appBar: AppBar(title: Text(title.isEmpty ? 'Note' : title)),
-      body: const Center(child: CircularProgressIndicator()),
+      appBar: AppBar(
+        leading: const _NoteBackButton(),
+        title: Text(title.isEmpty ? l10n.noteFallbackTitle : title),
+      ),
+      body: const SkeletonView(
+        child: Column(
+          children: [
+            Padding(
+              padding: EdgeInsets.fromLTRB(16, 16, 16, 12),
+              child: SkeletonBox(
+                width: double.infinity,
+                height: 150,
+                borderRadius: BorderRadius.all(Radius.circular(16)),
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  SkeletonBox(
+                    width: 36,
+                    height: 36,
+                    borderRadius: BorderRadius.all(Radius.circular(18)),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(child: SkeletonBox(height: 14)),
+                  SizedBox(width: 32),
+                  SkeletonBox(width: 56, height: 28),
+                ],
+              ),
+            ),
+            SizedBox(height: 8),
+            Expanded(child: SkeletonListView(itemCount: 4)),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -1336,7 +1583,7 @@ class _ReadOnlyBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Material(
-      color: theme.colorScheme.surfaceContainerHighest,
+      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.82),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(
@@ -1349,7 +1596,7 @@ class _ReadOnlyBanner extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Read-only from My Notes.',
+                context.l10n.noteReadOnlyFromMyNotes,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -1382,15 +1629,16 @@ class _LockedNoteView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
     final bodyText = switch (lockType) {
-      NoteLockType.password => 'Enter the password to read and post messages.',
-      NoteLockType.pattern => 'Draw the pattern to read and post messages.',
-      null => 'Unlock this note to read and post messages.',
+      NoteLockType.password => l10n.notePrivatePasswordDescription,
+      NoteLockType.pattern => l10n.notePrivatePatternDescription,
+      null => l10n.notePrivateDescription,
     };
     final buttonText = switch (lockType) {
-      NoteLockType.password => 'Enter password',
-      NoteLockType.pattern => 'Draw pattern',
-      null => 'Unlock',
+      NoteLockType.password => l10n.enterPassword,
+      NoteLockType.pattern => l10n.drawPattern,
+      null => l10n.unlockAction,
     };
     final buttonIcon = switch (lockType) {
       NoteLockType.pattern => Icons.grid_3x3,
@@ -1398,7 +1646,7 @@ class _LockedNoteView extends StatelessWidget {
     };
 
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(leading: const _NoteBackButton(), title: Text(title)),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
@@ -1411,7 +1659,7 @@ class _LockedNoteView extends StatelessWidget {
                 color: theme.colorScheme.outline,
               ),
               const SizedBox(height: 16),
-              Text('This note is private', style: theme.textTheme.titleMedium),
+              Text(l10n.notePrivateTitle, style: theme.textTheme.titleMedium),
               const SizedBox(height: 8),
               Text(
                 bodyText,
@@ -1423,7 +1671,7 @@ class _LockedNoteView extends StatelessWidget {
               if (lockHint case final hint? when hint.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Text(
-                  'Hint: $hint',
+                  l10n.noteLockHint(hint),
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
@@ -1453,6 +1701,7 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -1464,7 +1713,7 @@ class _EmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            'No messages yet.\nBe the first to write!',
+            l10n.noMessages,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant,

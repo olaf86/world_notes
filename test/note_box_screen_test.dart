@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,9 +9,117 @@ import 'package:world_notes/domain/entities/place_entity.dart';
 import 'package:world_notes/domain/entities/user_entity.dart';
 import 'package:world_notes/presentation/providers/providers.dart';
 import 'package:world_notes/presentation/screens/note/note_box_screen.dart';
+import 'package:world_notes/presentation/widgets/loading_skeleton.dart';
 import 'package:world_notes/presentation/widgets/map/static_note_mini_map.dart';
 
 void main() {
+  testWidgets('can return to the previous map while the note is loading', (
+    tester,
+  ) async {
+    final router = GoRouter(
+      initialLocation: '/map',
+      routes: [
+        GoRoute(
+          path: '/map',
+          builder: (_, _) => const Scaffold(body: Text('Map origin')),
+        ),
+        GoRoute(
+          path: '/note/:placeId',
+          builder: (_, state) => NoteBoxScreen(
+            placeId: state.pathParameters['placeId']!,
+            placeTitle: 'Loading note',
+          ),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          isPremiumProvider.overrideWith((ref) => Stream.value(true)),
+          authStateProvider.overrideWith(
+            (ref) => Stream<UserEntity?>.value(null),
+          ),
+          placeProvider.overrideWith(
+            (ref, String placeId) => const Stream<PlaceEntity?>.empty(),
+          ),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pump();
+
+    unawaited(router.push<void>('/note/place-1'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.byType(SkeletonBox), findsWidgets);
+    expect(
+      find.byKey(const ValueKey('note-detail-back-button')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('note-detail-back-button')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Map origin'), findsOneWidget);
+  });
+
+  testWidgets('shows retry UI when destination access validation fails', (
+    tester,
+  ) async {
+    var attempts = 0;
+    final retry = Completer<void>();
+    const request = NoteAccessValidationRequest(
+      placeId: 'nearby-note',
+      latitude: 35.0,
+      longitude: 139.0,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          isPremiumProvider.overrideWith((ref) => Stream.value(true)),
+          authStateProvider.overrideWith(
+            (ref) => Stream<UserEntity?>.value(null),
+          ),
+          placeProvider.overrideWith(
+            (ref, String placeId) => const Stream<PlaceEntity?>.empty(),
+          ),
+          noteAccessValidationProvider.overrideWith((ref, value) {
+            attempts += 1;
+            expect(value, request);
+            return attempts == 1
+                ? Future<void>.error(StateError('offline'))
+                : retry.future;
+          }),
+        ],
+        child: const MaterialApp(
+          home: NoteBoxScreen(
+            placeId: 'nearby-note',
+            placeTitle: 'Nearby note',
+            accessValidation: request,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Could not open this note.'), findsOneWidget);
+    expect(find.text('Try again'), findsOneWidget);
+
+    await tester.tap(find.text('Try again'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(attempts, 2);
+    expect(find.byType(SkeletonBox), findsWidgets);
+    retry.complete();
+  });
+
   testWidgets(
     'does not subscribe to messages while the note is still loading',
     (tester) async {
@@ -40,7 +150,7 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(SkeletonBox), findsWidgets);
       expect(messageSubscriptionCount, 0);
     },
   );
@@ -92,6 +202,13 @@ void main() {
     await tester.pump();
 
     expect(find.byType(StaticNoteMiniMap), findsOneWidget);
+    final themedBackground = tester.widget<DecoratedBox>(
+      find.byKey(const ValueKey('note-theme-page-standard')),
+    );
+    expect(
+      (themedBackground.decoration as BoxDecoration).gradient,
+      isA<LinearGradient>(),
+    );
   });
 
   testWidgets('opens the creator profile from the mini map', (tester) async {

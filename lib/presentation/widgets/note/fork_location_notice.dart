@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../l10n/l10n.dart';
+
 /// Explains that an archived note's location will be reused for a new note.
 class ForkLocationNotice extends StatelessWidget {
   const ForkLocationNotice({super.key});
@@ -24,7 +26,7 @@ class ForkLocationNotice extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'This new note will use the archived note\'s location.',
+                context.l10n.forkLocationNotice,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),

@@ -24,6 +24,7 @@ void main() {
       final model = PublicProfileModel.fromFirestoreData('user-1', {
         'displayName': 'Test User',
         'photoUrl': null,
+        'photoVersion': 0,
         'followerCount': 0,
         'followingCount': 0,
       });

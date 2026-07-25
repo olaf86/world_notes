@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../domain/entities/place_entity.dart';
+import '../../../l10n/l10n.dart';
 import 'note_lock_setup_dialog.dart';
 
 /// Shows the configured note lock and provides actions to manage it.
@@ -19,12 +20,13 @@ class NoteLockSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
     final value = this.value;
     final isLocked = value != null;
     final lockTypeLabel = switch (value?.lockType) {
-      NoteLockType.password => 'Password',
-      NoteLockType.pattern => 'Pattern',
-      null => 'Public',
+      NoteLockType.password => l10n.passwordLabel,
+      NoteLockType.pattern => l10n.patternLabel,
+      null => l10n.publicNote,
     };
 
     return DecoratedBox(
@@ -48,14 +50,16 @@ class NoteLockSummary extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    isLocked ? 'Locked note' : 'Public note',
+                    isLocked ? l10n.lockedNote : l10n.publicNote,
                     style: theme.textTheme.titleSmall,
                   ),
                   const SizedBox(height: 2),
                   Text(
                     isLocked
-                        ? '$lockTypeLabel lock${value.lockHint == null ? '' : ' with hint'}'
-                        : 'Anyone nearby can open it.',
+                        ? value.lockHint == null
+                              ? l10n.noteLockSummary(lockTypeLabel)
+                              : l10n.noteLockSummaryWithHint(lockTypeLabel)
+                        : l10n.anyoneNearbyCanOpen,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -64,13 +68,13 @@ class NoteLockSummary extends StatelessWidget {
               ),
             ),
             IconButton(
-              tooltip: isLocked ? 'Change lock' : 'Set lock',
+              tooltip: isLocked ? l10n.changeLock : l10n.setLock,
               onPressed: onConfigure,
               icon: Icon(isLocked ? Icons.edit_outlined : Icons.lock_outline),
             ),
             if (isLocked)
               IconButton(
-                tooltip: 'Remove lock',
+                tooltip: l10n.removeLock,
                 onPressed: onRemove,
                 icon: const Icon(Icons.close),
               ),

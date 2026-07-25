@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../../domain/entities/notice_entity.dart';
+import '../../../l10n/l10n.dart';
+import '../../../l10n/localized_formatters.dart';
 import '../../providers/providers.dart';
+import '../../widgets/loading_skeleton.dart';
 
 class NoticesScreen extends ConsumerWidget {
   const NoticesScreen({super.key});
@@ -13,9 +17,9 @@ class NoticesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final noticesAsync = ref.watch(noticesProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Notifications')),
+      appBar: AppBar(title: Text(context.l10n.navNotifications)),
       body: noticesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const SkeletonView(child: SkeletonListView()),
         error: (error, _) => Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -54,11 +58,17 @@ class NoticesScreen extends ConsumerWidget {
   ) async {
     final user = ref.read(authStateProvider).valueOrNull;
     if (user != null && notice.isUnread) {
-      await ref
-          .read(noticeRepositoryProvider)
-          .markRead(userId: user.id, noticeId: notice.id);
+      // Reading a notice must not delay its destination. The live notices
+      // stream updates the badge when this best-effort write completes.
+      unawaited(
+        ref
+            .read(noticeRepositoryProvider)
+            .markRead(userId: user.id, noticeId: notice.id)
+            .onError((error, stack) {
+              debugPrint('Could not mark notice ${notice.id} read: $error');
+            }),
+      );
     }
-    if (!context.mounted) return;
     if (notice.category == 'social' && notice.sourceId?.isNotEmpty == true) {
       await context.push<void>('/users/${notice.sourceId}');
       return;
@@ -102,7 +112,7 @@ class _EmptyNotices extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'No notifications yet.',
+              context.l10n.noNotifications,
               style: theme.textTheme.titleMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -123,11 +133,11 @@ class _NoticeTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final createdAt = DateFormat(
-      DateTime.now().difference(notice.createdAt).inDays >= 1
-          ? 'MMM d, HH:mm'
-          : 'HH:mm',
-    ).format(notice.createdAt.toLocal());
+    final createdAt = formatMessageDateTime(
+      notice.createdAt,
+      locale: context.localeTag,
+      includeDate: DateTime.now().difference(notice.createdAt).inDays >= 1,
+    );
 
     return ListTile(
       leading: Stack(

@@ -11,15 +11,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-import 'config/app_config.dart';
 import 'config/notification_navigation.dart';
 import 'config/router.dart';
 import 'config/runtime_mode.dart';
 import 'core/theme/app_theme.dart';
 import 'firebase_options.dart';
-import 'l10n/app_localizations.dart';
+import 'l10n/app_locale.dart';
+import 'l10n/l10n.dart';
 import 'presentation/providers/providers.dart';
 import 'services/subscription_service.dart';
 
@@ -42,14 +42,17 @@ void main() async {
     };
   }
 
-  if (AppConfig.supportsMobileAds) {
-    await MobileAds.instance.initialize();
-  }
   if (!screenshotMode) {
     await SubscriptionService.initialize();
   }
 
-  runApp(const ProviderScope(child: WorldNotesApp()));
+  final preferences = await SharedPreferences.getInstance();
+  runApp(
+    ProviderScope(
+      overrides: [sharedPreferencesProvider.overrideWithValue(preferences)],
+      child: const WorldNotesApp(),
+    ),
+  );
 }
 
 Future<void> _configureFirebaseServices() async {
@@ -121,7 +124,8 @@ class WorldNotesApp extends ConsumerStatefulWidget {
   ConsumerState<WorldNotesApp> createState() => _WorldNotesAppState();
 }
 
-class _WorldNotesAppState extends ConsumerState<WorldNotesApp> {
+class _WorldNotesAppState extends ConsumerState<WorldNotesApp>
+    with WidgetsBindingObserver {
   StreamSubscription<NotificationPlaceRoute>? _notificationOpenSubscription;
   StreamSubscription<String>? _noticeOpenSubscription;
 
@@ -129,6 +133,7 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp> {
   void initState() {
     super.initState();
     if (screenshotMode) return;
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final service = ref.read(myNotesNotificationServiceProvider);
       service.initialPlaceRouteFromLaunch().then(_openPlaceFromNotification);
@@ -147,9 +152,20 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _notificationOpenSubscription?.cancel();
     _noticeOpenSubscription?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || screenshotMode) return;
+    final privacyStatus = ref.read(adPrivacyStatusProvider);
+    if (privacyStatus.hasError ||
+        privacyStatus.valueOrNull?.shouldRetry == true) {
+      ref.invalidate(adPrivacyStatusProvider);
+    }
   }
 
   void _openPlaceFromNotification(NotificationPlaceRoute? route) {
@@ -165,9 +181,14 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp> {
   @override
   Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
+    final languagePreference = ref.watch(appLanguagePreferenceProvider);
+    // Keep the post-login UMP/ATT flow alive for the app lifetime. Ad widgets
+    // remain disabled until this provider allows requests and initializes the
+    // Mobile Ads SDK.
+    ref.watch(adPrivacyStatusProvider);
 
     return MaterialApp.router(
-      title: AppConfig.appName,
+      onGenerateTitle: (context) => context.l10n.appName,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,
@@ -180,6 +201,10 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: AppLocalizations.supportedLocales,
+      localeListResolutionCallback: resolveAppLocale,
+      locale: screenshotMode
+          ? appLocaleFromTag(screenshotLocale)
+          : languagePreference.locale,
     );
   }
 }

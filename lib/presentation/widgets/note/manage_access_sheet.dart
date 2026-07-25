@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../config/app_config.dart';
 import '../../../domain/policies/note_permissions.dart';
+import '../../../l10n/l10n.dart';
 import '../../providers/providers.dart';
 
 /// Maintainer-only sheet to manage a private note's access.
@@ -268,7 +269,7 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
                 error: (e, _) => Text('Error: $e'),
                 data: (members) => members.isEmpty
                     ? Text(
-                        'No one yet. Share the link to add people.',
+                        context.l10n.noAccessMembers,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),

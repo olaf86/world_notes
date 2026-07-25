@@ -2,20 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/entities/note_list_sort.dart';
+import '../../../l10n/l10n.dart';
 import '../../providers/providers.dart';
 import '../../widgets/note/note_sort_button.dart';
 import 'map_notes_error_messages.dart';
 import 'map_notes_list_screen.dart';
 import 'map_screen.dart';
 
-class MapNotesScreen extends StatefulWidget {
+class MapNotesScreen extends ConsumerStatefulWidget {
   const MapNotesScreen({super.key});
 
   @override
-  State<MapNotesScreen> createState() => _MapNotesScreenState();
+  ConsumerState<MapNotesScreen> createState() => _MapNotesScreenState();
 }
 
-class _MapNotesScreenState extends State<MapNotesScreen> {
+class _MapNotesScreenState extends ConsumerState<MapNotesScreen> {
   late final PageController _pageController;
 
   @override
@@ -44,6 +45,9 @@ class _MapNotesScreenState extends State<MapNotesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Watching here creates and preloads the ad while the user browses the
+    // map, well before an eligible note-open action occurs.
+    ref.watch(noteOpenInterstitialGateProvider);
     return PageView(
       controller: _pageController,
       physics: const NeverScrollableScrollPhysics(),
@@ -118,7 +122,7 @@ class _MapNotesList extends ConsumerWidget {
               onPressed: onShowMap,
             ),
           ),
-          title: const Text('Map Notes'),
+          title: Text(context.l10n.mapNotesTitle),
           actions: [
             NoteSortButton(
               selected: sort,

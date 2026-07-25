@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../l10n/l10n.dart';
 import '../presentation/providers/providers.dart';
 import '../presentation/screens/admin/admin_moderation_screen.dart';
 import '../presentation/screens/auth/sign_in_screen.dart';
@@ -89,29 +90,19 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
         ],
       ),
-      // These routes are pushed on the root Navigator on top of the
-      // StatefulShellRoute shell.  If they use the default opaque:true page,
-      // Flutter's Navigator marks the shell route as offstage and wraps it in
-      // Offstage(offstage:true), which passes BoxConstraints() (unbounded) to
-      // the entire shell widget tree.  That triggers layout failures and the
-      // cascading '!semantics.parentDataDirty' assertion loop.
-      //
-      // Fix: declare each route with opaque:false via CustomTransitionPage so
-      // Flutter never marks the shell as offstage.  The shell continues to
-      // receive proper screen-size constraints at all times.  NoteBoxScreen's
-      // Scaffold surface colour hides the shell visually once the fade is
-      // complete, so there is no perceptible difference to the user.
+      // Full-screen destinations are opaque. Once their transition completes,
+      // Flutter can stop painting the shell (including the native map view)
+      // underneath. _MainShell keeps its own layout finite while offstage, so
+      // these pages don't need to remain transparent as a layout workaround.
       GoRoute(
         path: '/note/create',
         pageBuilder: (context, state) {
           final forkDraft = state.extra is NoteCreationDraft
               ? state.extra as NoteCreationDraft
               : null;
-          return CustomTransitionPage<void>(
-            key: state.pageKey,
+          return _fullScreenPage<void>(
+            state: state,
             child: NoteCreationScreen(forkDraft: forkDraft),
-            opaque: false,
-            transitionsBuilder: _slideTransition,
           );
         },
       ),
@@ -121,114 +112,96 @@ final routerProvider = Provider<GoRouter>((ref) {
           final placeId = state.pathParameters['placeId']!;
           final placeTitle = state.uri.queryParameters['title'] ?? '';
           final readOnly = state.uri.queryParameters['readOnly'] == 'true';
-          return CustomTransitionPage<void>(
-            key: state.pageKey,
+          final accessValidation = state.extra is NoteAccessValidationRequest
+              ? state.extra as NoteAccessValidationRequest
+              : null;
+          return _fullScreenPage<void>(
+            state: state,
             child: NoteBoxScreen(
               placeId: placeId,
               placeTitle: placeTitle,
               readOnly: readOnly,
+              accessValidation: accessValidation,
             ),
-            opaque: false,
-            transitionsBuilder: _slideTransition,
           );
         },
       ),
       GoRoute(
         path: '/note/:placeId/messages/:messageId/report',
         pageBuilder: (context, state) {
-          return CustomTransitionPage<bool>(
-            key: state.pageKey,
+          return _fullScreenPage<bool>(
+            state: state,
             child: ReportMessageScreen(
               placeId: state.pathParameters['placeId']!,
               messageId: state.pathParameters['messageId']!,
             ),
-            opaque: false,
-            transitionsBuilder: _slideTransition,
           );
         },
       ),
       GoRoute(
         path: '/note/:placeId/visitors',
         pageBuilder: (context, state) {
-          return CustomTransitionPage<void>(
-            key: state.pageKey,
+          return _fullScreenPage<void>(
+            state: state,
             child: NoteVisitorsScreen(
               placeId: state.pathParameters['placeId']!,
             ),
-            opaque: false,
-            transitionsBuilder: _slideTransition,
           );
         },
       ),
       GoRoute(
         path: '/users/:userId',
-        pageBuilder: (context, state) => CustomTransitionPage<void>(
-          key: state.pageKey,
+        pageBuilder: (context, state) => _fullScreenPage<void>(
+          state: state,
           child: UserProfileScreen(userId: state.pathParameters['userId']!),
-          opaque: false,
-          transitionsBuilder: _slideTransition,
         ),
       ),
       GoRoute(
         path: '/users/:userId/followers',
-        pageBuilder: (context, state) => CustomTransitionPage<void>(
-          key: state.pageKey,
+        pageBuilder: (context, state) => _fullScreenPage<void>(
+          state: state,
           child: FollowListScreen(
             userId: state.pathParameters['userId']!,
             followers: true,
           ),
-          opaque: false,
-          transitionsBuilder: _slideTransition,
         ),
       ),
       GoRoute(
         path: '/users/:userId/following',
-        pageBuilder: (context, state) => CustomTransitionPage<void>(
-          key: state.pageKey,
+        pageBuilder: (context, state) => _fullScreenPage<void>(
+          state: state,
           child: FollowListScreen(
             userId: state.pathParameters['userId']!,
             followers: false,
           ),
-          opaque: false,
-          transitionsBuilder: _slideTransition,
         ),
       ),
       // Invite deep link: worldnotes.asobo.dev/i/{token}. Reachable logged out
       // (see redirect) so the claim screen can prompt sign-in.
       GoRoute(
         path: '/i/:token',
-        pageBuilder: (context, state) => CustomTransitionPage<void>(
-          key: state.pageKey,
+        pageBuilder: (context, state) => _fullScreenPage<void>(
+          state: state,
           child: InviteClaimScreen(token: state.pathParameters['token']!),
-          opaque: false,
-          transitionsBuilder: _slideTransition,
         ),
       ),
       GoRoute(
         path: '/subscription',
-        pageBuilder: (context, state) => CustomTransitionPage<void>(
-          key: state.pageKey,
+        pageBuilder: (context, state) => _fullScreenPage<void>(
+          state: state,
           child: const SubscriptionScreen(),
-          opaque: false,
-          transitionsBuilder: _slideTransition,
         ),
       ),
       GoRoute(
         path: '/settings',
-        pageBuilder: (context, state) => CustomTransitionPage<void>(
-          key: state.pageKey,
-          child: const SettingsScreen(),
-          opaque: false,
-          transitionsBuilder: _slideTransition,
-        ),
+        pageBuilder: (context, state) =>
+            _fullScreenPage<void>(state: state, child: const SettingsScreen()),
       ),
       GoRoute(
         path: '/admin/moderation',
-        pageBuilder: (context, state) => CustomTransitionPage<void>(
-          key: state.pageKey,
+        pageBuilder: (context, state) => _fullScreenPage<void>(
+          state: state,
           child: const AdminModerationScreen(),
-          opaque: false,
-          transitionsBuilder: _slideTransition,
         ),
       ),
     ],
@@ -245,45 +218,29 @@ class _MainShell extends ConsumerWidget {
     // don't tear it down between MapScreen and MapNotesListScreen.
     ref.listen(positionStreamProvider, (_, _) {});
 
-    // LAYER 1 — Constraint clamp.
-    //
-    // StatefulShellRoute.indexedStack keeps all branches alive in an
-    // IndexedStack.  Inactive branches are wrapped in Offstage(offstage:true).
-    // Flutter's ModalRoute._ModalScope also wraps this shell in
-    // Offstage(offstage:true) whenever an opaque route is pushed on top.
-    //
-    // In both cases Offstage passes BoxConstraints() — 0..∞ in every
-    // dimension — to its child.  With unconstrained width/height, widgets
-    // such as Column(crossAxisAlignment:.stretch), FilledButton.icon,
-    // _ScrollableStatusView (SizedBox(height: constraints.maxHeight)), etc.
-    // try to set a dimension to ∞, throw BoxConstraints.debugAssertIsValid,
-    // and leave render objects in NEEDS-LAYOUT state.  The subsequent
-    // semantics flush then hits those dirty nodes every frame and fires
-    //   '!semantics.parentDataDirty': is not true
-    // in an infinite loop.
-    //
-    // Fix: clamp incoming constraints to the actual screen size before they
-    // reach any descendant.  MediaQuery.sizeOf is safe here because
-    // _MainShell is always rebuilt whenever the window size changes.
+    // Keep the shell at an explicit finite size even when an opaque route puts
+    // it offstage. Offstage lays its child out with the incoming constraints;
+    // this boundary prevents an unconstrained overlay layout from propagating
+    // into the IndexedStack, Scaffolds, or native map view.
     final size = MediaQuery.sizeOf(context);
 
-    // LAYER 2 — Semantics exclusion.
-    //
-    // Even with clamped constraints, both the shell and the new route sit in
-    // the semantics tree simultaneously while opaque:false routes are
-    // animating in.  NavigationBar carries SemanticsRole.tabBar /
-    // explicitChildNodes, which produces additional parentDataDirty noise
-    // when two routes coexist.  Excluding the shell from semantics while it
-    // is not the frontmost route removes that conflict entirely.
+    // A pushed route becomes current at the start of its transition. Pause
+    // Flutter-driven map animations immediately and expose only the foreground
+    // route to accessibility while the shell waits offstage. Riverpod state,
+    // branch Navigators, and the native map widget remain mounted.
     final bool isCurrent = ModalRoute.of(context)?.isCurrent ?? true;
 
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: size.width, maxHeight: size.height),
-      child: ExcludeSemantics(
-        excluding: !isCurrent,
-        child: Scaffold(
-          body: navigationShell,
-          bottomNavigationBar: _BottomNav(navigationShell: navigationShell),
+    return SizedBox(
+      width: size.width,
+      height: size.height,
+      child: TickerMode(
+        enabled: isCurrent,
+        child: ExcludeSemantics(
+          excluding: !isCurrent,
+          child: Scaffold(
+            body: navigationShell,
+            bottomNavigationBar: _BottomNav(navigationShell: navigationShell),
+          ),
         ),
       ),
     );
@@ -297,6 +254,7 @@ class _BottomNav extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final unreadCount = ref.watch(unreadNoticeCountProvider);
+    final l10n = context.l10n;
     return NavigationBar(
       selectedIndex: navigationShell.currentIndex,
       onDestinationSelected: (index) => navigationShell.goBranch(
@@ -306,22 +264,34 @@ class _BottomNav extends ConsumerWidget {
         initialLocation: index == navigationShell.currentIndex,
       ),
       destinations: [
-        const NavigationDestination(
-          icon: Icon(Icons.map_outlined),
-          label: 'Map',
-        ),
-        const NavigationDestination(
-          icon: Icon(Icons.bookmark_border_outlined),
-          label: 'Notes',
+        NavigationDestination(
+          icon: Semantics(
+            identifier: 'nav-map',
+            child: const Icon(Icons.map_outlined),
+          ),
+          label: l10n.navMap,
         ),
         NavigationDestination(
-          icon: _NoticeNavIcon(count: unreadCount),
-          selectedIcon: _NoticeNavIcon(count: unreadCount, selected: true),
-          label: 'Notifications',
+          icon: Semantics(
+            identifier: 'nav-notes',
+            child: const Icon(Icons.bookmark_border_outlined),
+          ),
+          label: l10n.navNotes,
         ),
-        const NavigationDestination(
-          icon: Icon(Icons.person_outline),
-          label: 'Profile',
+        NavigationDestination(
+          icon: Semantics(
+            identifier: 'nav-notifications',
+            child: _NoticeNavIcon(count: unreadCount),
+          ),
+          selectedIcon: _NoticeNavIcon(count: unreadCount, selected: true),
+          label: l10n.navNotifications,
+        ),
+        NavigationDestination(
+          icon: Semantics(
+            identifier: 'nav-profile',
+            child: const Icon(Icons.person_outline),
+          ),
+          label: l10n.navProfile,
         ),
       ],
     );
@@ -349,11 +319,22 @@ class _NoticeNavIcon extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Shared transition — right-to-left slide (standard push feel).
-// opaque:false is kept on all full-screen routes so the shell is never
-// wrapped in Offstage(offstage:true), which would pass BoxConstraints()
-// (0..∞) to the shell's children and trigger layout assertion loops.
+// Shared transition — right-to-left slide (standard push feel). Every page
+// using this transition is opaque, allowing Flutter to stop painting routes
+// underneath once the incoming page covers the screen.
 // ---------------------------------------------------------------------------
+
+CustomTransitionPage<T> _fullScreenPage<T>({
+  required GoRouterState state,
+  required Widget child,
+}) {
+  return CustomTransitionPage<T>(
+    key: state.pageKey,
+    child: child,
+    opaque: true,
+    transitionsBuilder: _slideTransition,
+  );
+}
 
 Widget _slideTransition(
   BuildContext context,

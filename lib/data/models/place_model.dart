@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../domain/entities/place_entity.dart';
+import '../../domain/entities/note_theme.dart';
 
 class PlaceModel {
   final String id;
@@ -9,6 +10,7 @@ class PlaceModel {
   final String title;
   final String? subtitle;
   final String colorHex;
+  final NoteThemeId themeId;
   final String icon;
   final String? pinImageStoragePath;
   final String createdByUserId;
@@ -42,6 +44,7 @@ class PlaceModel {
     required this.title,
     this.subtitle,
     required this.colorHex,
+    required this.themeId,
     required this.icon,
     this.pinImageStoragePath,
     required this.createdByUserId,
@@ -90,6 +93,7 @@ class PlaceModel {
       title: data['title'] as String,
       subtitle: data['subtitle'] as String?,
       colorHex: data['colorHex'] as String,
+      themeId: NoteThemeId.fromJson(data['themeId']),
       icon: data['icon'] as String,
       pinImageStoragePath: data['pinImageStoragePath'] as String?,
       createdByUserId: data['createdByUserId'] as String,
@@ -125,6 +129,7 @@ class PlaceModel {
       'title': title,
       'subtitle': subtitle,
       'colorHex': colorHex,
+      'themeId': themeId.toJson(),
       'icon': icon,
       if (pinImageStoragePath != null)
         'pinImageStoragePath': pinImageStoragePath,
@@ -165,6 +170,7 @@ class PlaceModel {
     title: title,
     subtitle: subtitle,
     colorHex: colorHex,
+    themeId: themeId,
     icon: icon,
     pinImageStoragePath: pinImageStoragePath,
     createdByUserId: createdByUserId,

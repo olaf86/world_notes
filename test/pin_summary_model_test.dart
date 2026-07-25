@@ -10,6 +10,7 @@ void main() {
       'title': 'A note',
       'subtitle': null,
       'colorHex': '#4CAF50',
+      'themeId': 'aurora',
       'icon': 'place',
       'creatorName': 'Alice',
       'creatorPhotoVersion': 1,
@@ -72,6 +73,15 @@ void main() {
       final model = PinSummaryModel.fromJson(json);
 
       expect(model.toEntity().markerFlags, isEmpty);
+    });
+
+    test('rejects a missing theme id', () {
+      expect(
+        () => PinSummaryModel.fromJson(
+          Map<String, dynamic>.from(json)..remove('themeId'),
+        ),
+        throwsArgumentError,
+      );
     });
   });
 }
