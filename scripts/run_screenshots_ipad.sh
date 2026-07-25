@@ -14,16 +14,33 @@ case "$SCREENSHOT_LOCALE" in
 esac
 SCREENSHOT_OUTPUT_DIR="artifacts/store_screenshots/ios_ipad/$SCREENSHOT_LOCALE"
 
+if [[ -z "${JAVA_HOME:-}" ]] &&
+  [[ -x "/Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/java" ]]; then
+  export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+fi
+
 if ! command -v maestro >/dev/null 2>&1; then
   echo "maestro command not found. Install Maestro CLI first." >&2
   exit 1
 fi
 
+if command -v xcrun >/dev/null 2>&1; then
+  xcrun simctl terminate booted dev.asobo.worldnotes >/dev/null 2>&1 || true
+  sleep 1
+fi
+
 echo "[1/2] Seeding screenshot data..."
-(
-  cd functions
-  SCREENSHOT_LOCALE="$SCREENSHOT_LOCALE" npm run seed:screenshot
-)
+seed_screenshot_data() {
+  (
+    cd functions
+    SCREENSHOT_LOCALE="$SCREENSHOT_LOCALE" npm run seed:screenshot
+  )
+}
+if ! seed_screenshot_data; then
+  echo "Seed attempt failed; retrying once..."
+  sleep 1
+  seed_screenshot_data
+fi
 
 echo "[2/2] Running Maestro flow (iPad)..."
 mkdir -p "$SCREENSHOT_OUTPUT_DIR"

@@ -27,7 +27,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   @override
   void initState() {
     super.initState();
-    _offeringFuture = _loadCurrentOffering();
+    if (!screenshotMode && SubscriptionService.isConfigured) {
+      _offeringFuture = _loadCurrentOffering();
+    }
   }
 
   @override

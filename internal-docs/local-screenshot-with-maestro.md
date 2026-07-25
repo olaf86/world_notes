@@ -13,8 +13,8 @@
 - App mode: `flutter run` with `USE_FIREBASE_EMULATORS=true` and `SCREENSHOT_MODE=true`
 - Screenshot output:
   - Android: `artifacts/store_screenshots/android/{locale}/`
-  - iOS: `artifacts/store_screenshots/ios/{locale}/`
-  - iPad: `artifacts/store_screenshots/ios_ipad/{locale}/`
+  - iOS (1320 x 2868): `artifacts/store_screenshots/ios/{locale}/`
+  - iPad (2064 x 2752): `artifacts/store_screenshots/ios_ipad/{locale}/`
 
 `artifacts/store_screenshots/` is ignored by git.
 
@@ -109,7 +109,7 @@ flutter pub get
 
    ```bash
    flutter run \
-     -d "iPhone 16 Pro Max" \
+     -d "iPhone 17 Pro Max" \
      --dart-define=USE_FIREBASE_EMULATORS=true \
      --dart-define=SCREENSHOT_MODE=true \
      --dart-define=SCREENSHOT_LOCALE=ja \
@@ -142,7 +142,7 @@ flutter pub get
 
    ```bash
    flutter run \
-     -d "iPad Pro 13-inch (M4)" \
+     -d "iPad Pro 13-inch (M5)" \
      --dart-define=USE_FIREBASE_EMULATORS=true \
      --dart-define=SCREENSHOT_MODE=true \
      --dart-define=SCREENSHOT_LOCALE=ja \
@@ -175,5 +175,7 @@ maestro test maestro/flows/smoke.yaml
 
 - Run only one simulator/emulator target at a time.
 - Use `-d` with `flutter run` so Flutter does not pick the wrong device.
+- The iOS scripts use `JAVA_HOME` when set and otherwise fall back to Android
+  Studio's bundled JBR for Maestro.
 - The store flows use `takeScreenshot`, so filenames are controlled by the YAML.
 - If a flow stalls on map/list loading, confirm Firebase Emulator is running and seed data was inserted.

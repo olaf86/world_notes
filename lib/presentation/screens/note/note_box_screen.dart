@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
@@ -781,6 +782,10 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                     appBar: AppBar(
                       backgroundColor: Colors.transparent,
                       surfaceTintColor: Colors.transparent,
+                      systemOverlayStyle:
+                          palette.colorScheme.brightness == Brightness.dark
+                          ? SystemUiOverlayStyle.light
+                          : SystemUiOverlayStyle.dark,
                       leading: const _NoteBackButton(),
                       title: Text(displayTitle),
                       actions: [

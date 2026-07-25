@@ -252,6 +252,8 @@ function placeData(
     icon: place.icon,
     createdByUserId: user.uid,
     creatorName: user.displayName,
+    creatorPhotoUrl: null,
+    creatorPhotoVersion: 1,
     maintainerIds: [user.uid],
     createdAt: timestamp(hoursBefore(now, place.createdHoursAgo)),
     publishAt: timestamp(hoursBefore(now, place.publishHoursAgo ?? 1)),
@@ -286,6 +288,15 @@ async function seedUsers(user: ScreenshotUser): Promise<void> {
     isPremium: false,
     createdAt: FieldValue.serverTimestamp(),
   });
+  await db.collection("publicProfiles").doc(user.uid).set({
+    displayName: user.displayName,
+    photoUrl: null,
+    photoVersion: 1,
+    followerCount: 0,
+    followingCount: 0,
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
 
   for (const other of otherUsers) {
     await db.collection("users").doc(other.uid).set({
@@ -294,6 +305,15 @@ async function seedUsers(user: ScreenshotUser): Promise<void> {
       photoUrl: null,
       isPremium: false,
       createdAt: FieldValue.serverTimestamp(),
+    });
+    await db.collection("publicProfiles").doc(other.uid).set({
+      displayName: other.displayName,
+      photoUrl: null,
+      photoVersion: 1,
+      followerCount: 0,
+      followingCount: 0,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
   }
 }
