@@ -28,9 +28,21 @@ interface AdminReviewMessageData {
   reason?: unknown;
 }
 
+interface AdminReviewNoteData {
+  placeId?: unknown;
+  action?: unknown;
+  reason?: unknown;
+}
+
 interface ValidatedAdminReviewMessageInput {
   placeId: string;
   messageId: string;
+  action: AdminModerationAction;
+  reason: string | null;
+}
+
+interface ValidatedAdminReviewNoteInput {
+  placeId: string;
   action: AdminModerationAction;
   reason: string | null;
 }
@@ -115,6 +127,23 @@ function validateAdminReviewMessageInput(
   };
 }
 
+function validateAdminReviewNoteInput(
+  data: AdminReviewNoteData | undefined,
+): ValidatedAdminReviewNoteInput {
+  const action = adminModerationAction(data?.action);
+  if (action === "sensitive") {
+    throw new HttpsError(
+      "invalid-argument",
+      "Notes can only be allowed or hidden.",
+    );
+  }
+  return {
+    placeId: requiredString(data?.placeId, "placeId"),
+    action,
+    reason: optionalReason(data?.reason),
+  };
+}
+
 function storedImagePaths(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter((path): path is string => typeof path === "string");
@@ -185,6 +214,10 @@ function reviewListItemFromDoc(
   const data = doc.data();
   return {
     id: doc.id,
+    targetType: data.targetType ??
+      (data.messageId == null ? "note" : "message"),
+    targetId: data.targetId ?? data.messageId ?? data.placeId ?? null,
+    targetPath: data.targetPath ?? data.messagePath ?? null,
     userId: data.userId ?? null,
     placeId: data.placeId ?? null,
     messageId: data.messageId ?? null,
@@ -355,6 +388,98 @@ export const adminReviewMessage = onCall<AdminReviewMessageData>(
       placeId: input.placeId,
       messageId: input.messageId,
       action: input.action,
+      reviewedAtMillis: Timestamp.now().toMillis(),
+    };
+  },
+);
+
+/**
+ * Applies a trusted administrator moderation decision to a queued note.
+ */
+export const adminReviewNote = onCall<AdminReviewNoteData>(
+  {enforceAppCheck: true, region: REGION},
+  async (req) => {
+    const token = req.auth?.token as Record<string, unknown> | undefined;
+    assertAdmin(req.auth?.uid, token?.admin);
+    const uid = req.auth?.uid as string;
+    const input = validateAdminReviewNoteInput(req.data);
+    const db = getFirestore();
+    const placeRef = db.collection("places").doc(input.placeId);
+    const reviewRef = db
+      .collection("moderationReviews")
+      .doc(`note_${input.placeId}`);
+    const auditRef = db.collection("moderationAuditLogs").doc();
+    const reportResolutionStatus =
+      input.action === "allow" ? "rejected" : "accepted";
+
+    await db.runTransaction(async (tx) => {
+      const reportsQuery = db
+        .collection("reports")
+        .where("targetType", "==", "note")
+        .where("placeId", "==", input.placeId)
+        .where("status", "==", "open");
+      const [placeSnap, reviewSnap, reportsSnap] = await Promise.all([
+        tx.get(placeRef),
+        tx.get(reviewRef),
+        tx.get(reportsQuery),
+      ]);
+      if (!placeSnap.exists) {
+        throw new HttpsError("not-found", "Note not found.");
+      }
+      if (!reviewSnap.exists) {
+        throw new HttpsError("not-found", "Moderation review not found.");
+      }
+
+      const hidden = input.action !== "allow";
+      tx.update(placeRef, {
+        moderationAction: hidden ? "hidden" : "allow",
+        isModerationHidden: hidden,
+        reviewRequired: false,
+        moderationReviewedAt: FieldValue.serverTimestamp(),
+        moderationReviewedBy: uid,
+        moderationReviewReason: input.reason,
+      });
+      tx.update(reviewRef, {
+        status: "resolved",
+        humanDecision: hidden ? "hidden" : "allow",
+        decisionReason: input.reason,
+        reviewedAt: FieldValue.serverTimestamp(),
+        reviewedBy: uid,
+        targetType: "note",
+        targetId: input.placeId,
+        targetPath: `places/${input.placeId}`,
+      });
+      tx.set(auditRef, {
+        adminUserId: uid,
+        targetType: "note",
+        targetId: input.placeId,
+        targetPath: `places/${input.placeId}`,
+        placeId: input.placeId,
+        reviewPath: `moderationReviews/${reviewRef.id}`,
+        action: hidden ? "hidden" : "allow",
+        reason: input.reason,
+        previousModerationAction:
+          placeSnap.get("moderationAction") ?? null,
+        previousIsModerationHidden:
+          placeSnap.get("isModerationHidden") ?? null,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      reportsSnap.docs.forEach((reportDoc) => {
+        tx.update(reportDoc.ref, {
+          status: reportResolutionStatus,
+          resolvedAt: FieldValue.serverTimestamp(),
+          resolvedBy: uid,
+          moderationReviewId: reviewRef.id,
+          moderationDecision: hidden ? "hidden" : "allow",
+          moderationReason: input.reason,
+        });
+      });
+    });
+
+    return {
+      ok: true,
+      placeId: input.placeId,
+      action: input.action === "allow" ? "allow" : "hidden",
       reviewedAtMillis: Timestamp.now().toMillis(),
     };
   },

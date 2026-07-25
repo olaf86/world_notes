@@ -178,6 +178,7 @@ function isPublishedPlace(
   const publishAt = doc.get("publishAt") as Timestamp | undefined;
   const expiresAt = doc.get("expiresAt") as Timestamp | undefined;
   return doc.get("isArchived") !== true &&
+    doc.get("isModerationHidden") !== true &&
     publishAt != null &&
     expiresAt != null &&
     publishAt.toMillis() <= nowMillis &&

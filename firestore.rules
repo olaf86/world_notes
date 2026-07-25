@@ -67,6 +67,7 @@ service cloud.firestore {
 
     function isPubliclyReadablePlace(place) {
       return place.isArchived == false
+             && place.get('isModerationHidden', false) != true
              && place.publishAt <= request.time
              && place.expiresAt > request.time;
     }
@@ -401,6 +402,12 @@ service cloud.firestore {
     // Administrator moderation audit log. Written only by trusted Cloud
     // Functions with the Admin SDK.
     match /moderationAuditLogs/{logId} {
+      allow read, write: if false;
+    }
+
+    // Provider decisions for rejected drafts and images. These events contain
+    // moderation metadata only and are never exposed to clients.
+    match /moderationEvents/{eventId} {
       allow read, write: if false;
     }
 

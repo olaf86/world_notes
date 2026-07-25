@@ -35,6 +35,9 @@ async function assertMaintainer(placeId: string, uid: string) {
   if (snap.get("isArchived") === true) {
     throw new HttpsError("failed-precondition", "This note is archived.");
   }
+  if (snap.get("isModerationHidden") === true) {
+    throw new HttpsError("failed-precondition", "This note is unavailable.");
+  }
 }
 
 /**
@@ -171,6 +174,7 @@ export const claimInvite = onCall<{token?: unknown}>(
       const expiresAt = placeSnap.get("expiresAt");
       if (
         placeSnap.get("isArchived") === true ||
+        placeSnap.get("isModerationHidden") === true ||
         !expiresAt ||
         expiresAt.toMillis() <= Date.now()
       ) {
@@ -306,6 +310,12 @@ export const grantNoteMaintainer = onCall<{
       }
       if (placeSnap.get("isArchived") === true) {
         throw new HttpsError("failed-precondition", "This note is archived.");
+      }
+      if (placeSnap.get("isModerationHidden") === true) {
+        throw new HttpsError(
+          "failed-precondition",
+          "This note is unavailable.",
+        );
       }
 
       const memberRef = placeRef.collection("members").doc(userId);

@@ -48,6 +48,7 @@ function isPubliclyReadablePlace(
   const publishAt = placeSnap.get("publishAt") as Timestamp | undefined;
   const expiresAt = placeSnap.get("expiresAt") as Timestamp | undefined;
   return placeSnap.get("isArchived") !== true &&
+    placeSnap.get("isModerationHidden") !== true &&
     publishAt != null &&
     expiresAt != null &&
     publishAt.toMillis() <= nowMillis &&
@@ -65,6 +66,7 @@ function canAccessNote({
   uid: string;
   nowMillis: number;
 }): boolean {
+  if (placeSnap.get("isModerationHidden") === true) return false;
   if (canMaintainNote(placeSnap, uid)) return true;
   if (!isPubliclyReadablePlace(placeSnap, nowMillis)) return false;
   if (placeSnap.get("visibility") !== "private") return true;

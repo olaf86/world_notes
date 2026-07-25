@@ -5,9 +5,11 @@ import {
 } from "libphonenumber-js";
 import {defineSecret} from "firebase-functions/params";
 import {HttpsError} from "firebase-functions/v2/https";
+import * as logger from "firebase-functions/logger";
 import {
   DocumentReference,
   FieldValue,
+  Firestore,
   Timestamp,
   Transaction,
 } from "firebase-admin/firestore";
@@ -75,6 +77,11 @@ export interface OpenAiModerationResponse {
     categories?: Record<string, boolean>;
     category_scores?: Record<string, number>;
   }>;
+}
+
+export interface ModerationImageInput {
+  bytes: Uint8Array;
+  contentType: "image/webp" | "image/jpeg" | "image/png";
 }
 
 const POLICY_VERSION = "2026-07-moderation-v1";
@@ -188,17 +195,19 @@ function canDeferModeration(status: number): boolean {
 export function normalizeOpenAiModeration(
   response: OpenAiModerationResponse,
 ): InternalModerationResult {
-  const result = response.results?.[0] ?? {};
   const byCategory = new Map<InternalCategory, ModerationCategoryScore>();
-  for (const [providerCategory, internalCategory] of Object.entries(
-    OPENAI_CATEGORY_MAP,
-  )) {
-    mergeCategoryScore(
-      byCategory,
-      internalCategory,
-      scoreOf(result.category_scores?.[providerCategory]),
-      result.categories?.[providerCategory] === true,
-    );
+  const results = response.results ?? [];
+  for (const result of results) {
+    for (const [providerCategory, internalCategory] of Object.entries(
+      OPENAI_CATEGORY_MAP,
+    )) {
+      mergeCategoryScore(
+        byCategory,
+        internalCategory,
+        scoreOf(result.category_scores?.[providerCategory]),
+        result.categories?.[providerCategory] === true,
+      );
+    }
   }
   const categories = [...byCategory.values()];
   const action = actionFor(categories);
@@ -206,7 +215,7 @@ export function normalizeOpenAiModeration(
     provider: "openai",
     providerModel: response.model ?? OPENAI_MODERATION_MODEL,
     policyVersion: POLICY_VERSION,
-    flagged: result.flagged === true,
+    flagged: results.some((result) => result.flagged === true),
     action,
     maxScore: Math.max(0, ...categories.map((entry) => entry.score)),
     categories,
@@ -214,11 +223,30 @@ export function normalizeOpenAiModeration(
   };
 }
 
-export async function moderateTextContent(
+function moderationInput(
   content: string,
+  images: ModerationImageInput[],
+): string | Array<Record<string, unknown>> {
+  const trimmed = content.replace(/\s+/g, " ").trim();
+  if (images.length === 0) return trimmed;
+  return [
+    ...(trimmed.length > 0 ? [{type: "text", text: trimmed}] : []),
+    ...images.map((image) => ({
+      type: "image_url",
+      image_url: {
+        url: `data:${image.contentType};base64,` +
+          Buffer.from(image.bytes).toString("base64"),
+      },
+    })),
+  ];
+}
+
+export async function moderateContent(
+  content: string,
+  images: ModerationImageInput[] = [],
 ): Promise<InternalModerationResult> {
   const trimmed = content.replace(/\s+/g, " ").trim();
-  if (trimmed.length === 0) {
+  if (trimmed.length === 0 && images.length === 0) {
     return {
       provider: "openai",
       providerModel: OPENAI_MODERATION_MODEL,
@@ -240,7 +268,7 @@ export async function moderateTextContent(
       },
       body: JSON.stringify({
         model: OPENAI_MODERATION_MODEL,
-        input: trimmed,
+        input: moderationInput(trimmed, images),
       }),
     });
   } catch {
@@ -252,13 +280,25 @@ export async function moderateTextContent(
     }
     throw new HttpsError(
       "unavailable",
-      "Could not check message safety.",
-      {status: response.status},
+      "Could not check content safety.",
+      {status: response.status, reason: "moderation_unavailable"},
     );
   }
-  return normalizeOpenAiModeration(
-    await response.json() as OpenAiModerationResponse,
-  );
+  const payload = await response.json() as OpenAiModerationResponse;
+  if (payload.results == null || payload.results.length === 0) {
+    throw new HttpsError(
+      "unavailable",
+      "The content safety check returned no result.",
+      {reason: "moderation_unavailable"},
+    );
+  }
+  return normalizeOpenAiModeration(payload);
+}
+
+export async function moderateTextContent(
+  content: string,
+): Promise<InternalModerationResult> {
+  return moderateContent(content);
 }
 
 function riskSignal(
@@ -439,7 +479,8 @@ export async function applyModerationToUser(
   if (points === 0) return 0;
 
   const userSnap = await tx.get(userRef);
-  const currentPoints = userSnap.get("violationPoints") as number;
+  const currentPoints =
+    (userSnap.get("violationPoints") as number | undefined) ?? 0;
   const nextPoints = currentPoints + points;
   const update: Record<string, unknown> = {
     violationPoints: nextPoints,
@@ -459,4 +500,37 @@ export async function applyModerationToUser(
   }
   tx.set(userRef, update, {merge: true});
   return nextPoints;
+}
+
+export async function recordRejectedModeration({
+  db,
+  userRef,
+  uid,
+  result,
+  sourceType,
+}: {
+  db: Firestore;
+  userRef: DocumentReference;
+  uid: string;
+  result: InternalModerationResult;
+  sourceType: "noteDraft" | "messageImage" | "pinImage";
+}): Promise<void> {
+  let nextPoints = 0;
+  await db.runTransaction(async (tx) => {
+    nextPoints = await applyModerationToUser(tx, userRef, result);
+    tx.set(db.collection("moderationEvents").doc(), {
+      userId: uid,
+      sourceType,
+      ...moderationAuditFields(result),
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  });
+  try {
+    await createModerationNoticeIfNeeded(uid, result, nextPoints);
+  } catch (error) {
+    logger.warn(
+      `Could not create moderation notice for rejected ${sourceType}.`,
+      error,
+    );
+  }
 }

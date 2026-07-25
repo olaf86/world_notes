@@ -21,6 +21,7 @@ import {
 import {
   type AppModerationRiskSignal,
   type InternalModerationResult,
+  type ModerationImageInput,
   OPENAI_API_KEY,
   applyModerationToUser,
   assertUserCanCreateContent,
@@ -28,9 +29,16 @@ import {
   detectAppModerationRiskSignals,
   hasReviewRecommendedRiskSignal,
   moderationAuditFields,
-  moderateTextContent,
+  moderateContent,
   moderationFields,
+  recordRejectedModeration,
 } from "./moderation";
+import {
+  assertReportCooldown,
+  reportReasonCodeOf,
+  requiredReportDocumentId,
+  type ReportReasonCode,
+} from "./reporting";
 import {profileForMember} from "./userProfile";
 import {
   sendMyNotesMessageNotifications,
@@ -57,6 +65,7 @@ interface SendMessageData {
 interface ReportMessageData {
   placeId?: unknown;
   messageId?: unknown;
+  reasonCode?: unknown;
   reason?: unknown;
 }
 
@@ -77,7 +86,7 @@ interface ValidatedSendMessageInput {
 interface ValidatedReportMessageInput {
   placeId: string;
   messageId: string;
-  reason: string;
+  reasonCode: ReportReasonCode;
 }
 
 interface ValidatedSetMessageLikeInput {
@@ -139,10 +148,6 @@ interface CancelScheduledMessageData {
   placeId?: unknown;
   messageId?: unknown;
 }
-
-const MAX_REPORT_REASON_LENGTH = 500;
-const MAX_REPORT_DOCUMENT_ID_LENGTH = 200;
-const REPORT_COOLDOWN_MILLIS = 30_000;
 
 function stringOrNull(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ?
@@ -227,35 +232,13 @@ function validateSendMessageInput(
   };
 }
 
-function requiredString(value: unknown, fieldName: string): string {
-  if (typeof value !== "string" || value.trim().length === 0) {
-    throw new HttpsError("invalid-argument", `${fieldName} is required.`);
-  }
-  return value.trim();
-}
-
-function requiredDocumentId(value: unknown, fieldName: string): string {
-  const id = requiredString(value, fieldName);
-  if (
-    id.length > MAX_REPORT_DOCUMENT_ID_LENGTH ||
-    id.includes("/")
-  ) {
-    throw new HttpsError("invalid-argument", `Invalid ${fieldName}.`);
-  }
-  return id;
-}
-
 function validateReportMessageInput(
   data: ReportMessageData | undefined,
 ): ValidatedReportMessageInput {
-  const reason = requiredString(data?.reason, "reason");
-  if (reason.length > MAX_REPORT_REASON_LENGTH) {
-    throw new HttpsError("invalid-argument", "reason is too long.");
-  }
   return {
-    placeId: requiredDocumentId(data?.placeId, "placeId"),
-    messageId: requiredDocumentId(data?.messageId, "messageId"),
-    reason,
+    placeId: requiredReportDocumentId(data?.placeId, "placeId"),
+    messageId: requiredReportDocumentId(data?.messageId, "messageId"),
+    reasonCode: reportReasonCodeOf(data?.reasonCode ?? data?.reason),
   };
 }
 
@@ -263,28 +246,10 @@ function validateSetMessageLikeInput(
   data: SetMessageLikeData | undefined,
 ): ValidatedSetMessageLikeInput {
   return {
-    placeId: requiredDocumentId(data?.placeId, "placeId"),
-    messageId: requiredDocumentId(data?.messageId, "messageId"),
+    placeId: requiredReportDocumentId(data?.placeId, "placeId"),
+    messageId: requiredReportDocumentId(data?.messageId, "messageId"),
     liked: assertLiked(data?.liked),
   };
-}
-
-function assertReportCooldown(
-  rateLimitSnap: DocumentSnapshot,
-  now: Timestamp,
-) {
-  if (!rateLimitSnap.exists) return;
-  const lastCreatedAt =
-    rateLimitSnap.get("lastCreatedAt") as Timestamp | undefined;
-  if (
-    lastCreatedAt &&
-    now.toMillis() - lastCreatedAt.toMillis() < REPORT_COOLDOWN_MILLIS
-  ) {
-    throw new HttpsError(
-      "resource-exhausted",
-      "Please wait before submitting another report.",
-    );
-  }
 }
 
 function sendMessageRefs(
@@ -382,6 +347,43 @@ async function deleteStoredImages(storagePaths: string[]): Promise<void> {
   }
 }
 
+async function moderationImagesFor(
+  storagePaths: string[],
+): Promise<ModerationImageInput[]> {
+  if (storagePaths.length === 0) return [];
+  const bucket = getStorage().bucket();
+  return Promise.all(storagePaths.map(async (storagePath) => {
+    const file = bucket.file(storagePath);
+    try {
+      const [[metadata], [bytes]] = await Promise.all([
+        file.getMetadata(),
+        file.download(),
+      ]);
+      if (
+        metadata.contentType !== "image/webp" ||
+        Number(metadata.size ?? bytes.length) > 2 * 1024 * 1024
+      ) {
+        throw new HttpsError(
+          "invalid-argument",
+          "Invalid message image metadata.",
+          {reason: "invalid_image"},
+        );
+      }
+      return {
+        bytes,
+        contentType: "image/webp" as const,
+      };
+    } catch (error) {
+      if (error instanceof HttpsError) throw error;
+      throw new HttpsError(
+        "failed-precondition",
+        "Message image upload was not found.",
+        {reason: "image_upload_missing"},
+      );
+    }
+  }));
+}
+
 function photoUrlFor(tokenPicture: unknown): string | null {
   return stringOrNull(tokenPicture);
 }
@@ -465,6 +467,9 @@ function moderationReviewDocumentData({
   ];
   return {
     userId: uid,
+    targetType: "message",
+    targetId: messageId,
+    targetPath: `places/${placeId}/messages/${messageId}`,
     placeId,
     messageId,
     messagePath: `places/${placeId}/messages/${messageId}`,
@@ -527,6 +532,9 @@ function validatePlaceCanAccept(placeSnap: DocumentSnapshot, nowMs: number) {
   }
   if (placeSnap.get("isArchived") === true) {
     throw new HttpsError("failed-precondition", "This note is archived.");
+  }
+  if (placeSnap.get("isModerationHidden") === true) {
+    throw new HttpsError("failed-precondition", "This note is unavailable.");
   }
   const placePublishAt = placeSnap.get("publishAt") as Timestamp | undefined;
   if (placePublishAt && placePublishAt.toMillis() > nowMs) {
@@ -864,37 +872,75 @@ export const sendMessage = onCall<SendMessageData>(
     );
     if (existingResult) return existingResult;
 
-    const moderationResult = await moderateTextContent(input.trimmedContent);
-    const riskSignals = detectAppModerationRiskSignals(input.trimmedContent);
-    const profile = await profileForMember(
-      uid,
-      req.auth?.token.name,
-    );
-    const result = await createMessageInTransaction({
-      db,
-      refs,
-      uid,
-      input,
-      profile,
-      tokenPicture: req.auth?.token.picture,
-      moderationResult,
-      riskSignals,
-      nowMs,
-    });
-    await runSendMessageSideEffects({
-      db,
-      uid,
-      input,
-      messageId: refs.messageRef.id,
-      moderationResult,
-      result,
-    });
+    try {
+      const moderationImages = await moderationImagesFor(
+        input.trimmedImageStoragePaths,
+      );
+      const moderationResult = await moderateContent(
+        input.trimmedContent,
+        moderationImages,
+      );
+      if (
+        moderationImages.length > 0 &&
+        moderationResult.action === "pending"
+      ) {
+        throw new HttpsError(
+          "unavailable",
+          "Could not check image safety. Please try again.",
+          {reason: "moderation_unavailable"},
+        );
+      }
+      if (
+        moderationImages.length > 0 &&
+        moderationResult.action !== "allow"
+      ) {
+        await recordRejectedModeration({
+          db,
+          userRef: refs.userRef,
+          uid,
+          result: moderationResult,
+          sourceType: "messageImage",
+        });
+        throw new HttpsError(
+          "failed-precondition",
+          "This image could not be published because of its content.",
+          {reason: "image_not_allowed"},
+        );
+      }
+      const riskSignals = detectAppModerationRiskSignals(input.trimmedContent);
+      const profile = await profileForMember(
+        uid,
+        req.auth?.token.name,
+      );
+      const result = await createMessageInTransaction({
+        db,
+        refs,
+        uid,
+        input,
+        profile,
+        tokenPicture: req.auth?.token.picture,
+        moderationResult,
+        riskSignals,
+        nowMs,
+      });
+      await runSendMessageSideEffects({
+        db,
+        uid,
+        input,
+        messageId: refs.messageRef.id,
+        moderationResult,
+        result,
+      });
 
-    return {
-      messageId: refs.messageRef.id,
-      publishAtMillis: result.publishAtMillis,
-      isScheduled: result.isScheduled,
-    };
+      return {
+        messageId: refs.messageRef.id,
+        publishAtMillis: result.publishAtMillis,
+        isScheduled: result.isScheduled,
+      };
+    } catch (error) {
+      await deleteStoredImages(input.trimmedImageStoragePaths);
+      throw error;
+    }
   },
 );
 
@@ -921,7 +967,7 @@ export const reportMessage = onCall<ReportMessageData>(
       .collection("users")
       .doc(uid)
       .collection("rateLimits")
-      .doc("reportMessage");
+      .doc("reportContent");
     const reportCreatedAt = Timestamp.now();
 
     await db.runTransaction(async (tx) => {
@@ -940,7 +986,10 @@ export const reportMessage = onCall<ReportMessageData>(
       if (!messageSnap.exists) {
         throw new HttpsError("not-found", "Message not found.");
       }
-      if (!canAccessNote(placeSnap, memberSnap, uid)) {
+      if (
+        !isPublishedReadablePlace(placeSnap, reportCreatedAt.toMillis()) ||
+        !canAccessNote(placeSnap, memberSnap, uid)
+      ) {
         throw new HttpsError(
           "permission-denied",
           "You cannot report this message.",
@@ -964,12 +1013,15 @@ export const reportMessage = onCall<ReportMessageData>(
       }
 
       tx.set(reportRef, {
+        targetType: "message",
+        targetId: input.messageId,
+        targetPath: `places/${input.placeId}/messages/${input.messageId}`,
         placeId: input.placeId,
         messageId: input.messageId,
         messagePath: `places/${input.placeId}/messages/${input.messageId}`,
         reporterId: uid,
         reportedUserId: messageSnap.get("userId") ?? null,
-        reason: input.reason,
+        reasonCode: input.reasonCode,
         status: "open",
         createdAt: reportCreatedAt,
       });
@@ -983,6 +1035,9 @@ export const reportMessage = onCall<ReportMessageData>(
       });
       tx.set(moderationReviewRef, {
         userId: messageSnap.get("userId") ?? null,
+        targetType: "message",
+        targetId: input.messageId,
+        targetPath: `places/${input.placeId}/messages/${input.messageId}`,
         placeId: input.placeId,
         messageId: input.messageId,
         messagePath: `places/${input.placeId}/messages/${input.messageId}`,
@@ -992,7 +1047,7 @@ export const reportMessage = onCall<ReportMessageData>(
         ),
         reviewSources: FieldValue.arrayUnion("userReport"),
         reportCount: FieldValue.increment(1),
-        reportReasonsSummary: FieldValue.arrayUnion(input.reason),
+        reportReasonsSummary: FieldValue.arrayUnion(input.reasonCode),
         lastReportedAt: FieldValue.serverTimestamp(),
         status: "open",
         ...(reviewSnap.exists ? {} : {createdAt: FieldValue.serverTimestamp()}),

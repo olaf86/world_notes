@@ -23,6 +23,7 @@ export {aggregatePublishedMessages} from "./messageTriggers";
 export {
   adminListModerationReviews,
   adminReviewMessage,
+  adminReviewNote,
 } from "./adminModeration";
 
 // Invite-link functions (share-link access to private notes). Region set in
@@ -65,6 +66,7 @@ export {setUserFollow} from "./social";
 // Note lifecycle and metadata functions. Region set in their own options.
 export {
   createNote,
+  reportNote,
   setNotePinImage,
   setNoteTheme,
   archiveNote,

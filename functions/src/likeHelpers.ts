@@ -42,6 +42,7 @@ export function isPublishedReadablePlace(
   const publishAt = placeSnap.get("publishAt") as Timestamp | undefined;
   const expiresAt = placeSnap.get("expiresAt") as Timestamp | undefined;
   return placeSnap.get("isArchived") !== true &&
+    placeSnap.get("isModerationHidden") !== true &&
     publishAt != null &&
     expiresAt != null &&
     publishAt.toMillis() <= nowMs &&

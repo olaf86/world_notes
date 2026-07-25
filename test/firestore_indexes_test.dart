@@ -21,6 +21,24 @@ void main() {
       containsAll(<String>{'ASCENDING', 'DESCENDING'}),
     );
   });
+
+  test('defines the note-report resolution index', () {
+    final config =
+        jsonDecode(File('firestore.indexes.json').readAsStringSync())
+            as Map<String, dynamic>;
+    final indexes = config['indexes'] as List<dynamic>;
+
+    expect(
+      indexes.cast<Map<String, dynamic>>().any((index) {
+        if (index['collectionGroup'] != 'reports') return false;
+        final fields = (index['fields'] as List<dynamic>)
+            .cast<Map<String, dynamic>>();
+        final paths = fields.map((field) => field['fieldPath']).toList();
+        return paths.join(',') == 'targetType,placeId,status';
+      }),
+      isTrue,
+    );
+  });
 }
 
 bool _isArchivedNotesIndex(Map<String, dynamic> index) {

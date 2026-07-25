@@ -123,6 +123,29 @@ test("hides matched sexual-minors results even with low scores", () => {
   assert.equal(sexualMinors?.severity, "critical");
 });
 
+test("uses the riskiest result from multimodal moderation", () => {
+  const result = normalizeOpenAiModeration({
+    id: "modr_multimodal",
+    model: "omni-moderation-latest",
+    results: [
+      {
+        flagged: false,
+        categories: {harassment: false},
+        category_scores: {harassment: 0.1},
+      },
+      {
+        flagged: true,
+        categories: {"violence/graphic": true},
+        category_scores: {"violence/graphic": 0.93},
+      },
+    ],
+  });
+
+  assert.equal(result.action, "hidden");
+  assert.equal(result.flagged, true);
+  assert.equal(result.maxScore, 0.93);
+});
+
 test("detects email addresses as app moderation risk signals", () => {
   const signals = detectAppModerationRiskSignals(
     "Contact me at user@example.com later.",

@@ -3,6 +3,7 @@ import {onSchedule} from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
 import {
   DocumentReference,
+  DocumentSnapshot,
   getFirestore,
   FieldValue,
   Timestamp,
@@ -28,8 +29,25 @@ import {
   parseLockType,
   validateLockSecret,
 } from "./noteLock";
-import {assertUserCanCreateContent} from "./moderation";
+import {
+  type InternalModerationResult,
+  OPENAI_API_KEY,
+  assertUserCanCreateContent,
+  moderateContent,
+  moderateTextContent,
+  recordRejectedModeration,
+} from "./moderation";
 import {canMaintainNote} from "./noteMaintenance";
+import {
+  hasValidMembership,
+  isPublishedReadablePlace,
+} from "./likeHelpers";
+import {
+  assertReportCooldown,
+  reportReasonCodeOf,
+  requiredReportDocumentId,
+  type ReportReasonCode,
+} from "./reporting";
 
 interface CreateNoteData {
   latitude?: unknown;
@@ -63,6 +81,17 @@ interface SetNotePinImageData {
 interface SetNoteThemeData {
   placeId?: unknown;
   themeId?: unknown;
+}
+
+interface ReportNoteData {
+  placeId?: unknown;
+  reasonCode?: unknown;
+  reason?: unknown;
+}
+
+interface ValidatedReportNoteInput {
+  placeId: string;
+  reasonCode: ReportReasonCode;
 }
 
 const NOTE_THEME_IDS = new Set([
@@ -102,7 +131,11 @@ const UUID_V7_PATTERN =
  * auto-archive function.
  */
 export const createNote = onCall<CreateNoteData>(
-  {enforceAppCheck: true, region: REGION, secrets: [NOTE_PW_PEPPER]},
+  {
+    enforceAppCheck: true,
+    region: REGION,
+    secrets: [NOTE_PW_PEPPER, OPENAI_API_KEY],
+  },
   async (req) => {
     const uid = req.auth?.uid;
     if (!uid) {
@@ -214,6 +247,36 @@ export const createNote = onCall<CreateNoteData>(
       typeof subtitle === "string" && subtitle.trim().length > 0 ?
         subtitle.trim() :
         null;
+    const trimmedTitle = (title as string).trim();
+    const db = getFirestore();
+    const userRef = db.collection("users").doc(uid);
+    const moderationResult = await moderateTextContent([
+      `Title: ${trimmedTitle}`,
+      ...(trimmedSubtitle == null ?
+        [] :
+        [`Description: ${trimmedSubtitle}`]),
+    ].join("\n"));
+    if (moderationResult.action === "pending") {
+      throw new HttpsError(
+        "unavailable",
+        "Could not check note safety. Please try again.",
+        {reason: "moderation_unavailable"},
+      );
+    }
+    if (moderationResult.action !== "allow") {
+      await recordRejectedModeration({
+        db,
+        userRef,
+        uid,
+        result: moderationResult,
+        sourceType: "noteDraft",
+      });
+      throw new HttpsError(
+        "failed-precondition",
+        "This note could not be published because of its content.",
+        {reason: "content_not_allowed"},
+      );
+    }
     const nowMillis = Date.now();
     let publishAtMs = nowMillis;
     if (publishAtMillis != null) {
@@ -247,8 +310,6 @@ export const createNote = onCall<CreateNoteData>(
       publishAtMs + expiryDays * 24 * 60 * 60 * 1000,
     );
 
-    const db = getFirestore();
-    const userRef = db.collection("users").doc(uid);
     const publicProfileRef = db.collection("publicProfiles").doc(uid);
     const placeRef = db.collection("places").doc();
     const noteStateRef = userRef.collection("noteStates").doc(placeRef.id);
@@ -291,7 +352,7 @@ export const createNote = onCall<CreateNoteData>(
         geohash,
         mapGeohashMid,
         discoveryGeohash,
-        title: (title as string).trim(),
+        title: trimmedTitle,
         subtitle: trimmedSubtitle,
         colorHex: typeof colorHex === "string" ? colorHex : "#4CAF50",
         themeId,
@@ -313,6 +374,11 @@ export const createNote = onCall<CreateNoteData>(
         isArchived: false,
         expiresAt,
         footprintEnabled: true,
+        moderationAction: "allow",
+        moderationProvider: moderationResult.provider,
+        moderationPolicyVersion: moderationResult.policyVersion,
+        isModerationHidden: false,
+        reviewRequired: false,
       };
       if (lock != null) {
         placeData.lockType = lock.lockType;
@@ -347,7 +413,11 @@ export const createNote = onCall<CreateNoteData>(
 );
 
 export const setNotePinImage = onCall<SetNotePinImageData>(
-  {enforceAppCheck: true, region: REGION},
+  {
+    enforceAppCheck: true,
+    region: REGION,
+    secrets: [OPENAI_API_KEY],
+  },
   async (req) => {
     const uid = req.auth?.uid;
     if (!uid) {
@@ -371,17 +441,23 @@ export const setNotePinImage = onCall<SetNotePinImageData>(
     }
 
     const bucket = getStorage().bucket();
+    let imageBytes: Uint8Array;
     try {
-      const [metadata] = await bucket.file(pinImageStoragePath).getMetadata();
+      const file = bucket.file(pinImageStoragePath);
+      const [[metadata], [bytes]] = await Promise.all([
+        file.getMetadata(),
+        file.download(),
+      ]);
       if (
         metadata.contentType !== "image/webp" ||
-        Number(metadata.size ?? 0) > 256 * 1024
+        Number(metadata.size ?? bytes.length) > 256 * 1024
       ) {
         throw new HttpsError(
           "invalid-argument",
           "Invalid pin image metadata.",
         );
       }
+      imageBytes = bytes;
     } catch (error) {
       if (error instanceof HttpsError) throw error;
       throw new HttpsError(
@@ -391,22 +467,93 @@ export const setNotePinImage = onCall<SetNotePinImageData>(
     }
 
     const db = getFirestore();
-    const placeRef = db.collection("places").doc(placeId);
-    const previousPath = await db.runTransaction(async (tx) => {
-      const placeSnap = await tx.get(placeRef);
-      if (!placeSnap.exists) {
-        throw new HttpsError("not-found", "Note not found.");
-      }
-      if (!canMaintainNote(placeSnap, uid)) {
-        throw new HttpsError(
-          "permission-denied",
-          "You cannot change this note.",
+    let moderationResult: InternalModerationResult;
+    try {
+      moderationResult = await moderateContent("", [{
+        bytes: imageBytes,
+        contentType: "image/webp",
+      }]);
+    } catch (error) {
+      try {
+        await bucket.file(pinImageStoragePath).delete({ignoreNotFound: true});
+      } catch (cleanupError) {
+        logger.warn(
+          `Could not clean up unchecked pin image ${pinImageStoragePath}.`,
+          cleanupError,
         );
       }
-      const previous = placeSnap.get("pinImageStoragePath");
-      tx.update(placeRef, {pinImageStoragePath});
-      return typeof previous === "string" ? previous : null;
-    });
+      throw error;
+    }
+    if (moderationResult.action !== "allow") {
+      try {
+        await bucket.file(pinImageStoragePath).delete({ignoreNotFound: true});
+      } catch (error) {
+        logger.warn(
+          `Could not delete rejected pin image ${pinImageStoragePath}.`,
+          error,
+        );
+      }
+      if (moderationResult.action !== "pending") {
+        await recordRejectedModeration({
+          db,
+          userRef: db.collection("users").doc(uid),
+          uid,
+          result: moderationResult,
+          sourceType: "pinImage",
+        });
+      }
+      throw new HttpsError(
+        moderationResult.action === "pending" ?
+          "unavailable" :
+          "failed-precondition",
+        moderationResult.action === "pending" ?
+          "Could not check image safety. Please try again." :
+          "This image could not be used because of its content.",
+        {
+          reason: moderationResult.action === "pending" ?
+            "moderation_unavailable" :
+            "image_not_allowed",
+        },
+      );
+    }
+    const placeRef = db.collection("places").doc(placeId);
+    let previousPath: string | null;
+    try {
+      previousPath = await db.runTransaction(async (tx) => {
+        const placeSnap = await tx.get(placeRef);
+        if (!placeSnap.exists) {
+          throw new HttpsError("not-found", "Note not found.");
+        }
+        if (!canMaintainNote(placeSnap, uid)) {
+          throw new HttpsError(
+            "permission-denied",
+            "You cannot change this note.",
+          );
+        }
+        if (
+          placeSnap.get("isArchived") === true ||
+          placeSnap.get("isModerationHidden") === true
+        ) {
+          throw new HttpsError(
+            "failed-precondition",
+            "This note cannot change its pin image.",
+          );
+        }
+        const previous = placeSnap.get("pinImageStoragePath");
+        tx.update(placeRef, {pinImageStoragePath});
+        return typeof previous === "string" ? previous : null;
+      });
+    } catch (error) {
+      try {
+        await bucket.file(pinImageStoragePath).delete({ignoreNotFound: true});
+      } catch (cleanupError) {
+        logger.warn(
+          `Could not clean up unattached pin image ${pinImageStoragePath}.`,
+          cleanupError,
+        );
+      }
+      throw error;
+    }
 
     if (previousPath != null && previousPath !== pinImageStoragePath) {
       try {
@@ -417,6 +564,153 @@ export const setNotePinImage = onCall<SetNotePinImageData>(
         logger.warn(`Could not delete old pin image ${previousPath}.`, error);
       }
     }
+  },
+);
+
+/**
+ * Validates the payload accepted by reportNote.
+ *
+ * @param {ReportNoteData|undefined} data Raw callable data.
+ * @return {ValidatedReportNoteInput} Validated report input.
+ */
+function validateReportNoteInput(
+  data: ReportNoteData | undefined,
+): ValidatedReportNoteInput {
+  return {
+    placeId: requiredReportDocumentId(data?.placeId, "placeId"),
+    reasonCode: reportReasonCodeOf(data?.reasonCode ?? data?.reason),
+  };
+}
+
+/**
+ * Returns whether the caller can report the current note snapshot.
+ *
+ * @param {DocumentSnapshot} placeSnap Note document.
+ * @param {DocumentSnapshot} memberSnap Caller membership document.
+ * @param {string} uid Caller user id.
+ * @param {number} nowMs Current time in milliseconds.
+ * @return {boolean} Whether the note can be reported.
+ */
+function canReportNote(
+  placeSnap: DocumentSnapshot,
+  memberSnap: DocumentSnapshot,
+  uid: string,
+  nowMs: number,
+): boolean {
+  if (!isPublishedReadablePlace(placeSnap, nowMs)) return false;
+  if (canMaintainNote(placeSnap, uid)) return false;
+  if (placeSnap.get("visibility") !== "private") return true;
+  return hasValidMembership(placeSnap, memberSnap);
+}
+
+/** Records a user report and queues the note for administrator review. */
+export const reportNote = onCall<ReportNoteData>(
+  {enforceAppCheck: true, region: REGION},
+  async (req) => {
+    const uid = req.auth?.uid;
+    if (!uid) {
+      throw new HttpsError("unauthenticated", "Sign in required.");
+    }
+    const input = validateReportNoteInput(req.data);
+    const db = getFirestore();
+    const placeRef = db.collection("places").doc(input.placeId);
+    const memberRef = placeRef.collection("members").doc(uid);
+    const reportRef = db.collection("reports").doc();
+    const reviewRef = db
+      .collection("moderationReviews")
+      .doc(`note_${input.placeId}`);
+    const rateLimitRef = db
+      .collection("users")
+      .doc(uid)
+      .collection("rateLimits")
+      .doc("reportContent");
+    const reportCreatedAt = Timestamp.now();
+
+    await db.runTransaction(async (tx) => {
+      const [placeSnap, memberSnap, reviewSnap, rateLimitSnap] =
+        await Promise.all([
+          tx.get(placeRef),
+          tx.get(memberRef),
+          tx.get(reviewRef),
+          tx.get(rateLimitRef),
+        ]);
+      assertReportCooldown(rateLimitSnap, reportCreatedAt);
+      if (!placeSnap.exists) {
+        throw new HttpsError("not-found", "Note not found.");
+      }
+      if (
+        placeSnap.get("createdByUserId") === uid ||
+        canMaintainNote(placeSnap, uid)
+      ) {
+        throw new HttpsError(
+          "failed-precondition",
+          "You cannot report a note you maintain.",
+          {reason: "self_report"},
+        );
+      }
+      if (
+        !canReportNote(placeSnap, memberSnap, uid, reportCreatedAt.toMillis())
+      ) {
+        throw new HttpsError(
+          "permission-denied",
+          "You cannot report this note.",
+        );
+      }
+
+      const title =
+        typeof placeSnap.get("title") === "string" ?
+          placeSnap.get("title") as string :
+          "";
+      const subtitle =
+        typeof placeSnap.get("subtitle") === "string" ?
+          placeSnap.get("subtitle") as string :
+          null;
+      const pinImageStoragePath =
+        typeof placeSnap.get("pinImageStoragePath") === "string" ?
+          placeSnap.get("pinImageStoragePath") as string :
+          null;
+      const targetPath = `places/${input.placeId}`;
+
+      tx.set(reportRef, {
+        targetType: "note",
+        targetId: input.placeId,
+        targetPath,
+        placeId: input.placeId,
+        reporterId: uid,
+        reportedUserId: placeSnap.get("createdByUserId") ?? null,
+        reasonCode: input.reasonCode,
+        status: "open",
+        createdAt: reportCreatedAt,
+      });
+      tx.set(rateLimitRef, {
+        lastCreatedAt: reportCreatedAt,
+        lastTargetType: "note",
+        lastPlaceId: input.placeId,
+      }, {merge: true});
+      tx.set(reviewRef, {
+        userId: placeSnap.get("createdByUserId") ?? null,
+        targetType: "note",
+        targetId: input.placeId,
+        targetPath,
+        placeId: input.placeId,
+        messageId: null,
+        messagePath: null,
+        content: [title, subtitle]
+          .filter((value): value is string => value != null)
+          .join("\n"),
+        contentFields: {title, subtitle},
+        imageStoragePaths:
+          pinImageStoragePath == null ? [] : [pinImageStoragePath],
+        reviewSources: FieldValue.arrayUnion("userReport"),
+        reportCount: FieldValue.increment(1),
+        reportReasonsSummary: FieldValue.arrayUnion(input.reasonCode),
+        lastReportedAt: FieldValue.serverTimestamp(),
+        status: "open",
+        ...(reviewSnap.exists ? {} : {createdAt: FieldValue.serverTimestamp()}),
+      }, {merge: true});
+    });
+
+    return {ok: true, placeId: input.placeId};
   },
 );
 

@@ -3,7 +3,7 @@
   "scripts": {
     "lint": "eslint --ext .js,.ts .",
     "build": "tsc",
-    "test": "tsc -p tsconfig.test.json && node --test lib/test/moderation.test.js lib/test/moderationEvaluation.test.js",
+    "test": "tsc -p tsconfig.test.json && node --test lib/test/moderation.test.js lib/test/moderationEvaluation.test.js lib/test/reporting.test.js",
     "evaluate:moderation": "npm run build && node lib/scripts/evaluateModeration.js",
     "build:watch": "tsc --watch",
     "serve": "npm run build && firebase emulators:start --only functions",
