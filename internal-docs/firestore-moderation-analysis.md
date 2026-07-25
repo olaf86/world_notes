@@ -134,6 +134,47 @@ the local file above; inspect it first with:
 echo "${GOOGLE_APPLICATION_CREDENTIALS:-'(not set)'}"
 ```
 
+## Moderation evaluation
+
+The version-controlled evaluation set lives at
+`functions/evaluation/moderation-cases.json`. Each case has a human-labelled
+`expectedAction` (`allow`, `sensitive`, `review`, or `hidden`) and expected
+app-level contact-information risk signals. The set covers ordinary diary
+entries, contextual safety discussion, contact details, and unsafe content.
+
+Run it from `functions/` only after a reviewer has checked the case labels.
+The evaluator calls the live OpenAI Moderation API sequentially; it does not
+use Firebase secrets, deploy Cloud Functions, create Firestore data, or print
+the test message contents.
+
+```bash
+cd functions
+read -rs OPENAI_API_KEY
+export OPENAI_API_KEY
+npm run evaluate:moderation -- --json /private/tmp/world-notes-moderation.json
+unset OPENAI_API_KEY
+```
+
+The terminal table and optional JSON report contain only case IDs, expected and
+actual actions, risk signals, scores, and matched categories. The JSON also
+records the provider model and policy version, so reports remain comparable
+after a model or policy update. It calculates action accuracy, risk-signal
+accuracy, review-queue accuracy, false allows, unexpected moderation, and
+review-queue misses.
+
+Use `--fail-on-mismatch` in a controlled validation run to return a nonzero
+exit status when any expected action, risk signal, or review-queue result does
+not match:
+
+```bash
+npm run evaluate:moderation -- --fail-on-mismatch
+```
+
+Treat a mismatch as a review task, not an automatic policy change. Review the
+case text and the model result, then update either the human label or the
+moderation thresholds with an explicit policy decision. Do not commit API keys
+or generated reports containing production data.
+
 ## User report flow
 
 User reports are submitted through the `reportMessage` callable. Clients do not
