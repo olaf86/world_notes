@@ -15,26 +15,32 @@
   Functions for FCM delivery.
 - `users/{uid}/notificationSettings/main`: owner-readable, server-writable.
 - `places/{placeId}` and `places/{placeId}/messages/{messageId}`: messages are
-  read only by users who can access the parent note. Messages can carry
+  read only by users who can access the parent note. Notes carry
+  `isModerationHidden` so moderation can remove them from discovery and public
+  reads without changing their archive lifecycle. Messages can carry
   `moderationAction: "pending"` when provider-side moderation is temporarily
   unavailable; pending messages remain visible and should be re-evaluated by a
   future scheduled function.
-- `reports/{autoId}`: server-created user report events. A user can submit
-  multiple reports for the same message, subject to a short server-side
-  cooldown.
+- `reports/{autoId}`: server-created note or message report events. Reports use
+  `targetType`, `targetId`, `targetPath`, and a locale-independent
+  `reasonCode`. A shared per-user cooldown covers both target types.
 
 ## New path
 
-- `moderationReviews/{placeId}_{messageId}`: flat administrator review queue
-  for non-allow moderation decisions and high-confidence app risk signals such
-  as contact information. Stores `userId`, `placeId`, `messageId`, submitted
-  content, optional submitted image storage path, provider scores, derived
-  action, review sources, risk signals, report count/summary, and review
-  status. Client access is denied; administrator tooling should use trusted
-  server APIs.
+- `moderationReviews/{reviewId}`: flat administrator review queue for notes and
+  messages. Message ids retain the legacy `{placeId}_{messageId}` shape; note
+  reviews use `note_{placeId}`. New records carry `targetType`, `targetId`, and
+  `targetPath`. For message records these intentionally duplicate `messageId`
+  and `messagePath`; the message-specific fields remain temporarily for
+  compatibility with existing records and callables while the administrator
+  parser moves to the generic fields. The review stores submitted content,
+  optional image storage paths, provider scores, derived action, review
+  sources, risk signals, report count/summary, and review status.
 - `moderationAuditLogs/{logId}`: server-only append log for administrator
-  moderation decisions. Stores the administrator uid, reviewed message path,
-  action, reason, previous moderation fields, and timestamp.
+  moderation decisions for notes and messages.
+- `moderationEvents/{eventId}`: server-only provider metadata for note drafts
+  or images rejected before publication. It does not retain submitted text or
+  image bytes.
 - `users/{uid}/notices/{noticeId}`: app inbox items for moderation warnings,
   account restrictions, bans, report outcomes, and future developer messages.
   Owner may read and mark read. Creation, deletion, and content changes are
@@ -66,13 +72,14 @@ that scheduled function is implemented.
 - Deny client create/delete.
 - Deny all client access to `moderationReviews`.
 - Deny all client access to `moderationAuditLogs`.
+- Deny all client access to `moderationEvents`.
 
 ## Administrator access
 
 Moderation administrator access is controlled by Firebase Auth custom claims.
-The callables `adminListModerationReviews` and `adminReviewMessage` require
-`admin: true`; hiding the Flutter UI is only a convenience, not the
-authorization boundary.
+The callables `adminListModerationReviews`, `adminReviewMessage`, and
+`adminReviewNote` require `admin: true`; hiding the Flutter UI is only a
+convenience, not the authorization boundary.
 
 The Flutter profile screen only links to `/admin/moderation` when the current
 ID token contains `admin: true`. The screen still calls the same trusted
@@ -177,18 +184,39 @@ or generated reports containing production data.
 
 ## User report flow
 
-User reports are submitted through the `reportMessage` callable. Clients do not
-write `reports` directly and cannot update message `reportCount` directly.
-The server applies a short per-user cooldown before accepting another report.
+User reports are submitted through the `reportMessage` and `reportNote`
+callables. Clients do not write `reports` directly. The server applies one
+short per-user cooldown across both callables.
 
 `reportMessage` writes the report event and upserts
 `moderationReviews/{placeId}_{messageId}` with:
 
 - `reviewSources: arrayUnion("userReport")`
 - `reportCount: increment(1)`
-- `reportReasonsSummary: arrayUnion(reason)`
+- `reportReasonsSummary: arrayUnion(reasonCode)`
 - `status: "open"`
 
 When an administrator resolves the message through `adminReviewMessage`, open
 reports for the same `placeId`/`messageId` are closed as `accepted` for
 `sensitive`/`hidden` decisions or `rejected` for `allow` decisions.
+
+`reportNote` upserts `moderationReviews/note_{placeId}` with the same report
+summary fields plus a title/subtitle snapshot and the current pin image path.
+`adminReviewNote` either allows the note or sets `isModerationHidden: true`.
+Hidden notes are rejected by public Firestore reads, map discovery, note access
+validation, message posting, likes, visits, unlocks, and invite claims.
+
+## Publication-time checks
+
+- `createNote` moderates the trimmed title and optional subtitle before its
+  creation transaction. Only `allow` publishes; all other actions are rejected,
+  and provider unavailability asks the client to retry.
+- `sendMessage` downloads every submitted Storage object and sends message text
+  plus image data to moderation before the message transaction. An image-bearing
+  submission must receive `allow`.
+- `setNotePinImage` downloads and moderates the candidate thumbnail before
+  attaching it. Rejected or unchecked candidates are deleted and the previous
+  pin remains unchanged.
+- Both Flutter repositories perform best-effort cleanup for failed image
+  callables. Unreferenced objects are not discoverable through Firestore; an
+  operational orphan cleanup may still be added for defense in depth.
