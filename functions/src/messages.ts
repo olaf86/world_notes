@@ -471,8 +471,6 @@ function moderationReviewDocumentData({
     targetId: messageId,
     targetPath: `places/${placeId}/messages/${messageId}`,
     placeId,
-    messageId,
-    messagePath: `places/${placeId}/messages/${messageId}`,
     content: submittedContent,
     imageStoragePaths: submittedImageStoragePaths,
     reviewSources,
@@ -1017,8 +1015,6 @@ export const reportMessage = onCall<ReportMessageData>(
         targetId: input.messageId,
         targetPath: `places/${input.placeId}/messages/${input.messageId}`,
         placeId: input.placeId,
-        messageId: input.messageId,
-        messagePath: `places/${input.placeId}/messages/${input.messageId}`,
         reporterId: uid,
         reportedUserId: messageSnap.get("userId") ?? null,
         reasonCode: input.reasonCode,
@@ -1027,8 +1023,10 @@ export const reportMessage = onCall<ReportMessageData>(
       });
       tx.set(rateLimitRef, {
         lastCreatedAt: reportCreatedAt,
+        lastTargetType: "message",
+        lastTargetId: input.messageId,
         lastPlaceId: input.placeId,
-        lastMessageId: input.messageId,
+        lastMessageId: FieldValue.delete(),
       }, {merge: true});
       tx.update(messageRef, {
         reportCount: FieldValue.increment(1),
@@ -1039,8 +1037,6 @@ export const reportMessage = onCall<ReportMessageData>(
         targetId: input.messageId,
         targetPath: `places/${input.placeId}/messages/${input.messageId}`,
         placeId: input.placeId,
-        messageId: input.messageId,
-        messagePath: `places/${input.placeId}/messages/${input.messageId}`,
         content: messageSnap.get("content") ?? "",
         imageStoragePaths: storedImagePaths(
           messageSnap.get("imageStoragePaths"),

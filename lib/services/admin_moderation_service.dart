@@ -29,7 +29,7 @@ class AdminModerationService {
   Future<void> reviewContent({
     required AdminModerationTargetType targetType,
     required String placeId,
-    String? messageId,
+    required String targetId,
     required AdminModerationAction action,
     String? reason,
   }) async {
@@ -38,7 +38,8 @@ class AdminModerationService {
         : 'adminReviewMessage';
     await _functions.httpsCallable(callableName).call<Map<String, dynamic>>({
       'placeId': placeId,
-      'messageId': ?messageId,
+      if (targetType == AdminModerationTargetType.message)
+        'messageId': targetId,
       'action': action.name,
       if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
     });

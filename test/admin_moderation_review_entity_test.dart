@@ -6,15 +6,17 @@ void main() {
     test('parses callable review data', () {
       final review = AdminModerationReviewEntity.fromJson({
         'id': 'place-1_message-1',
+        'targetType': 'message',
+        'targetId': 'message-1',
+        'targetPath': 'places/place-1/messages/message-1',
         'userId': 'user-1',
         'placeId': 'place-1',
-        'messageId': 'message-1',
         'content': 'hello',
         'imageStoragePaths': ['a.webp'],
         'status': 'open',
         'reviewSources': ['provider', 'riskSignal', 'userReport'],
         'reportCount': 3,
-        'reportReasonsSummary': ['Spam or advertising'],
+        'reportReasonsSummary': ['spam'],
         'riskSignals': [
           {'category': 'email', 'severity': 'high', 'reviewRecommended': true},
         ],
@@ -30,10 +32,10 @@ void main() {
 
       expect(review.id, 'place-1_message-1');
       expect(review.targetType, AdminModerationTargetType.message);
-      expect(review.canReview, isTrue);
+      expect(review.targetId, 'message-1');
       expect(review.reviewSources, ['provider', 'riskSignal', 'userReport']);
       expect(review.reportCount, 3);
-      expect(review.reportReasonsSummary, ['Spam or advertising']);
+      expect(review.reportReasonsSummary, ['spam']);
       expect(review.riskSignals.single.category, 'email');
       expect(review.maxScore, 0.92);
       expect(review.hasImages, isTrue);
@@ -43,7 +45,7 @@ void main() {
       );
     });
 
-    test('parses a note review without a message id', () {
+    test('parses a note review', () {
       final review = AdminModerationReviewEntity.fromJson({
         'id': 'note_place-1',
         'targetType': 'note',
@@ -56,21 +58,13 @@ void main() {
 
       expect(review.targetType, AdminModerationTargetType.note);
       expect(review.targetId, 'place-1');
-      expect(review.messageId, isNull);
-      expect(review.canReview, isTrue);
     });
 
-    test('uses safe defaults for partial data', () {
-      final review = AdminModerationReviewEntity.fromJson({'id': 'review-1'});
-
-      expect(review.id, 'review-1');
-      expect(review.content, '');
-      expect(review.status, 'open');
-      expect(review.reviewSources, isEmpty);
-      expect(review.reportCount, isNull);
-      expect(review.reportReasonsSummary, isEmpty);
-      expect(review.riskSignals, isEmpty);
-      expect(review.canReview, isFalse);
+    test('rejects data without the generic target schema', () {
+      expect(
+        () => AdminModerationReviewEntity.fromJson({'id': 'review-1'}),
+        throwsFormatException,
+      );
     });
   });
 }

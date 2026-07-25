@@ -236,10 +236,7 @@ function reviewData({
     targetType: "message",
     targetId: messageId,
     targetPath: `places/${placeId}/messages/${messageId}`,
-    // Legacy message-specific aliases retained for rollout compatibility.
     placeId,
-    messageId,
-    messagePath: `places/${placeId}/messages/${messageId}`,
     content,
     imageStoragePaths: [],
     status: resolved ? "resolved" : "open",
@@ -359,10 +356,7 @@ async function seed(db: Firestore, projectId: string): Promise<void> {
       targetType: "message",
       targetId: messageId,
       targetPath: `places/${placeId}/messages/${messageId}`,
-      // Legacy message-specific aliases retained for rollout compatibility.
       placeId,
-      messageId,
-      messagePath: `places/${placeId}/messages/${messageId}`,
       reporterId: `${runId}_reporter_${index + 1}`,
       reportedUserId: authorId,
       reasonCode: index === 0 ? "spam" : "harassment",

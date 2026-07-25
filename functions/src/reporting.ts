@@ -20,14 +20,6 @@ const REPORT_REASON_CODES = new Set<ReportReasonCode>([
   "other",
 ]);
 
-const LEGACY_REASON_CODES: Record<string, ReportReasonCode> = {
-  "Spam or advertising": "spam",
-  "Harassment or bullying": "harassment",
-  "Adult or explicit content": "sexual",
-  "Illegal content": "illegal",
-  "Other": "other",
-};
-
 const MAX_REPORT_DOCUMENT_ID_LENGTH = 200;
 export const REPORT_COOLDOWN_MILLIS = 30_000;
 
@@ -46,8 +38,6 @@ export function requiredReportDocumentId(
 }
 
 export function reportReasonCodeOf(value: unknown): ReportReasonCode {
-  const legacy = typeof value === "string" ? LEGACY_REASON_CODES[value] : null;
-  if (legacy != null) return legacy;
   if (
     typeof value !== "string" ||
     !REPORT_REASON_CODES.has(value as ReportReasonCode)

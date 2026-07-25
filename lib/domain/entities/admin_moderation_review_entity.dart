@@ -6,8 +6,11 @@ enum AdminModerationTargetType {
   message,
   note;
 
-  static AdminModerationTargetType fromJson(Object? value) =>
-      value == 'note' ? note : message;
+  static AdminModerationTargetType fromJson(Object? value) => switch (value) {
+    'message' => message,
+    'note' => note,
+    _ => throw const FormatException('Invalid moderation target type.'),
+  };
 }
 
 class AdminModerationRiskSignal {
@@ -33,11 +36,10 @@ class AdminModerationRiskSignal {
 class AdminModerationReviewEntity {
   final String id;
   final AdminModerationTargetType targetType;
-  final String? targetId;
-  final String? targetPath;
+  final String targetId;
+  final String targetPath;
   final String? userId;
-  final String? placeId;
-  final String? messageId;
+  final String placeId;
   final String content;
   final List<String> imageStoragePaths;
   final String status;
@@ -66,7 +68,6 @@ class AdminModerationReviewEntity {
     required this.targetPath,
     required this.userId,
     required this.placeId,
-    required this.messageId,
     required this.content,
     required this.imageStoragePaths,
     required this.status,
@@ -93,11 +94,10 @@ class AdminModerationReviewEntity {
     return AdminModerationReviewEntity(
       id: json['id'] as String? ?? '',
       targetType: AdminModerationTargetType.fromJson(json['targetType']),
-      targetId: json['targetId'] as String?,
-      targetPath: json['targetPath'] as String?,
+      targetId: json['targetId'] as String,
+      targetPath: json['targetPath'] as String,
       userId: json['userId'] as String?,
-      placeId: json['placeId'] as String?,
-      messageId: json['messageId'] as String?,
+      placeId: json['placeId'] as String,
       content: json['content'] as String? ?? '',
       imageStoragePaths: _stringList(json['imageStoragePaths']),
       status: json['status'] as String? ?? 'open',
@@ -122,9 +122,6 @@ class AdminModerationReviewEntity {
   }
 
   bool get hasImages => imageStoragePaths.isNotEmpty;
-  bool get canReview =>
-      placeId != null &&
-      (targetType == AdminModerationTargetType.note || messageId != null);
 }
 
 List<String> _stringList(Object? value) {

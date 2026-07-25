@@ -214,14 +214,11 @@ function reviewListItemFromDoc(
   const data = doc.data();
   return {
     id: doc.id,
-    targetType: data.targetType ??
-      (data.messageId == null ? "note" : "message"),
-    targetId: data.targetId ?? data.messageId ?? data.placeId ?? null,
-    targetPath: data.targetPath ?? data.messagePath ?? null,
+    targetType: data.targetType ?? null,
+    targetId: data.targetId ?? null,
+    targetPath: data.targetPath ?? null,
     userId: data.userId ?? null,
     placeId: data.placeId ?? null,
-    messageId: data.messageId ?? null,
-    messagePath: data.messagePath ?? null,
     content: data.content ?? "",
     imageStoragePaths: data.imageStoragePaths ?? [],
     status: data.status ?? null,
@@ -306,8 +303,8 @@ export const adminReviewMessage = onCall<AdminReviewMessageData>(
     await db.runTransaction(async (tx) => {
       const reportsQuery = db
         .collection("reports")
-        .where("placeId", "==", input.placeId)
-        .where("messageId", "==", input.messageId)
+        .where("targetType", "==", "message")
+        .where("targetId", "==", input.messageId)
         .where("status", "==", "open");
       const [messageSnap, reviewSnap, reportsSnap] = await Promise.all([
         tx.get(messageRef),
@@ -354,13 +351,16 @@ export const adminReviewMessage = onCall<AdminReviewMessageData>(
         decisionReason: input.reason,
         reviewedAt: FieldValue.serverTimestamp(),
         reviewedBy: uid,
-        messagePath: `places/${input.placeId}/messages/${input.messageId}`,
+        targetType: "message",
+        targetId: input.messageId,
+        targetPath: `places/${input.placeId}/messages/${input.messageId}`,
       });
       tx.set(auditRef, {
         adminUserId: uid,
+        targetType: "message",
+        targetId: input.messageId,
+        targetPath: `places/${input.placeId}/messages/${input.messageId}`,
         placeId: input.placeId,
-        messageId: input.messageId,
-        messagePath: `places/${input.placeId}/messages/${input.messageId}`,
         reviewPath: `moderationReviews/${reviewRef.id}`,
         action: input.action,
         reason: input.reason,
@@ -416,7 +416,7 @@ export const adminReviewNote = onCall<AdminReviewNoteData>(
       const reportsQuery = db
         .collection("reports")
         .where("targetType", "==", "note")
-        .where("placeId", "==", input.placeId)
+        .where("targetId", "==", input.placeId)
         .where("status", "==", "open");
       const [placeSnap, reviewSnap, reportsSnap] = await Promise.all([
         tx.get(placeRef),

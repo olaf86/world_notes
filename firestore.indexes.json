@@ -104,17 +104,8 @@
       "collectionGroup": "reports",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "placeId", "order": "ASCENDING" },
-        { "fieldPath": "messageId", "order": "ASCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "reports",
-      "queryScope": "COLLECTION",
-      "fields": [
         { "fieldPath": "targetType", "order": "ASCENDING" },
-        { "fieldPath": "placeId", "order": "ASCENDING" },
+        { "fieldPath": "targetId", "order": "ASCENDING" },
         { "fieldPath": "status", "order": "ASCENDING" }
       ]
     },

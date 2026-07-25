@@ -685,7 +685,9 @@ export const reportNote = onCall<ReportNoteData>(
       tx.set(rateLimitRef, {
         lastCreatedAt: reportCreatedAt,
         lastTargetType: "note",
+        lastTargetId: input.placeId,
         lastPlaceId: input.placeId,
+        lastMessageId: FieldValue.delete(),
       }, {merge: true});
       tx.set(reviewRef, {
         userId: placeSnap.get("createdByUserId") ?? null,
@@ -693,8 +695,6 @@ export const reportNote = onCall<ReportNoteData>(
         targetId: input.placeId,
         targetPath,
         placeId: input.placeId,
-        messageId: null,
-        messagePath: null,
         content: [title, subtitle]
           .filter((value): value is string => value != null)
           .join("\n"),

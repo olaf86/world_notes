@@ -34,7 +34,7 @@ void main() {
         final fields = (index['fields'] as List<dynamic>)
             .cast<Map<String, dynamic>>();
         final paths = fields.map((field) => field['fieldPath']).toList();
-        return paths.join(',') == 'targetType,placeId,status';
+        return paths.join(',') == 'targetType,targetId,status';
       }),
       isTrue,
     );

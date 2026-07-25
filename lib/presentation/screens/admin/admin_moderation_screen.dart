@@ -84,7 +84,7 @@ class _AdminModerationScreenState extends ConsumerState<AdminModerationScreen> {
     AdminModerationReviewEntity review,
     AdminModerationAction action,
   ) async {
-    if (_submitting || !review.canReview) return;
+    if (_submitting) return;
     final reason = await _reasonFor(action);
     if (!mounted || reason == null) return;
     setState(() => _submitting = true);
@@ -93,8 +93,8 @@ class _AdminModerationScreenState extends ConsumerState<AdminModerationScreen> {
           .read(adminModerationServiceProvider)
           .reviewContent(
             targetType: review.targetType,
-            placeId: review.placeId!,
-            messageId: review.messageId,
+            placeId: review.placeId,
+            targetId: review.targetId,
             action: action,
             reason: reason,
           );
@@ -280,8 +280,8 @@ class _ReviewCard extends StatelessWidget {
             _MetaLine(
               icon: Icons.place_outlined,
               text: [
-                if (review.placeId != null) review.placeId!,
-                if (review.messageId != null) review.messageId!,
+                review.placeId,
+                if (review.targetId != review.placeId) review.targetId,
               ].join(' / '),
             ),
             if (review.createdAt != null)
@@ -306,9 +306,8 @@ class _ReviewCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   OutlinedButton.icon(
-                    onPressed: review.canReview
-                        ? () => onAction(review, AdminModerationAction.allow)
-                        : null,
+                    onPressed: () =>
+                        onAction(review, AdminModerationAction.allow),
                     icon: const Icon(Icons.check_outlined),
                     label: const Text('Allow'),
                   ),
@@ -316,21 +315,16 @@ class _ReviewCard extends StatelessWidget {
                   if (review.targetType ==
                       AdminModerationTargetType.message) ...[
                     OutlinedButton.icon(
-                      onPressed: review.canReview
-                          ? () => onAction(
-                              review,
-                              AdminModerationAction.sensitive,
-                            )
-                          : null,
+                      onPressed: () =>
+                          onAction(review, AdminModerationAction.sensitive),
                       icon: const Icon(Icons.visibility_off_outlined),
                       label: const Text('Sensitive'),
                     ),
                     const SizedBox(height: 8),
                   ],
                   FilledButton.icon(
-                    onPressed: review.canReview
-                        ? () => onAction(review, AdminModerationAction.hidden)
-                        : null,
+                    onPressed: () =>
+                        onAction(review, AdminModerationAction.hidden),
                     icon: const Icon(Icons.block_outlined),
                     label: const Text('Hide'),
                   ),
