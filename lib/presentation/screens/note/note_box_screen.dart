@@ -262,13 +262,17 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
       '/note/${widget.placeId}/messages/${message.id}/report',
     );
     if (!mounted || reported != true) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Report submitted. Thank you for helping keep this community safe.',
-        ),
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(context.l10n.reportSubmitted)));
+  }
+
+  Future<void> _openReportNoteScreen() async {
+    final reported = await context.push<bool>('/note/${widget.placeId}/report');
+    if (!mounted || reported != true) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(context.l10n.reportSubmitted)));
   }
 
   Future<void> _setMessageLike(MessageEntity message, bool liked) async {
@@ -804,6 +808,12 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                               '/note/create',
                               extra: NoteCreationDraft.fromPlace(place),
                             ),
+                          ),
+                        if (!place.isMaintainedBy(currentUser?.id))
+                          IconButton(
+                            icon: const Icon(Icons.flag_outlined),
+                            tooltip: l10n.reportNoteAction,
+                            onPressed: _openReportNoteScreen,
                           ),
                         if (permissions.hasThreadActions)
                           PopupMenuButton<String>(

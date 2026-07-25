@@ -10,6 +10,7 @@ import '../../config/app_config.dart';
 import '../../core/utils/image_upload_util.dart';
 import '../../domain/entities/message_entity.dart';
 import '../../domain/entities/message_thread_item.dart';
+import '../../domain/entities/content_report.dart';
 import '../../domain/repositories/message_repository.dart';
 import '../models/message_model.dart';
 
@@ -237,17 +238,26 @@ class MessageRepositoryImpl implements MessageRepository {
     ]);
 
     final now = DateTime.now();
-    final result = await _functions
-        .httpsCallable('sendMessage')
-        .call<Map<String, dynamic>>({
-          'messageId': messageId,
-          'placeId': placeId,
-          'content': content,
-          if (imageStoragePaths.isNotEmpty)
-            'imageStoragePaths': imageStoragePaths,
-          if (publishAt != null)
-            'publishAtMillis': publishAt.millisecondsSinceEpoch,
-        });
+    late final HttpsCallableResult<Map<String, dynamic>> result;
+    try {
+      result = await _functions
+          .httpsCallable('sendMessage')
+          .call<Map<String, dynamic>>({
+            'messageId': messageId,
+            'placeId': placeId,
+            'content': content,
+            if (imageStoragePaths.isNotEmpty)
+              'imageStoragePaths': imageStoragePaths,
+            if (publishAt != null)
+              'publishAtMillis': publishAt.millisecondsSinceEpoch,
+          });
+    } catch (_) {
+      await Future.wait([
+        for (final path in imageStoragePaths)
+          _storage.ref(path).delete().catchError((_) {}),
+      ]);
+      rethrow;
+    }
     final confirmedMessageId = result.data['messageId'] as String? ?? messageId;
     final confirmedPublishAtMillis = result.data['publishAtMillis'] as int?;
     final confirmedPublishAt = confirmedPublishAtMillis == null
@@ -297,12 +307,12 @@ class MessageRepositoryImpl implements MessageRepository {
   Future<void> reportMessage({
     required String messageId,
     required String placeId,
-    required String reason,
+    required ReportReasonCode reasonCode,
   }) async {
     await _functions.httpsCallable('reportMessage').call<Map<String, dynamic>>({
       'messageId': messageId,
       'placeId': placeId,
-      'reason': reason,
+      'reasonCode': reasonCode.toJson(),
     });
   }
 

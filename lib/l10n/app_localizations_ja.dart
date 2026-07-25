@@ -280,6 +280,75 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String get reportMessageAction => 'メッセージを通報';
+
+  @override
+  String get reportNoteAction => 'ノートを通報';
+
+  @override
+  String get reportMessageTitle => 'メッセージを通報';
+
+  @override
+  String get reportNoteTitle => 'ノートを通報';
+
+  @override
+  String get reportMessageQuestion => 'このメッセージを通報する理由を選んでください';
+
+  @override
+  String get reportNoteQuestion => 'このノートを通報する理由を選んでください';
+
+  @override
+  String get reportReasonSpam => 'スパムまたは広告';
+
+  @override
+  String get reportReasonHarassment => '嫌がらせまたはいじめ';
+
+  @override
+  String get reportReasonSexual => '成人向けまたは露骨なコンテンツ';
+
+  @override
+  String get reportReasonIllegal => '違法なコンテンツ';
+
+  @override
+  String get reportReasonOther => 'その他';
+
+  @override
+  String get reportMessagePrivacy =>
+      'あなたのユーザーID、このメッセージID、ノートID、選択した理由が確認のため管理者に共有されます。';
+
+  @override
+  String get reportNotePrivacy => 'あなたのユーザーID、このノートID、選択した理由が確認のため管理者に共有されます。';
+
+  @override
+  String get reportSubmitting => '送信中…';
+
+  @override
+  String get reportSubmitAction => '通報を送信';
+
+  @override
+  String get reportSubmitted => '通報を受け付けました。コミュニティの安全維持にご協力いただきありがとうございます。';
+
+  @override
+  String reportFailed(Object error) {
+    return '通報を送信できませんでした: $error';
+  }
+
+  @override
+  String get reportCooldown => '少し時間をおいてから、もう一度通報してください。';
+
+  @override
+  String get reportUnavailable => 'このコンテンツは現在通報できません。';
+
+  @override
+  String get contentModerationUnavailable => '安全性の確認を一時的に利用できません。もう一度お試しください。';
+
+  @override
+  String get contentNotAllowed => 'この内容は公開できません。内容を修正して、もう一度お試しください。';
+
+  @override
+  String get imageNotAllowed => 'この画像は使用できません。別の画像を選択してください。';
+
+  @override
   String get noteCreateTitle => '新しいノート';
 
   @override

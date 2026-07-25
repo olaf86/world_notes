@@ -277,6 +277,74 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get reportMessageAction => '举报消息';
+
+  @override
+  String get reportNoteAction => '举报笔记';
+
+  @override
+  String get reportMessageTitle => '举报消息';
+
+  @override
+  String get reportNoteTitle => '举报笔记';
+
+  @override
+  String get reportMessageQuestion => '为什么要举报这条消息？';
+
+  @override
+  String get reportNoteQuestion => '为什么要举报这篇笔记？';
+
+  @override
+  String get reportReasonSpam => '垃圾信息或广告';
+
+  @override
+  String get reportReasonHarassment => '骚扰或欺凌';
+
+  @override
+  String get reportReasonSexual => '成人或露骨内容';
+
+  @override
+  String get reportReasonIllegal => '违法内容';
+
+  @override
+  String get reportReasonOther => '其他';
+
+  @override
+  String get reportMessagePrivacy => '您的用户ID、消息ID、笔记ID和所选原因将提供给管理员审核。';
+
+  @override
+  String get reportNotePrivacy => '您的用户ID、笔记ID和所选原因将提供给管理员审核。';
+
+  @override
+  String get reportSubmitting => '正在提交...';
+
+  @override
+  String get reportSubmitAction => '提交举报';
+
+  @override
+  String get reportSubmitted => '举报已提交。感谢您帮助维护社区安全。';
+
+  @override
+  String reportFailed(Object error) {
+    return '无法提交举报：$error';
+  }
+
+  @override
+  String get reportCooldown => '请稍候片刻再提交举报。';
+
+  @override
+  String get reportUnavailable => '此内容已无法举报。';
+
+  @override
+  String get contentModerationUnavailable => '安全检查暂时不可用，请重试。';
+
+  @override
+  String get contentNotAllowed => '此内容无法发布，请修改后重试。';
+
+  @override
+  String get imageNotAllowed => '无法使用此图片，请选择其他图片。';
+
+  @override
   String get noteCreateTitle => '新建笔记';
 
   @override
@@ -1168,6 +1236,74 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
+  String get reportMessageAction => '举报消息';
+
+  @override
+  String get reportNoteAction => '举报笔记';
+
+  @override
+  String get reportMessageTitle => '举报消息';
+
+  @override
+  String get reportNoteTitle => '举报笔记';
+
+  @override
+  String get reportMessageQuestion => '为什么要举报这条消息？';
+
+  @override
+  String get reportNoteQuestion => '为什么要举报这篇笔记？';
+
+  @override
+  String get reportReasonSpam => '垃圾信息或广告';
+
+  @override
+  String get reportReasonHarassment => '骚扰或欺凌';
+
+  @override
+  String get reportReasonSexual => '成人或露骨内容';
+
+  @override
+  String get reportReasonIllegal => '违法内容';
+
+  @override
+  String get reportReasonOther => '其他';
+
+  @override
+  String get reportMessagePrivacy => '您的用户ID、消息ID、笔记ID和所选原因将提供给管理员审核。';
+
+  @override
+  String get reportNotePrivacy => '您的用户ID、笔记ID和所选原因将提供给管理员审核。';
+
+  @override
+  String get reportSubmitting => '正在提交...';
+
+  @override
+  String get reportSubmitAction => '提交举报';
+
+  @override
+  String get reportSubmitted => '举报已提交。感谢您帮助维护社区安全。';
+
+  @override
+  String reportFailed(Object error) {
+    return '无法提交举报：$error';
+  }
+
+  @override
+  String get reportCooldown => '请稍候片刻再提交举报。';
+
+  @override
+  String get reportUnavailable => '此内容已无法举报。';
+
+  @override
+  String get contentModerationUnavailable => '安全检查暂时不可用，请重试。';
+
+  @override
+  String get contentNotAllowed => '此内容无法发布，请修改后重试。';
+
+  @override
+  String get imageNotAllowed => '无法使用此图片，请选择其他图片。';
+
+  @override
   String get noteCreateTitle => '新建笔记';
 
   @override
@@ -2057,6 +2193,74 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String messageScheduledAt(String time) {
     return '預定於 $time 發佈';
   }
+
+  @override
+  String get reportMessageAction => '檢舉訊息';
+
+  @override
+  String get reportNoteAction => '檢舉筆記';
+
+  @override
+  String get reportMessageTitle => '檢舉訊息';
+
+  @override
+  String get reportNoteTitle => '檢舉筆記';
+
+  @override
+  String get reportMessageQuestion => '為什麼要檢舉這則訊息？';
+
+  @override
+  String get reportNoteQuestion => '為什麼要檢舉這篇筆記？';
+
+  @override
+  String get reportReasonSpam => '垃圾訊息或廣告';
+
+  @override
+  String get reportReasonHarassment => '騷擾或霸凌';
+
+  @override
+  String get reportReasonSexual => '成人或露骨內容';
+
+  @override
+  String get reportReasonIllegal => '違法內容';
+
+  @override
+  String get reportReasonOther => '其他';
+
+  @override
+  String get reportMessagePrivacy => '您的使用者ID、訊息ID、筆記ID和所選原因將提供給管理員審核。';
+
+  @override
+  String get reportNotePrivacy => '您的使用者ID、筆記ID和所選原因將提供給管理員審核。';
+
+  @override
+  String get reportSubmitting => '正在提交...';
+
+  @override
+  String get reportSubmitAction => '提交檢舉';
+
+  @override
+  String get reportSubmitted => '檢舉已提交。感謝您協助維護社群安全。';
+
+  @override
+  String reportFailed(Object error) {
+    return '無法提交檢舉：$error';
+  }
+
+  @override
+  String get reportCooldown => '請稍候片刻再提交檢舉。';
+
+  @override
+  String get reportUnavailable => '此內容已無法檢舉。';
+
+  @override
+  String get contentModerationUnavailable => '安全檢查暫時無法使用，請再試一次。';
+
+  @override
+  String get contentNotAllowed => '此內容無法發布，請修改後再試一次。';
+
+  @override
+  String get imageNotAllowed => '無法使用此圖片，請選擇其他圖片。';
 
   @override
   String get noteCreateTitle => '新增筆記';

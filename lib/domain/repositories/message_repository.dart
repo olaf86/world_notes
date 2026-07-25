@@ -1,5 +1,6 @@
 import '../entities/message_entity.dart';
 import '../entities/message_thread_item.dart';
+import '../entities/content_report.dart';
 
 abstract class MessageRepository {
   Stream<List<MessageThreadItem>> watchMessages({
@@ -38,7 +39,7 @@ abstract class MessageRepository {
   Future<void> reportMessage({
     required String messageId,
     required String placeId,
-    required String reason,
+    required ReportReasonCode reasonCode,
   });
 
   /// Sets the current user's final desired like state for a message.

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../l10n/l10n.dart';
+import '../domain/entities/content_report.dart';
 import '../presentation/providers/providers.dart';
 import '../presentation/screens/admin/admin_moderation_screen.dart';
 import '../presentation/screens/auth/sign_in_screen.dart';
@@ -131,9 +132,22 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) {
           return _fullScreenPage<bool>(
             state: state,
-            child: ReportMessageScreen(
+            child: ReportContentScreen(
               placeId: state.pathParameters['placeId']!,
               messageId: state.pathParameters['messageId']!,
+              target: ContentReportTarget.message,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/note/:placeId/report',
+        pageBuilder: (context, state) {
+          return _fullScreenPage<bool>(
+            state: state,
+            child: ReportContentScreen(
+              placeId: state.pathParameters['placeId']!,
+              target: ContentReportTarget.note,
             ),
           );
         },

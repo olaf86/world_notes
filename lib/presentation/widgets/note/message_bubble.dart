@@ -185,7 +185,7 @@ class _MessageBubbleState extends State<MessageBubble> {
             if (!widget.isOwn && widget.onReport != null)
               ListTile(
                 leading: const Icon(Icons.flag_outlined),
-                title: const Text('Report message'),
+                title: Text(context.l10n.reportMessageAction),
                 onTap: () {
                   Navigator.pop(ctx);
                   widget.onReport!();
@@ -689,7 +689,7 @@ class _MessageActionRow extends StatelessWidget {
         if (onReportPressed != null) ...[
           const SizedBox(width: 14),
           IconButton(
-            tooltip: 'Report message',
+            tooltip: context.l10n.reportMessageAction,
             visualDensity: VisualDensity.compact,
             constraints: const BoxConstraints.tightFor(width: 32, height: 32),
             padding: EdgeInsets.zero,

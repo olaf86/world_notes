@@ -316,6 +316,81 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get reportMessageAction => 'Report message';
+
+  @override
+  String get reportNoteAction => 'Report note';
+
+  @override
+  String get reportMessageTitle => 'Report message';
+
+  @override
+  String get reportNoteTitle => 'Report note';
+
+  @override
+  String get reportMessageQuestion => 'Why are you reporting this message?';
+
+  @override
+  String get reportNoteQuestion => 'Why are you reporting this note?';
+
+  @override
+  String get reportReasonSpam => 'Spam or advertising';
+
+  @override
+  String get reportReasonHarassment => 'Harassment or bullying';
+
+  @override
+  String get reportReasonSexual => 'Adult or explicit content';
+
+  @override
+  String get reportReasonIllegal => 'Illegal content';
+
+  @override
+  String get reportReasonOther => 'Other';
+
+  @override
+  String get reportMessagePrivacy =>
+      'Your user ID, this message ID, the note ID, and the selected reason will be shared with administrators for review.';
+
+  @override
+  String get reportNotePrivacy =>
+      'Your user ID, this note ID, and the selected reason will be shared with administrators for review.';
+
+  @override
+  String get reportSubmitting => 'Submitting...';
+
+  @override
+  String get reportSubmitAction => 'Submit report';
+
+  @override
+  String get reportSubmitted =>
+      'Report submitted. Thank you for helping keep this community safe.';
+
+  @override
+  String reportFailed(Object error) {
+    return 'Failed to submit report: $error';
+  }
+
+  @override
+  String get reportCooldown =>
+      'Please wait a moment before submitting another report.';
+
+  @override
+  String get reportUnavailable => 'This content can no longer be reported.';
+
+  @override
+  String get contentModerationUnavailable =>
+      'The safety check is temporarily unavailable. Please try again.';
+
+  @override
+  String get contentNotAllowed =>
+      'This content cannot be published. Please revise it and try again.';
+
+  @override
+  String get imageNotAllowed =>
+      'This image cannot be used. Please choose another image.';
+
+  @override
   String get noteCreateTitle => 'New Note';
 
   @override

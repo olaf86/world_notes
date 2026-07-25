@@ -584,6 +584,138 @@ abstract class AppLocalizations {
   /// **'Scheduled {time}'**
   String messageScheduledAt(String time);
 
+  /// No description provided for @reportMessageAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Report message'**
+  String get reportMessageAction;
+
+  /// No description provided for @reportNoteAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Report note'**
+  String get reportNoteAction;
+
+  /// No description provided for @reportMessageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Report message'**
+  String get reportMessageTitle;
+
+  /// No description provided for @reportNoteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Report note'**
+  String get reportNoteTitle;
+
+  /// No description provided for @reportMessageQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Why are you reporting this message?'**
+  String get reportMessageQuestion;
+
+  /// No description provided for @reportNoteQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Why are you reporting this note?'**
+  String get reportNoteQuestion;
+
+  /// No description provided for @reportReasonSpam.
+  ///
+  /// In en, this message translates to:
+  /// **'Spam or advertising'**
+  String get reportReasonSpam;
+
+  /// No description provided for @reportReasonHarassment.
+  ///
+  /// In en, this message translates to:
+  /// **'Harassment or bullying'**
+  String get reportReasonHarassment;
+
+  /// No description provided for @reportReasonSexual.
+  ///
+  /// In en, this message translates to:
+  /// **'Adult or explicit content'**
+  String get reportReasonSexual;
+
+  /// No description provided for @reportReasonIllegal.
+  ///
+  /// In en, this message translates to:
+  /// **'Illegal content'**
+  String get reportReasonIllegal;
+
+  /// No description provided for @reportReasonOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get reportReasonOther;
+
+  /// No description provided for @reportMessagePrivacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Your user ID, this message ID, the note ID, and the selected reason will be shared with administrators for review.'**
+  String get reportMessagePrivacy;
+
+  /// No description provided for @reportNotePrivacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Your user ID, this note ID, and the selected reason will be shared with administrators for review.'**
+  String get reportNotePrivacy;
+
+  /// No description provided for @reportSubmitting.
+  ///
+  /// In en, this message translates to:
+  /// **'Submitting...'**
+  String get reportSubmitting;
+
+  /// No description provided for @reportSubmitAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit report'**
+  String get reportSubmitAction;
+
+  /// No description provided for @reportSubmitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Report submitted. Thank you for helping keep this community safe.'**
+  String get reportSubmitted;
+
+  /// No description provided for @reportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to submit report: {error}'**
+  String reportFailed(Object error);
+
+  /// No description provided for @reportCooldown.
+  ///
+  /// In en, this message translates to:
+  /// **'Please wait a moment before submitting another report.'**
+  String get reportCooldown;
+
+  /// No description provided for @reportUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This content can no longer be reported.'**
+  String get reportUnavailable;
+
+  /// No description provided for @contentModerationUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The safety check is temporarily unavailable. Please try again.'**
+  String get contentModerationUnavailable;
+
+  /// No description provided for @contentNotAllowed.
+  ///
+  /// In en, this message translates to:
+  /// **'This content cannot be published. Please revise it and try again.'**
+  String get contentNotAllowed;
+
+  /// No description provided for @imageNotAllowed.
+  ///
+  /// In en, this message translates to:
+  /// **'This image cannot be used. Please choose another image.'**
+  String get imageNotAllowed;
+
   /// No description provided for @noteCreateTitle.
   ///
   /// In en, this message translates to:

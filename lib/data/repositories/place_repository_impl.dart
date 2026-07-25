@@ -19,6 +19,7 @@ import '../../domain/entities/place_entity.dart'
         PlaceVisibility;
 import '../../domain/entities/note_theme.dart';
 import '../../domain/entities/note_visitor_entity.dart';
+import '../../domain/entities/content_report.dart';
 import '../../domain/entities/note_list_sort.dart';
 import '../../domain/entities/pin_summary_entity.dart';
 import '../../domain/repositories/place_repository.dart';
@@ -156,6 +157,17 @@ class PlaceRepositoryImpl implements PlaceRepository {
       }
       rethrow;
     }
+  }
+
+  @override
+  Future<void> reportNote({
+    required String placeId,
+    required ReportReasonCode reasonCode,
+  }) async {
+    await _functions.httpsCallable('reportNote').call<Map<String, dynamic>>({
+      'placeId': placeId,
+      'reasonCode': reasonCode.toJson(),
+    });
   }
 
   @override

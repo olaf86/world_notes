@@ -26,6 +26,16 @@ void main() {
           isNotEmpty,
           reason: locale.toLanguageTag(),
         );
+        expect(
+          l10n.reportNoteTitle,
+          isNotEmpty,
+          reason: locale.toLanguageTag(),
+        );
+        expect(
+          l10n.reportReasonSpam,
+          isNotEmpty,
+          reason: locale.toLanguageTag(),
+        );
         for (final emptyStateLabel in [
           l10n.noNotifications,
           l10n.noFollowers,

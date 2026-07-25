@@ -3,6 +3,7 @@ import '../entities/note_list_sort.dart';
 import '../entities/note_theme.dart';
 import '../entities/place_entity.dart';
 import '../entities/pin_summary_entity.dart';
+import '../entities/content_report.dart';
 
 abstract class PlaceRepository {
   Future<List<PinSummary>> listMapPins({
@@ -48,6 +49,12 @@ abstract class PlaceRepository {
     required String placeId,
     required String userId,
     required List<int> thumbnailBytes,
+  });
+
+  /// Submits a user report for a note maintained by another user.
+  Future<void> reportNote({
+    required String placeId,
+    required ReportReasonCode reasonCode,
   });
 
   Future<PlaceEntity?> getPlace(String placeId);

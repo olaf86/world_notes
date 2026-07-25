@@ -278,6 +278,76 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
+  String get reportMessageAction => '메시지 신고';
+
+  @override
+  String get reportNoteAction => '노트 신고';
+
+  @override
+  String get reportMessageTitle => '메시지 신고';
+
+  @override
+  String get reportNoteTitle => '노트 신고';
+
+  @override
+  String get reportMessageQuestion => '이 메시지를 신고하는 이유를 선택하세요.';
+
+  @override
+  String get reportNoteQuestion => '이 노트를 신고하는 이유를 선택하세요.';
+
+  @override
+  String get reportReasonSpam => '스팸 또는 광고';
+
+  @override
+  String get reportReasonHarassment => '괴롭힘 또는 따돌림';
+
+  @override
+  String get reportReasonSexual => '성인용 또는 노골적인 콘텐츠';
+
+  @override
+  String get reportReasonIllegal => '불법 콘텐츠';
+
+  @override
+  String get reportReasonOther => '기타';
+
+  @override
+  String get reportMessagePrivacy =>
+      '검토를 위해 사용자 ID, 메시지 ID, 노트 ID 및 선택한 사유가 관리자에게 공유됩니다.';
+
+  @override
+  String get reportNotePrivacy => '검토를 위해 사용자 ID, 노트 ID 및 선택한 사유가 관리자에게 공유됩니다.';
+
+  @override
+  String get reportSubmitting => '제출 중...';
+
+  @override
+  String get reportSubmitAction => '신고 제출';
+
+  @override
+  String get reportSubmitted => '신고가 접수되었습니다. 커뮤니티 안전에 도움을 주셔서 감사합니다.';
+
+  @override
+  String reportFailed(Object error) {
+    return '신고를 제출하지 못했습니다: $error';
+  }
+
+  @override
+  String get reportCooldown => '잠시 후 다시 신고해 주세요.';
+
+  @override
+  String get reportUnavailable => '이 콘텐츠는 더 이상 신고할 수 없습니다.';
+
+  @override
+  String get contentModerationUnavailable =>
+      '안전성 확인을 일시적으로 사용할 수 없습니다. 다시 시도해 주세요.';
+
+  @override
+  String get contentNotAllowed => '이 콘텐츠는 게시할 수 없습니다. 수정한 후 다시 시도해 주세요.';
+
+  @override
+  String get imageNotAllowed => '이 이미지는 사용할 수 없습니다. 다른 이미지를 선택해 주세요.';
+
+  @override
   String get noteCreateTitle => '새 노트';
 
   @override
