@@ -484,11 +484,16 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
             stack: stack,
           );
           if (mounted) {
+            final reason = _callableReason(error);
+            final message = switch (reason) {
+              'image_not_allowed' => context.l10n.imageNotAllowed,
+              'moderation_unavailable' =>
+                context.l10n.contentModerationUnavailable,
+              _ => 'Note created, but pin image upload failed: $error',
+            };
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(
-                  'Note created, but pin image upload failed: $error',
-                ),
+                content: Text(message),
                 duration: const Duration(seconds: 5),
               ),
             );
@@ -507,16 +512,22 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
       // createNote runs server-side, so failures arrive as callable errors.
       // Method A: note creation requires connectivity — tell the user plainly
       // when the network is the problem instead of a generic error.
-      final message = switch (e.code) {
-        'unavailable' || 'deadline-exceeded' =>
-          'Couldn\'t reach the server. Check your internet connection and try again.',
-        'resource-exhausted' => e.message ?? 'You\'ve reached your note limit.',
-        'unauthenticated' => 'Please sign in again to create a note.',
-        _ => e.message ?? 'Could not create the note. Please try again.',
+      if (!mounted) return;
+      final l10n = context.l10n;
+      final reason = _callableReason(e);
+      final message = switch (reason) {
+        'content_not_allowed' => l10n.contentNotAllowed,
+        'moderation_unavailable' => l10n.contentModerationUnavailable,
+        _ => switch (e.code) {
+          'unavailable' || 'deadline-exceeded' =>
+            'Couldn\'t reach the server. Check your internet connection and try again.',
+          'resource-exhausted' =>
+            e.message ?? 'You\'ve reached your note limit.',
+          'unauthenticated' => 'Please sign in again to create a note.',
+          _ => e.message ?? 'Could not create the note. Please try again.',
+        },
       };
-      if (mounted) {
-        _showSnack(message);
-      }
+      _showSnack(message);
     } catch (e) {
       if (mounted) {
         _showSnack('Error: $e');
@@ -778,6 +789,13 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
       ),
     );
   }
+}
+
+Object? _callableReason(Object error) {
+  if (error is! FirebaseFunctionsException || error.details is! Map) {
+    return null;
+  }
+  return (error.details as Map)['reason'];
 }
 
 class _NoteCapacityStatus extends StatelessWidget {

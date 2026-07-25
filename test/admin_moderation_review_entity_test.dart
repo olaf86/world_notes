@@ -29,6 +29,7 @@ void main() {
       });
 
       expect(review.id, 'place-1_message-1');
+      expect(review.targetType, AdminModerationTargetType.message);
       expect(review.canReview, isTrue);
       expect(review.reviewSources, ['provider', 'riskSignal', 'userReport']);
       expect(review.reportCount, 3);
@@ -40,6 +41,23 @@ void main() {
         review.createdAt,
         DateTime.fromMillisecondsSinceEpoch(1710000000000),
       );
+    });
+
+    test('parses a note review without a message id', () {
+      final review = AdminModerationReviewEntity.fromJson({
+        'id': 'note_place-1',
+        'targetType': 'note',
+        'targetId': 'place-1',
+        'targetPath': 'places/place-1',
+        'placeId': 'place-1',
+        'content': 'Title\nDescription',
+        'status': 'open',
+      });
+
+      expect(review.targetType, AdminModerationTargetType.note);
+      expect(review.targetId, 'place-1');
+      expect(review.messageId, isNull);
+      expect(review.canReview, isTrue);
     });
 
     test('uses safe defaults for partial data', () {

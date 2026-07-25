@@ -1,3 +1,4 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -315,6 +316,21 @@ class _MessageCreationOverlayState
           );
       _pendingMessageId = null;
       if (mounted) widget.onClose();
+    } on FirebaseFunctionsException catch (e) {
+      if (!mounted) return;
+      setState(() => _isSending = false);
+      final reason = (e.details as Map?)?['reason'];
+      final message = switch (reason) {
+        'image_not_allowed' => context.l10n.imageNotAllowed,
+        'moderation_unavailable' => context.l10n.contentModerationUnavailable,
+        _ =>
+          _imageBytesList.isNotEmpty
+              ? 'Failed to upload image: $e'
+              : 'Failed to send: $e',
+      };
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), duration: const Duration(seconds: 6)),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSending = false);

@@ -26,21 +26,22 @@ class AdminModerationService {
         .toList(growable: false);
   }
 
-  Future<void> reviewMessage({
+  Future<void> reviewContent({
+    required AdminModerationTargetType targetType,
     required String placeId,
-    required String messageId,
+    String? messageId,
     required AdminModerationAction action,
     String? reason,
   }) async {
-    await _functions
-        .httpsCallable('adminReviewMessage')
-        .call<Map<String, dynamic>>({
-          'placeId': placeId,
-          'messageId': messageId,
-          'action': action.name,
-          if (reason != null && reason.trim().isNotEmpty)
-            'reason': reason.trim(),
-        });
+    final callableName = targetType == AdminModerationTargetType.note
+        ? 'adminReviewNote'
+        : 'adminReviewMessage';
+    await _functions.httpsCallable(callableName).call<Map<String, dynamic>>({
+      'placeId': placeId,
+      'messageId': ?messageId,
+      'action': action.name,
+      if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+    });
   }
 }
 

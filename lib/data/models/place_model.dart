@@ -35,6 +35,7 @@ class PlaceModel {
   final DateTime expiresAt;
   final bool footprintEnabled;
   final int visitorCount;
+  final bool isModerationHidden;
 
   PlaceModel({
     required this.id,
@@ -69,6 +70,7 @@ class PlaceModel {
     this.archivedAt,
     this.footprintEnabled = true,
     this.visitorCount = 0,
+    this.isModerationHidden = false,
   });
 
   static List<String> _maintainerIdsFromData(Map<String, dynamic> data) {
@@ -118,6 +120,7 @@ class PlaceModel {
       expiresAt: (data['expiresAt'] as Timestamp).toDate(),
       footprintEnabled: data['footprintEnabled'] as bool? ?? true,
       visitorCount: data['visitorCount'] as int? ?? 0,
+      isModerationHidden: data['isModerationHidden'] as bool? ?? false,
     );
   }
 
@@ -159,6 +162,7 @@ class PlaceModel {
       'expiresAt': Timestamp.fromDate(expiresAt),
       'footprintEnabled': footprintEnabled,
       'visitorCount': visitorCount,
+      'isModerationHidden': isModerationHidden,
     };
   }
 
@@ -195,5 +199,6 @@ class PlaceModel {
     expiresAt: expiresAt,
     footprintEnabled: footprintEnabled,
     visitorCount: visitorCount,
+    isModerationHidden: isModerationHidden,
   );
 }

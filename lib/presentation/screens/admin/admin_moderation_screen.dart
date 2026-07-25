@@ -91,9 +91,10 @@ class _AdminModerationScreenState extends ConsumerState<AdminModerationScreen> {
     try {
       await ref
           .read(adminModerationServiceProvider)
-          .reviewMessage(
+          .reviewContent(
+            targetType: review.targetType,
             placeId: review.placeId!,
-            messageId: review.messageId!,
+            messageId: review.messageId,
             action: action,
             reason: reason,
           );
@@ -233,6 +234,10 @@ class _ReviewCard extends StatelessWidget {
                     label: Text(review.action!),
                     visualDensity: VisualDensity.compact,
                   ),
+                Chip(
+                  label: Text(review.targetType.name),
+                  visualDensity: VisualDensity.compact,
+                ),
                 if (review.maxScore != null)
                   Chip(
                     label: Text(review.maxScore!.toStringAsFixed(2)),
@@ -308,15 +313,20 @@ class _ReviewCard extends StatelessWidget {
                     label: const Text('Allow'),
                   ),
                   const SizedBox(height: 8),
-                  OutlinedButton.icon(
-                    onPressed: review.canReview
-                        ? () =>
-                              onAction(review, AdminModerationAction.sensitive)
-                        : null,
-                    icon: const Icon(Icons.visibility_off_outlined),
-                    label: const Text('Sensitive'),
-                  ),
-                  const SizedBox(height: 8),
+                  if (review.targetType ==
+                      AdminModerationTargetType.message) ...[
+                    OutlinedButton.icon(
+                      onPressed: review.canReview
+                          ? () => onAction(
+                              review,
+                              AdminModerationAction.sensitive,
+                            )
+                          : null,
+                      icon: const Icon(Icons.visibility_off_outlined),
+                      label: const Text('Sensitive'),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                   FilledButton.icon(
                     onPressed: review.canReview
                         ? () => onAction(review, AdminModerationAction.hidden)

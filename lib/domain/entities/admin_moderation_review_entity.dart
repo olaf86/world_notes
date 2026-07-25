@@ -2,6 +2,14 @@ enum AdminModerationReviewStatus { open, resolved }
 
 enum AdminModerationAction { allow, sensitive, hidden }
 
+enum AdminModerationTargetType {
+  message,
+  note;
+
+  static AdminModerationTargetType fromJson(Object? value) =>
+      value == 'note' ? note : message;
+}
+
 class AdminModerationRiskSignal {
   final String category;
   final String severity;
@@ -24,6 +32,9 @@ class AdminModerationRiskSignal {
 
 class AdminModerationReviewEntity {
   final String id;
+  final AdminModerationTargetType targetType;
+  final String? targetId;
+  final String? targetPath;
   final String? userId;
   final String? placeId;
   final String? messageId;
@@ -50,6 +61,9 @@ class AdminModerationReviewEntity {
 
   const AdminModerationReviewEntity({
     required this.id,
+    required this.targetType,
+    required this.targetId,
+    required this.targetPath,
     required this.userId,
     required this.placeId,
     required this.messageId,
@@ -78,6 +92,9 @@ class AdminModerationReviewEntity {
   factory AdminModerationReviewEntity.fromJson(Map<String, dynamic> json) {
     return AdminModerationReviewEntity(
       id: json['id'] as String? ?? '',
+      targetType: AdminModerationTargetType.fromJson(json['targetType']),
+      targetId: json['targetId'] as String?,
+      targetPath: json['targetPath'] as String?,
       userId: json['userId'] as String?,
       placeId: json['placeId'] as String?,
       messageId: json['messageId'] as String?,
@@ -105,7 +122,9 @@ class AdminModerationReviewEntity {
   }
 
   bool get hasImages => imageStoragePaths.isNotEmpty;
-  bool get canReview => placeId != null && messageId != null;
+  bool get canReview =>
+      placeId != null &&
+      (targetType == AdminModerationTargetType.note || messageId != null);
 }
 
 List<String> _stringList(Object? value) {

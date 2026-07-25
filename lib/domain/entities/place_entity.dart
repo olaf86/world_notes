@@ -128,6 +128,10 @@ class PlaceEntity {
   /// Number of distinct users that have left footprints on this note.
   final int visitorCount;
 
+  /// Server moderation can hide a note without changing its archive lifecycle
+  /// or consuming/releasing an active-note slot.
+  final bool isModerationHidden;
+
   const PlaceEntity({
     required this.id,
     required this.latitude,
@@ -161,6 +165,7 @@ class PlaceEntity {
     this.archivedAt,
     this.footprintEnabled = true,
     this.visitorCount = 0,
+    this.isModerationHidden = false,
   });
 
   // ── Convenience getters ─────────────────────────────────────────────────
@@ -184,7 +189,10 @@ class PlaceEntity {
   bool isExpiredAt(DateTime now) => !now.isBefore(expiresAt);
 
   bool isDiscoverableAt(DateTime now) =>
-      isPublishedAt(now) && !isExpiredAt(now) && !isArchived;
+      isPublishedAt(now) &&
+      !isExpiredAt(now) &&
+      !isArchived &&
+      !isModerationHidden;
 
   /// Backward-compatible convenience for widgets that do not inject a clock.
   bool get isPublished => isPublishedAt(DateTime.now());
