@@ -2,6 +2,11 @@ appId: dev.asobo.worldnotes
 ---
 - launchApp:
     clearState: true
+    permissions:
+      location: inuse
+- tapOn:
+    text: "Allow While Using App"
+    optional: true
 - extendedWaitUntil:
     visible:
       id: "screen-map"
@@ -25,7 +30,8 @@ appId: dev.asobo.worldnotes
       id: "screen-note-detail-wn_tokyo_station"
     timeout: 15000
 - takeScreenshot: "${SCREENSHOT_OUTPUT_DIR}/ios_03_note_detail"
-- back
+- tapOn:
+    id: "action-close-note-detail"
 - tapOn:
     id: "nav-notes"
 - extendedWaitUntil:

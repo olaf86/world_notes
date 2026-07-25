@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/entities/note_list_sort.dart';
+import '../../../l10n/l10n.dart';
 import '../../providers/providers.dart';
 import '../../widgets/note/note_sort_button.dart';
 import 'map_notes_error_messages.dart';
@@ -121,7 +122,7 @@ class _MapNotesList extends ConsumerWidget {
               onPressed: onShowMap,
             ),
           ),
-          title: const Text('Map Notes'),
+          title: Text(context.l10n.mapNotesTitle),
           actions: [
             NoteSortButton(
               selected: sort,
