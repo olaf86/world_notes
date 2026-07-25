@@ -4,7 +4,7 @@
 
 Implemented on `codex/app-submission-content-safety`:
 
-- locale-independent report reason codes with legacy message compatibility;
+- locale-independent report reason codes and a generic target schema;
 - Japanese and all release-locale report UI copy;
 - note reporting from the note detail screen;
 - note and message targets in the administrator review queue;
@@ -68,7 +68,6 @@ targetType: "message" | "note"
 targetId: string
 targetPath: string
 placeId: string
-messageId: string?       # message targets only
 reporterId: string
 reportedUserId: string
 reasonCode: "spam" | "harassment" | "sexual" | "illegal" | "other"
@@ -86,9 +85,9 @@ contentFields: map       # e.g. message text or note title/subtitle
 imageStoragePaths: string[]
 ```
 
-Keep reading and writing both collections server-only. During rollout, the
-administrator parser should accept legacy message review fields until all open
-legacy reviews have been resolved or migrated.
+Keep reading and writing both collections server-only. Migrate existing
+documents before deploying the code that requires these fields; do not retain
+target-specific aliases in the application schema.
 
 Prefer a generic `adminReviewContent` callable over adding more branching to
 `adminReviewMessage`. Message and note decisions have different side effects,
@@ -257,7 +256,7 @@ administrator workflow also needs Japanese localization.
 
 ## Delivery sequence
 
-1. Generic target/reason schema with legacy message compatibility
+1. Migrate to the generic target/reason schema
 2. Localized generic report screen and reason codes
 3. Note reporting and administrator note actions
 4. Fail-closed note title/subtitle moderation

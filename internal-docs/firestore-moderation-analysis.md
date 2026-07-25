@@ -28,14 +28,13 @@
 ## New path
 
 - `moderationReviews/{reviewId}`: flat administrator review queue for notes and
-  messages. Message ids retain the legacy `{placeId}_{messageId}` shape; note
-  reviews use `note_{placeId}`. New records carry `targetType`, `targetId`, and
-  `targetPath`. For message records these intentionally duplicate `messageId`
-  and `messagePath`; the message-specific fields remain temporarily for
-  compatibility with existing records and callables while the administrator
-  parser moves to the generic fields. The review stores submitted content,
-  optional image storage paths, provider scores, derived action, review
-  sources, risk signals, report count/summary, and review status.
+  messages. Message reviews use `{placeId}_{messageId}` and note reviews use
+  `note_{placeId}` as deterministic document ids. Every record identifies its
+  content exclusively through `targetType`, `targetId`, and `targetPath`; the
+  target-specific `messageId` and `messagePath` fields are not stored. The
+  review stores submitted content, optional image storage paths, provider
+  scores, derived action, review sources, risk signals, report count/summary,
+  and review status.
 - `moderationAuditLogs/{logId}`: server-only append log for administrator
   moderation decisions for notes and messages.
 - `moderationEvents/{eventId}`: server-only provider metadata for note drafts
@@ -197,7 +196,7 @@ short per-user cooldown across both callables.
 - `status: "open"`
 
 When an administrator resolves the message through `adminReviewMessage`, open
-reports for the same `placeId`/`messageId` are closed as `accepted` for
+reports for the same `targetType`/`targetId` are closed as `accepted` for
 `sensitive`/`hidden` decisions or `rejected` for `allow` decisions.
 
 `reportNote` upserts `moderationReviews/note_{placeId}` with the same report
@@ -205,6 +204,28 @@ summary fields plus a title/subtitle snapshot and the current pin image path.
 `adminReviewNote` either allows the note or sets `isModerationHidden: true`.
 Hidden notes are rejected by public Firestore reads, map discovery, note access
 validation, message posting, likes, visits, unlocks, and invite claims.
+
+Existing moderation documents can be normalized before deploying code that
+requires the generic schema:
+
+```bash
+cd functions
+npm run migrate:moderation-schema -- \
+  --project world-notes-prod \
+  --allow-live \
+  --confirm-project world-notes-prod
+
+npm run migrate:moderation-schema -- \
+  --project world-notes-prod \
+  --apply \
+  --allow-live \
+  --confirm-project world-notes-prod
+```
+
+The first command is read-only. The apply command adds the generic target
+fields, converts stored English reason labels to stable codes, deletes
+`messageId`, `messagePath`, and `reason` aliases, and replaces the old
+`reportMessage` rate-limit document with `reportContent`.
 
 ## Publication-time checks
 
