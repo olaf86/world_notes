@@ -32,22 +32,20 @@ void main() {
 
     test('waits for block ids before exposing filtered visitors', () async {
       final provider = recentNoteVisitorsProvider('place-1');
-      final subscription = container.listen(
-        provider,
-        (_, _) {},
-        fireImmediately: true,
-      );
+      final filteredVisitors = Completer<List<NoteVisitor>>();
+      final subscription = container.listen(provider, (_, state) {
+        if (state.hasValue && !filteredVisitors.isCompleted) {
+          filteredVisitors.complete(state.requireValue);
+        }
+      }, fireImmediately: true);
       addTearDown(subscription.close);
-      await Future<void>.delayed(Duration.zero);
 
       expect(placeRepository.watchRecentVisitorsCallCount, 0);
       expect(container.read(provider).isLoading, isTrue);
 
       blockedUsersController.add({'blocked-user'});
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
 
-      final visitors = container.read(provider).requireValue;
+      final visitors = await filteredVisitors.future;
       expect(placeRepository.watchRecentVisitorsCallCount, 1);
       expect(visitors.map((visitor) => visitor.userId), ['visible-user']);
     });
@@ -57,20 +55,18 @@ void main() {
       () async {
         final error = StateError('block list unavailable');
         final provider = recentNoteVisitorsProvider('place-1');
-        final subscription = container.listen(
-          provider,
-          (_, _) {},
-          fireImmediately: true,
-        );
+        final propagatedError = Completer<Object>();
+        final subscription = container.listen(provider, (_, state) {
+          final providerError = state.error;
+          if (providerError != null && !propagatedError.isCompleted) {
+            propagatedError.complete(providerError);
+          }
+        }, fireImmediately: true);
         addTearDown(subscription.close);
 
         blockedUsersController.addError(error);
-        await Future<void>.delayed(Duration.zero);
-        await Future<void>.delayed(Duration.zero);
 
-        final state = container.read(provider);
-        expect(state.hasError, isTrue);
-        expect(state.error, same(error));
+        expect(await propagatedError.future, same(error));
         expect(placeRepository.watchRecentVisitorsCallCount, 0);
       },
     );
