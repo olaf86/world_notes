@@ -49,18 +49,24 @@ export async function hasUserBlockBetween(
 }
 
 /**
- * Returns candidate users who have a block relationship with the viewer.
+ * Finds candidate user ids blocked in either direction with the viewer.
  *
- * Exact document reads avoid exposing or indexing incoming private block
- * relationships. Candidates are normally the distinct note creators in one
- * bounded map response.
+ * listMapPins passes the distinct creator ids from its bounded geographic
+ * result, then removes every pin whose creator is returned here. For each
+ * candidate this checks both directed documents:
+ *
+ * - viewer -> candidate: the viewer blocked the candidate
+ * - candidate -> viewer: the candidate blocked the viewer
+ *
+ * The incoming direction cannot be discovered from the viewer's private
+ * blockedUsers collection, so both exact paths are read together with getAll.
  *
  * @param {Firestore} db Firestore instance.
  * @param {string} viewerUid Signed-in viewer.
- * @param {string[]} candidateUids Users to check.
- * @return {Promise<Set<string>>} Candidate ids blocked in either direction.
+ * @param {string[]} candidateUids Bounded user ids to check.
+ * @return {Promise<Set<string>>} Ids with a block in either direction.
  */
-export async function blockedCandidatesForViewer(
+export async function findUserIdsWithBlockRelationshipToViewer(
   db: Firestore,
   viewerUid: string,
   candidateUids: string[],

@@ -28,7 +28,10 @@ import {
   DISCOVERY_GEOHASH_PRECISION,
   REGION,
 } from "./constants";
-import {blockedCandidatesForViewer, hasUserBlockBetween} from "./userBlocks";
+import {
+  findUserIdsWithBlockRelationshipToViewer,
+  hasUserBlockBetween,
+} from "./userBlocks";
 
 interface Coordinates {
   latitude: number;
@@ -517,7 +520,7 @@ export const listMapPins = onCall<ListMapPinsData>(
       seen,
     );
     const pins = [...localPins, ...prefixPins];
-    const blockedCreatorUids = await blockedCandidatesForViewer(
+    const blockedCreatorUids = await findUserIdsWithBlockRelationshipToViewer(
       db,
       uid,
       pins.map((pin) => pin.creatorUid),
