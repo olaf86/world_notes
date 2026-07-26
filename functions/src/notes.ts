@@ -48,6 +48,7 @@ import {
   requiredReportDocumentId,
   type ReportReasonCode,
 } from "./reporting";
+import {hasUserBlockBetweenInTransaction} from "./userBlocks";
 
 interface CreateNoteData {
   latitude?: unknown;
@@ -524,6 +525,18 @@ export const setNotePinImage = onCall<SetNotePinImageData>(
         if (!placeSnap.exists) {
           throw new HttpsError("not-found", "Note not found.");
         }
+        const creatorUid =
+          placeSnap.get("createdByUserId") as string | undefined;
+        if (
+          creatorUid &&
+          await hasUserBlockBetweenInTransaction(tx, db, uid, creatorUid)
+        ) {
+          throw new HttpsError(
+            "permission-denied",
+            "You cannot change this note.",
+            {reason: "user_blocked"},
+          );
+        }
         if (!canMaintainNote(placeSnap, uid)) {
           throw new HttpsError(
             "permission-denied",
@@ -730,11 +743,24 @@ export const setNoteTheme = onCall<SetNoteThemeData>(
       throw new HttpsError("invalid-argument", "Invalid note theme.");
     }
 
-    const placeRef = getFirestore().collection("places").doc(placeId);
-    await getFirestore().runTransaction(async (tx) => {
+    const db = getFirestore();
+    const placeRef = db.collection("places").doc(placeId);
+    await db.runTransaction(async (tx) => {
       const placeSnap = await tx.get(placeRef);
       if (!placeSnap.exists) {
         throw new HttpsError("not-found", "Note not found.");
+      }
+      const creatorUid =
+        placeSnap.get("createdByUserId") as string | undefined;
+      if (
+        creatorUid &&
+        await hasUserBlockBetweenInTransaction(tx, db, uid, creatorUid)
+      ) {
+        throw new HttpsError(
+          "permission-denied",
+          "You cannot change this note's theme.",
+          {reason: "user_blocked"},
+        );
       }
       if (!canMaintainNote(placeSnap, uid)) {
         throw new HttpsError(

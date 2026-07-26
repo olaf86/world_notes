@@ -437,6 +437,7 @@ async function cancelBlockedUserScheduledMessages(
   while (hasMore) {
     const imagePaths = new Set<string>();
     const deletedCount = await db.runTransaction(async (tx) => {
+      imagePaths.clear();
       const counterRef = placeRef.collection("counters").doc("messageSlots");
       const messagesQuery = placeRef
         .collection("messages")

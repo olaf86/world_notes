@@ -47,6 +47,7 @@ export const aggregatePublishedMessages = onSchedule(
         const imagePathsToDelete = new Set<string>();
 
         await db.runTransaction(async (tx) => {
+          imagePathsToDelete.clear();
           const message = await tx.get(messageDoc.ref);
           if (!message.exists) return;
           if (message.get("placeAggregateAppliedAt") != null) return;
