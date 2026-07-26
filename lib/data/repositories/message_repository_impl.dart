@@ -40,6 +40,7 @@ class MessageRepositoryImpl implements MessageRepository {
   Stream<List<MessageThreadItem>> watchMessages({
     required String placeId,
     required String currentUserId,
+    Set<String> blockedUserIds = const {},
   }) {
     final publishedStream = _messagesOf(placeId)
         .where('isPubliclyVisible', isEqualTo: true)
@@ -83,6 +84,7 @@ class MessageRepositoryImpl implements MessageRepository {
           ownScheduled: ownScheduled,
           ownLikes: ownLikes,
           currentUserId: currentUserId,
+          blockedUserIds: blockedUserIds,
         ),
       );
     }
@@ -120,6 +122,7 @@ class MessageRepositoryImpl implements MessageRepository {
     required QuerySnapshot ownScheduled,
     required QuerySnapshot ownLikes,
     required String currentUserId,
+    required Set<String> blockedUserIds,
   }) {
     final likedMessageIds = _likedMessageIds(ownLikes);
     final byId = <String, MessageThreadItem>{};
@@ -129,6 +132,7 @@ class MessageRepositoryImpl implements MessageRepository {
         likedByCurrentUser: likedMessageIds.contains(doc.id),
       );
       final message = item.message;
+      if (blockedUserIds.contains(message.author.id)) continue;
       if (!message.isVisible) continue;
       if (message.isDeleted && message.author.id != currentUserId) continue;
       byId[message.id] = item;
@@ -168,6 +172,7 @@ class MessageRepositoryImpl implements MessageRepository {
     required String placeId,
     required String beforeMessageId,
     required int limit,
+    Set<String> blockedUserIds = const {},
   }) async {
     final pivotDoc = await _messagesOf(placeId).doc(beforeMessageId).get();
     if (!pivotDoc.exists) return [];
@@ -182,6 +187,7 @@ class MessageRepositoryImpl implements MessageRepository {
 
     return snap.docs
         .map((doc) => _threadItemFromDoc(doc, likedByCurrentUser: false))
+        .where((item) => !blockedUserIds.contains(item.message.author.id))
         .toList();
   }
 

@@ -18,11 +18,13 @@ abstract class FollowRepository {
     required String userId,
     Object? cursor,
     int limit = 20,
+    Set<String> excludedUserIds = const {},
   });
 
   Future<FollowPage> listFollowers({
     required String userId,
     Object? cursor,
     int limit = 20,
+    Set<String> excludedUserIds = const {},
   });
 }

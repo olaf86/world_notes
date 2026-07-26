@@ -21,6 +21,7 @@ import '../../data/repositories/follow_repository_impl.dart';
 import '../../data/repositories/message_repository_impl.dart';
 import '../../data/repositories/notice_repository_impl.dart';
 import '../../data/repositories/place_repository_impl.dart';
+import '../../data/repositories/user_block_repository_impl.dart';
 import '../../domain/entities/follow_entity.dart';
 import '../../domain/entities/admin_moderation_review_entity.dart';
 import '../../domain/entities/message_thread_item.dart';
@@ -31,11 +32,13 @@ import '../../domain/entities/pin_summary_entity.dart';
 import '../../domain/entities/place_entity.dart';
 import '../../domain/entities/public_profile_entity.dart';
 import '../../domain/entities/user_entity.dart';
+import '../../domain/entities/user_block_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/follow_repository.dart';
 import '../../domain/repositories/message_repository.dart';
 import '../../domain/repositories/notice_repository.dart';
 import '../../domain/repositories/place_repository.dart';
+import '../../domain/repositories/user_block_repository.dart';
 import '../../l10n/app_locale.dart';
 import '../../services/ad_privacy_service.dart';
 import '../../services/location_service.dart';
@@ -393,6 +396,13 @@ final noticeRepositoryProvider = Provider<NoticeRepository>((ref) {
   return NoticeRepositoryImpl(firestore: ref.watch(firestoreProvider));
 });
 
+final userBlockRepositoryProvider = Provider<UserBlockRepository>((ref) {
+  return UserBlockRepositoryImpl(
+    firestore: ref.watch(firestoreProvider),
+    functions: ref.watch(firebaseFunctionsProvider),
+  );
+});
+
 // --- Auth state ---
 
 final authStateProvider = StreamProvider<UserEntity?>((ref) {
@@ -446,6 +456,29 @@ final adminClaimProvider = FutureProvider<bool>((ref) async {
 
 // --- Social profiles and follows ---
 
+final blockedUserIdsProvider = StreamProvider<Set<String>>((ref) {
+  final user = ref.watch(authStateProvider).valueOrNull;
+  if (user == null) return Stream.value(const {});
+  return ref.watch(userBlockRepositoryProvider).watchBlockedUserIds(user.id);
+});
+
+final blockedUsersProvider = StreamProvider<List<UserBlock>>((ref) {
+  final user = ref.watch(authStateProvider).valueOrNull;
+  if (user == null) return Stream.value(const []);
+  return ref.watch(userBlockRepositoryProvider).watchBlockedUsers(user.id);
+});
+
+final isUserBlockedProvider = StreamProvider.family<bool, String>((
+  ref,
+  blockedUserId,
+) {
+  final user = ref.watch(authStateProvider).valueOrNull;
+  if (user == null || user.id == blockedUserId) return Stream.value(false);
+  return ref
+      .watch(userBlockRepositoryProvider)
+      .watchIsBlocked(blockerUserId: user.id, blockedUserId: blockedUserId);
+});
+
 final publicProfileProvider = StreamProvider.family<PublicProfile?, String>((
   ref,
   userId,
@@ -481,11 +514,18 @@ class FollowListRequest {
 }
 
 final followFirstPageProvider =
-    FutureProvider.family<FollowPage, FollowListRequest>((ref, request) {
+    FutureProvider.family<FollowPage, FollowListRequest>((ref, request) async {
       final repository = ref.watch(followRepositoryProvider);
+      final blockedUserIds = await ref.watch(blockedUserIdsProvider.future);
       return request.followers
-          ? repository.listFollowers(userId: request.userId)
-          : repository.listFollowing(userId: request.userId);
+          ? repository.listFollowers(
+              userId: request.userId,
+              excludedUserIds: blockedUserIds,
+            )
+          : repository.listFollowing(
+              userId: request.userId,
+              excludedUserIds: blockedUserIds,
+            );
     });
 
 // --- Notifications ---
@@ -519,7 +559,16 @@ final myNotesNotificationPreviewEnabledProvider = StreamProvider<bool>((ref) {
 final noticesProvider = StreamProvider<List<NoticeEntity>>((ref) {
   final user = ref.watch(authStateProvider).valueOrNull;
   if (user == null) return Stream.value(const []);
-  return ref.watch(noticeRepositoryProvider).watchNotices(user.id);
+  final blockedUserIds = ref.watch(blockedUserIdsProvider).valueOrNull;
+  if (blockedUserIds == null) return const Stream.empty();
+  return ref
+      .watch(noticeRepositoryProvider)
+      .watchNotices(user.id)
+      .map(
+        (notices) => notices
+            .where((notice) => !blockedUserIds.contains(notice.sourceId))
+            .toList(),
+      );
 });
 
 final unreadNoticeCountProvider = Provider<int>((ref) {
@@ -742,11 +791,18 @@ final noteMembersProvider = StreamProvider.family<List<NoteMember>, String>((
 
 final recentNoteVisitorsProvider =
     StreamProvider.family<List<NoteVisitor>, String>((ref, placeId) {
+      final blockedUserIds = ref.watch(blockedUserIdsProvider).valueOrNull;
+      if (blockedUserIds == null) return const Stream.empty();
       return ref
           .watch(placeRepositoryProvider)
           .watchRecentVisitors(
             placeId: placeId,
             limit: AppConfig.visitorPreviewExpandedMax,
+          )
+          .map(
+            (visitors) => visitors
+                .where((visitor) => !blockedUserIds.contains(visitor.userId))
+                .toList(),
           );
     });
 
@@ -771,9 +827,16 @@ final noteVisitorsProvider =
       ref,
       request,
     ) {
+      final blockedUserIds = ref.watch(blockedUserIdsProvider).valueOrNull;
+      if (blockedUserIds == null) return const Stream.empty();
       return ref
           .watch(placeRepositoryProvider)
-          .watchVisitors(placeId: request.placeId, sort: request.sort);
+          .watchVisitors(placeId: request.placeId, sort: request.sort)
+          .map(
+            (visitors) => visitors
+                .where((visitor) => !blockedUserIds.contains(visitor.userId))
+                .toList(),
+          );
     });
 
 /// Active notes owned by the current user. Used by the My Notes read-only
@@ -835,9 +898,15 @@ final messagesProvider = StreamProvider.autoDispose
     .family<List<MessageThreadItem>, String>((ref, placeId) {
       final user = ref.watch(authStateProvider).valueOrNull;
       if (user == null) return Stream.value(const []);
+      final blockedUserIds = ref.watch(blockedUserIdsProvider).valueOrNull;
+      if (blockedUserIds == null) return const Stream.empty();
       return ref
           .watch(messageRepositoryProvider)
-          .watchMessages(placeId: placeId, currentUserId: user.id);
+          .watchMessages(
+            placeId: placeId,
+            currentUserId: user.id,
+            blockedUserIds: blockedUserIds,
+          );
     });
 
 final adminModerationReviewsProvider = FutureProvider.autoDispose

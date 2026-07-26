@@ -59,6 +59,7 @@ class FollowRepositoryImpl implements FollowRepository {
     required String userId,
     Object? cursor,
     int limit = defaultPageSize,
+    Set<String> excludedUserIds = const {},
   }) {
     return _list(
       field: 'followerUid',
@@ -66,6 +67,7 @@ class FollowRepositoryImpl implements FollowRepository {
       profileIdFor: (edge) => edge.followeeUid,
       cursor: cursor,
       limit: limit,
+      excludedUserIds: excludedUserIds,
     );
   }
 
@@ -74,6 +76,7 @@ class FollowRepositoryImpl implements FollowRepository {
     required String userId,
     Object? cursor,
     int limit = defaultPageSize,
+    Set<String> excludedUserIds = const {},
   }) {
     return _list(
       field: 'followeeUid',
@@ -81,6 +84,7 @@ class FollowRepositoryImpl implements FollowRepository {
       profileIdFor: (edge) => edge.followerUid,
       cursor: cursor,
       limit: limit,
+      excludedUserIds: excludedUserIds,
     );
   }
 
@@ -90,6 +94,7 @@ class FollowRepositoryImpl implements FollowRepository {
     required String Function(FollowEdge edge) profileIdFor,
     required Object? cursor,
     required int limit,
+    required Set<String> excludedUserIds,
   }) async {
     Query query = _edges
         .where(field, isEqualTo: userId)
@@ -109,12 +114,13 @@ class FollowRepositoryImpl implements FollowRepository {
     final profiles = await _loadProfiles(profileIds);
     final items = [
       for (final edge in edges)
-        FollowListItem(
-          profile:
-              profiles[profileIdFor(edge)] ??
-              _missingProfile(profileIdFor(edge)),
-          followedAt: edge.createdAt,
-        ),
+        if (!excludedUserIds.contains(profileIdFor(edge)))
+          FollowListItem(
+            profile:
+                profiles[profileIdFor(edge)] ??
+                _missingProfile(profileIdFor(edge)),
+            followedAt: edge.createdAt,
+          ),
     ];
 
     return FollowPage(

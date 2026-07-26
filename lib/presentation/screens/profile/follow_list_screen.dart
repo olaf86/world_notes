@@ -93,18 +93,21 @@ class _FollowListScreenState extends ConsumerState<FollowListScreen> {
     }
   }
 
-  Future<FollowPage> _loadPage({required Object? cursor}) {
+  Future<FollowPage> _loadPage({required Object? cursor}) async {
     final repository = ref.read(followRepositoryProvider);
+    final blockedUserIds = await ref.read(blockedUserIdsProvider.future);
     return widget.followers
         ? repository.listFollowers(
             userId: widget.userId,
             cursor: cursor,
             limit: _pageSize,
+            excludedUserIds: blockedUserIds,
           )
         : repository.listFollowing(
             userId: widget.userId,
             cursor: cursor,
             limit: _pageSize,
+            excludedUserIds: blockedUserIds,
           );
   }
 

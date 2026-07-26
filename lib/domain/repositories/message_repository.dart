@@ -6,11 +6,13 @@ abstract class MessageRepository {
   Stream<List<MessageThreadItem>> watchMessages({
     required String placeId,
     required String currentUserId,
+    Set<String> blockedUserIds = const {},
   });
   Future<List<MessageThreadItem>> getOlderMessages({
     required String placeId,
     required String beforeMessageId,
     required int limit,
+    Set<String> blockedUserIds = const {},
   });
   Future<MessageEntity> sendMessage({
     String? id,
