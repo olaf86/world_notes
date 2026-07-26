@@ -33,6 +33,7 @@ void main() {
         isOpen: isOpen,
         closedReason: closedReason,
         isArchived: isArchived,
+        isModerationHidden: false,
       );
     }
 
@@ -141,6 +142,7 @@ void main() {
         publishAt: now.subtract(const Duration(days: 2)),
         expiresAt: now.subtract(const Duration(days: 1)),
         likeCount: 0,
+        isModerationHidden: false,
       );
       final archived = place(isArchived: true);
 

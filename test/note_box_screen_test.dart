@@ -172,6 +172,7 @@ void main() {
       publishAt: now.subtract(const Duration(days: 1)),
       expiresAt: now.add(const Duration(days: 7)),
       likeCount: 0,
+      isModerationHidden: false,
     );
 
     await tester.pumpWidget(
@@ -228,6 +229,7 @@ void main() {
       publishAt: now.subtract(const Duration(days: 1)),
       expiresAt: now.add(const Duration(days: 7)),
       likeCount: 0,
+      isModerationHidden: false,
     );
     final router = GoRouter(
       initialLocation: '/note',

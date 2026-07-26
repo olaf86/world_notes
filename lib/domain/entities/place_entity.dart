@@ -165,7 +165,7 @@ class PlaceEntity {
     this.archivedAt,
     this.footprintEnabled = true,
     this.visitorCount = 0,
-    this.isModerationHidden = false,
+    required this.isModerationHidden,
   });
 
   // ── Convenience getters ─────────────────────────────────────────────────

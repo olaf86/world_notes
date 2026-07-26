@@ -532,7 +532,7 @@ export const setNotePinImage = onCall<SetNotePinImageData>(
         }
         if (
           placeSnap.get("isArchived") === true ||
-          placeSnap.get("isModerationHidden") === true
+          placeSnap.get("isModerationHidden") !== false
         ) {
           throw new HttpsError(
             "failed-precondition",

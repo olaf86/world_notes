@@ -24,6 +24,7 @@ void main() {
         publishAt: now,
         expiresAt: now.add(const Duration(days: 7)),
         likeCount: 0,
+        isModerationHidden: false,
       );
 
       expect(place.isMaintainedBy('creator-1'), isTrue);
@@ -51,6 +52,7 @@ void main() {
         publishAt: now,
         expiresAt: now.add(const Duration(days: 7)),
         likeCount: 0,
+        isModerationHidden: false,
       );
 
       expect(
@@ -78,6 +80,7 @@ void main() {
         publishAt: now,
         expiresAt: now.add(const Duration(days: 7)),
         likeCount: 0,
+        isModerationHidden: false,
       );
 
       final place = model.toEntity();

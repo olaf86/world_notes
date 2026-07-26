@@ -531,7 +531,7 @@ function validatePlaceCanAccept(placeSnap: DocumentSnapshot, nowMs: number) {
   if (placeSnap.get("isArchived") === true) {
     throw new HttpsError("failed-precondition", "This note is archived.");
   }
-  if (placeSnap.get("isModerationHidden") === true) {
+  if (placeSnap.get("isModerationHidden") !== false) {
     throw new HttpsError("failed-precondition", "This note is unavailable.");
   }
   const placePublishAt = placeSnap.get("publishAt") as Timestamp | undefined;

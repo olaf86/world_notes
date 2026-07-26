@@ -125,7 +125,7 @@ export const unlockNote = onCall<{placeId?: unknown; password?: unknown}>(
     if (!placeSnap.exists) {
       throw new HttpsError("not-found", "Note not found.");
     }
-    if (placeSnap.get("isModerationHidden") === true) {
+    if (placeSnap.get("isModerationHidden") !== false) {
       throw new HttpsError("not-found", "Note not found.");
     }
     const storedLockType = parseLockType(placeSnap.get("lockType"));

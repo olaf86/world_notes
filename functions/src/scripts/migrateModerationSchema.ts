@@ -275,6 +275,26 @@ async function migrateAuditLogs(
   return counts;
 }
 
+async function migratePlaces(
+  db: Firestore,
+  apply: boolean,
+): Promise<MigrationCounts> {
+  const counts = {scanned: 0, changed: 0, skipped: 0};
+  const writer = apply ? db.bulkWriter() : null;
+  const snapshot = await db.collection("places").get();
+
+  for (const doc of snapshot.docs) {
+    counts.scanned++;
+    const value = doc.get("isModerationHidden");
+    if (value === true || value === false) continue;
+    counts.changed++;
+    writer?.update(doc.ref, {isModerationHidden: false});
+  }
+
+  await writer?.close();
+  return counts;
+}
+
 function timestampMillis(value: unknown): number {
   return value instanceof Timestamp ? value.toMillis() : -1;
 }
@@ -345,6 +365,7 @@ async function runMigration(
   apply: boolean,
 ): Promise<Record<string, MigrationCounts>> {
   return {
+    places: await migratePlaces(db, apply),
     reports: await migrateReports(db, apply),
     moderationReviews: await migrateReviews(db, apply),
     moderationAuditLogs: await migrateAuditLogs(db, apply),
