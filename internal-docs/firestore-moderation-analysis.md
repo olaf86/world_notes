@@ -39,7 +39,10 @@
   moderation decisions for notes and messages.
 - `moderationEvents/{eventId}`: server-only provider metadata for note drafts
   or images rejected before publication. It does not retain submitted text or
-  image bytes.
+  image bytes. These events provide an append-only audit trail for investigating
+  automated rejections and account restriction points when no published note
+  or message exists to reference. They are not administrator review-queue
+  items and do not by themselves trigger a later moderation decision.
 - `users/{uid}/notices/{noticeId}`: app inbox items for moderation warnings,
   account restrictions, bans, report outcomes, and future developer messages.
   Owner may read and mark read. Creation, deletion, and content changes are
@@ -225,7 +228,10 @@ npm run migrate:moderation-schema -- \
 The first command is read-only. The apply command adds the generic target
 fields, converts stored English reason labels to stable codes, deletes
 `messageId`, `messagePath`, and `reason` aliases, and replaces the old
-`reportMessage` rate-limit document with `reportContent`.
+`reportMessage` rate-limit document with `reportContent`. It also adds
+`isModerationHidden: false` to every existing note that does not already carry
+a boolean value, allowing clients, Functions, and Firestore Rules to require
+the field without a fallback.
 
 ## Publication-time checks
 
