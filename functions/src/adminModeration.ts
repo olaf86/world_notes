@@ -356,7 +356,10 @@ export const adminReviewMessage = onCall<AdminReviewMessageData>(
         targetPath: `places/${input.placeId}/messages/${input.messageId}`,
       });
       tx.set(auditRef, {
-        adminUserId: uid,
+        eventType: "adminDecision",
+        actorType: "admin",
+        actorId: uid,
+        subjectUserId: messageSnap.get("userId") ?? null,
         targetType: "message",
         targetId: input.messageId,
         targetPath: `places/${input.placeId}/messages/${input.messageId}`,
@@ -450,7 +453,10 @@ export const adminReviewNote = onCall<AdminReviewNoteData>(
         targetPath: `places/${input.placeId}`,
       });
       tx.set(auditRef, {
-        adminUserId: uid,
+        eventType: "adminDecision",
+        actorType: "admin",
+        actorId: uid,
+        subjectUserId: placeSnap.get("createdByUserId") ?? null,
         targetType: "note",
         targetId: input.placeId,
         targetPath: `places/${input.placeId}`,

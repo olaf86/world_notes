@@ -84,6 +84,9 @@ export interface ModerationImageInput {
   contentType: "image/webp" | "image/jpeg" | "image/png";
 }
 
+export type AutomatedModerationSourceType =
+  "noteDraft" | "messageImage" | "pinImage";
+
 const POLICY_VERSION = "2026-07-moderation-v1";
 export const OPENAI_MODERATION_MODEL = "omni-moderation-latest";
 export const OPENAI_MODERATION_URL = "https://api.openai.com/v1/moderations";
@@ -373,6 +376,28 @@ export function moderationAuditFields(
   };
 }
 
+export function automatedRejectionAuditFields({
+  uid,
+  sourceType,
+  result,
+  violationPointsAfter,
+}: {
+  uid: string;
+  sourceType: AutomatedModerationSourceType;
+  result: InternalModerationResult;
+  violationPointsAfter: number;
+}): Record<string, unknown> {
+  return {
+    eventType: "automatedRejection",
+    actorType: "provider",
+    actorId: result.provider,
+    subjectUserId: uid,
+    sourceType,
+    violationPointsAfter,
+    ...moderationAuditFields(result),
+  };
+}
+
 function violationPointsFor(result: InternalModerationResult): number {
   const policyMatchedCategories = result.categories.filter((entry) =>
     entry.matched || entry.score >= SENSITIVE_SCORE_THRESHOLD,
@@ -513,15 +538,18 @@ export async function recordRejectedModeration({
   userRef: DocumentReference;
   uid: string;
   result: InternalModerationResult;
-  sourceType: "noteDraft" | "messageImage" | "pinImage";
+  sourceType: AutomatedModerationSourceType;
 }): Promise<void> {
   let nextPoints = 0;
   await db.runTransaction(async (tx) => {
     nextPoints = await applyModerationToUser(tx, userRef, result);
-    tx.set(db.collection("moderationEvents").doc(), {
-      userId: uid,
-      sourceType,
-      ...moderationAuditFields(result),
+    tx.set(db.collection("moderationAuditLogs").doc(), {
+      ...automatedRejectionAuditFields({
+        uid,
+        sourceType,
+        result,
+        violationPointsAfter: nextPoints,
+      }),
       createdAt: FieldValue.serverTimestamp(),
     });
   });

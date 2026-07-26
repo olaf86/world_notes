@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  automatedRejectionAuditFields,
   detectAppModerationRiskSignals,
   type OpenAiModerationResponse,
   moderationFields,
@@ -47,6 +48,29 @@ test("normalizes low-risk OpenAI moderation results as allow", () => {
     isVisible: true,
     reviewRequired: false,
   });
+});
+
+test("builds a content-free automated rejection audit event", () => {
+  const result = normalizeOpenAiModeration(moderationResponse({
+    scores: {violence: 0.95},
+    categories: {violence: true},
+  }));
+  const fields = automatedRejectionAuditFields({
+    uid: "user-1",
+    sourceType: "noteDraft",
+    result,
+    violationPointsAfter: 7,
+  });
+
+  assert.equal(fields.eventType, "automatedRejection");
+  assert.equal(fields.actorType, "provider");
+  assert.equal(fields.actorId, "openai");
+  assert.equal(fields.subjectUserId, "user-1");
+  assert.equal(fields.sourceType, "noteDraft");
+  assert.equal(fields.action, "hidden");
+  assert.equal(fields.violationPointsAfter, 7);
+  assert.equal("content" in fields, false);
+  assert.equal("imageBytes" in fields, false);
 });
 
 test("marks threshold-level scores as sensitive without review", () => {

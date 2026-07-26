@@ -399,15 +399,9 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Administrator moderation audit log. Written only by trusted Cloud
-    // Functions with the Admin SDK.
+    // Automated and administrator moderation audit log. Written only by
+    // trusted Cloud Functions with the Admin SDK.
     match /moderationAuditLogs/{logId} {
-      allow read, write: if false;
-    }
-
-    // Provider decisions for rejected drafts and images. These events contain
-    // moderation metadata only and are never exposed to clients.
-    match /moderationEvents/{eventId} {
       allow read, write: if false;
     }
 
