@@ -19,6 +19,7 @@ import '../presentation/screens/profile/profile_screen.dart';
 import '../presentation/screens/profile/user_profile_screen.dart';
 import '../presentation/screens/report/report_message_screen.dart';
 import '../presentation/screens/settings/settings_screen.dart';
+import '../presentation/screens/settings/blocked_users_screen.dart';
 import '../presentation/screens/subscription/subscription_screen.dart';
 import 'route_observer.dart';
 
@@ -130,12 +131,16 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/note/:placeId/messages/:messageId/report',
         pageBuilder: (context, state) {
-          return _fullScreenPage<bool>(
+          final reportedUser = state.extra is ReportedUserTarget
+              ? state.extra as ReportedUserTarget
+              : null;
+          return _fullScreenPage<ReportContentResult>(
             state: state,
             child: ReportContentScreen(
               placeId: state.pathParameters['placeId']!,
               messageId: state.pathParameters['messageId']!,
               target: ContentReportTarget.message,
+              reportedUser: reportedUser,
             ),
           );
         },
@@ -143,11 +148,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/note/:placeId/report',
         pageBuilder: (context, state) {
-          return _fullScreenPage<bool>(
+          final reportedUser = state.extra is ReportedUserTarget
+              ? state.extra as ReportedUserTarget
+              : null;
+          return _fullScreenPage<ReportContentResult>(
             state: state,
             child: ReportContentScreen(
               placeId: state.pathParameters['placeId']!,
               target: ContentReportTarget.note,
+              reportedUser: reportedUser,
             ),
           );
         },
@@ -210,6 +219,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/settings',
         pageBuilder: (context, state) =>
             _fullScreenPage<void>(state: state, child: const SettingsScreen()),
+      ),
+      GoRoute(
+        path: '/settings/blocked-users',
+        pageBuilder: (context, state) => _fullScreenPage<void>(
+          state: state,
+          child: const BlockedUsersScreen(),
+        ),
       ),
       GoRoute(
         path: '/admin/moderation',

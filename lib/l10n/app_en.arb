@@ -138,6 +138,9 @@
   "reportSubmitAction": "Submit report",
   "@reportSubmitAction": {},
   "reportSubmitted": "Report submitted. Thank you for helping keep this community safe.",
+  "reportAlsoBlockUser": "Also block this user",
+  "reportAlsoBlockUserDescription": "Their notes and messages will be hidden after this report is submitted.",
+  "reportSubmittedBlockFailed": "The report was submitted, but the user could not be blocked.",
   "@reportSubmitted": {},
   "reportFailed": "Failed to submit report: {error}",
   "@reportFailed": {"placeholders": {"error": {"type": "Object"}}},
@@ -394,7 +397,21 @@
   "noMyNotes": "No notes yet.\nCreate one from the Map tab.",
 
   "profileTitle": "Profile",
+  "blockUserAction": "Block user",
+  "unblockUserAction": "Unblock user",
+  "blockUserTitle": "Block {name}?",
+  "blockUserConfirmation": "Their notes and messages will be hidden. You will unfollow each other, and they will lose access to notes you own. You may still encounter each other in notes owned by someone else.",
+  "blockUserConfirmAction": "Block",
+  "unblockUserTitle": "Unblock {name}?",
+  "unblockUserConfirmation": "Their content may appear again. Previous follows and access to your notes will not be restored.",
+  "userBlocked": "{name} has been blocked.",
+  "userUnblocked": "{name} has been unblocked.",
+  "updateUserBlockFailed": "Could not update the block setting: {error}",
   "settingsTitle": "Settings",
+  "blockedUsersTitle": "Blocked users",
+  "blockedUsersDescription": "Review or unblock people you have blocked",
+  "noBlockedUsers": "You have not blocked anyone.",
+  "blockedUsersLoadFailed": "Could not load blocked users: {error}",
   "settingsLanguageTitle": "App Language",
   "settingsLanguageSystem": "Automatic (System)",
   "settingsLanguageSystemDescription": "Use your device language",
@@ -546,6 +563,47 @@
   "@proHeroSubtitle": {},
   "@proHeroTitle": {},
   "@profileTitle": {},
+  "@blockUserAction": {},
+  "@unblockUserAction": {},
+  "@blockUserTitle": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "@blockUserConfirmation": {},
+  "@blockUserConfirmAction": {},
+  "@unblockUserTitle": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "@unblockUserConfirmation": {},
+  "@userBlocked": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "@userUnblocked": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "@updateUserBlockFailed": {
+    "placeholders": {
+      "error": {"type": "Object"}
+    }
+  },
+  "@blockedUsersTitle": {},
+  "@blockedUsersDescription": {},
+  "@noBlockedUsers": {},
+  "@blockedUsersLoadFailed": {
+    "placeholders": {
+      "error": {"type": "Object"}
+    }
+  },
+  "@reportAlsoBlockUser": {},
+  "@reportAlsoBlockUserDescription": {},
+  "@reportSubmittedBlockFailed": {},
   "@relativeJustNow": {},
   "@retryLoadMore": {},
   "@settingsTitle": {},

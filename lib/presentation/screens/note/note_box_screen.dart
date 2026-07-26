@@ -17,6 +17,7 @@ import '../../../domain/entities/note_theme.dart';
 import '../../../domain/policies/note_permissions.dart';
 import '../../../l10n/l10n.dart';
 import '../../providers/providers.dart';
+import '../../utils/user_block_actions.dart';
 import '../../widgets/map/static_note_mini_map.dart';
 import '../../widgets/loading_skeleton.dart';
 import '../../widgets/note/manage_access_sheet.dart';
@@ -26,6 +27,7 @@ import '../../widgets/note/note_lock_setup_dialog.dart';
 import '../../widgets/note/note_theme_picker.dart';
 import '../../widgets/note/user_avatar_badge.dart';
 import '../../widgets/note/visitor_map_overlay.dart';
+import '../report/report_message_screen.dart';
 import 'note_creation_screen.dart';
 
 // ---------------------------------------------------------------------------
@@ -257,22 +259,73 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
 
   // ── Report ────────────────────────────────────────────────────────────────
 
-  Future<void> _openReportMessageScreen(MessageEntity message) async {
-    final reported = await context.push<bool>(
+  Future<void> _openReportMessageScreen(
+    MessageEntity message, {
+    required String noteCreatorUserId,
+  }) async {
+    final result = await context.push<ReportContentResult>(
       '/note/${widget.placeId}/messages/${message.id}/report',
+      extra: ReportedUserTarget(
+        userId: message.author.id,
+        displayName: message.author.name,
+      ),
     );
-    if (!mounted || reported != true) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(context.l10n.reportSubmitted)));
+    if (!mounted || result == null) return;
+    if (result.blocked && message.author.id == noteCreatorUserId) {
+      context.go('/map');
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          result.blockFailed
+              ? context.l10n.reportSubmittedBlockFailed
+              : context.l10n.reportSubmitted,
+        ),
+      ),
+    );
   }
 
-  Future<void> _openReportNoteScreen() async {
-    final reported = await context.push<bool>('/note/${widget.placeId}/report');
-    if (!mounted || reported != true) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(context.l10n.reportSubmitted)));
+  Future<void> _openReportNoteScreen({
+    required String creatorUserId,
+    required String creatorName,
+  }) async {
+    final result = await context.push<ReportContentResult>(
+      '/note/${widget.placeId}/report',
+      extra: ReportedUserTarget(
+        userId: creatorUserId,
+        displayName: creatorName,
+      ),
+    );
+    if (!mounted || result == null) return;
+    if (result.blocked) {
+      context.go('/map');
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          result.blockFailed
+              ? context.l10n.reportSubmittedBlockFailed
+              : context.l10n.reportSubmitted,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _blockUser({
+    required String userId,
+    required String userName,
+    required bool leaveNote,
+  }) async {
+    final blocked = await confirmAndSetUserBlocked(
+      context: context,
+      ref: ref,
+      targetUserId: userId,
+      targetName: userName,
+      blocked: true,
+    );
+    if (blocked && mounted && leaveNote) context.go('/map');
   }
 
   Future<void> _setMessageLike(MessageEntity message, bool liked) async {
@@ -810,10 +863,55 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                             ),
                           ),
                         if (!place.isMaintainedBy(currentUser?.id))
-                          IconButton(
-                            icon: const Icon(Icons.flag_outlined),
-                            tooltip: l10n.reportNoteAction,
-                            onPressed: _openReportNoteScreen,
+                          PopupMenuButton<String>(
+                            tooltip: MaterialLocalizations.of(
+                              context,
+                            ).moreButtonTooltip,
+                            onSelected: (value) {
+                              if (value == 'report') {
+                                _openReportNoteScreen(
+                                  creatorUserId: place.createdByUserId,
+                                  creatorName:
+                                      creator?.name ?? place.createdByUserId,
+                                );
+                              }
+                              if (value == 'block') {
+                                _blockUser(
+                                  userId: place.createdByUserId,
+                                  userName:
+                                      creator?.name ?? place.createdByUserId,
+                                  leaveNote: true,
+                                );
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              PopupMenuItem(
+                                value: 'report',
+                                child: ListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: const Icon(Icons.flag_outlined),
+                                  title: Text(l10n.reportNoteAction),
+                                ),
+                              ),
+                              PopupMenuItem(
+                                value: 'block',
+                                child: ListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: Icon(
+                                    Icons.block_outlined,
+                                    color: Theme.of(context).colorScheme.error,
+                                  ),
+                                  title: Text(
+                                    l10n.blockUserAction,
+                                    style: TextStyle(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.error,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         if (permissions.hasThreadActions)
                           PopupMenuButton<String>(
@@ -976,6 +1074,17 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                                           onReport: !isOwn
                                               ? () => _openReportMessageScreen(
                                                   message,
+                                                  noteCreatorUserId:
+                                                      place.createdByUserId,
+                                                )
+                                              : null,
+                                          onBlock: !isOwn
+                                              ? () => _blockUser(
+                                                  userId: message.author.id,
+                                                  userName: message.author.name,
+                                                  leaveNote:
+                                                      message.author.id ==
+                                                      place.createdByUserId,
                                                 )
                                               : null,
                                         );

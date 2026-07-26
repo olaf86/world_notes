@@ -325,6 +325,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get reportSubmitted => '举报已提交。感谢您帮助维护社区安全。';
 
   @override
+  String get reportAlsoBlockUser => '同时屏蔽此用户';
+
+  @override
+  String get reportAlsoBlockUserDescription => '提交举报后，此用户的笔记和消息将被隐藏。';
+
+  @override
+  String get reportSubmittedBlockFailed => '举报已提交，但未能屏蔽该用户。';
+
+  @override
   String reportFailed(Object error) {
     return '无法提交举报：$error';
   }
@@ -775,7 +784,62 @@ class AppLocalizationsZh extends AppLocalizations {
   String get profileTitle => '个人资料';
 
   @override
+  String get blockUserAction => '屏蔽用户';
+
+  @override
+  String get unblockUserAction => '取消屏蔽';
+
+  @override
+  String blockUserTitle(String name) {
+    return '屏蔽$name？';
+  }
+
+  @override
+  String get blockUserConfirmation =>
+      '此用户的笔记和消息将被隐藏。你们会互相取消关注，且对方将失去访问你所拥有笔记的权限。在其他人拥有的笔记中，你们仍可能同时出现。';
+
+  @override
+  String get blockUserConfirmAction => '屏蔽';
+
+  @override
+  String unblockUserTitle(String name) {
+    return '取消屏蔽$name？';
+  }
+
+  @override
+  String get unblockUserConfirmation => '此用户的内容可能会重新显示。之前的关注关系以及对你笔记的访问权限不会恢复。';
+
+  @override
+  String userBlocked(String name) {
+    return '已屏蔽$name。';
+  }
+
+  @override
+  String userUnblocked(String name) {
+    return '已取消屏蔽$name。';
+  }
+
+  @override
+  String updateUserBlockFailed(Object error) {
+    return '无法更新屏蔽设置：$error';
+  }
+
+  @override
   String get settingsTitle => '设置';
+
+  @override
+  String get blockedUsersTitle => '已屏蔽的用户';
+
+  @override
+  String get blockedUsersDescription => '查看或取消屏蔽用户';
+
+  @override
+  String get noBlockedUsers => '你尚未屏蔽任何用户。';
+
+  @override
+  String blockedUsersLoadFailed(Object error) {
+    return '无法加载已屏蔽的用户：$error';
+  }
 
   @override
   String get settingsLanguageTitle => '应用语言';
@@ -1299,6 +1363,15 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get reportSubmitted => '举报已提交。感谢您帮助维护社区安全。';
 
   @override
+  String get reportAlsoBlockUser => '同时屏蔽此用户';
+
+  @override
+  String get reportAlsoBlockUserDescription => '提交举报后，此用户的笔记和消息将被隐藏。';
+
+  @override
+  String get reportSubmittedBlockFailed => '举报已提交，但未能屏蔽该用户。';
+
+  @override
   String reportFailed(Object error) {
     return '无法提交举报：$error';
   }
@@ -1749,7 +1822,62 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get profileTitle => '个人资料';
 
   @override
+  String get blockUserAction => '屏蔽用户';
+
+  @override
+  String get unblockUserAction => '取消屏蔽';
+
+  @override
+  String blockUserTitle(String name) {
+    return '屏蔽$name？';
+  }
+
+  @override
+  String get blockUserConfirmation =>
+      '此用户的笔记和消息将被隐藏。你们会互相取消关注，且对方将失去访问你所拥有笔记的权限。在其他人拥有的笔记中，你们仍可能同时出现。';
+
+  @override
+  String get blockUserConfirmAction => '屏蔽';
+
+  @override
+  String unblockUserTitle(String name) {
+    return '取消屏蔽$name？';
+  }
+
+  @override
+  String get unblockUserConfirmation => '此用户的内容可能会重新显示。之前的关注关系以及对你笔记的访问权限不会恢复。';
+
+  @override
+  String userBlocked(String name) {
+    return '已屏蔽$name。';
+  }
+
+  @override
+  String userUnblocked(String name) {
+    return '已取消屏蔽$name。';
+  }
+
+  @override
+  String updateUserBlockFailed(Object error) {
+    return '无法更新屏蔽设置：$error';
+  }
+
+  @override
   String get settingsTitle => '设置';
+
+  @override
+  String get blockedUsersTitle => '已屏蔽的用户';
+
+  @override
+  String get blockedUsersDescription => '查看或取消屏蔽用户';
+
+  @override
+  String get noBlockedUsers => '你尚未屏蔽任何用户。';
+
+  @override
+  String blockedUsersLoadFailed(Object error) {
+    return '无法加载已屏蔽的用户：$error';
+  }
 
   @override
   String get settingsLanguageTitle => '应用语言';
@@ -2273,6 +2401,15 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get reportSubmitted => '檢舉已提交。感謝您協助維護社群安全。';
 
   @override
+  String get reportAlsoBlockUser => '同時封鎖此使用者';
+
+  @override
+  String get reportAlsoBlockUserDescription => '提交檢舉後，此使用者的筆記和訊息將被隱藏。';
+
+  @override
+  String get reportSubmittedBlockFailed => '檢舉已提交，但無法封鎖該使用者。';
+
+  @override
   String reportFailed(Object error) {
     return '無法提交檢舉：$error';
   }
@@ -2723,7 +2860,63 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get profileTitle => '個人檔案';
 
   @override
+  String get blockUserAction => '封鎖使用者';
+
+  @override
+  String get unblockUserAction => '解除封鎖';
+
+  @override
+  String blockUserTitle(String name) {
+    return '封鎖$name？';
+  }
+
+  @override
+  String get blockUserConfirmation =>
+      '此使用者的筆記和訊息將被隱藏。你們會互相取消追蹤，且對方將失去存取你所擁有筆記的權限。在其他人擁有的筆記中，你們仍可能同時出現。';
+
+  @override
+  String get blockUserConfirmAction => '封鎖';
+
+  @override
+  String unblockUserTitle(String name) {
+    return '解除封鎖$name？';
+  }
+
+  @override
+  String get unblockUserConfirmation =>
+      '此使用者的內容可能會再次顯示。先前的追蹤關係以及對你筆記的存取權限不會恢復。';
+
+  @override
+  String userBlocked(String name) {
+    return '已封鎖$name。';
+  }
+
+  @override
+  String userUnblocked(String name) {
+    return '已解除封鎖$name。';
+  }
+
+  @override
+  String updateUserBlockFailed(Object error) {
+    return '無法更新封鎖設定：$error';
+  }
+
+  @override
   String get settingsTitle => '設定';
+
+  @override
+  String get blockedUsersTitle => '已封鎖的使用者';
+
+  @override
+  String get blockedUsersDescription => '查看或解除封鎖使用者';
+
+  @override
+  String get noBlockedUsers => '你尚未封鎖任何使用者。';
+
+  @override
+  String blockedUsersLoadFailed(Object error) {
+    return '無法載入已封鎖的使用者：$error';
+  }
 
   @override
   String get settingsLanguageTitle => 'App 語言';

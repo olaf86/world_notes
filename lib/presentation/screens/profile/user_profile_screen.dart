@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../domain/entities/public_profile_entity.dart';
+import '../../../l10n/l10n.dart';
 import '../../providers/providers.dart';
+import '../../utils/user_block_actions.dart';
 import '../../widgets/loading_skeleton.dart';
 
 class UserProfileScreen extends ConsumerStatefulWidget {
@@ -37,6 +39,25 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     }
   }
 
+  Future<void> _setBlocked({
+    required bool blocked,
+    required String targetName,
+  }) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await confirmAndSetUserBlocked(
+        context: context,
+        ref: ref,
+        targetUserId: widget.userId,
+        targetName: targetName,
+        blocked: blocked,
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   void _snack(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(
@@ -50,9 +71,10 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     final currentUser = ref.watch(authStateProvider).valueOrNull;
     final isOwnProfile = currentUser?.id == widget.userId;
     final isFollowing = ref.watch(isFollowingUserProvider(widget.userId));
+    final isBlocked = ref.watch(isUserBlockedProvider(widget.userId));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
+      appBar: AppBar(title: Text(context.l10n.profileTitle)),
       body: profileAsync.when(
         loading: () => const _ProfileSkeleton(),
         error: (e, _) => Center(child: Text('Could not load profile: $e')),
@@ -68,23 +90,67 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
               _SocialCounts(profile: profile),
               if (!isOwnProfile) ...[
                 const SizedBox(height: 20),
-                isFollowing.when(
+                isBlocked.when(
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
-                  error: (e, _) => OutlinedButton.icon(
+                  error: (error, _) => OutlinedButton.icon(
                     onPressed: null,
                     icon: const Icon(Icons.error_outline),
-                    label: Text('Follow unavailable: $e'),
+                    label: Text(context.l10n.updateUserBlockFailed(error)),
                   ),
-                  data: (following) => FilledButton.icon(
-                    onPressed: _busy ? null : () => _setFollowing(!following),
-                    icon: Icon(
-                      following
-                          ? Icons.person_remove_outlined
-                          : Icons.person_add_alt_1_outlined,
-                    ),
-                    label: Text(following ? 'Unfollow' : 'Follow'),
-                  ),
+                  data: (blocked) => blocked
+                      ? OutlinedButton.icon(
+                          onPressed: _busy
+                              ? null
+                              : () => _setBlocked(
+                                  blocked: false,
+                                  targetName: profile.label,
+                                ),
+                          icon: const Icon(Icons.block_outlined),
+                          label: Text(context.l10n.unblockUserAction),
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            isFollowing.when(
+                              loading: () => const Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                              error: (e, _) => OutlinedButton.icon(
+                                onPressed: null,
+                                icon: const Icon(Icons.error_outline),
+                                label: Text('Follow unavailable: $e'),
+                              ),
+                              data: (following) => FilledButton.icon(
+                                onPressed: _busy
+                                    ? null
+                                    : () => _setFollowing(!following),
+                                icon: Icon(
+                                  following
+                                      ? Icons.person_remove_outlined
+                                      : Icons.person_add_alt_1_outlined,
+                                ),
+                                label: Text(following ? 'Unfollow' : 'Follow'),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            TextButton.icon(
+                              onPressed: _busy
+                                  ? null
+                                  : () => _setBlocked(
+                                      blocked: true,
+                                      targetName: profile.label,
+                                    ),
+                              style: TextButton.styleFrom(
+                                foregroundColor: Theme.of(
+                                  context,
+                                ).colorScheme.error,
+                              ),
+                              icon: const Icon(Icons.block_outlined),
+                              label: Text(context.l10n.blockUserAction),
+                            ),
+                          ],
+                        ),
                 ),
               ],
               const SizedBox(height: 24),

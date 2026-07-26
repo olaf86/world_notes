@@ -367,6 +367,17 @@ class AppLocalizationsEn extends AppLocalizations {
       'Report submitted. Thank you for helping keep this community safe.';
 
   @override
+  String get reportAlsoBlockUser => 'Also block this user';
+
+  @override
+  String get reportAlsoBlockUserDescription =>
+      'Their notes and messages will be hidden after this report is submitted.';
+
+  @override
+  String get reportSubmittedBlockFailed =>
+      'The report was submitted, but the user could not be blocked.';
+
+  @override
   String reportFailed(Object error) {
     return 'Failed to submit report: $error';
   }
@@ -855,7 +866,64 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileTitle => 'Profile';
 
   @override
+  String get blockUserAction => 'Block user';
+
+  @override
+  String get unblockUserAction => 'Unblock user';
+
+  @override
+  String blockUserTitle(String name) {
+    return 'Block $name?';
+  }
+
+  @override
+  String get blockUserConfirmation =>
+      'Their notes and messages will be hidden. You will unfollow each other, and they will lose access to notes you own. You may still encounter each other in notes owned by someone else.';
+
+  @override
+  String get blockUserConfirmAction => 'Block';
+
+  @override
+  String unblockUserTitle(String name) {
+    return 'Unblock $name?';
+  }
+
+  @override
+  String get unblockUserConfirmation =>
+      'Their content may appear again. Previous follows and access to your notes will not be restored.';
+
+  @override
+  String userBlocked(String name) {
+    return '$name has been blocked.';
+  }
+
+  @override
+  String userUnblocked(String name) {
+    return '$name has been unblocked.';
+  }
+
+  @override
+  String updateUserBlockFailed(Object error) {
+    return 'Could not update the block setting: $error';
+  }
+
+  @override
   String get settingsTitle => 'Settings';
+
+  @override
+  String get blockedUsersTitle => 'Blocked users';
+
+  @override
+  String get blockedUsersDescription =>
+      'Review or unblock people you have blocked';
+
+  @override
+  String get noBlockedUsers => 'You have not blocked anyone.';
+
+  @override
+  String blockedUsersLoadFailed(Object error) {
+    return 'Could not load blocked users: $error';
+  }
 
   @override
   String get settingsLanguageTitle => 'App Language';

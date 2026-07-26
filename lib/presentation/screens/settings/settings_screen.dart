@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../config/regions.dart';
 import '../../../core/map_style.dart';
@@ -47,6 +48,15 @@ class SettingsScreen extends ConsumerWidget {
           const _RegionSection(),
           const SizedBox(height: 24),
           const _MyNotesNotificationsSection(),
+          const SizedBox(height: 24),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.block_outlined),
+            title: Text(l10n.blockedUsersTitle),
+            subtitle: Text(l10n.blockedUsersDescription),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/settings/blocked-users'),
+          ),
           const _AdPrivacySection(),
         ],
       ),

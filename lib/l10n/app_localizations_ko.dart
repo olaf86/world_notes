@@ -327,6 +327,16 @@ class AppLocalizationsKo extends AppLocalizations {
   String get reportSubmitted => '신고가 접수되었습니다. 커뮤니티 안전에 도움을 주셔서 감사합니다.';
 
   @override
+  String get reportAlsoBlockUser => '이 사용자도 차단';
+
+  @override
+  String get reportAlsoBlockUserDescription =>
+      '신고가 제출되면 이 사용자의 노트와 메시지가 숨겨집니다.';
+
+  @override
+  String get reportSubmittedBlockFailed => '신고는 제출되었지만 사용자를 차단하지 못했습니다.';
+
+  @override
   String reportFailed(Object error) {
     return '신고를 제출하지 못했습니다: $error';
   }
@@ -783,7 +793,63 @@ class AppLocalizationsKo extends AppLocalizations {
   String get profileTitle => '프로필';
 
   @override
+  String get blockUserAction => '사용자 차단';
+
+  @override
+  String get unblockUserAction => '차단 해제';
+
+  @override
+  String blockUserTitle(String name) {
+    return '$name님을 차단할까요?';
+  }
+
+  @override
+  String get blockUserConfirmation =>
+      '이 사용자의 노트와 메시지가 숨겨집니다. 서로의 팔로우가 해제되고, 내가 소유한 노트에 대한 접근 권한도 삭제됩니다. 다른 사람이 소유한 노트에서는 계속 마주칠 수 있습니다.';
+
+  @override
+  String get blockUserConfirmAction => '차단';
+
+  @override
+  String unblockUserTitle(String name) {
+    return '$name님의 차단을 해제할까요?';
+  }
+
+  @override
+  String get unblockUserConfirmation =>
+      '이 사용자의 콘텐츠가 다시 표시될 수 있습니다. 이전 팔로우와 내 노트에 대한 접근 권한은 복원되지 않습니다.';
+
+  @override
+  String userBlocked(String name) {
+    return '$name님을 차단했습니다.';
+  }
+
+  @override
+  String userUnblocked(String name) {
+    return '$name님의 차단을 해제했습니다.';
+  }
+
+  @override
+  String updateUserBlockFailed(Object error) {
+    return '차단 설정을 변경하지 못했습니다: $error';
+  }
+
+  @override
   String get settingsTitle => '설정';
+
+  @override
+  String get blockedUsersTitle => '차단한 사용자';
+
+  @override
+  String get blockedUsersDescription => '차단한 사용자를 확인하거나 차단 해제';
+
+  @override
+  String get noBlockedUsers => '차단한 사용자가 없습니다.';
+
+  @override
+  String blockedUsersLoadFailed(Object error) {
+    return '차단한 사용자를 불러오지 못했습니다: $error';
+  }
 
   @override
   String get settingsLanguageTitle => '앱 언어';

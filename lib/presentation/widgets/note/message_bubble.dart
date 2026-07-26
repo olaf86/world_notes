@@ -22,6 +22,7 @@ class MessageBubble extends StatefulWidget {
   final Future<void> Function(bool liked)? onLikeChanged;
   final VoidCallback? onDelete;
   final VoidCallback? onReport;
+  final VoidCallback? onBlock;
 
   const MessageBubble({
     super.key,
@@ -34,6 +35,7 @@ class MessageBubble extends StatefulWidget {
     this.onLikeChanged,
     this.onDelete,
     this.onReport,
+    this.onBlock,
   });
 
   @override
@@ -158,7 +160,7 @@ class _MessageBubbleState extends State<MessageBubble> {
   void _showActionSheet() {
     final hasActions =
         (widget.isOwn && widget.onDelete != null) ||
-        (!widget.isOwn && widget.onReport != null);
+        (!widget.isOwn && (widget.onReport != null || widget.onBlock != null));
     if (!hasActions) return;
 
     showModalBottomSheet<void>(
@@ -189,6 +191,17 @@ class _MessageBubbleState extends State<MessageBubble> {
                 onTap: () {
                   Navigator.pop(ctx);
                   widget.onReport!();
+                },
+              ),
+            if (!widget.isOwn && widget.onBlock != null)
+              ListTile(
+                leading: const Icon(Icons.block_outlined),
+                title: Text(context.l10n.blockUserAction),
+                textColor: Theme.of(context).colorScheme.error,
+                iconColor: Theme.of(context).colorScheme.error,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  widget.onBlock!();
                 },
               ),
           ],
@@ -400,7 +413,7 @@ class _MessageBubbleState extends State<MessageBubble> {
     final imageStoragePaths = message.imageStoragePaths;
     final hasActions =
         (widget.isOwn && widget.onDelete != null) ||
-        (!widget.isOwn && widget.onReport != null);
+        (!widget.isOwn && (widget.onReport != null || widget.onBlock != null));
 
     return GestureDetector(
       onLongPress: hasActions ? _showActionSheet : null,

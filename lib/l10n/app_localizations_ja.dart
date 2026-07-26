@@ -329,6 +329,16 @@ class AppLocalizationsJa extends AppLocalizations {
   String get reportSubmitted => '通報を受け付けました。コミュニティの安全維持にご協力いただきありがとうございます。';
 
   @override
+  String get reportAlsoBlockUser => 'このユーザーもブロックする';
+
+  @override
+  String get reportAlsoBlockUserDescription =>
+      '通報後、このユーザーのノートとメッセージは表示されなくなります。';
+
+  @override
+  String get reportSubmittedBlockFailed => '通報は完了しましたが、ユーザーをブロックできませんでした。';
+
+  @override
   String reportFailed(Object error) {
     return '通報を送信できませんでした: $error';
   }
@@ -781,7 +791,63 @@ class AppLocalizationsJa extends AppLocalizations {
   String get profileTitle => 'プロフィール';
 
   @override
+  String get blockUserAction => 'ユーザーをブロック';
+
+  @override
+  String get unblockUserAction => 'ブロックを解除';
+
+  @override
+  String blockUserTitle(String name) {
+    return '$nameさんをブロックしますか？';
+  }
+
+  @override
+  String get blockUserConfirmation =>
+      'このユーザーのノートとメッセージは表示されなくなります。お互いのフォローは解除され、あなたが所有するノートへのアクセスも取り消されます。第三者が所有するノートでは、引き続き同じ場所に参加する場合があります。';
+
+  @override
+  String get blockUserConfirmAction => 'ブロック';
+
+  @override
+  String unblockUserTitle(String name) {
+    return '$nameさんのブロックを解除しますか？';
+  }
+
+  @override
+  String get unblockUserConfirmation =>
+      'このユーザーのコンテンツが再び表示されるようになります。以前のフォローや、あなたのノートへのアクセスは復元されません。';
+
+  @override
+  String userBlocked(String name) {
+    return '$nameさんをブロックしました。';
+  }
+
+  @override
+  String userUnblocked(String name) {
+    return '$nameさんのブロックを解除しました。';
+  }
+
+  @override
+  String updateUserBlockFailed(Object error) {
+    return 'ブロック設定を更新できませんでした: $error';
+  }
+
+  @override
   String get settingsTitle => '設定';
+
+  @override
+  String get blockedUsersTitle => 'ブロックしたユーザー';
+
+  @override
+  String get blockedUsersDescription => 'ブロックしたユーザーの確認と解除';
+
+  @override
+  String get noBlockedUsers => 'ブロックしているユーザーはいません。';
+
+  @override
+  String blockedUsersLoadFailed(Object error) {
+    return 'ブロックしたユーザーを読み込めませんでした: $error';
+  }
 
   @override
   String get settingsLanguageTitle => 'アプリの言語';

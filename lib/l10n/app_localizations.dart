@@ -680,6 +680,24 @@ abstract class AppLocalizations {
   /// **'Report submitted. Thank you for helping keep this community safe.'**
   String get reportSubmitted;
 
+  /// No description provided for @reportAlsoBlockUser.
+  ///
+  /// In en, this message translates to:
+  /// **'Also block this user'**
+  String get reportAlsoBlockUser;
+
+  /// No description provided for @reportAlsoBlockUserDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Their notes and messages will be hidden after this report is submitted.'**
+  String get reportAlsoBlockUserDescription;
+
+  /// No description provided for @reportSubmittedBlockFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The report was submitted, but the user could not be blocked.'**
+  String get reportSubmittedBlockFailed;
+
   /// No description provided for @reportFailed.
   ///
   /// In en, this message translates to:
@@ -1502,11 +1520,95 @@ abstract class AppLocalizations {
   /// **'Profile'**
   String get profileTitle;
 
+  /// No description provided for @blockUserAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Block user'**
+  String get blockUserAction;
+
+  /// No description provided for @unblockUserAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Unblock user'**
+  String get unblockUserAction;
+
+  /// No description provided for @blockUserTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Block {name}?'**
+  String blockUserTitle(String name);
+
+  /// No description provided for @blockUserConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Their notes and messages will be hidden. You will unfollow each other, and they will lose access to notes you own. You may still encounter each other in notes owned by someone else.'**
+  String get blockUserConfirmation;
+
+  /// No description provided for @blockUserConfirmAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Block'**
+  String get blockUserConfirmAction;
+
+  /// No description provided for @unblockUserTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unblock {name}?'**
+  String unblockUserTitle(String name);
+
+  /// No description provided for @unblockUserConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Their content may appear again. Previous follows and access to your notes will not be restored.'**
+  String get unblockUserConfirmation;
+
+  /// No description provided for @userBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} has been blocked.'**
+  String userBlocked(String name);
+
+  /// No description provided for @userUnblocked.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} has been unblocked.'**
+  String userUnblocked(String name);
+
+  /// No description provided for @updateUserBlockFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not update the block setting: {error}'**
+  String updateUserBlockFailed(Object error);
+
   /// No description provided for @settingsTitle.
   ///
   /// In en, this message translates to:
   /// **'Settings'**
   String get settingsTitle;
+
+  /// No description provided for @blockedUsersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Blocked users'**
+  String get blockedUsersTitle;
+
+  /// No description provided for @blockedUsersDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Review or unblock people you have blocked'**
+  String get blockedUsersDescription;
+
+  /// No description provided for @noBlockedUsers.
+  ///
+  /// In en, this message translates to:
+  /// **'You have not blocked anyone.'**
+  String get noBlockedUsers;
+
+  /// No description provided for @blockedUsersLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load blocked users: {error}'**
+  String blockedUsersLoadFailed(Object error);
 
   /// No description provided for @settingsLanguageTitle.
   ///
