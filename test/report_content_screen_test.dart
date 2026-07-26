@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:world_notes/domain/entities/content_report.dart';
+import 'package:world_notes/domain/entities/user_entity.dart';
 import 'package:world_notes/l10n/app_localizations.dart';
+import 'package:world_notes/presentation/providers/providers.dart';
 import 'package:world_notes/presentation/screens/report/report_message_screen.dart';
 
 void main() {
@@ -59,5 +61,47 @@ void main() {
     expect(find.text('Report message'), findsOneWidget);
     expect(find.text('Why are you reporting this message?'), findsOneWidget);
     expect(find.text('Report note'), findsNothing);
+  });
+
+  testWidgets('offers an optional block for the reported author', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authStateProvider.overrideWith(
+            (ref) => Stream.value(
+              const UserEntity(id: 'reporter', name: 'Reporter'),
+            ),
+          ),
+          isUserBlockedProvider.overrideWith(
+            (ref, userId) => Stream.value(false),
+          ),
+        ],
+        child: const MaterialApp(
+          locale: Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: ReportContentScreen(
+            placeId: 'place-1',
+            messageId: 'message-1',
+            target: ContentReportTarget.message,
+            reportedUser: ReportedUserTarget(
+              userId: 'author',
+              displayName: 'Author',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Also block this user'), findsOneWidget);
+    final checkbox = tester.widget<Checkbox>(find.byType(Checkbox));
+    expect(checkbox.value, isFalse);
+
+    await tester.tap(find.text('Also block this user'));
+    await tester.pump();
+    expect(tester.widget<Checkbox>(find.byType(Checkbox)).value, isTrue);
   });
 }
