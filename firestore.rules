@@ -6,6 +6,8 @@ rules_version = '2';
 //   nullable photoUrl, photoVersion, counters, createdAt and updatedAt are
 //   required.
 // - socialEdges/{edgeId}: authenticated-readable, server-managed follow edge.
+// - users/{uid}/blockedUsers/{blockedUid}: owner-readable, server-managed
+//   private block relationship.
 // - users/{uid}/notificationSettings: owner-readable, server-managed settings.
 // - users/{uid}/fcmTokens: sensitive server-managed delivery endpoints.
 // - users/{uid}/noteStates/{placeId}: private server-managed map activity
@@ -250,6 +252,13 @@ service cloud.firestore {
       // Cloud Functions so clients cannot forge seen counts or participation.
       match /noteStates/{placeId} {
         allow read, write: if false;
+      }
+
+      // Private user-block list. Clients may observe only their own list;
+      // setUserBlock performs every write together with social cleanup.
+      match /blockedUsers/{blockedUid} {
+        allow read: if isCurrentUser(uid);
+        allow write: if false;
       }
 
       // User inbox. Notice content is server-managed, but the account holder
