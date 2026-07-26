@@ -39,6 +39,7 @@ const MAX_UID_LENGTH = 128;
 const UNKNOWN_USER_DISPLAY_NAME = "Unknown user";
 const NOTE_ACCESS_CLEANUP_PAGE_SIZE = 200;
 const SCHEDULED_MESSAGE_CLEANUP_PAGE_SIZE = 100;
+const SET_USER_BLOCK_TIMEOUT_SECONDS = 540;
 
 /**
  * Builds a stable edge document id without relying on uid delimiter safety.
@@ -352,6 +353,8 @@ export const setUserFollow = onCall<SetUserFollowData>(
 
     if (result.createdFollow) {
       try {
+        // Notice creation is outside the follow transaction. A block may have
+        // committed after that transaction and removed the new follow edge.
         if (!await hasUserBlockBetween(db, uid, targetUserId)) {
           await createUserNotice(targetUserId, {
             category: "social",
@@ -481,6 +484,8 @@ async function cancelBlockedUserScheduledMessages(
       );
 
       const expiresAt = placeSnap.get("expiresAt") as Timestamp | undefined;
+      // A scheduled message reserves a slot before publication. Removing that
+      // reservation may make a message-limit-closed note writable again.
       if (
         publicCount < MAX_MESSAGES_PER_THREAD &&
         nextSlots < MAX_MESSAGES_PER_THREAD &&
@@ -519,7 +524,11 @@ async function cancelBlockedUserScheduledMessages(
  * direction.
  */
 export const setUserBlock = onCall<SetUserBlockData>(
-  {enforceAppCheck: true, region: REGION, timeoutSeconds: 540},
+  {
+    enforceAppCheck: true,
+    region: REGION,
+    timeoutSeconds: SET_USER_BLOCK_TIMEOUT_SECONDS,
+  },
   async (req) => {
     const uid = req.auth?.uid;
     if (!uid) {
