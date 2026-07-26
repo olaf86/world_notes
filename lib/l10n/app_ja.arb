@@ -107,6 +107,11 @@
   "contentModerationUnavailable": "安全性の確認を一時的に利用できません。もう一度お試しください。",
   "contentNotAllowed": "この内容は公開できません。内容を修正して、もう一度お試しください。",
   "imageNotAllowed": "この画像は使用できません。別の画像を選択してください。",
+  "noteCreatedPinImageUploadFailed": "ノートは作成されましたが、ピン画像をアップロードできませんでした。",
+  "noteCreateNetworkError": "サーバーに接続できませんでした。通信状態を確認して、もう一度お試しください。",
+  "noteCreateAuthenticationRequired": "ノートを作成するには、もう一度サインインしてください。",
+  "noteCreateFailed": "ノートを作成できませんでした。もう一度お試しください。",
+  "noteCreateUnexpectedError": "予期しないエラーが発生しました。もう一度お試しください。",
 
   "noteCreateTitle": "新しいノート",
   "noteTitleLabel": "タイトル",

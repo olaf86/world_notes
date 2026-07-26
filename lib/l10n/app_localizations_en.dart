@@ -391,6 +391,25 @@ class AppLocalizationsEn extends AppLocalizations {
       'This image cannot be used. Please choose another image.';
 
   @override
+  String get noteCreatedPinImageUploadFailed =>
+      'The note was created, but its pin image could not be uploaded.';
+
+  @override
+  String get noteCreateNetworkError =>
+      'Could not reach the server. Check your internet connection and try again.';
+
+  @override
+  String get noteCreateAuthenticationRequired =>
+      'Please sign in again to create a note.';
+
+  @override
+  String get noteCreateFailed => 'Could not create the note. Please try again.';
+
+  @override
+  String get noteCreateUnexpectedError =>
+      'An unexpected error occurred. Please try again.';
+
+  @override
   String get noteCreateTitle => 'New Note';
 
   @override

@@ -107,6 +107,11 @@
   "contentModerationUnavailable": "安全检查暂时不可用，请重试。",
   "contentNotAllowed": "此内容无法发布，请修改后重试。",
   "imageNotAllowed": "无法使用此图片，请选择其他图片。",
+  "noteCreatedPinImageUploadFailed": "笔记已创建，但无法上传图钉图片。",
+  "noteCreateNetworkError": "无法连接服务器。请检查网络连接后重试。",
+  "noteCreateAuthenticationRequired": "请重新登录以创建笔记。",
+  "noteCreateFailed": "无法创建笔记，请重试。",
+  "noteCreateUnexpectedError": "发生意外错误，请重试。",
 
   "noteCreateTitle": "新建笔记",
   "noteTitleLabel": "标题",

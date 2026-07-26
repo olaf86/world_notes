@@ -345,6 +345,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get imageNotAllowed => '无法使用此图片，请选择其他图片。';
 
   @override
+  String get noteCreatedPinImageUploadFailed => '笔记已创建，但无法上传图钉图片。';
+
+  @override
+  String get noteCreateNetworkError => '无法连接服务器。请检查网络连接后重试。';
+
+  @override
+  String get noteCreateAuthenticationRequired => '请重新登录以创建笔记。';
+
+  @override
+  String get noteCreateFailed => '无法创建笔记，请重试。';
+
+  @override
+  String get noteCreateUnexpectedError => '发生意外错误，请重试。';
+
+  @override
   String get noteCreateTitle => '新建笔记';
 
   @override
@@ -1304,6 +1319,21 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get imageNotAllowed => '无法使用此图片，请选择其他图片。';
 
   @override
+  String get noteCreatedPinImageUploadFailed => '笔记已创建，但无法上传图钉图片。';
+
+  @override
+  String get noteCreateNetworkError => '无法连接服务器。请检查网络连接后重试。';
+
+  @override
+  String get noteCreateAuthenticationRequired => '请重新登录以创建笔记。';
+
+  @override
+  String get noteCreateFailed => '无法创建笔记，请重试。';
+
+  @override
+  String get noteCreateUnexpectedError => '发生意外错误，请重试。';
+
+  @override
   String get noteCreateTitle => '新建笔记';
 
   @override
@@ -2261,6 +2291,21 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get imageNotAllowed => '無法使用此圖片，請選擇其他圖片。';
+
+  @override
+  String get noteCreatedPinImageUploadFailed => '筆記已建立，但無法上傳圖釘圖片。';
+
+  @override
+  String get noteCreateNetworkError => '無法連線至伺服器。請檢查網路連線後再試一次。';
+
+  @override
+  String get noteCreateAuthenticationRequired => '請重新登入以建立筆記。';
+
+  @override
+  String get noteCreateFailed => '無法建立筆記，請再試一次。';
+
+  @override
+  String get noteCreateUnexpectedError => '發生未預期的錯誤，請再試一次。';
 
   @override
   String get noteCreateTitle => '新增筆記';

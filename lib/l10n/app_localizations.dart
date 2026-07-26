@@ -716,6 +716,36 @@ abstract class AppLocalizations {
   /// **'This image cannot be used. Please choose another image.'**
   String get imageNotAllowed;
 
+  /// No description provided for @noteCreatedPinImageUploadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The note was created, but its pin image could not be uploaded.'**
+  String get noteCreatedPinImageUploadFailed;
+
+  /// No description provided for @noteCreateNetworkError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reach the server. Check your internet connection and try again.'**
+  String get noteCreateNetworkError;
+
+  /// No description provided for @noteCreateAuthenticationRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Please sign in again to create a note.'**
+  String get noteCreateAuthenticationRequired;
+
+  /// No description provided for @noteCreateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not create the note. Please try again.'**
+  String get noteCreateFailed;
+
+  /// No description provided for @noteCreateUnexpectedError.
+  ///
+  /// In en, this message translates to:
+  /// **'An unexpected error occurred. Please try again.'**
+  String get noteCreateUnexpectedError;
+
   /// No description provided for @noteCreateTitle.
   ///
   /// In en, this message translates to:

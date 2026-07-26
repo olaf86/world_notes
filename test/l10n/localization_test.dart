@@ -44,6 +44,11 @@ void main() {
           l10n.noFootprintsDescription,
           l10n.noAccessMembers,
           l10n.noModerationReviews,
+          l10n.noteCreatedPinImageUploadFailed,
+          l10n.noteCreateNetworkError,
+          l10n.noteCreateAuthenticationRequired,
+          l10n.noteCreateFailed,
+          l10n.noteCreateUnexpectedError,
         ]) {
           expect(emptyStateLabel, isNotEmpty, reason: locale.toLanguageTag());
         }

@@ -349,6 +349,22 @@ class AppLocalizationsJa extends AppLocalizations {
   String get imageNotAllowed => 'この画像は使用できません。別の画像を選択してください。';
 
   @override
+  String get noteCreatedPinImageUploadFailed =>
+      'ノートは作成されましたが、ピン画像をアップロードできませんでした。';
+
+  @override
+  String get noteCreateNetworkError => 'サーバーに接続できませんでした。通信状態を確認して、もう一度お試しください。';
+
+  @override
+  String get noteCreateAuthenticationRequired => 'ノートを作成するには、もう一度サインインしてください。';
+
+  @override
+  String get noteCreateFailed => 'ノートを作成できませんでした。もう一度お試しください。';
+
+  @override
+  String get noteCreateUnexpectedError => '予期しないエラーが発生しました。もう一度お試しください。';
+
+  @override
   String get noteCreateTitle => '新しいノート';
 
   @override

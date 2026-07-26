@@ -107,6 +107,11 @@
   "contentModerationUnavailable": "安全檢查暫時無法使用，請再試一次。",
   "contentNotAllowed": "此內容無法發布，請修改後再試一次。",
   "imageNotAllowed": "無法使用此圖片，請選擇其他圖片。",
+  "noteCreatedPinImageUploadFailed": "筆記已建立，但無法上傳圖釘圖片。",
+  "noteCreateNetworkError": "無法連線至伺服器。請檢查網路連線後再試一次。",
+  "noteCreateAuthenticationRequired": "請重新登入以建立筆記。",
+  "noteCreateFailed": "無法建立筆記，請再試一次。",
+  "noteCreateUnexpectedError": "發生未預期的錯誤，請再試一次。",
 
   "noteCreateTitle": "新增筆記",
   "noteTitleLabel": "標題",

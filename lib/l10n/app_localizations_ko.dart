@@ -348,6 +348,23 @@ class AppLocalizationsKo extends AppLocalizations {
   String get imageNotAllowed => '이 이미지는 사용할 수 없습니다. 다른 이미지를 선택해 주세요.';
 
   @override
+  String get noteCreatedPinImageUploadFailed =>
+      '노트는 생성되었지만 핀 이미지를 업로드하지 못했습니다.';
+
+  @override
+  String get noteCreateNetworkError =>
+      '서버에 연결할 수 없습니다. 인터넷 연결을 확인한 후 다시 시도해 주세요.';
+
+  @override
+  String get noteCreateAuthenticationRequired => '노트를 만들려면 다시 로그인해 주세요.';
+
+  @override
+  String get noteCreateFailed => '노트를 만들지 못했습니다. 다시 시도해 주세요.';
+
+  @override
+  String get noteCreateUnexpectedError => '예기치 않은 오류가 발생했습니다. 다시 시도해 주세요.';
+
+  @override
   String get noteCreateTitle => '새 노트';
 
   @override

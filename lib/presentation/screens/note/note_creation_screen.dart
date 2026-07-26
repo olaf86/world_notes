@@ -489,7 +489,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
               'image_not_allowed' => context.l10n.imageNotAllowed,
               'moderation_unavailable' =>
                 context.l10n.contentModerationUnavailable,
-              _ => 'Note created, but pin image upload failed: $error',
+              _ => context.l10n.noteCreatedPinImageUploadFailed,
             };
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -519,18 +519,16 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
         'content_not_allowed' => l10n.contentNotAllowed,
         'moderation_unavailable' => l10n.contentModerationUnavailable,
         _ => switch (e.code) {
-          'unavailable' || 'deadline-exceeded' =>
-            'Couldn\'t reach the server. Check your internet connection and try again.',
-          'resource-exhausted' =>
-            e.message ?? 'You\'ve reached your note limit.',
-          'unauthenticated' => 'Please sign in again to create a note.',
-          _ => e.message ?? 'Could not create the note. Please try again.',
+          'unavailable' || 'deadline-exceeded' => l10n.noteCreateNetworkError,
+          'resource-exhausted' => l10n.noteLimitReached,
+          'unauthenticated' => l10n.noteCreateAuthenticationRequired,
+          _ => l10n.noteCreateFailed,
         },
       };
       _showSnack(message);
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
-        _showSnack('Error: $e');
+        _showSnack(context.l10n.noteCreateUnexpectedError);
       }
     } finally {
       if (mounted) setState(() => _loading = false);

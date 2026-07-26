@@ -107,6 +107,11 @@
   "contentModerationUnavailable": "안전성 확인을 일시적으로 사용할 수 없습니다. 다시 시도해 주세요.",
   "contentNotAllowed": "이 콘텐츠는 게시할 수 없습니다. 수정한 후 다시 시도해 주세요.",
   "imageNotAllowed": "이 이미지는 사용할 수 없습니다. 다른 이미지를 선택해 주세요.",
+  "noteCreatedPinImageUploadFailed": "노트는 생성되었지만 핀 이미지를 업로드하지 못했습니다.",
+  "noteCreateNetworkError": "서버에 연결할 수 없습니다. 인터넷 연결을 확인한 후 다시 시도해 주세요.",
+  "noteCreateAuthenticationRequired": "노트를 만들려면 다시 로그인해 주세요.",
+  "noteCreateFailed": "노트를 만들지 못했습니다. 다시 시도해 주세요.",
+  "noteCreateUnexpectedError": "예기치 않은 오류가 발생했습니다. 다시 시도해 주세요.",
 
   "noteCreateTitle": "새 노트",
   "noteTitleLabel": "제목",
