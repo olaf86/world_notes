@@ -104,6 +104,8 @@ const RATE_LIMIT_CAPACITY = 80;
 const RATE_LIMIT_REFILL_PER_SECOND = 2;
 const GEOHASH_IN_BATCH_SIZE = 10;
 const VIEWER_STATE_QUERY_BATCH_SIZE = 10;
+// Refill several pins per request to avoid one getAll round trip per vacancy.
+const BLOCK_LOOKUP_REFILL_PIN_COUNT = 20;
 const FOLLOWED_NOTE_NEW_WINDOW_MILLIS = 7 * 24 * 60 * 60 * 1000;
 // Keep the pins a user just saw around zoom 14 visible when they zoom out.
 const ZOOMED_OUT_LOCAL_RADIUS_KM = 3;
@@ -344,6 +346,68 @@ function chunksOf<T>(values: T[], size: number): T[][] {
   return chunks;
 }
 
+/**
+ * Takes the first visible pins while resolving block relationships in stages.
+ *
+ * The first lookup covers only the result window. Later candidates are checked
+ * only when blocked pins leave vacancies. Results are cached by creator so a
+ * creator appearing in more than one batch is never read from Firestore twice.
+ *
+ * @param {T[]} pins Ordered map pin candidates.
+ * @param {number} resultLimit Maximum visible pins to return.
+ * @param {Function} findBlockedCreatorUids Resolves one unchecked user batch.
+ * @return {Promise<T[]>} Ordered pins with blocked creators removed.
+ */
+export async function takeVisibleMapPins<
+  T extends {creatorUid: string},
+>(
+  pins: T[],
+  resultLimit: number,
+  findBlockedCreatorUids: (
+    candidateUids: string[],
+  ) => Promise<Set<string>>,
+): Promise<T[]> {
+  const visiblePins: T[] = [];
+  const blockRelationshipByCreatorUid = new Map<string, boolean>();
+  let cursor = 0;
+
+  while (cursor < pins.length && visiblePins.length < resultLimit) {
+    const missingPinCount = resultLimit - visiblePins.length;
+    const batchSize = cursor === 0 ?
+      missingPinCount :
+      Math.max(missingPinCount, BLOCK_LOOKUP_REFILL_PIN_COUNT);
+    const batch = pins.slice(cursor, cursor + batchSize);
+    cursor += batch.length;
+
+    const uncheckedCreatorUids = [...new Set(
+      batch
+        .map((pin) => pin.creatorUid)
+        .filter((creatorUid) =>
+          !blockRelationshipByCreatorUid.has(creatorUid)
+        ),
+    )];
+    if (uncheckedCreatorUids.length > 0) {
+      const blockedCreatorUids =
+        await findBlockedCreatorUids(uncheckedCreatorUids);
+      for (const creatorUid of uncheckedCreatorUids) {
+        blockRelationshipByCreatorUid.set(
+          creatorUid,
+          blockedCreatorUids.has(creatorUid),
+        );
+      }
+    }
+
+    for (const pin of batch) {
+      if (blockRelationshipByCreatorUid.get(pin.creatorUid) !== true) {
+        visiblePins.push(pin);
+        if (visiblePins.length === resultLimit) break;
+      }
+    }
+  }
+
+  return visiblePins;
+}
+
 async function addMarkerFlagsToPins(
   db: Firestore,
   uid: string,
@@ -520,14 +584,15 @@ export const listMapPins = onCall<ListMapPinsData>(
       seen,
     );
     const pins = [...localPins, ...prefixPins];
-    const blockedCreatorUids = await findUserIdsWithBlockRelationshipToViewer(
-      db,
-      uid,
-      pins.map((pin) => pin.creatorUid),
+    const visiblePins = await takeVisibleMapPins(
+      pins,
+      resultLimit,
+      (candidateUids) => findUserIdsWithBlockRelationshipToViewer(
+        db,
+        uid,
+        candidateUids,
+      ),
     );
-    const visiblePins = pins
-      .filter((pin) => !blockedCreatorUids.has(pin.creatorUid))
-      .slice(0, resultLimit);
     const basePinsReadyAt = Date.now();
     const enrichedPins = await addMarkerFlagsToPins(
       db,
