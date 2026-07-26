@@ -35,14 +35,15 @@
   review stores submitted content, optional image storage paths, provider
   scores, derived action, review sources, risk signals, report count/summary,
   and review status.
-- `moderationAuditLogs/{logId}`: server-only append log for administrator
-  moderation decisions for notes and messages.
-- `moderationEvents/{eventId}`: server-only provider metadata for note drafts
-  or images rejected before publication. It does not retain submitted text or
-  image bytes. These events provide an append-only audit trail for investigating
-  automated rejections and account restriction points when no published note
-  or message exists to reference. They are not administrator review-queue
-  items and do not by themselves trigger a later moderation decision.
+- `moderationAuditLogs/{logId}`: server-only append log for both automated
+  rejections and administrator decisions. `eventType` distinguishes
+  `automatedRejection` from `adminDecision`, and `actorType` distinguishes the
+  moderation provider from an administrator. Automated entries retain
+  provider metadata, the affected user, source type, and post-decision
+  violation-point total. Administrator entries retain the affected target,
+  affected user, reason, and previous moderation state. The collection never
+  stores submitted text or image bytes and is not an administrator review
+  queue.
 - `users/{uid}/notices/{noticeId}`: app inbox items for moderation warnings,
   account restrictions, bans, report outcomes, and future developer messages.
   Owner may read and mark read. Creation, deletion, and content changes are
@@ -74,7 +75,6 @@ that scheduled function is implemented.
 - Deny client create/delete.
 - Deny all client access to `moderationReviews`.
 - Deny all client access to `moderationAuditLogs`.
-- Deny all client access to `moderationEvents`.
 
 ## Administrator access
 
