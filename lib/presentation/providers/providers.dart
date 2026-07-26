@@ -403,6 +403,22 @@ final userBlockRepositoryProvider = Provider<UserBlockRepository>((ref) {
   );
 });
 
+/// Waits for the private block list before subscribing to user-derived
+/// content. The loading stream intentionally emits no value, so callers stay
+/// loading instead of briefly rendering unfiltered content. Riverpod rebuilds
+/// the caller when [blockedUserIdsProvider] resolves; failures remain visible
+/// as provider errors rather than being mistaken for loading.
+Stream<T> _afterBlockedUserIdsLoad<T>(
+  AsyncValue<Set<String>> blockedUserIds,
+  Stream<T> Function(Set<String> ids) createStream,
+) {
+  return blockedUserIds.when(
+    data: createStream,
+    loading: () => const Stream.empty(),
+    error: Stream.error,
+  );
+}
+
 // --- Auth state ---
 
 final authStateProvider = StreamProvider<UserEntity?>((ref) {
@@ -559,16 +575,17 @@ final myNotesNotificationPreviewEnabledProvider = StreamProvider<bool>((ref) {
 final noticesProvider = StreamProvider<List<NoticeEntity>>((ref) {
   final user = ref.watch(authStateProvider).valueOrNull;
   if (user == null) return Stream.value(const []);
-  final blockedUserIds = ref.watch(blockedUserIdsProvider).valueOrNull;
-  if (blockedUserIds == null) return const Stream.empty();
-  return ref
-      .watch(noticeRepositoryProvider)
-      .watchNotices(user.id)
-      .map(
-        (notices) => notices
-            .where((notice) => !blockedUserIds.contains(notice.sourceId))
-            .toList(),
-      );
+  return _afterBlockedUserIdsLoad(
+    ref.watch(blockedUserIdsProvider),
+    (blockedUserIds) => ref
+        .watch(noticeRepositoryProvider)
+        .watchNotices(user.id)
+        .map(
+          (notices) => notices
+              .where((notice) => !blockedUserIds.contains(notice.sourceId))
+              .toList(),
+        ),
+  );
 });
 
 final unreadNoticeCountProvider = Provider<int>((ref) {
@@ -791,19 +808,20 @@ final noteMembersProvider = StreamProvider.family<List<NoteMember>, String>((
 
 final recentNoteVisitorsProvider =
     StreamProvider.family<List<NoteVisitor>, String>((ref, placeId) {
-      final blockedUserIds = ref.watch(blockedUserIdsProvider).valueOrNull;
-      if (blockedUserIds == null) return const Stream.empty();
-      return ref
-          .watch(placeRepositoryProvider)
-          .watchRecentVisitors(
-            placeId: placeId,
-            limit: AppConfig.visitorPreviewExpandedMax,
-          )
-          .map(
-            (visitors) => visitors
-                .where((visitor) => !blockedUserIds.contains(visitor.userId))
-                .toList(),
-          );
+      return _afterBlockedUserIdsLoad(
+        ref.watch(blockedUserIdsProvider),
+        (blockedUserIds) => ref
+            .watch(placeRepositoryProvider)
+            .watchRecentVisitors(
+              placeId: placeId,
+              limit: AppConfig.visitorPreviewExpandedMax,
+            )
+            .map(
+              (visitors) => visitors
+                  .where((visitor) => !blockedUserIds.contains(visitor.userId))
+                  .toList(),
+            ),
+      );
     });
 
 class NoteVisitorsRequest {
@@ -827,16 +845,17 @@ final noteVisitorsProvider =
       ref,
       request,
     ) {
-      final blockedUserIds = ref.watch(blockedUserIdsProvider).valueOrNull;
-      if (blockedUserIds == null) return const Stream.empty();
-      return ref
-          .watch(placeRepositoryProvider)
-          .watchVisitors(placeId: request.placeId, sort: request.sort)
-          .map(
-            (visitors) => visitors
-                .where((visitor) => !blockedUserIds.contains(visitor.userId))
-                .toList(),
-          );
+      return _afterBlockedUserIdsLoad(
+        ref.watch(blockedUserIdsProvider),
+        (blockedUserIds) => ref
+            .watch(placeRepositoryProvider)
+            .watchVisitors(placeId: request.placeId, sort: request.sort)
+            .map(
+              (visitors) => visitors
+                  .where((visitor) => !blockedUserIds.contains(visitor.userId))
+                  .toList(),
+            ),
+      );
     });
 
 /// Active notes owned by the current user. Used by the My Notes read-only
@@ -898,15 +917,16 @@ final messagesProvider = StreamProvider.autoDispose
     .family<List<MessageThreadItem>, String>((ref, placeId) {
       final user = ref.watch(authStateProvider).valueOrNull;
       if (user == null) return Stream.value(const []);
-      final blockedUserIds = ref.watch(blockedUserIdsProvider).valueOrNull;
-      if (blockedUserIds == null) return const Stream.empty();
-      return ref
-          .watch(messageRepositoryProvider)
-          .watchMessages(
-            placeId: placeId,
-            currentUserId: user.id,
-            blockedUserIds: blockedUserIds,
-          );
+      return _afterBlockedUserIdsLoad(
+        ref.watch(blockedUserIdsProvider),
+        (blockedUserIds) => ref
+            .watch(messageRepositoryProvider)
+            .watchMessages(
+              placeId: placeId,
+              currentUserId: user.id,
+              blockedUserIds: blockedUserIds,
+            ),
+      );
     });
 
 final adminModerationReviewsProvider = FutureProvider.autoDispose

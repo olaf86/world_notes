@@ -316,7 +316,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
   Future<void> _blockUser({
     required String userId,
     required String userName,
-    required bool leaveNote,
+    required String noteCreatorUserId,
   }) async {
     final blocked = await confirmAndSetUserBlocked(
       context: context,
@@ -325,7 +325,9 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
       targetName: userName,
       blocked: true,
     );
-    if (blocked && mounted && leaveNote) context.go('/map');
+    if (blocked && mounted && userId == noteCreatorUserId) {
+      context.go('/map');
+    }
   }
 
   Future<void> _setMessageLike(MessageEntity message, bool liked) async {
@@ -880,7 +882,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                                   userId: place.createdByUserId,
                                   userName:
                                       creator?.name ?? place.createdByUserId,
-                                  leaveNote: true,
+                                  noteCreatorUserId: place.createdByUserId,
                                 );
                               }
                             },
@@ -1082,8 +1084,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                                               ? () => _blockUser(
                                                   userId: message.author.id,
                                                   userName: message.author.name,
-                                                  leaveNote:
-                                                      message.author.id ==
+                                                  noteCreatorUserId:
                                                       place.createdByUserId,
                                                 )
                                               : null,
