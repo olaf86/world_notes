@@ -14,6 +14,7 @@ import {BatchResponse, getMessaging} from "firebase-admin/messaging";
 
 import {REGION} from "./constants";
 import {maintainerIdsOf} from "./noteMaintenance";
+import {hasUserBlockBetween} from "./userBlocks";
 
 interface RegisterFcmTokenData {
   token?: unknown;
@@ -385,6 +386,9 @@ export async function sendMyNotesMessageNotifications(
 
   const maintainerEntries = await Promise.all(
     [...maintainerIds].map(async (uid) => {
+      if (await hasUserBlockBetween(db, uid, senderId)) {
+        return {enabled: false, tokens: []};
+      }
       const userRef = db.collection("users").doc(uid);
       const settingsRef = userRef
         .collection("notificationSettings")

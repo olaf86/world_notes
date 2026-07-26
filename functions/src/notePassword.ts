@@ -16,6 +16,7 @@ import {
 } from "./noteLock";
 import {canChangeNoteLock} from "./noteMaintenance";
 import {profileForMember} from "./userProfile";
+import {hasUserBlockBetween} from "./userBlocks";
 
 // Online brute-force protection for unlockNote.
 const MAX_ATTEMPTS = 5;
@@ -127,6 +128,18 @@ export const unlockNote = onCall<{placeId?: unknown; password?: unknown}>(
     }
     if (placeSnap.get("isModerationHidden") !== false) {
       throw new HttpsError("not-found", "Note not found.");
+    }
+    const creatorUid =
+      placeSnap.get("createdByUserId") as string | undefined;
+    if (
+      creatorUid &&
+      await hasUserBlockBetween(db, uid, creatorUid)
+    ) {
+      throw new HttpsError(
+        "permission-denied",
+        "You cannot access this note.",
+        {reason: "user_blocked"},
+      );
     }
     const storedLockType = parseLockType(placeSnap.get("lockType"));
     if (storedLockType == null) {

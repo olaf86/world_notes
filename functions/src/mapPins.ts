@@ -28,6 +28,7 @@ import {
   DISCOVERY_GEOHASH_PRECISION,
   REGION,
 } from "./constants";
+import {blockedCandidatesForViewer, hasUserBlockBetween} from "./userBlocks";
 
 interface Coordinates {
   latitude: number;
@@ -515,9 +516,22 @@ export const listMapPins = onCall<ListMapPinsData>(
       nowMillis,
       seen,
     );
-    const pins = [...localPins, ...prefixPins].slice(0, resultLimit);
+    const pins = [...localPins, ...prefixPins];
+    const blockedCreatorUids = await blockedCandidatesForViewer(
+      db,
+      uid,
+      pins.map((pin) => pin.creatorUid),
+    );
+    const visiblePins = pins
+      .filter((pin) => !blockedCreatorUids.has(pin.creatorUid))
+      .slice(0, resultLimit);
     const basePinsReadyAt = Date.now();
-    const enrichedPins = await addMarkerFlagsToPins(db, uid, pins, nowMillis);
+    const enrichedPins = await addMarkerFlagsToPins(
+      db,
+      uid,
+      visiblePins,
+      nowMillis,
+    );
     logger.debug("listMapPins: composed viewer marker states.", {
       pinCount: enrichedPins.length,
       baseQueryMillis: basePinsReadyAt - startedAt,
@@ -546,6 +560,14 @@ export const validateNoteAccess = onCall<ValidateNoteAccessData>(
       noteAccessRadiusKmForUser(db, uid),
     ]);
     if (!snap.exists) throw new HttpsError("not-found", "Note not found.");
+    const creatorUid = snap.get("createdByUserId") as string;
+    if (await hasUserBlockBetween(db, uid, creatorUid)) {
+      throw new HttpsError(
+        "permission-denied",
+        "This note is not available.",
+        {reason: "user_blocked"},
+      );
+    }
     const nowMillis = Date.now();
     if (!isPublishedPlace(snap, nowMillis)) {
       throw new HttpsError(

@@ -15,6 +15,7 @@ import {
   nextLikeCount,
 } from "./likeHelpers";
 import {canMaintainNote, isNoteCreator} from "./noteMaintenance";
+import {hasUserBlockBetweenInTransaction} from "./userBlocks";
 
 interface SetNoteLikeData {
   placeId?: unknown;
@@ -74,6 +75,19 @@ export const setNoteLike = onCall<SetNoteLikeData>(
         );
       }
 
+      const creatorUid =
+        placeSnap.get("createdByUserId") as string | undefined;
+      if (
+        desiredLiked &&
+        creatorUid &&
+        await hasUserBlockBetweenInTransaction(tx, db, uid, creatorUid)
+      ) {
+        throw new HttpsError(
+          "permission-denied",
+          "You cannot like this note.",
+          {reason: "user_blocked"},
+        );
+      }
       const likeSnap = await tx.get(likeRef);
       const currentlyLiked = likedStateOf(likeSnap);
       const currentCount = placeSnap.get("likeCount") as number;

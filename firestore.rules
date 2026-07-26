@@ -31,8 +31,23 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == uid;
     }
 
+    function hasUserBlockBetween(firstUid, secondUid) {
+      return firstUid != secondUid
+             && (exists(/databases/$(database)/documents/users/$(firstUid)/blockedUsers/$(secondUid))
+                 || exists(/databases/$(database)/documents/users/$(secondUid)/blockedUsers/$(firstUid)));
+    }
+
+    function canInteractWithPlaceCreator(place) {
+      return isSignedIn()
+             && !hasUserBlockBetween(
+                  request.auth.uid,
+                  place.createdByUserId
+                );
+    }
+
     function isPlaceMaintainer(place) {
       return isSignedIn()
+             && canInteractWithPlaceCreator(place)
              && (place.createdByUserId == request.auth.uid
                  || (place.maintainerIds is list
                      && request.auth.uid in place.maintainerIds));
@@ -60,6 +75,7 @@ service cloud.firestore {
     function canAccessNote(placeId) {
       let place = getPlace(placeId);
       return isSignedIn()
+             && canInteractWithPlaceCreator(place)
              && (isPlaceMaintainer(place)
                  || (place.visibility == 'public'
                      && isPubliclyReadablePlace(place))
@@ -81,6 +97,7 @@ service cloud.firestore {
       // returned document is readable. The creator is also stored in
       // maintainerIds at write/migration time.
       return isSignedIn()
+             && canInteractWithPlaceCreator(place)
              && request.auth.uid in place.maintainerIds;
     }
 
@@ -88,7 +105,8 @@ service cloud.firestore {
     // (title, lock type, and hint) before they can unlock it. Message content
     // remains protected separately by canAccessNote/canReadMessage.
     function canGetPlace(place) {
-      return isPlaceMaintainer(place) || isPubliclyReadablePlace(place);
+      return canInteractWithPlaceCreator(place)
+             && (isPlaceMaintainer(place) || isPubliclyReadablePlace(place));
     }
 
     function isPubliclyVisibleMessage(message) {

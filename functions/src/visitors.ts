@@ -9,6 +9,7 @@ import {
 
 import {REGION} from "./constants";
 import {canMaintainNote} from "./noteMaintenance";
+import {hasUserBlockBetweenInTransaction} from "./userBlocks";
 
 interface RecordNoteVisitData {
   placeId?: unknown;
@@ -93,6 +94,18 @@ export const recordNoteVisit = onCall<RecordNoteVisitData>(
       if (!placeSnap.exists) {
         throw new HttpsError("not-found", "Note not found.");
       }
+      const creatorUid =
+        placeSnap.get("createdByUserId") as string | undefined;
+      if (
+        creatorUid &&
+        await hasUserBlockBetweenInTransaction(tx, db, uid, creatorUid)
+      ) {
+        throw new HttpsError(
+          "permission-denied",
+          "You cannot access this note.",
+          {reason: "user_blocked"},
+        );
+      }
       const isMaintainer = canMaintainNote(placeSnap, uid);
       const memberSnap =
         placeSnap.get("visibility") === "private" && !isMaintainer ?
@@ -176,6 +189,18 @@ export const setFootprintEnabled = onCall<SetFootprintEnabledData>(
       const placeSnap = await tx.get(placeRef);
       if (!placeSnap.exists) {
         throw new HttpsError("not-found", "Note not found.");
+      }
+      const creatorUid =
+        placeSnap.get("createdByUserId") as string | undefined;
+      if (
+        creatorUid &&
+        await hasUserBlockBetweenInTransaction(tx, db, uid, creatorUid)
+      ) {
+        throw new HttpsError(
+          "permission-denied",
+          "You cannot access this note.",
+          {reason: "user_blocked"},
+        );
       }
       if (!canMaintainNote(placeSnap, uid)) {
         throw new HttpsError(

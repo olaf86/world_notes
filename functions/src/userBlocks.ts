@@ -49,6 +49,41 @@ export async function hasUserBlockBetween(
 }
 
 /**
+ * Returns candidate users who have a block relationship with the viewer.
+ *
+ * Exact document reads avoid exposing or indexing incoming private block
+ * relationships. Candidates are normally the distinct note creators in one
+ * bounded map response.
+ *
+ * @param {Firestore} db Firestore instance.
+ * @param {string} viewerUid Signed-in viewer.
+ * @param {string[]} candidateUids Users to check.
+ * @return {Promise<Set<string>>} Candidate ids blocked in either direction.
+ */
+export async function blockedCandidatesForViewer(
+  db: Firestore,
+  viewerUid: string,
+  candidateUids: string[],
+): Promise<Set<string>> {
+  const candidates = [...new Set(candidateUids)]
+    .filter((uid) => uid.length > 0 && uid !== viewerUid);
+  if (candidates.length === 0) return new Set();
+
+  const refs = candidates.flatMap((candidateUid) => [
+    userBlockRef(db, viewerUid, candidateUid),
+    userBlockRef(db, candidateUid, viewerUid),
+  ]);
+  const snapshots = await db.getAll(...refs);
+  const blocked = new Set<string>();
+  for (let index = 0; index < candidates.length; index++) {
+    if (snapshots[index * 2].exists || snapshots[index * 2 + 1].exists) {
+      blocked.add(candidates[index]);
+    }
+  }
+  return blocked;
+}
+
+/**
  * Transactional variant used when the caller will mutate a related edge.
  *
  * Reading both block documents makes a concurrent block/follow race retry

@@ -13,6 +13,10 @@ import {
   isNoteMaintainer,
 } from "./noteMaintenance";
 import {profileForMember} from "./userProfile";
+import {
+  hasUserBlockBetween,
+  hasUserBlockBetweenInTransaction,
+} from "./userBlocks";
 
 /**
  * Loads a place and asserts the caller can maintain it. Throws otherwise.
@@ -30,6 +34,17 @@ async function assertMaintainer(placeId: string, uid: string) {
     throw new HttpsError(
       "permission-denied",
       "Only a note maintainer can do this.",
+    );
+  }
+  const creatorUid = snap.get("createdByUserId") as string | undefined;
+  if (
+    creatorUid &&
+    await hasUserBlockBetween(db, uid, creatorUid)
+  ) {
+    throw new HttpsError(
+      "permission-denied",
+      "You cannot access this note.",
+      {reason: "user_blocked"},
     );
   }
   if (snap.get("isArchived") === true) {
@@ -183,6 +198,18 @@ export const claimInvite = onCall<{token?: unknown}>(
           "This invite link is invalid or has been revoked.",
         );
       }
+      const creatorUid =
+        placeSnap.get("createdByUserId") as string | undefined;
+      if (
+        creatorUid &&
+        await hasUserBlockBetweenInTransaction(tx, db, uid, creatorUid)
+      ) {
+        throw new HttpsError(
+          "permission-denied",
+          "You cannot access this note.",
+          {reason: "user_blocked"},
+        );
+      }
 
       tx.set(
         placeRef.collection("members").doc(uid),
@@ -315,6 +342,15 @@ export const grantNoteMaintainer = onCall<{
         throw new HttpsError(
           "failed-precondition",
           "This note is unavailable.",
+        );
+      }
+      if (
+        await hasUserBlockBetweenInTransaction(tx, db, uid, userId)
+      ) {
+        throw new HttpsError(
+          "failed-precondition",
+          "This user cannot become a maintainer.",
+          {reason: "user_blocked"},
         );
       }
 

@@ -9,10 +9,12 @@ import {
   Timestamp,
   Transaction,
 } from "firebase-admin/firestore";
+import {getStorage} from "firebase-admin/storage";
 
-import {REGION} from "./constants";
+import {MAX_MESSAGES_PER_THREAD, REGION} from "./constants";
 import {createUserNotice} from "./notices";
 import {
+  hasUserBlockBetween,
   hasUserBlockBetweenInTransaction,
   userBlockRef,
 } from "./userBlocks";
@@ -36,6 +38,7 @@ interface PublicProfileData {
 const MAX_UID_LENGTH = 128;
 const UNKNOWN_USER_DISPLAY_NAME = "Unknown user";
 const NOTE_ACCESS_CLEANUP_PAGE_SIZE = 200;
+const SCHEDULED_MESSAGE_CLEANUP_PAGE_SIZE = 100;
 
 /**
  * Builds a stable edge document id without relying on uid delimiter safety.
@@ -349,15 +352,17 @@ export const setUserFollow = onCall<SetUserFollowData>(
 
     if (result.createdFollow) {
       try {
-        await createUserNotice(targetUserId, {
-          category: "social",
-          severity: "info",
-          title: "New follower",
-          body: `${result.followerName} followed you.`,
-          sourceType: "userFollow",
-          sourceId: uid,
-          push: true,
-        });
+        if (!await hasUserBlockBetween(db, uid, targetUserId)) {
+          await createUserNotice(targetUserId, {
+            category: "social",
+            severity: "info",
+            title: "New follower",
+            body: `${result.followerName} followed you.`,
+            sourceType: "userFollow",
+            sourceId: uid,
+            push: true,
+          });
+        }
       } catch (error) {
         logger.error("setUserFollow: failed to create follower notice.", {
           followerUid: uid,
@@ -406,9 +411,102 @@ async function removeBlockedUserFromOwnedNotes(
       batch.delete(place.ref.collection("members").doc(blockedUid));
     }
     await batch.commit();
+    for (const place of places.docs) {
+      await cancelBlockedUserScheduledMessages(place.ref, blockedUid);
+    }
 
     hasMore = places.size === NOTE_ACCESS_CLEANUP_PAGE_SIZE;
     cursor = places.docs[places.docs.length - 1];
+  }
+}
+
+/**
+ * Deletes a blocked user's unpublished scheduled messages from one note and
+ * immediately releases their reserved message slots.
+ *
+ * @param {DocumentReference} placeRef Note document.
+ * @param {string} blockedUid Blocked message author.
+ */
+async function cancelBlockedUserScheduledMessages(
+  placeRef: DocumentReference,
+  blockedUid: string,
+): Promise<void> {
+  const db = getFirestore();
+  let hasMore = true;
+
+  while (hasMore) {
+    const imagePaths = new Set<string>();
+    const deletedCount = await db.runTransaction(async (tx) => {
+      const counterRef = placeRef.collection("counters").doc("messageSlots");
+      const messagesQuery = placeRef
+        .collection("messages")
+        .where("userId", "==", blockedUid)
+        .where("isPubliclyVisible", "==", false)
+        .where("placeAggregateAppliedAt", "==", null)
+        .limit(SCHEDULED_MESSAGE_CLEANUP_PAGE_SIZE);
+      const [placeSnap, counterSnap, messagesSnap] = await Promise.all([
+        tx.get(placeRef),
+        tx.get(counterRef),
+        tx.get(messagesQuery),
+      ]);
+      if (!placeSnap.exists || messagesSnap.empty) return 0;
+
+      const scheduledMessages = messagesSnap.docs;
+      for (const message of scheduledMessages) {
+        const storedPaths = message.get("imageStoragePaths");
+        if (Array.isArray(storedPaths)) {
+          for (const path of storedPaths) {
+            if (typeof path === "string" && path.length > 0) {
+              imagePaths.add(path);
+            }
+          }
+        }
+        tx.delete(message.ref);
+      }
+
+      const publicCount =
+        (placeSnap.get("messageCount") as number | undefined) ?? 0;
+      const currentSlots = counterSnap.exists ?
+        ((counterSnap.get("count") as number | undefined) ?? 0) :
+        publicCount;
+      const nextSlots = Math.max(0, currentSlots - scheduledMessages.length);
+      tx.set(
+        counterRef,
+        {
+          count: nextSlots,
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        {merge: true},
+      );
+
+      const expiresAt = placeSnap.get("expiresAt") as Timestamp | undefined;
+      if (
+        publicCount < MAX_MESSAGES_PER_THREAD &&
+        nextSlots < MAX_MESSAGES_PER_THREAD &&
+        placeSnap.get("closedReason") === "messageLimit" &&
+        placeSnap.get("isArchived") !== true &&
+        (!expiresAt || expiresAt.toMillis() > Date.now())
+      ) {
+        tx.update(placeRef, {
+          isOpen: true,
+          closedReason: FieldValue.delete(),
+          closedAt: FieldValue.delete(),
+        });
+      }
+      return scheduledMessages.length;
+    });
+
+    if (imagePaths.size > 0) {
+      const bucket = getStorage().bucket();
+      await Promise.all([...imagePaths].map(async (path) => {
+        try {
+          await bucket.file(path).delete({ignoreNotFound: true});
+        } catch (error) {
+          logger.warn(`Could not delete blocked message image ${path}.`, error);
+        }
+      }));
+    }
+    hasMore = deletedCount === SCHEDULED_MESSAGE_CLEANUP_PAGE_SIZE;
   }
 }
 
@@ -420,7 +518,7 @@ async function removeBlockedUserFromOwnedNotes(
  * direction.
  */
 export const setUserBlock = onCall<SetUserBlockData>(
-  {enforceAppCheck: true, region: REGION},
+  {enforceAppCheck: true, region: REGION, timeoutSeconds: 540},
   async (req) => {
     const uid = req.auth?.uid;
     if (!uid) {

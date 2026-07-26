@@ -53,6 +53,10 @@ import {
   nextLikeCount,
 } from "./likeHelpers";
 import {canMaintainNote} from "./noteMaintenance";
+import {
+  hasUserBlockBetween,
+  hasUserBlockBetweenInTransaction,
+} from "./userBlocks";
 
 interface SendMessageData {
   messageId?: unknown;
@@ -647,6 +651,17 @@ async function createMessageInTransaction({
       return;
     }
 
+    const creatorUid = placeSnap.get("createdByUserId") as string | undefined;
+    if (
+      creatorUid &&
+      await hasUserBlockBetweenInTransaction(tx, db, uid, creatorUid)
+    ) {
+      throw new HttpsError(
+        "permission-denied",
+        "You cannot access this note.",
+        {reason: "user_blocked"},
+      );
+    }
     await assertUserCanCreateContent(tx, refs.userRef, nowMs);
     const memberSnap =
       placeSnap.get("visibility") === "private" &&
@@ -871,6 +886,22 @@ export const sendMessage = onCall<SendMessageData>(
     if (existingResult) return existingResult;
 
     try {
+      const placeSnap = await refs.placeRef.get();
+      if (!placeSnap.exists) {
+        throw new HttpsError("not-found", "Note not found.");
+      }
+      const creatorUid =
+        placeSnap.get("createdByUserId") as string | undefined;
+      if (
+        creatorUid &&
+        await hasUserBlockBetween(db, uid, creatorUid)
+      ) {
+        throw new HttpsError(
+          "permission-denied",
+          "You cannot access this note.",
+          {reason: "user_blocked"},
+        );
+      }
       const moderationImages = await moderationImagesFor(
         input.trimmedImageStoragePaths,
       );
@@ -1060,6 +1091,7 @@ export const reportMessage = onCall<ReportMessageData>(
 
 async function applyMessageLikeState(
   tx: Transaction,
+  db: Firestore,
   refs: MessageLikeRefs,
   input: ValidatedSetMessageLikeInput,
   uid: string,
@@ -1084,6 +1116,25 @@ async function applyMessageLikeState(
     );
   }
 
+  if (input.liked) {
+    const relatedUserIds = new Set<string>([
+      placeSnap.get("createdByUserId") as string,
+      messageSnap.get("userId") as string,
+    ]);
+    relatedUserIds.delete(uid);
+    for (const relatedUid of relatedUserIds) {
+      if (
+        relatedUid &&
+        await hasUserBlockBetweenInTransaction(tx, db, uid, relatedUid)
+      ) {
+        throw new HttpsError(
+          "permission-denied",
+          "You cannot like this message.",
+          {reason: "user_blocked"},
+        );
+      }
+    }
+  }
   const likeSnap = await tx.get(refs.likeRef);
   const result = nextLikeCount({
     currentCount: (messageSnap.get("likeCount") as number | undefined) ?? 0,
@@ -1125,7 +1176,7 @@ export const setMessageLike = onCall<SetMessageLikeData>(
     const nowMs = Date.now();
 
     return db.runTransaction((tx) =>
-      applyMessageLikeState(tx, refs, input, uid, nowMs),
+      applyMessageLikeState(tx, db, refs, input, uid, nowMs),
     );
   },
 );

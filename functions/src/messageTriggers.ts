@@ -1,11 +1,13 @@
 import {onSchedule} from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
 import {getFirestore, FieldValue, Timestamp} from "firebase-admin/firestore";
+import {getStorage} from "firebase-admin/storage";
 
 import {MAX_MESSAGES_PER_THREAD, REGION} from "./constants";
 import {
   sendMyNotesMessageNotifications,
 } from "./notifications";
+import {hasUserBlockBetweenInTransaction} from "./userBlocks";
 
 /**
  * Publishes scheduled messages whose publishAt has arrived.
@@ -42,6 +44,7 @@ export const aggregatePublishedMessages = onSchedule(
       snap.docs.map(async (messageDoc) => {
         const placeRef = messageDoc.ref.parent.parent;
         if (!placeRef) return;
+        const imagePathsToDelete = new Set<string>();
 
         await db.runTransaction(async (tx) => {
           const message = await tx.get(messageDoc.ref);
@@ -64,6 +67,62 @@ export const aggregatePublishedMessages = onSchedule(
 
           const place = await tx.get(placeRef);
           if (!place.exists) return;
+          const senderId = message.get("userId") as string | undefined;
+          const creatorUid =
+            place.get("createdByUserId") as string | undefined;
+          if (
+            senderId &&
+            creatorUid &&
+            await hasUserBlockBetweenInTransaction(
+              tx,
+              db,
+              senderId,
+              creatorUid,
+            )
+          ) {
+            const counterRef =
+              placeRef.collection("counters").doc("messageSlots");
+            const counter = await tx.get(counterRef);
+            const publicCount =
+              (place.get("messageCount") as number | undefined) ?? 0;
+            const currentSlots = counter.exists ?
+              ((counter.get("count") as number | undefined) ?? 0) :
+              publicCount;
+            const nextSlots = Math.max(0, currentSlots - 1);
+            tx.set(
+              counterRef,
+              {
+                count: nextSlots,
+                updatedAt: FieldValue.serverTimestamp(),
+              },
+              {merge: true},
+            );
+            const expiresAt =
+              place.get("expiresAt") as Timestamp | undefined;
+            if (
+              publicCount < MAX_MESSAGES_PER_THREAD &&
+              nextSlots < MAX_MESSAGES_PER_THREAD &&
+              place.get("closedReason") === "messageLimit" &&
+              place.get("isArchived") !== true &&
+              (!expiresAt || expiresAt.toMillis() > Date.now())
+            ) {
+              tx.update(placeRef, {
+                isOpen: true,
+                closedReason: FieldValue.delete(),
+                closedAt: FieldValue.delete(),
+              });
+            }
+            const storedPaths = message.get("imageStoragePaths");
+            if (Array.isArray(storedPaths)) {
+              for (const path of storedPaths) {
+                if (typeof path === "string" && path.length > 0) {
+                  imagePathsToDelete.add(path);
+                }
+              }
+            }
+            tx.delete(messageDoc.ref);
+            return;
+          }
 
           const currentCount =
             (place.get("messageCount") as number | undefined) ?? 0;
@@ -102,6 +161,19 @@ export const aggregatePublishedMessages = onSchedule(
           });
           applied++;
         });
+        if (imagePathsToDelete.size > 0) {
+          const bucket = getStorage().bucket();
+          await Promise.all([...imagePathsToDelete].map(async (path) => {
+            try {
+              await bucket.file(path).delete({ignoreNotFound: true});
+            } catch (error) {
+              logger.warn(
+                `Could not delete blocked scheduled image ${path}.`,
+                error,
+              );
+            }
+          }));
+        }
       }),
     );
 
