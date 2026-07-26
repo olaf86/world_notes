@@ -256,7 +256,7 @@ administrator workflow also needs Japanese localization.
 
 ## Delivery sequence
 
-1. Migrate to the generic target/reason schema
+1. Use the generic target/reason schema
 2. Localized generic report screen and reason codes
 3. Note reporting and administrator note actions
 4. Fail-closed note title/subtitle moderation
@@ -269,7 +269,7 @@ administrator workflow also needs Japanese localization.
 
 | Work item | Size | Main risk |
 | --- | --- | --- |
-| Report-flow localization | S | Locale key parity and reason-code migration |
+| Report-flow localization | S | Locale key parity and reason-code validation |
 | Note title/description moderation | M | Fail-closed UX and retry semantics |
 | Note reporting | M-L | Generic admin review and hidden-note behavior |
 | Image moderation | L | Upload ordering, cleanup, and existing images |

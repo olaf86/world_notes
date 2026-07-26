@@ -208,31 +208,6 @@ summary fields plus a title/subtitle snapshot and the current pin image path.
 Hidden notes are rejected by public Firestore reads, map discovery, note access
 validation, message posting, likes, visits, unlocks, and invite claims.
 
-Existing moderation documents can be normalized before deploying code that
-requires the generic schema:
-
-```bash
-cd functions
-npm run migrate:moderation-schema -- \
-  --project world-notes-prod \
-  --allow-live \
-  --confirm-project world-notes-prod
-
-npm run migrate:moderation-schema -- \
-  --project world-notes-prod \
-  --apply \
-  --allow-live \
-  --confirm-project world-notes-prod
-```
-
-The first command is read-only. The apply command adds the generic target
-fields, converts stored English reason labels to stable codes, deletes
-`messageId`, `messagePath`, and `reason` aliases, and replaces the old
-`reportMessage` rate-limit document with `reportContent`. It also adds
-`isModerationHidden: false` to every existing note that does not already carry
-a boolean value, allowing clients, Functions, and Firestore Rules to require
-the field without a fallback.
-
 ## Publication-time checks
 
 - `createNote` moderates the trimmed title and optional subtitle before its
