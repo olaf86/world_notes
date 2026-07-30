@@ -510,8 +510,7 @@ userHomes/{uid}
 ```
 
 - `homeWorld`: the user's authority assignment, selected during onboarding;
-- `selectedWorld`: the world currently browsed by the app and freely
-  switchable;
+- `selectedWorld`: the prepared world currently browsed by the app;
 - `authorityWorld`: the authority for one entity or operation;
 - `sourceWorld`: provenance on a regional domain event only.
 
@@ -525,6 +524,38 @@ authority transfer.
 signed Firebase Auth claim can cache the caller's own `homeWorld`; server-side
 target routing uses the local `userHomes` mirror and a trusted fallback when
 the mirror is missing. Client-supplied world values never establish authority.
+
+**Decided for onboarding readiness:** the Asia bootstrap authority commits the
+immutable home assignment and returns `accepted` without waiting for every
+world. The app remains in onboarding only until the selected `homeWorld` has
+acknowledged the routing revision and atomically installed the account state
+required for normal use there. At that point the user may enter the app even
+while other world mirrors are still being installed.
+
+The home-assignment `globalOperation` nevertheless snapshots every active
+world in `requiredWorlds` and remains `pending` until all of those mirrors
+acknowledge. Outbox delivery, reconciliation, and alerts therefore continue
+after the user starts using the app, and an unprepared non-home world is not
+silently treated as synchronized. A world activated later is handled by that
+world's activation backfill rather than being added to the existing operation.
+
+**Decided for world entry:** version 1 does not perform on-demand mirror
+creation during a world switch. The destination bootstrap worker installs the
+local routing mirror and the minimum account projections in one destination
+transaction; therefore an owner-readable `userHomes/{uid}` at the expected
+`epoch` is the readiness marker and no separate readiness collection or field
+is required. The app may change `selectedWorld` only when that marker exists
+in the target database. Until then the world selector is disabled with a
+preparing state, and a notification, invite, or deep link to that world shows
+the same state without changing worlds.
+
+Callable handlers and any remaining direct-write Rules reject stateful writes
+with `world-not-ready` when the caller's local bootstrap marker is absent.
+Trusted fallback to the Asia directory remains available for server-side
+target-user routing and repair diagnostics, but it does not make an
+unprepared world eligible for client entry. Outbox delivery and reconciliation
+are the only normal paths that finish the missing bootstrap; switching worlds
+does not initiate a second replication path.
 
 Authority assignment by entity:
 
@@ -1193,9 +1224,12 @@ token contains a version and world hint plus an unguessable nonce, allowing the
 app to validate a preview in the correct world without a global
 `inviteRoutes` directory. Opening the link does not change the selected world.
 The app explains the permissions and target world, asks for confirmation,
-accepts the invitation transactionally in the target world, and changes the
-selected world only after success and explicit consent. `homeWorld` never
-changes.
+and first verifies that the caller's bootstrap marker exists in that world.
+If the world is still preparing, the preview remains visible but acceptance
+and world switching are disabled; accepting the invitation does not initiate
+on-demand replication. Once prepared, the app accepts the invitation
+transactionally in the target world and changes the selected world only after
+success and explicit consent. `homeWorld` never changes.
 
 **Decided for ordinary private-note access:** retire general member
 invitations and the reusable bearer-link flow. A shared password remains the
