@@ -1,6 +1,6 @@
 import rawWorldCatalog from "./worldCatalog.config.json";
 
-export const WORLD_CATALOG_SCHEMA_VERSION = 1;
+export const WORLD_CATALOG_SCHEMA_VERSION = 2;
 
 export const WORLD_CATALOG_STATES = [
   "provisioning",
@@ -16,7 +16,7 @@ export interface WorldCatalogEntry {
   readonly databaseId: string;
   readonly firestoreLocation: string;
   readonly functionsRegion: string;
-  readonly bucketName: string | null;
+  readonly bucketName: string;
   readonly displayNameKey: string;
   readonly catalogState: WorldCatalogState;
   readonly homeAssignmentEnabled: boolean;
@@ -126,7 +126,7 @@ function parseWorld(value: unknown, path: string): WorldCatalogEntry {
     `${path}.functionsRegion`,
     REGION_PATTERN,
   );
-  const bucketName = requireNullableBucketName(
+  const bucketName = requireBucketName(
     world.bucketName,
     `${path}.bucketName`,
   );
@@ -151,7 +151,6 @@ function parseWorld(value: unknown, path: string): WorldCatalogEntry {
   validateLifecycleGates({
     path,
     catalogState,
-    bucketName,
     homeAssignmentEnabled,
     contentAccessEnabled,
   });
@@ -184,9 +183,7 @@ function validateCatalogUniqueness(
   for (const world of worlds) {
     requireUnique(worldIds, world.worldId, "worldId");
     requireUnique(databaseIds, world.databaseId, "databaseId");
-    if (world.bucketName !== null) {
-      requireUnique(bucketNames, world.bucketName, "bucketName");
-    }
+    requireUnique(bucketNames, world.bucketName, "bucketName");
   }
 
   if (!databaseIds.has("(default)")) {
@@ -197,7 +194,6 @@ function validateCatalogUniqueness(
 interface LifecycleGateInput {
   readonly path: string;
   readonly catalogState: WorldCatalogState;
-  readonly bucketName: string | null;
   readonly homeAssignmentEnabled: boolean;
   readonly contentAccessEnabled: boolean;
 }
@@ -208,12 +204,6 @@ interface LifecycleGateInput {
  * @param {LifecycleGateInput} input Parsed lifecycle fields.
  */
 function validateLifecycleGates(input: LifecycleGateInput): void {
-  if (input.catalogState !== "provisioning" &&
-      input.bucketName === null) {
-    throw new Error(
-      `${input.path}.bucketName is required after provisioning.`,
-    );
-  }
   if (input.contentAccessEnabled &&
       input.catalogState !== "contentEnabled" &&
       input.catalogState !== "homeEnabled") {
@@ -324,19 +314,16 @@ function requireDatabaseId(value: unknown, path: string): string {
 }
 
 /**
- * Requires a bucket name, allowing null only for lifecycle validation.
+ * Requires a valid Cloud Storage bucket name.
  *
  * @param {unknown} value Raw value.
  * @param {string} path Validation path.
- * @return {string|null} Bucket name.
+ * @return {string} Bucket name.
  */
-function requireNullableBucketName(
+function requireBucketName(
   value: unknown,
   path: string,
-): string | null {
-  if (value === null) {
-    return null;
-  }
+): string {
   return requirePatternedString(value, path, BUCKET_NAME_PATTERN);
 }
 

@@ -10,8 +10,8 @@ import {
 } from "../src/platform/worldFirestoreProvider";
 
 test("loads the versioned initial world catalog", () => {
-  assert.equal(WORLD_CATALOG.schemaVersion, 1);
-  assert.equal(WORLD_CATALOG.catalogVersion, 1);
+  assert.equal(WORLD_CATALOG.schemaVersion, 2);
+  assert.equal(WORLD_CATALOG.catalogVersion, 2);
   assert.deepEqual(
     WORLD_CATALOG.worlds.map((world) => ({
       worldId: world.worldId,
@@ -79,12 +79,12 @@ test("rejects duplicate routing resources", () => {
   );
 });
 
-test("rejects lifecycle flags that get ahead of provisioning", () => {
+test("rejects missing buckets and premature lifecycle flags", () => {
   const missingBucket = mutableCatalog();
-  missingBucket.worlds[1].catalogState = "mirrorOnly";
+  missingBucket.worlds[1].bucketName = null;
   assert.throws(
     () => parseWorldCatalog(missingBucket),
-    /bucketName is required after provisioning/,
+    /bucketName has an invalid format/,
   );
 
   const earlyContent = mutableCatalog();
@@ -104,11 +104,11 @@ test("rejects lifecycle flags that get ahead of provisioning", () => {
 
 test("rejects unsupported schema versions", () => {
   const catalog = mutableCatalog();
-  catalog.schemaVersion = 2;
+  catalog.schemaVersion = 3;
 
   assert.throws(
     () => parseWorldCatalog(catalog),
-    /schemaVersion must be 1/,
+    /schemaVersion must be 2/,
   );
 });
 

@@ -1,5 +1,5 @@
 /// Wire schema version supported by this client.
-const int worldCatalogSchemaVersion = 1;
+const int worldCatalogSchemaVersion = 2;
 
 /// Provisioning lifecycle for a world and its regional resources.
 enum WorldCatalogState {
@@ -38,7 +38,7 @@ class WorldCatalogEntry {
   final String databaseId;
   final String firestoreLocation;
   final String functionsRegion;
-  final String? bucketName;
+  final String bucketName;
   final String displayNameKey;
   final WorldCatalogState catalogState;
   final bool homeAssignmentEnabled;
@@ -67,10 +67,7 @@ class WorldCatalogEntry {
         '$path.functionsRegion',
         _regionPattern,
       ),
-      bucketName: _requireNullableBucketName(
-        json['bucketName'],
-        '$path.bucketName',
-      ),
+      bucketName: _requireBucketName(json['bucketName'], '$path.bucketName'),
       displayNameKey: _requirePatternedString(
         json['displayNameKey'],
         '$path.displayNameKey',
@@ -94,9 +91,6 @@ class WorldCatalogEntry {
   }
 
   void _validateLifecycle(String path) {
-    if (catalogState != WorldCatalogState.provisioning && bucketName == null) {
-      throw FormatException('$path.bucketName is required after provisioning.');
-    }
     if (contentAccessEnabled &&
         catalogState != WorldCatalogState.contentEnabled &&
         catalogState != WorldCatalogState.homeEnabled) {
@@ -202,10 +196,7 @@ void _validateUniqueRoutes(List<WorldCatalogEntry> worlds) {
   for (final world in worlds) {
     _requireUnique(worldIds, world.worldId, 'worldId');
     _requireUnique(databaseIds, world.databaseId, 'databaseId');
-    final bucketName = world.bucketName;
-    if (bucketName != null) {
-      _requireUnique(bucketNames, bucketName, 'bucketName');
-    }
+    _requireUnique(bucketNames, world.bucketName, 'bucketName');
   }
   if (!databaseIds.contains('(default)')) {
     throw const FormatException(
@@ -255,8 +246,7 @@ String _requireDatabaseId(Object? value, String path) {
   return _requirePatternedString(value, path, _databaseIdPattern);
 }
 
-String? _requireNullableBucketName(Object? value, String path) {
-  if (value == null) return null;
+String _requireBucketName(Object? value, String path) {
   return _requirePatternedString(value, path, _bucketNamePattern);
 }
 

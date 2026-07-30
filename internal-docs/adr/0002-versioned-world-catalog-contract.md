@@ -16,8 +16,8 @@ The catalog must also remain extensible. Encoding `asia`, `northAmerica`, and
 appear. Conversely, accepting arbitrary JSON without strict validation could
 activate incomplete resources or route trusted server work incorrectly.
 
-North America and Europe already have protected Firestore databases, but their
-regional Storage buckets and remaining workers do not exist yet.
+North America and Europe have protected Firestore databases and regional
+Storage buckets, but their remaining workers do not exist yet.
 
 ## Decision
 
@@ -49,7 +49,7 @@ Functions parses the checked-in JSON at module initialization through
 
 - missing or unknown fields;
 - malformed identifiers, regions, and bucket names;
-- duplicate world, database, or non-null bucket routes;
+- duplicate world, database, or bucket routes;
 - an absent `(default)` database;
 - unsupported schema or lifecycle states;
 - activation flags that are ahead of lifecycle provisioning.
@@ -77,22 +77,42 @@ get ahead of that lifecycle:
   `homeEnabled`;
 - `homeAssignmentEnabled` is allowed only for `homeEnabled` and requires
   content access;
-- `bucketName` may be `null` only while `provisioning`.
+- every catalog entry has a non-null, globally unique `bucketName`.
 
-Allowing a null bucket during provisioning records real incomplete state
-without inventing a globally unique bucket name. Moving a world to
-`mirrorOnly` requires its bucket and the rest of its routing bundle to exist.
+The two additional buckets are provisioned before their worlds leave
+`provisioning`. Their Firebase Security Rules remain deny-all until the
+corresponding client routes and authorization tests are ready.
 
 ## Initial catalog
 
 | World | State | Content access | Home assignment | Bucket |
 | --- | --- | --- | --- | --- |
 | Asia | `contentEnabled` | enabled | disabled | existing default bucket |
-| North America | `provisioning` | disabled | disabled | not provisioned |
-| Europe | `provisioning` | disabled | disabled | not provisioned |
+| North America | `provisioning` | disabled | disabled | `world-notes-prod-north-america` |
+| Europe | `provisioning` | disabled | disabled | `world-notes-prod-europe` |
 
 Asia is not marked `homeEnabled` until the home-directory authority and legacy
 assignment migration exist.
+
+The current checked-in contract is `schemaVersion: 2` and
+`catalogVersion: 2`. Version 2 makes every bucket route mandatory after the
+three regional buckets were provisioned.
+
+All three buckets use the same physical settings, differing only by immutable
+regional location:
+
+| Setting | Value |
+| --- | --- |
+| Storage class | `REGIONAL` |
+| Uniform bucket-level access | disabled |
+| Public Access Prevention | inherited |
+| Soft delete | 7 days |
+| Object versioning | disabled |
+| CORS / lifecycle | none |
+
+All three are linked to Firebase Storage and have independent Firebase CLI
+deploy targets. Asia retains `storage.rules`; North America and Europe use
+`storage.named.locked.rules` until activation.
 
 ## Contract verification
 

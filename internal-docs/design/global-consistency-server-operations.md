@@ -1304,11 +1304,11 @@ additional buckets are enabled.
 **Decided for initial regional colocation:** use the following initial storage
 and compute placement:
 
-| World | Firestore location | Functions region | Bucket location |
-| --- | --- | --- | --- |
-| `asia` | `asia-northeast1` (Tokyo) | `asia-northeast1` | `asia-northeast1` |
-| `northAmerica` | `us-central1` (Iowa) | `us-central1` | `us-central1` |
-| `europe` | `europe-west1` (Belgium) | `europe-west1` | `europe-west1` |
+| World | Firestore location | Functions region | Bucket | Bucket location |
+| --- | --- | --- | --- | --- |
+| `asia` | `asia-northeast1` (Tokyo) | `asia-northeast1` | `world-notes-prod.firebasestorage.app` | `asia-northeast1` |
+| `northAmerica` | `us-central1` (Iowa) | `us-central1` | `world-notes-prod-north-america` | `us-central1` |
+| `europe` | `europe-west1` (Belgium) | `europe-west1` | `world-notes-prod-europe` | `europe-west1` |
 
 North America remains one `northAmerica` world in Iowa for the initial
 deployment. The catalog is nevertheless cardinality-independent: a later
@@ -1317,9 +1317,9 @@ the same provisioning, mirror-backfill, and catalog-activation protocol rather
 than by adding another hard-coded branch.
 
 Actual globally unique bucket names are deployment configuration, not domain
-data. Reuse the current default bucket for `asia` only after verifying that its
-immutable location is Tokyo; otherwise create a correctly located Asia bucket
-instead of hiding a location mismatch behind the logical mapping.
+data. The current default bucket's immutable location was verified as Tokyo.
+The North America and Europe buckets were created in their corresponding
+Firestore regions and linked to Firebase Storage.
 
 **Decided for image access:** clients do not rely on Storage Rules consulting a
 content document in a named Firestore database. They request image access from

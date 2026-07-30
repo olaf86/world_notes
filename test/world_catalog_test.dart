@@ -20,8 +20,8 @@ void main() {
   test('parses the server world catalog contract', () {
     final catalog = WorldCatalog.fromJson(sourceCatalog);
 
-    expect(catalog.schemaVersion, 1);
-    expect(catalog.catalogVersion, 1);
+    expect(catalog.schemaVersion, 2);
+    expect(catalog.catalogVersion, 2);
     expect(
       catalog.worlds
           .map((world) => (world.worldId, world.databaseId, world.catalogState))
@@ -67,9 +67,9 @@ void main() {
     );
   });
 
-  test('rejects lifecycle flags that get ahead of provisioning', () {
+  test('rejects missing buckets and premature lifecycle flags', () {
     final missingBucket = _mutableClone(sourceCatalog);
-    _worldAt(missingBucket, 1)['catalogState'] = 'mirrorOnly';
+    _worldAt(missingBucket, 1)['bucketName'] = null;
     expect(
       () => WorldCatalog.fromJson(missingBucket),
       throwsA(isA<FormatException>()),
@@ -91,7 +91,7 @@ void main() {
   });
 
   test('rejects unsupported schema versions', () {
-    final catalog = _mutableClone(sourceCatalog)..['schemaVersion'] = 2;
+    final catalog = _mutableClone(sourceCatalog)..['schemaVersion'] = 3;
 
     expect(
       () => WorldCatalog.fromJson(catalog),

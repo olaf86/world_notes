@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 1,
-  "catalogVersion": 1,
+  "schemaVersion": 2,
+  "catalogVersion": 2,
   "worlds": [
     {
       "worldId": "asia",
@@ -18,7 +18,7 @@
       "databaseId": "north-america",
       "firestoreLocation": "us-central1",
       "functionsRegion": "us-central1",
-      "bucketName": null,
+      "bucketName": "world-notes-prod-north-america",
       "displayNameKey": "world.northAmerica",
       "catalogState": "provisioning",
       "homeAssignmentEnabled": false,
@@ -29,7 +29,7 @@
       "databaseId": "europe",
       "firestoreLocation": "europe-west1",
       "functionsRegion": "europe-west1",
-      "bucketName": null,
+      "bucketName": "world-notes-prod-europe",
       "displayNameKey": "world.europe",
       "catalogState": "provisioning",
       "homeAssignmentEnabled": false,

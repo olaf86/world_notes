@@ -16,9 +16,20 @@
       "indexes": "firestore.indexes.json"
     }
   ],
-  "storage": {
-    "rules": "storage.rules"
-  },
+  "storage": [
+    {
+      "target": "asia",
+      "rules": "storage.rules"
+    },
+    {
+      "target": "north-america",
+      "rules": "storage.named.locked.rules"
+    },
+    {
+      "target": "europe",
+      "rules": "storage.named.locked.rules"
+    }
+  ],
   "hosting": {
     "public": "public",
     "ignore": ["firebase.json", "**/node_modules/**"],

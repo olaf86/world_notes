@@ -451,9 +451,9 @@ production data or code path changes.
 
 Implementation note (2026-07-30): P01 uses a source-controlled JSON catalog
 validated strictly by both TypeScript and Dart. World IDs remain dynamic
-strings on the client rather than a three-value application enum. A bucket may
-be null only during `provisioning`; every later lifecycle state requires a
-provisioned bucket. See ADR 0002.
+strings on the client rather than a three-value application enum. Every catalog
+entry has a provisioned, non-null regional bucket; provisioning worlds keep
+deny-all Storage Rules until activation. See ADR 0002.
 
 ### Phase 1 — test and deployment foundation
 
