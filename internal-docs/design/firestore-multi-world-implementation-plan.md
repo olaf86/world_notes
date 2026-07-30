@@ -1063,9 +1063,11 @@ Start with P00–P05 only:
    only active world.
 
 This slice changes no product data placement and provides the foundation and
-tests needed for every later phase. Do not provision production Europe or
-North America resources until P00 succeeds in staging and the four deployment
-gates above are resolved.
+tests needed for every later phase. Because the current Firebase project is
+still pre-production, the user approved creating the protected Europe and
+North America databases during the P00 spike. They remain client-inaccessible
+and must not become active worlds until the remaining deployment gates above
+are resolved.
 
 ## Definition of done
 

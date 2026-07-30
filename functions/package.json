@@ -3,7 +3,9 @@
   "scripts": {
     "lint": "eslint --ext .js,.ts .",
     "build": "tsc",
-    "test": "tsc -p tsconfig.test.json && node --test lib/test/mapPins.test.js lib/test/moderation.test.js lib/test/moderationEvaluation.test.js lib/test/reporting.test.js",
+    "test": "tsc -p tsconfig.test.json && node --test lib/test/*.test.js",
+    "test:firestore-contract": "tsc -p tsconfig.test.json && node --test lib/test/worldFirestore.emulator.test.js",
+    "test:firestore-contract:cloud": "tsc -p tsconfig.test.json && node --test lib/test/worldFirestore.emulator.test.js",
     "evaluate:moderation": "npm run build && node lib/scripts/evaluateModeration.js",
     "build:watch": "tsc --watch",
     "serve": "npm run build && firebase emulators:start --only functions",
@@ -22,7 +24,7 @@
   "main": "lib/index.js",
   "dependencies": {
     "argon2": "^0.44.0",
-    "firebase-admin": "^13.6.0",
+    "firebase-admin": "13.10.0",
     "firebase-functions": "^7.0.0",
     "libphonenumber-js": "^1.13.8"
   },
