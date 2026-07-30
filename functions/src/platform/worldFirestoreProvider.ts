@@ -137,7 +137,7 @@ export class WorldFirestoreProvider {
 }
 
 /**
- * Validates the P00 subset of the future world catalog contract.
+ * Validates the initial subset of the future world catalog contract.
  *
  * @param {WorldDatabaseConfig} worldDatabase World database to validate.
  */

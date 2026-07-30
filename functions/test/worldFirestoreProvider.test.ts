@@ -129,7 +129,7 @@ test("Functions v2 manifest binds a trigger to a named database", () => {
   const trigger = onDocumentCreated(
     {
       database: "europe",
-      document: "__p00_named_database_probe__/{documentId}",
+      document: "__firestore_named_database_probe__/{documentId}",
     },
     () => undefined,
   );
@@ -140,6 +140,6 @@ test("Functions v2 manifest binds a trigger to a named database", () => {
   );
   assert.equal(
     trigger.__endpoint.eventTrigger?.eventFilterPathPatterns?.document,
-    "__p00_named_database_probe__/{documentId}",
+    "__firestore_named_database_probe__/{documentId}",
   );
 });

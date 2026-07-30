@@ -3,9 +3,10 @@
   "scripts": {
     "lint": "eslint --ext .js,.ts .",
     "build": "tsc",
-    "test": "tsc -p tsconfig.test.json && node --test lib/test/*.test.js",
-    "test:firestore-contract": "tsc -p tsconfig.test.json && node --test lib/test/worldFirestore.emulator.test.js",
-    "test:firestore-contract:cloud": "tsc -p tsconfig.test.json && node --test lib/test/worldFirestore.emulator.test.js",
+    "build:test": "node -e \"require('node:fs').rmSync('.test-build', { recursive: true, force: true })\" && tsc -p tsconfig.test.json",
+    "test": "npm run build:test && node --test .test-build/test/*.test.js",
+    "test:firestore-contract": "npm run build:test && node --test .test-build/test/worldFirestore.contract.test.js",
+    "test:firestore-contract:cloud": "npm run build:test && node --test .test-build/test/worldFirestore.contract.test.js",
     "evaluate:moderation": "npm run build && node lib/scripts/evaluateModeration.js",
     "build:watch": "tsc --watch",
     "serve": "npm run build && firebase emulators:start --only functions",

@@ -60,7 +60,7 @@ databases.
 
 ## Contract coverage
 
-P00 establishes automated checks for:
+The Firestore contract suite establishes automated checks for:
 
 - default and named database resolution;
 - allowlist rejection and database-route mismatch detection;
@@ -73,12 +73,12 @@ P00 establishes automated checks for:
 
 The emulator contract is skipped by the normal unit test command when
 `FIRESTORE_EMULATOR_HOST` is absent. Run it through the Firestore emulator
-before accepting P00.
+before accepting the named-database adapter.
 
 ```bash
 npx -y firebase-tools@latest emulators:exec \
   --only firestore \
-  --project demo-world-notes-p00 \
+  --project demo-world-notes-firestore-contract \
   "npm --prefix functions run test:firestore-contract"
 ```
 
@@ -87,8 +87,8 @@ The contract uses unique document IDs and deletes those documents before
 closing its clients:
 
 ```bash
-P00_FIRESTORE_PROJECT_ID=world-notes-prod \
-P00_CONFIRM_PROJECT_ID=world-notes-prod \
+FIRESTORE_CONTRACT_PROJECT_ID=world-notes-prod \
+FIRESTORE_CONTRACT_CONFIRM_PROJECT_ID=world-notes-prod \
 npm --prefix functions run test:firestore-contract:cloud
 ```
 
@@ -116,7 +116,7 @@ Verification on 2026-07-30:
 
 The Firebase project is still pre-production, so the user approved using
 `world-notes-prod` as the development verification environment. On
-2026-07-30, P00/P02 foundation work provisioned:
+2026-07-30, the initial database foundation work provisioned:
 
 | World | Database | Location | Delete protection | PITR |
 | --- | --- | --- | --- | --- |
@@ -141,11 +141,11 @@ This decision does not relax consistency, idempotency, retry, monitoring, or
 Security Rules requirements. It also does not make the database ID a
 client-controlled route.
 
-P00 does not migrate existing handlers or activate client traffic in the named
-databases. The database resources and the Rules/index deployment mapping were
-created early with user approval, advancing a limited part of P02. Remaining
-repeatable infrastructure, IAM, Storage, Rules tests, and CI work stays in
-later implementation units.
+This foundation does not migrate existing handlers or activate client traffic
+in the named databases. The database resources and the Rules/index deployment
+mapping were created early with user approval, advancing a limited part of the
+deployment foundation. Remaining repeatable infrastructure, IAM, Storage,
+Rules tests, and CI work stays in later implementation units.
 
 ## Replacement and rollback
 
