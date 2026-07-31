@@ -481,6 +481,14 @@ and locked-world access as independent cases. This separation is intentional:
 the Firestore emulator does not emulate multiple database IDs, while the
 named-database contract test covers database routing and isolation separately.
 
+The Functions harness starts Auth, Firestore, and Functions together under a
+`demo-*` project. It verifies callable authentication rejection, an
+authenticated App-Check-shaped request that writes through a real handler,
+and invalid-input rejection without a Firestore write. The initial contract
+uses an account notification setting because it exercises the complete
+request path without contacting Storage, FCM, OpenAI, or another non-emulated
+service.
+
 Exit criteria:
 
 - a clean environment can be provisioned repeatably;
