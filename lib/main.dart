@@ -18,6 +18,7 @@ import 'firebase_options.dart';
 import 'l10n/app_locale.dart';
 import 'l10n/l10n.dart';
 import 'presentation/providers/providers.dart';
+import 'services/notice_notification_service.dart';
 import 'services/subscription_service.dart';
 
 void main() async {
@@ -115,7 +116,7 @@ class WorldNotesApp extends ConsumerStatefulWidget {
 class _WorldNotesAppState extends ConsumerState<WorldNotesApp>
     with WidgetsBindingObserver {
   StreamSubscription<NotificationPlaceRoute>? _notificationOpenSubscription;
-  StreamSubscription<String>? _noticeOpenSubscription;
+  StreamSubscription<NotificationNoticeRoute>? _noticeOpenSubscription;
 
   @override
   void initState() {
@@ -129,10 +130,10 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp>
         _openPlaceFromNotification,
       );
       final noticeService = ref.read(noticeNotificationServiceProvider);
-      noticeService.initialNoticeIdFromLaunch().then(
+      noticeService.initialNoticeRouteFromLaunch().then(
         _openNoticesFromNotification,
       );
-      _noticeOpenSubscription = noticeService.openedNoticeIds.listen(
+      _noticeOpenSubscription = noticeService.openedNoticeRoutes.listen(
         _openNoticesFromNotification,
       );
     });
@@ -157,12 +158,24 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp>
   }
 
   void _openPlaceFromNotification(NotificationPlaceRoute? route) {
-    if (!mounted) return;
+    if (!mounted || route == null) return;
+    try {
+      ref.read(selectedWorldProvider.notifier).selectWorld(route.note.worldId);
+    } on StateError {
+      return;
+    }
     openNotificationPlace(ref.read(routerProvider), route);
   }
 
-  void _openNoticesFromNotification(String? noticeId) {
-    if (!mounted || noticeId == null) return;
+  void _openNoticesFromNotification(NotificationNoticeRoute? route) {
+    if (!mounted || route == null) return;
+    try {
+      ref
+          .read(selectedWorldProvider.notifier)
+          .selectWorld(route.notice.worldId);
+    } on StateError {
+      return;
+    }
     openNotices(ref.read(routerProvider));
   }
 

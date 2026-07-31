@@ -24,7 +24,7 @@ void main() {
           builder: (_, _) => const Scaffold(body: Text('Map origin')),
         ),
         GoRoute(
-          path: '/note/:placeId',
+          path: '/worlds/:worldId/notes/:placeId',
           builder: (_, state) => NoteBoxScreen(
             placeId: state.pathParameters['placeId']!,
             placeTitle: 'Loading note',
@@ -50,7 +50,7 @@ void main() {
     );
     await tester.pump();
 
-    unawaited(router.push<void>('/note/place-1'));
+    unawaited(router.push<void>('/worlds/asia/notes/place-1'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 

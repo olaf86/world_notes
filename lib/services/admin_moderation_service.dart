@@ -1,13 +1,13 @@
-import 'package:cloud_functions/cloud_functions.dart';
+import 'world_firebase_clients.dart';
 
 import '../domain/entities/admin_moderation_review_entity.dart';
 
 const defaultAdminModerationReviewListLimit = 20;
 
 class AdminModerationService {
-  final FirebaseFunctions _functions;
+  final WorldFunctionsClient _functions;
 
-  const AdminModerationService({required FirebaseFunctions functions})
+  const AdminModerationService({required WorldFunctionsClient functions})
     : _functions = functions;
 
   Future<List<AdminModerationReviewEntity>> listReviews({

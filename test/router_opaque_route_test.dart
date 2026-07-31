@@ -62,7 +62,9 @@ void main() {
       expect(find.byType(NavigationBar), findsOneWidget);
       expect(tester.takeException(), isNull);
 
-      unawaited(router.push<void>('/note/place-1?title=Nearby%20note'));
+      unawaited(
+        router.push<void>('/worlds/asia/notes/place-1?title=Nearby%20note'),
+      );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
 

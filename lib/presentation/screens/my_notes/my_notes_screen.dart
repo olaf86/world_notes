@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../config/world_catalog.dart';
+import '../../../config/world_routes.dart';
 import '../../../core/utils/place_icon.dart';
 import '../../../domain/entities/note_list_sort.dart';
 import '../../../domain/entities/place_entity.dart';
@@ -147,6 +149,7 @@ class _MyNotesListView extends ConsumerWidget {
                     );
                     return _MyNoteCard(
                       place: place,
+                      worldId: ref.watch(selectedWorldProvider),
                       onArchive: permissions.canArchive
                           ? () => _archivePlace(context, ref, place)
                           : null,
@@ -329,8 +332,9 @@ class _ArchivedNotesListViewState
         final place = _places[index];
         return _MyNoteCard(
           place: place,
+          worldId: ref.read(selectedWorldProvider),
           onCreateFromArchive: () => context.push(
-            '/note/create',
+            worldNoteCreationPath(ref.read(selectedWorldProvider)),
             extra: NoteCreationDraft.fromPlace(place),
           ),
         );
@@ -527,11 +531,13 @@ class _ArchivedNotesSummary extends StatelessWidget {
 
 class _MyNoteCard extends StatelessWidget {
   final PlaceEntity place;
+  final WorldId worldId;
   final VoidCallback? onArchive;
   final VoidCallback? onCreateFromArchive;
 
   const _MyNoteCard({
     required this.place,
+    required this.worldId,
     this.onArchive,
     this.onCreateFromArchive,
   });
@@ -604,7 +610,14 @@ class _MyNoteCard extends StatelessWidget {
             ],
           ],
         ),
-        onTap: () => context.push('/note/${place.id}?readOnly=true'),
+        onTap: () => context.push(
+          Uri(
+            path: worldNotePath(
+              WorldRoute(worldId: worldId, entityId: place.id),
+            ),
+            queryParameters: const {'readOnly': 'true'},
+          ).toString(),
+        ),
       ),
     );
   }

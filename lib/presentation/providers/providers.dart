@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -140,8 +139,8 @@ final firebaseCrashlyticsProvider = Provider<FirebaseCrashlytics>(
 /// the system-language default.
 final sharedPreferencesProvider = Provider<SharedPreferences?>((_) => null);
 
-final selectedWorldFunctionsProvider = Provider<FirebaseFunctions>((ref) {
-  return ref.watch(selectedWorldClientsProvider).functions;
+final selectedWorldFunctionsProvider = Provider<WorldFunctionsClient>((ref) {
+  return ref.watch(selectedWorldClientsProvider).callables;
 });
 
 // --- Services ---
@@ -271,7 +270,7 @@ class AppLanguagePreferenceNotifier
   AppLanguagePreferenceNotifier({
     required FirebaseAuth auth,
     required FirebaseFirestore firestore,
-    required FirebaseFunctions functions,
+    required WorldFunctionsClient functions,
     required SharedPreferences? preferences,
     required bool syncAccount,
   }) : _auth = auth,
@@ -302,7 +301,7 @@ class AppLanguagePreferenceNotifier
 
   final FirebaseAuth? _auth;
   final FirebaseFirestore? _firestore;
-  final FirebaseFunctions? _functions;
+  final WorldFunctionsClient? _functions;
   SharedPreferences? _preferences;
   StreamSubscription<User?>? _authSubscription;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?

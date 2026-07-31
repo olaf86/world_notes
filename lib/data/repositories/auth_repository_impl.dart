@@ -1,5 +1,4 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -9,6 +8,7 @@ import '../../domain/repositories/auth_repository.dart';
 import '../../services/message_image_service.dart';
 import '../../services/my_notes_notification_service.dart';
 import '../../services/subscription_service.dart';
+import '../../services/world_firebase_clients.dart';
 import '../models/user_model.dart';
 import '../models/public_profile_model.dart';
 
@@ -16,7 +16,7 @@ class AuthRepositoryImpl implements AuthRepository {
   final FirebaseAuth _auth;
   final GoogleSignIn _googleSignIn;
   final FirebaseFirestore _firestore;
-  final FirebaseFunctions _functions;
+  final WorldFunctionsClient _functions;
   final MyNotesNotificationService _myNotesNotificationService;
   final SubscriptionService _subscriptionService;
   final MessageImageService _messageImageService;
@@ -25,7 +25,7 @@ class AuthRepositoryImpl implements AuthRepository {
     required FirebaseAuth auth,
     required GoogleSignIn googleSignIn,
     required FirebaseFirestore firestore,
-    required FirebaseFunctions functions,
+    required WorldFunctionsClient functions,
     required MyNotesNotificationService myNotesNotificationService,
     required SubscriptionService subscriptionService,
     required MessageImageService messageImageService,

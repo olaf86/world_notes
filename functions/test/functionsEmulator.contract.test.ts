@@ -100,7 +100,7 @@ describe(
     test("rejects a callable request without authentication", async () => {
       const response = await callFunction(
         "setMyNotesNotificationEnabled",
-        {enabled: true},
+        {worldId: "asia", enabled: true},
       );
       const body = await response.json() as CallableErrorBody;
 
@@ -120,14 +120,18 @@ describe(
 
       const response = await callFunction(
         "setMyNotesNotificationEnabled",
-        {enabled: true},
+        {worldId: "asia", enabled: true},
         idToken,
       );
-      const body = await response.json() as CallableSuccessBody<{ok: boolean}>;
+      const body = await response.json() as CallableSuccessBody<{
+        ok: boolean;
+        worldId: string;
+      }>;
       const setting = await settingReference.get();
 
       assert.equal(response.status, 200);
       assert.equal((body.result ?? body.data)?.ok, true);
+      assert.equal((body.result ?? body.data)?.worldId, "asia");
       assert.equal(setting.get("myNotesEnabled"), true);
       assert.notEqual(setting.get("updatedAt"), undefined);
     });
@@ -144,7 +148,7 @@ describe(
 
       const response = await callFunction(
         "setMyNotesNotificationEnabled",
-        {enabled: "yes"},
+        {worldId: "asia", enabled: "yes"},
         idToken,
       );
       const body = await response.json() as CallableErrorBody;
@@ -153,6 +157,21 @@ describe(
       assert.equal(response.status, 400);
       assert.equal(body.error?.status, "INVALID_ARGUMENT");
       assert.equal(setting.exists, false);
+    });
+
+    test("rejects a callable request without an explicit world", async () => {
+      const credential = await signInAnonymously(requireAuth());
+      const idToken = await credential.user.getIdToken();
+
+      const response = await callFunction(
+        "setMyNotesNotificationEnabled",
+        {enabled: true},
+        idToken,
+      );
+      const body = await response.json() as CallableErrorBody;
+
+      assert.equal(response.status, 400);
+      assert.equal(body.error?.status, "INVALID_ARGUMENT");
     });
   },
 );

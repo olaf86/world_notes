@@ -1,12 +1,12 @@
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../config/runtime_mode.dart';
 import '../../core/utils/image_upload_util.dart';
+import '../../services/world_firebase_clients.dart';
 import '../../domain/entities/place_entity.dart'
     show
         ArchivedPlacesPage,
@@ -30,13 +30,13 @@ import '../models/place_model.dart';
 // Required Firestore composite indexes are declared in firestore.indexes.json.
 class PlaceRepositoryImpl implements PlaceRepository {
   final FirebaseFirestore _firestore;
-  final FirebaseFunctions _functions;
+  final WorldFunctionsClient _functions;
   final FirebaseStorage _storage;
   final _uuid = const Uuid();
 
   PlaceRepositoryImpl({
     required FirebaseFirestore firestore,
-    required FirebaseFunctions functions,
+    required WorldFunctionsClient functions,
     required FirebaseStorage storage,
   }) : _firestore = firestore,
        _functions = functions,

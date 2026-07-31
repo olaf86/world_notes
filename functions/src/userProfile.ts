@@ -2,7 +2,7 @@ import {getAuth} from "firebase-admin/auth";
 import {
   FieldValue,
 } from "firebase-admin/firestore";
-import {onCall, HttpsError} from "firebase-functions/v2/https";
+import {onCall, HttpsError} from "./platform/worldCallable";
 
 import {REGION} from "./constants";
 import {asiaWorldContext} from "./platform/worldContext";

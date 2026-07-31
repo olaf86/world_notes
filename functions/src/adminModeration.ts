@@ -1,5 +1,5 @@
 /* eslint-disable require-jsdoc */
-import {onCall, HttpsError} from "firebase-functions/v2/https";
+import {onCall, HttpsError} from "./platform/worldCallable";
 import {
   FieldValue,
   Timestamp,
@@ -8,6 +8,7 @@ import * as logger from "firebase-functions/logger";
 
 import {REGION} from "./constants";
 import {asiaWorldContext} from "./platform/worldContext";
+import {ASIA_WORLD_ID} from "./platform/worldRegistry";
 
 const DEFAULT_REVIEW_LIST_LIMIT = 20;
 const MAX_REVIEW_LIST_LIMIT = 50;
@@ -209,10 +210,12 @@ function timestampMillis(value: unknown): number | null {
 
 function reviewListItemFromDoc(
   doc: FirebaseFirestore.QueryDocumentSnapshot,
+  worldId: string,
 ): Record<string, unknown> {
   const data = doc.data();
   return {
     id: doc.id,
+    worldId,
     targetType: data.targetType ?? null,
     targetId: data.targetId ?? null,
     targetPath: data.targetPath ?? null,
@@ -260,11 +263,11 @@ async function deleteStoredImages(storagePaths: string[]): Promise<void> {
 export const adminListModerationReviews =
   onCall<AdminListModerationReviewsData>(
     {enforceAppCheck: true, region: REGION},
-    async (req) => {
+    async (req, world) => {
       const token = req.auth?.token as Record<string, unknown> | undefined;
       assertAdmin(req.auth?.uid, token?.admin);
       const input = validateAdminListModerationReviewsInput(req.data);
-      const snap = await asiaWorldContext().firestore
+      const snap = await world.firestore
         .collection("moderationReviews")
         .where("status", "==", input.status)
         .orderBy("createdAt", "asc")
@@ -273,7 +276,8 @@ export const adminListModerationReviews =
 
       return {
         status: input.status,
-        reviews: snap.docs.map(reviewListItemFromDoc),
+        reviews: snap.docs.map((doc) =>
+          reviewListItemFromDoc(doc, world.worldId)),
       };
     },
   );
@@ -345,6 +349,7 @@ export const adminReviewMessage = onCall<AdminReviewMessageData>(
         moderationReviewReason: input.reason,
       });
       tx.update(reviewRef, {
+        worldId: ASIA_WORLD_ID,
         status: "resolved",
         humanDecision: input.action,
         decisionReason: input.reason,
@@ -355,6 +360,7 @@ export const adminReviewMessage = onCall<AdminReviewMessageData>(
         targetPath: `places/${input.placeId}/messages/${input.messageId}`,
       });
       tx.set(auditRef, {
+        worldId: ASIA_WORLD_ID,
         eventType: "adminDecision",
         actorType: "admin",
         actorId: uid,
@@ -442,6 +448,7 @@ export const adminReviewNote = onCall<AdminReviewNoteData>(
         moderationReviewReason: input.reason,
       });
       tx.update(reviewRef, {
+        worldId: ASIA_WORLD_ID,
         status: "resolved",
         humanDecision: hidden ? "hidden" : "allow",
         decisionReason: input.reason,
@@ -452,6 +459,7 @@ export const adminReviewNote = onCall<AdminReviewNoteData>(
         targetPath: `places/${input.placeId}`,
       });
       tx.set(auditRef, {
+        worldId: ASIA_WORLD_ID,
         eventType: "adminDecision",
         actorType: "admin",
         actorId: uid,

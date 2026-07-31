@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../../../config/app_config.dart';
+import '../../../config/world_routes.dart';
 import '../../../core/theme/note_themes.dart';
 import '../../../core/utils/password_util.dart';
 import '../../../core/utils/pattern_lock_util.dart';
@@ -79,6 +80,13 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
   bool _preparingMessageEditor = false;
   String? _highlightedAuthorId;
   String? _visitRecordedForPlaceId;
+
+  String get _notePath => worldNotePath(
+    WorldRoute(
+      worldId: ref.read(selectedWorldProvider),
+      entityId: widget.placeId,
+    ),
+  );
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -264,7 +272,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     required String noteCreatorUserId,
   }) async {
     final result = await context.push<ReportContentResult>(
-      '/note/${widget.placeId}/messages/${message.id}/report',
+      '$_notePath/messages/${message.id}/report',
       extra: ReportedUserTarget(
         userId: message.author.id,
         displayName: message.author.name,
@@ -291,7 +299,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     required String creatorName,
   }) async {
     final result = await context.push<ReportContentResult>(
-      '/note/${widget.placeId}/report',
+      '$_notePath/report',
       extra: ReportedUserTarget(
         userId: creatorUserId,
         displayName: creatorName,
@@ -860,7 +868,9 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                             icon: const Icon(Icons.add_location_alt_outlined),
                             tooltip: l10n.createFromArchiveTooltip,
                             onPressed: () => context.push(
-                              '/note/create',
+                              worldNoteCreationPath(
+                                ref.read(selectedWorldProvider),
+                              ),
                               extra: NoteCreationDraft.fromPlace(place),
                             ),
                           ),

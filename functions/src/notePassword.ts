@@ -1,4 +1,4 @@
-import {onCall, HttpsError} from "firebase-functions/v2/https";
+import {onCall, HttpsError} from "./platform/worldCallable";
 import {
   FieldValue,
   Timestamp,

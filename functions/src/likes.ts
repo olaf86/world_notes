@@ -1,5 +1,5 @@
 /* eslint-disable require-jsdoc */
-import {onCall, HttpsError} from "firebase-functions/v2/https";
+import {onCall, HttpsError} from "./platform/worldCallable";
 import {
   DocumentSnapshot,
 } from "firebase-admin/firestore";

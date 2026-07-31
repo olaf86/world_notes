@@ -1,6 +1,6 @@
 /* eslint-disable require-jsdoc */
 import {createHash} from "crypto";
-import {onCall, HttpsError} from "firebase-functions/v2/https";
+import {onCall, HttpsError} from "./platform/worldCallable";
 import * as logger from "firebase-functions/logger";
 import {
   DocumentReference,
@@ -13,6 +13,7 @@ import {BatchResponse, getMessaging} from "firebase-admin/messaging";
 
 import {REGION} from "./constants";
 import {asiaWorldContext} from "./platform/worldContext";
+import {ASIA_WORLD_ID} from "./platform/worldRegistry";
 import {maintainerIdsOf} from "./noteMaintenance";
 import {hasUserBlockBetween} from "./userBlocks";
 
@@ -454,6 +455,7 @@ export async function sendMyNotesMessageNotifications(
           notification,
           data: {
             type: "my_note_message",
+            worldId: ASIA_WORLD_ID,
             placeId,
             messageId,
           },
@@ -461,7 +463,7 @@ export async function sendMyNotesMessageNotifications(
             payload: {
               aps: {
                 sound: "default",
-                threadId: `place:${placeId}`,
+                threadId: `world:${ASIA_WORLD_ID}:place:${placeId}`,
               },
             },
           },
@@ -469,7 +471,7 @@ export async function sendMyNotesMessageNotifications(
             priority: "high",
             notification: {
               sound: "default",
-              tag: `place:${placeId}`,
+              tag: `world:${ASIA_WORLD_ID}:place:${placeId}`,
             },
           },
         });

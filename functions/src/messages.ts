@@ -1,5 +1,5 @@
 /* eslint-disable require-jsdoc */
-import {onCall, HttpsError} from "firebase-functions/v2/https";
+import {onCall, HttpsError} from "./platform/worldCallable";
 import {
   DocumentReference,
   DocumentSnapshot,
@@ -17,6 +17,7 @@ import {
   REGION,
 } from "./constants";
 import {asiaWorldContext} from "./platform/worldContext";
+import {ASIA_WORLD_ID} from "./platform/worldRegistry";
 import {
   type AppModerationRiskSignal,
   type InternalModerationResult,
@@ -469,6 +470,7 @@ function moderationReviewDocumentData({
       []),
   ];
   return {
+    worldId: ASIA_WORLD_ID,
     userId: uid,
     targetType: "message",
     targetId: messageId,
@@ -1041,6 +1043,7 @@ export const reportMessage = onCall<ReportMessageData>(
       }
 
       tx.set(reportRef, {
+        worldId: ASIA_WORLD_ID,
         targetType: "message",
         targetId: input.messageId,
         targetPath: `places/${input.placeId}/messages/${input.messageId}`,
@@ -1052,6 +1055,7 @@ export const reportMessage = onCall<ReportMessageData>(
         createdAt: reportCreatedAt,
       });
       tx.set(rateLimitRef, {
+        lastWorldId: ASIA_WORLD_ID,
         lastCreatedAt: reportCreatedAt,
         lastTargetType: "message",
         lastTargetId: input.messageId,
@@ -1062,6 +1066,7 @@ export const reportMessage = onCall<ReportMessageData>(
         reportCount: FieldValue.increment(1),
       });
       tx.set(moderationReviewRef, {
+        worldId: ASIA_WORLD_ID,
         userId: messageSnap.get("userId") ?? null,
         targetType: "message",
         targetId: input.messageId,

@@ -1,19 +1,19 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 
 import '../../domain/entities/public_profile_entity.dart';
 import '../../domain/entities/user_block_entity.dart';
 import '../../domain/repositories/user_block_repository.dart';
+import '../../services/world_firebase_clients.dart';
 import '../models/public_profile_model.dart';
 import '../models/user_block_model.dart';
 
 class UserBlockRepositoryImpl implements UserBlockRepository {
   final FirebaseFirestore _firestore;
-  final FirebaseFunctions _functions;
+  final WorldFunctionsClient _functions;
 
   UserBlockRepositoryImpl({
     required FirebaseFirestore firestore,
-    required FirebaseFunctions functions,
+    required WorldFunctionsClient functions,
   }) : _firestore = firestore,
        _functions = functions;
 

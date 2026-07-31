@@ -2,41 +2,63 @@ import 'dart:async';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 
+import '../config/world_catalog.dart';
+import '../config/world_routes.dart';
+
+final class NotificationNoticeRoute {
+  const NotificationNoticeRoute(this.notice);
+
+  final WorldRoute notice;
+}
+
 class NoticeNotificationService {
   final FirebaseMessaging _messaging;
 
-  StreamSubscription<String>? _noticeOpenSubscription;
-  final _openedNoticeIds = StreamController<String>.broadcast();
+  StreamSubscription<NotificationNoticeRoute>? _noticeOpenSubscription;
+  final _openedNoticeRoutes =
+      StreamController<NotificationNoticeRoute>.broadcast();
 
   NoticeNotificationService({required FirebaseMessaging messaging})
     : _messaging = messaging {
     _startNotificationOpenHandling();
   }
 
-  Future<String?> initialNoticeIdFromLaunch() async {
+  Future<NotificationNoticeRoute?> initialNoticeRouteFromLaunch() async {
     final message = await _messaging.getInitialMessage();
-    return noticeIdFromMessage(message);
+    return noticeRouteFromMessage(message);
   }
 
-  Stream<String> get openedNoticeIds => _openedNoticeIds.stream;
+  Stream<NotificationNoticeRoute> get openedNoticeRoutes =>
+      _openedNoticeRoutes.stream;
 
   Future<void> dispose() async {
     await _noticeOpenSubscription?.cancel();
-    await _openedNoticeIds.close();
+    await _openedNoticeRoutes.close();
   }
 
   void _startNotificationOpenHandling() {
     _noticeOpenSubscription ??= FirebaseMessaging.onMessageOpenedApp
-        .map(noticeIdFromMessage)
-        .where((noticeId) => noticeId != null)
-        .cast<String>()
-        .listen(_openedNoticeIds.add);
+        .map(noticeRouteFromMessage)
+        .where((route) => route != null)
+        .cast<NotificationNoticeRoute>()
+        .listen(_openedNoticeRoutes.add);
   }
 
-  static String? noticeIdFromMessage(RemoteMessage? message) {
+  static NotificationNoticeRoute? noticeRouteFromMessage(
+    RemoteMessage? message,
+  ) {
     final data = message?.data;
     if (data?['type'] != 'notice') return null;
+    final worldId = data?['worldId'];
     final noticeId = data?['noticeId'];
-    return noticeId is String && noticeId.isNotEmpty ? noticeId : null;
+    if (worldId is! String ||
+        worldId.isEmpty ||
+        noticeId is! String ||
+        noticeId.isEmpty) {
+      return null;
+    }
+    return NotificationNoticeRoute(
+      WorldRoute(worldId: WorldId(worldId), entityId: noticeId),
+    );
   }
 }

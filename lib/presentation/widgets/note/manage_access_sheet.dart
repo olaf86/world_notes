@@ -127,7 +127,14 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
 
   Future<void> _copyLink() async {
     if (_token == null) return;
-    await Clipboard.setData(ClipboardData(text: AppConfig.inviteLink(_token!)));
+    await Clipboard.setData(
+      ClipboardData(
+        text: AppConfig.inviteLink(
+          worldId: ref.read(selectedWorldProvider),
+          token: _token!,
+        ),
+      ),
+    );
     if (!mounted) return;
 
     _copyFeedbackTimer?.cancel();
@@ -227,7 +234,10 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: SelectableText(
-                  AppConfig.inviteLink(_token!),
+                  AppConfig.inviteLink(
+                    worldId: ref.watch(selectedWorldProvider),
+                    token: _token!,
+                  ),
                   style: theme.textTheme.bodySmall,
                 ),
               ),

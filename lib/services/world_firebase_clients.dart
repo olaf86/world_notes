@@ -7,6 +7,61 @@ import '../config/world_catalog.dart';
 
 typedef WorldClientBuilder<T> = T Function(WorldCatalogEntry world);
 
+/// A callable Functions client permanently bound to one world route.
+///
+/// Every request carries the world ID and every response must echo the same
+/// trusted world ID. Feature code therefore cannot accidentally call a
+/// regional function without declaring its data world.
+final class WorldFunctionsClient {
+  const WorldFunctionsClient({
+    required this.worldId,
+    required FirebaseFunctions functions,
+  }) : _functions = functions;
+
+  final WorldId worldId;
+  final FirebaseFunctions _functions;
+
+  WorldHttpsCallable httpsCallable(String name) {
+    return WorldHttpsCallable(
+      worldId: worldId,
+      callable: _functions.httpsCallable(name),
+    );
+  }
+}
+
+/// A single callable endpoint bound to a [WorldFunctionsClient].
+final class WorldHttpsCallable {
+  const WorldHttpsCallable({
+    required this.worldId,
+    required HttpsCallable callable,
+  }) : _callable = callable;
+
+  final WorldId worldId;
+  final HttpsCallable _callable;
+
+  Future<HttpsCallableResult<T>> call<T>([dynamic parameters]) async {
+    final data = switch (parameters) {
+      null => <String, dynamic>{},
+      Map<String, dynamic>() => Map<String, dynamic>.from(parameters),
+      _ => throw ArgumentError.value(
+        parameters,
+        'parameters',
+        'World callables require a string-keyed map.',
+      ),
+    };
+    data['worldId'] = worldId.value;
+
+    final result = await _callable.call<T>(data);
+    final dynamic responseData = result.data;
+    if (responseData is! Map || responseData['worldId'] != worldId.value) {
+      throw StateError(
+        'Callable world route mismatch: expected ${worldId.value}.',
+      );
+    }
+    return result;
+  }
+}
+
 /// Lazily creates exactly one client set for each world.
 final class WorldClientCache<T> {
   WorldClientCache(this._builder);
@@ -27,6 +82,7 @@ final class WorldFirebaseClients {
     required this.world,
     required this.firestore,
     required this.functions,
+    required this.callables,
     required this.storage,
   });
 
@@ -34,6 +90,7 @@ final class WorldFirebaseClients {
   final WorldCatalogEntry world;
   final FirebaseFirestore firestore;
   final FirebaseFunctions functions;
+  final WorldFunctionsClient callables;
   final FirebaseStorage storage;
 }
 
@@ -99,6 +156,10 @@ final class WorldFirebaseClientCache {
       world: world,
       firestore: firestore,
       functions: functions,
+      callables: WorldFunctionsClient(
+        worldId: WorldId(world.worldId),
+        functions: functions,
+      ),
       storage: storage,
     );
   }

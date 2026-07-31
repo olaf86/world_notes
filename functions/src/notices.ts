@@ -8,6 +8,7 @@ import {BatchResponse, getMessaging} from "firebase-admin/messaging";
 import * as logger from "firebase-functions/logger";
 
 import {asiaWorldContext} from "./platform/worldContext";
+import {ASIA_WORLD_ID} from "./platform/worldRegistry";
 
 type NoticeCategory =
   "moderation" |
@@ -155,6 +156,7 @@ export async function sendNoticePush(notice: NoticePush): Promise<void> {
     },
     data: {
       type: "notice",
+      worldId: ASIA_WORLD_ID,
       noticeId: notice.noticeId,
       severity: notice.severity,
     },

@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../config/app_config.dart';
 import '../../../config/route_observer.dart';
+import '../../../config/world_routes.dart';
 import '../../../core/map_style.dart';
 import '../../../core/utils/image_upload_util.dart';
 import '../../../domain/entities/pin_summary_entity.dart';
@@ -160,7 +161,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
       unawaited(
         context
             .push(
-              '/note/${pin.placeId}?title=${Uri.encodeComponent(pin.title)}',
+              Uri(
+                path: worldNotePath(
+                  WorldRoute(
+                    worldId: ref.read(selectedWorldProvider),
+                    entityId: pin.placeId,
+                  ),
+                ),
+                queryParameters: {'title': pin.title},
+              ).toString(),
               extra: NoteAccessValidationRequest(
                 placeId: pin.placeId,
                 latitude: anchor.latitude,
@@ -259,7 +268,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     if (user == null) return;
 
     logMapDiagnostics('MapScreen.push note/create');
-    context.push('/note/create');
+    context.push(worldNoteCreationPath(ref.read(selectedWorldProvider)));
   }
 
   Future<void> _refreshMapNotes() async {

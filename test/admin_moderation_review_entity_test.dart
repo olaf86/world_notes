@@ -6,6 +6,7 @@ void main() {
     test('parses callable review data', () {
       final review = AdminModerationReviewEntity.fromJson({
         'id': 'place-1_message-1',
+        'worldId': 'asia',
         'targetType': 'message',
         'targetId': 'message-1',
         'targetPath': 'places/place-1/messages/message-1',
@@ -31,6 +32,8 @@ void main() {
       });
 
       expect(review.id, 'place-1_message-1');
+      expect(review.worldId.value, 'asia');
+      expect(review.targetRoute.persistentId, 'asia:message-1');
       expect(review.targetType, AdminModerationTargetType.message);
       expect(review.targetId, 'message-1');
       expect(review.reviewSources, ['provider', 'riskSignal', 'userReport']);
@@ -48,6 +51,7 @@ void main() {
     test('parses a note review', () {
       final review = AdminModerationReviewEntity.fromJson({
         'id': 'note_place-1',
+        'worldId': 'europe',
         'targetType': 'note',
         'targetId': 'place-1',
         'targetPath': 'places/place-1',

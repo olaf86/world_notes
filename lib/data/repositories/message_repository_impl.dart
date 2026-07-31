@@ -1,13 +1,14 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../config/app_config.dart';
 import '../../core/utils/image_upload_util.dart';
+import '../../services/world_firebase_clients.dart';
 import '../../domain/entities/message_entity.dart';
 import '../../domain/entities/message_thread_item.dart';
 import '../../domain/entities/content_report.dart';
@@ -16,13 +17,13 @@ import '../models/message_model.dart';
 
 class MessageRepositoryImpl implements MessageRepository {
   final FirebaseFirestore _firestore;
-  final FirebaseFunctions _functions;
+  final WorldFunctionsClient _functions;
   final FirebaseStorage _storage;
   final _uuid = const Uuid();
 
   MessageRepositoryImpl({
     required FirebaseFirestore firestore,
-    required FirebaseFunctions functions,
+    required WorldFunctionsClient functions,
     required FirebaseStorage storage,
   }) : _firestore = firestore,
        _functions = functions,

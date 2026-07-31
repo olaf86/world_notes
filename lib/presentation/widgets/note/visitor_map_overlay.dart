@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../domain/entities/note_visitor_entity.dart';
+import '../../../config/world_routes.dart';
 import '../../providers/providers.dart';
 
 class VisitorMapOverlay extends ConsumerWidget {
@@ -27,7 +28,12 @@ class VisitorMapOverlay extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final visitors = ref.watch(recentNoteVisitorsProvider(placeId));
 
-    void onTap() => context.push('/note/$placeId/visitors');
+    void onTap() {
+      final notePath = worldNotePath(
+        WorldRoute(worldId: ref.read(selectedWorldProvider), entityId: placeId),
+      );
+      context.push('$notePath/visitors');
+    }
 
     return visitors.when(
       loading: () => _OverlayPreview(

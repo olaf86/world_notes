@@ -1,4 +1,4 @@
-import {onCall, HttpsError} from "firebase-functions/v2/https";
+import {onCall, HttpsError} from "./platform/worldCallable";
 import {onSchedule} from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
 import {
@@ -21,6 +21,7 @@ import {
   REGION,
 } from "./constants";
 import {asiaWorldContext} from "./platform/worldContext";
+import {ASIA_WORLD_ID} from "./platform/worldRegistry";
 import {
   hashLockSecret,
   MAX_LOCK_HINT_LENGTH,
@@ -684,6 +685,7 @@ export const reportNote = onCall<ReportNoteData>(
       const targetPath = `places/${input.placeId}`;
 
       tx.set(reportRef, {
+        worldId: ASIA_WORLD_ID,
         targetType: "note",
         targetId: input.placeId,
         targetPath,
@@ -695,6 +697,7 @@ export const reportNote = onCall<ReportNoteData>(
         createdAt: reportCreatedAt,
       });
       tx.set(rateLimitRef, {
+        lastWorldId: ASIA_WORLD_ID,
         lastCreatedAt: reportCreatedAt,
         lastTargetType: "note",
         lastTargetId: input.placeId,
@@ -702,6 +705,7 @@ export const reportNote = onCall<ReportNoteData>(
         lastMessageId: FieldValue.delete(),
       }, {merge: true});
       tx.set(reviewRef, {
+        worldId: ASIA_WORLD_ID,
         userId: placeSnap.get("createdByUserId") ?? null,
         targetType: "note",
         targetId: input.placeId,

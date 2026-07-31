@@ -561,6 +561,20 @@ through P05, the deployed Function export itself remains the trusted fixed
 Asia route. `AuthorityRouter` remains deferred until P07 introduces the
 immutable home-authority data required to resolve it correctly.
 
+Implementation note (2026-08-01): P06 enforces `worldId` at both sides of
+every regional callable. Flutter feature code receives a
+`WorldFunctionsClient`, which injects the selected world and rejects responses
+that do not echo it. Functions exports use one `worldCallable` boundary that
+validates the requested world against the deployed Asia route and stamps the
+response. A source-boundary test prevents future callables from bypassing this
+adapter. `WorldRoute` now addresses regional entities as `(worldId, entityId)`;
+note navigation, reports, visitors, invite URLs, message and notice FCM
+payloads, iOS notification-launch persistence, and moderation review results
+carry that route. Legacy notification and deep-link identifiers without a
+world are intentionally rejected because the app is still pre-production.
+North America and Europe remain provisioning-only, so routes to either world
+are refused before clients or screens can access regional content.
+
 ### Phase 3 — account bootstrap and private/public separation
 
 Deliverables:
@@ -1109,9 +1123,9 @@ dependent phase:
    Rules/indexes/Functions (recommended), or use checked-in idempotent CLI
    scripts.
 
-## Recommended first execution slice
+## Completed foundation slice
 
-Start with P00–P05 only:
+P00–P06 establish the Asia-only routing foundation:
 
 1. prove the server named-database adapter;
 2. create the versioned world catalog contract;
@@ -1119,6 +1133,8 @@ Start with P00–P05 only:
 4. add Functions and Rules CI;
 5. introduce Flutter and Functions world contexts while keeping Asia as the
    only active world.
+6. make callable and entity routes explicitly world-aware without enabling a
+   second world.
 
 This slice changes no product data placement and provides the foundation and
 tests needed for every later phase. Because the current Firebase project is

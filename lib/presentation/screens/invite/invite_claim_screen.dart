@@ -3,13 +3,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../config/world_catalog.dart';
+import '../../../config/world_routes.dart';
 import '../../providers/providers.dart';
 
-/// Handles invite deep links (`/i/:token`). If signed in, it redeems the token
+/// Handles world-routed invite deep links. If signed in, it redeems the token
 /// and forwards to the note; otherwise it asks the user to sign in first.
 class InviteClaimScreen extends ConsumerStatefulWidget {
+  final WorldId worldId;
   final String token;
-  const InviteClaimScreen({super.key, required this.token});
+  const InviteClaimScreen({
+    super.key,
+    required this.worldId,
+    required this.token,
+  });
 
   @override
   ConsumerState<InviteClaimScreen> createState() => _InviteClaimScreenState();
@@ -23,16 +30,18 @@ class _InviteClaimScreenState extends ConsumerState<InviteClaimScreen> {
     if (_started) return;
     _started = true;
     try {
-      final placeId =
-          await ref.read(placeRepositoryProvider).claimInvite(widget.token);
+      final placeId = await ref
+          .read(placeRepositoryProvider)
+          .claimInvite(widget.token);
       if (mounted) {
-        context.pushReplacement('/note/$placeId');
+        context.pushReplacement(
+          worldNotePath(WorldRoute(worldId: widget.worldId, entityId: placeId)),
+        );
       }
     } on FirebaseFunctionsException catch (e) {
       setState(() {
         _error = switch (e.code) {
-          'not-found' =>
-            'This invite link is invalid or has been revoked.',
+          'not-found' => 'This invite link is invalid or has been revoked.',
           'unavailable' || 'deadline-exceeded' =>
             'Network error. Check your connection and try again.',
           _ => e.message ?? 'Could not accept this invitation.',

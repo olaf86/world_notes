@@ -28,6 +28,24 @@ test("raw Firebase client construction stays in platform adapters", () => {
   assert.deepEqual(violations, []);
 });
 
+test("regional callables use the world-routing wrapper", () => {
+  const sourceRoot = join(process.cwd(), "src");
+  const violations: string[] = [];
+
+  for (const file of typescriptFiles(sourceRoot)) {
+    const sourcePath = relative(sourceRoot, file);
+    if (sourcePath === "platform/worldCallable.ts") continue;
+
+    const source = readFileSync(file, "utf8");
+    if (/from ["']firebase-functions\/v2\/https["']/.test(source) &&
+        /\bonCall\b/.test(source)) {
+      violations.push(sourcePath);
+    }
+  }
+
+  assert.deepEqual(violations, []);
+});
+
 /**
  * Returns every TypeScript source file below a directory.
  *

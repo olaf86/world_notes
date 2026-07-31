@@ -22,6 +22,7 @@ import '../presentation/screens/settings/settings_screen.dart';
 import '../presentation/screens/settings/blocked_users_screen.dart';
 import '../presentation/screens/subscription/subscription_screen.dart';
 import 'route_observer.dart';
+import 'world_catalog.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
@@ -37,12 +38,23 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isAuthRoute = state.matchedLocation.startsWith('/auth');
       // Invite deep links are reachable while logged out so the claim screen
       // can prompt sign-in instead of bouncing to /map and losing the token.
-      final isInviteRoute = state.matchedLocation.startsWith('/i/');
+      final isInviteRoute = state.matchedLocation.contains('/invites/');
 
       if (!isLoggedIn && !isAuthRoute && !isInviteRoute) {
         return '/auth/sign-in';
       }
       if (isLoggedIn && isAuthRoute) return '/map';
+
+      final routedWorldId = state.pathParameters['worldId'];
+      if (routedWorldId != null) {
+        try {
+          ref
+              .read(selectedWorldProvider.notifier)
+              .selectWorld(WorldId(routedWorldId));
+        } on StateError {
+          return '/map';
+        }
+      }
       return null;
     },
     routes: [
@@ -97,7 +109,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       // underneath. _MainShell keeps its own layout finite while offstage, so
       // these pages don't need to remain transparent as a layout workaround.
       GoRoute(
-        path: '/note/create',
+        path: '/worlds/:worldId/notes/create',
         pageBuilder: (context, state) {
           final forkDraft = state.extra is NoteCreationDraft
               ? state.extra as NoteCreationDraft
@@ -109,7 +121,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        path: '/note/:placeId',
+        path: '/worlds/:worldId/notes/:placeId',
         pageBuilder: (context, state) {
           final placeId = state.pathParameters['placeId']!;
           final placeTitle = state.uri.queryParameters['title'] ?? '';
@@ -129,7 +141,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        path: '/note/:placeId/messages/:messageId/report',
+        path: '/worlds/:worldId/notes/:placeId/messages/:messageId/report',
         pageBuilder: (context, state) {
           final reportedUser = state.extra is ReportedUserTarget
               ? state.extra as ReportedUserTarget
@@ -146,7 +158,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        path: '/note/:placeId/report',
+        path: '/worlds/:worldId/notes/:placeId/report',
         pageBuilder: (context, state) {
           final reportedUser = state.extra is ReportedUserTarget
               ? state.extra as ReportedUserTarget
@@ -162,7 +174,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        path: '/note/:placeId/visitors',
+        path: '/worlds/:worldId/notes/:placeId/visitors',
         pageBuilder: (context, state) {
           return _fullScreenPage<void>(
             state: state,
@@ -199,13 +211,16 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
         ),
       ),
-      // Invite deep link: worldnotes.asobo.dev/i/{token}. Reachable logged out
+      // Invite deep link. Reachable logged out
       // (see redirect) so the claim screen can prompt sign-in.
       GoRoute(
-        path: '/i/:token',
+        path: '/worlds/:worldId/invites/:token',
         pageBuilder: (context, state) => _fullScreenPage<void>(
           state: state,
-          child: InviteClaimScreen(token: state.pathParameters['token']!),
+          child: InviteClaimScreen(
+            worldId: WorldId(state.pathParameters['worldId']!),
+            token: state.pathParameters['token']!,
+          ),
         ),
       ),
       GoRoute(

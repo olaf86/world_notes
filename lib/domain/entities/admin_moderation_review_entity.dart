@@ -1,3 +1,6 @@
+import '../../config/world_catalog.dart';
+import '../../config/world_routes.dart';
+
 enum AdminModerationReviewStatus { open, resolved }
 
 enum AdminModerationAction { allow, sensitive, hidden }
@@ -35,6 +38,7 @@ class AdminModerationRiskSignal {
 
 class AdminModerationReviewEntity {
   final String id;
+  final WorldId worldId;
   final AdminModerationTargetType targetType;
   final String targetId;
   final String targetPath;
@@ -63,6 +67,7 @@ class AdminModerationReviewEntity {
 
   const AdminModerationReviewEntity({
     required this.id,
+    required this.worldId,
     required this.targetType,
     required this.targetId,
     required this.targetPath,
@@ -93,11 +98,12 @@ class AdminModerationReviewEntity {
   factory AdminModerationReviewEntity.fromJson(Map<String, dynamic> json) {
     return AdminModerationReviewEntity(
       id: json['id'] as String? ?? '',
+      worldId: WorldId(_requiredString(json['worldId'], 'worldId')),
       targetType: AdminModerationTargetType.fromJson(json['targetType']),
-      targetId: json['targetId'] as String,
-      targetPath: json['targetPath'] as String,
+      targetId: _requiredString(json['targetId'], 'targetId'),
+      targetPath: _requiredString(json['targetPath'], 'targetPath'),
       userId: json['userId'] as String?,
-      placeId: json['placeId'] as String,
+      placeId: _requiredString(json['placeId'], 'placeId'),
       content: json['content'] as String? ?? '',
       imageStoragePaths: _stringList(json['imageStoragePaths']),
       status: json['status'] as String? ?? 'open',
@@ -122,6 +128,18 @@ class AdminModerationReviewEntity {
   }
 
   bool get hasImages => imageStoragePaths.isNotEmpty;
+
+  WorldRoute get targetRoute =>
+      WorldRoute(worldId: worldId, entityId: targetId);
+
+  WorldRoute get noteRoute => WorldRoute(worldId: worldId, entityId: placeId);
+}
+
+String _requiredString(Object? value, String field) {
+  if (value is! String || value.isEmpty) {
+    throw FormatException('$field is required.');
+  }
+  return value;
 }
 
 List<String> _stringList(Object? value) {

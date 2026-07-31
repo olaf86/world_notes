@@ -1,13 +1,16 @@
 import 'dart:async';
 
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+
+import 'world_firebase_clients.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../config/notification_navigation.dart';
+import '../config/world_catalog.dart';
+import '../config/world_routes.dart';
 
 class MyNotesNotificationService {
   static const _nativeLaunchChannel = MethodChannel(
@@ -15,7 +18,7 @@ class MyNotesNotificationService {
   );
 
   final FirebaseMessaging _messaging;
-  final FirebaseFunctions _functions;
+  final WorldFunctionsClient _functions;
   final FirebaseAuth _auth;
   final FirebaseCrashlytics _crashlytics;
 
@@ -27,7 +30,7 @@ class MyNotesNotificationService {
 
   MyNotesNotificationService({
     required FirebaseMessaging messaging,
-    required FirebaseFunctions functions,
+    required WorldFunctionsClient functions,
     required FirebaseAuth auth,
     required FirebaseCrashlytics crashlytics,
   }) : _messaging = messaging,
@@ -258,7 +261,7 @@ class MyNotesNotificationService {
     if (defaultTargetPlatform != TargetPlatform.iOS) return null;
     try {
       final payload = await _nativeLaunchChannel.invokeMethod<dynamic>(
-        'takeInitialPlaceId',
+        'takeInitialWorldRoute',
       );
       return placeRouteFromNativeLaunch(payload);
     } on MissingPluginException {
@@ -275,12 +278,12 @@ class MyNotesNotificationService {
 
     if (defaultTargetPlatform != TargetPlatform.iOS) return;
     _nativeLaunchChannel.setMethodCallHandler((call) async {
-      if (call.method != 'notificationLaunchPlaceId') return null;
+      if (call.method != 'notificationLaunchWorldRoute') return null;
       final route = placeRouteFromNativeLaunch(call.arguments);
       if (route != null) {
         debugPrint(
           'Opened notification launch placeId from iOS: '
-          '${route.placeId} (readOnly=${route.readOnly})',
+          '${route.note.persistentId} (readOnly=${route.readOnly})',
         );
         _openedPlaceRoutes.add(route);
       }
@@ -296,12 +299,18 @@ class MyNotesNotificationService {
     Map<String, dynamic>? data,
   ) {
     final type = data?['type'];
+    final worldId = data?['worldId'];
     final placeId = data?['placeId'];
-    if (placeId is! String || placeId.isEmpty) return null;
+    if (worldId is! String ||
+        worldId.isEmpty ||
+        placeId is! String ||
+        placeId.isEmpty) {
+      return null;
+    }
 
     return switch (type) {
       'my_note_message' => NotificationPlaceRoute(
-        placeId: placeId,
+        note: WorldRoute(worldId: WorldId(worldId), entityId: placeId),
         readOnly: true,
       ),
       _ => null,
@@ -309,15 +318,18 @@ class MyNotesNotificationService {
   }
 
   static NotificationPlaceRoute? placeRouteFromNativeLaunch(dynamic payload) {
-    if (payload is String && payload.isNotEmpty) {
-      return NotificationPlaceRoute(placeId: payload, readOnly: true);
-    }
     if (payload is! Map) return null;
 
+    final worldId = payload['worldId'];
     final placeId = payload['placeId'];
-    if (placeId is! String || placeId.isEmpty) return null;
+    if (worldId is! String ||
+        worldId.isEmpty ||
+        placeId is! String ||
+        placeId.isEmpty) {
+      return null;
+    }
     return NotificationPlaceRoute(
-      placeId: placeId,
+      note: WorldRoute(worldId: WorldId(worldId), entityId: placeId),
       readOnly: payload['readOnly'] == true,
     );
   }

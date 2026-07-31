@@ -2,18 +2,32 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:world_notes/config/notification_navigation.dart';
+import 'package:world_notes/config/world_catalog.dart';
+import 'package:world_notes/config/world_routes.dart';
 import 'package:world_notes/services/my_notes_notification_service.dart';
 
 void main() {
   test('FCM message data maps My Notes notifications to read-only routes', () {
     final route = MyNotesNotificationService.placeRouteFromMessageData({
       'type': 'my_note_message',
+      'worldId': 'asia',
       'placeId': 'place-1',
     });
 
     expect(route?.placeId, 'place-1');
     expect(route?.readOnly, isTrue);
-    expect(route?.location, '/note/place-1?readOnly=true');
+    expect(route?.note.worldId, const WorldId('asia'));
+    expect(route?.location, '/worlds/asia/notes/place-1?readOnly=true');
+  });
+
+  test('FCM message data rejects a legacy place ID without a world', () {
+    expect(
+      MyNotesNotificationService.placeRouteFromMessageData({
+        'type': 'my_note_message',
+        'placeId': 'place-1',
+      }),
+      isNull,
+    );
   });
 
   testWidgets('notification navigation pushes note over map', (tester) async {
@@ -25,7 +39,7 @@ void main() {
           builder: (context, state) => const Scaffold(body: Text('Map')),
         ),
         GoRoute(
-          path: '/note/:placeId',
+          path: '/worlds/:worldId/notes/:placeId',
           builder: (context, state) => Scaffold(
             body: Text(
               'Note ${state.pathParameters['placeId']} '
@@ -43,7 +57,10 @@ void main() {
 
     openNotificationPlace(
       router,
-      const NotificationPlaceRoute(placeId: 'place-1', readOnly: true),
+      NotificationPlaceRoute(
+        note: WorldRoute(worldId: const WorldId('asia'), entityId: 'place-1'),
+        readOnly: true,
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -67,7 +84,7 @@ void main() {
           builder: (context, state) => const Scaffold(body: Text('Map')),
         ),
         GoRoute(
-          path: '/note/:placeId',
+          path: '/worlds/:worldId/notes/:placeId',
           builder: (context, state) =>
               Scaffold(body: Text('Note ${state.pathParameters['placeId']}')),
         ),

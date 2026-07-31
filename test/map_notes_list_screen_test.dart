@@ -111,7 +111,7 @@ void main() {
       routes: [
         GoRoute(path: '/list', builder: (_, _) => const MapNotesListScreen()),
         GoRoute(
-          path: '/note/:placeId',
+          path: '/worlds/:worldId/notes/:placeId',
           builder: (_, state) {
             navigationCount += 1;
             accessRequest = state.extra as NoteAccessValidationRequest?;
