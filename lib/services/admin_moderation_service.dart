@@ -5,16 +5,16 @@ import '../domain/entities/admin_moderation_review_entity.dart';
 const defaultAdminModerationReviewListLimit = 20;
 
 class AdminModerationService {
-  final WorldFunctionsClient _callables;
+  final WorldFunctionsClient _functions;
 
-  const AdminModerationService({required WorldFunctionsClient callables})
-    : _callables = callables;
+  const AdminModerationService({required WorldFunctionsClient functions})
+    : _functions = functions;
 
   Future<List<AdminModerationReviewEntity>> listReviews({
     required AdminModerationReviewStatus status,
     int limit = defaultAdminModerationReviewListLimit,
   }) async {
-    final result = await _callables
+    final result = await _functions
         .httpsCallable('adminListModerationReviews')
         .call<Map<String, dynamic>>({'status': status.name, 'limit': limit});
     final data = result.data;
@@ -36,7 +36,7 @@ class AdminModerationService {
     final callableName = targetType == AdminModerationTargetType.note
         ? 'adminReviewNote'
         : 'adminReviewMessage';
-    await _callables.httpsCallable(callableName).call<Map<String, dynamic>>({
+    await _functions.httpsCallable(callableName).call<Map<String, dynamic>>({
       'placeId': placeId,
       if (targetType == AdminModerationTargetType.message)
         'messageId': targetId,

@@ -48,7 +48,7 @@ final class WorldHttpsCallable {
       _ => throw ArgumentError.value(
         parameters,
         'parameters',
-        'World callables require a string-keyed map.',
+        'World Functions requests require a string-keyed map.',
       ),
     };
     data['worldId'] = _worldId.value;
@@ -81,12 +81,12 @@ final class WorldClientCache<T> {
 final class WorldFirebaseClients {
   const WorldFirebaseClients({
     required this.firestore,
-    required this.callables,
+    required this.functions,
     required this.storage,
   });
 
   final FirebaseFirestore firestore;
-  final WorldFunctionsClient callables;
+  final WorldFunctionsClient functions;
   final FirebaseStorage storage;
 }
 
@@ -142,7 +142,7 @@ final class WorldFirebaseClientCache {
 
     return WorldFirebaseClients(
       firestore: firestore,
-      callables: WorldFunctionsClient(
+      functions: WorldFunctionsClient(
         worldId: WorldId(world.worldId),
         functions: functions,
       ),

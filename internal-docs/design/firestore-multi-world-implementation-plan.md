@@ -546,7 +546,7 @@ making later world selection invalidate their dependencies. The obsolete
 Functions-region preference and UI are removed rather than retained as a
 compatibility path.
 `WorldFirebaseClients` exposes only the three feature-facing capabilities:
-world Firestore, world-bound callables, and world Storage. The raw
+world Firestore, world-bound Functions, and world Storage. The raw
 `FirebaseFunctions` instance and catalog routing metadata remain private to
 the construction adapter so feature code cannot bypass callable route
 validation or depend on redundant world state.
@@ -572,7 +572,7 @@ every regional callable. Flutter feature code receives a
 `WorldFunctionsClient`, which injects the selected world and rejects responses
 that do not echo it. Functions exports use one `worldCallable` boundary that
 validates the requested world against the deployed Asia route and stamps the
-response. A source-boundary test prevents future callables from bypassing this
+response. A source-boundary test prevents future Functions from bypassing this
 adapter. `WorldRoute` addresses regional entities as `(worldId, entityId)` at
 external and persistent boundaries: invite URLs, message and notice FCM
 payloads, iOS notification-launch persistence, and moderation review results.
@@ -624,7 +624,7 @@ Exit criteria:
   non-home mirrors remain observable and retryable;
 - an unprepared world cannot become `selectedWorld`, and becomes selectable
   after the existing Outbox path installs its bootstrap marker;
-- callables and direct-write Rules reject stateful writes when the caller's
+- Functions and direct-write Rules reject stateful writes when the caller's
   local bootstrap marker is missing;
 - an account can read private state only in its home world;
 - regional handlers read no email or other PII from a replicated document;

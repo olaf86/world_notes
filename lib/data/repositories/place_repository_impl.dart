@@ -30,16 +30,16 @@ import '../models/place_model.dart';
 // Required Firestore composite indexes are declared in firestore.indexes.json.
 class PlaceRepositoryImpl implements PlaceRepository {
   final FirebaseFirestore _firestore;
-  final WorldFunctionsClient _callables;
+  final WorldFunctionsClient _functions;
   final FirebaseStorage _storage;
   final _uuid = const Uuid();
 
   PlaceRepositoryImpl({
     required FirebaseFirestore firestore,
-    required WorldFunctionsClient callables,
+    required WorldFunctionsClient functions,
     required FirebaseStorage storage,
   }) : _firestore = firestore,
-       _callables = callables,
+       _functions = functions,
        _storage = storage;
 
   CollectionReference get _places => _firestore.collection('places');
@@ -52,7 +52,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
     required double userLongitude,
     required double searchRadiusKm,
   }) async {
-    final result = await _callables
+    final result = await _functions
         .httpsCallable('listMapPins')
         .call<Map<String, dynamic>>({
           'centerLatitude': centerLatitude,
@@ -80,7 +80,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
   }) async {
     if (screenshotMode) return;
 
-    await _callables.httpsCallable('validateNoteAccess').call<void>({
+    await _functions.httpsCallable('validateNoteAccess').call<void>({
       'placeId': placeId,
       'latitude': latitude,
       'longitude': longitude,
@@ -104,7 +104,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
     // All creation goes through the Cloud Function: it enforces the per-user
     // note cap in a transaction and computes the geohash server-side. Direct
     // client writes to `places` are denied by security rules.
-    final callable = _callables.httpsCallable('createNote');
+    final callable = _functions.httpsCallable('createNote');
     final result = await callable.call<Map<String, dynamic>>({
       'latitude': latitude,
       'longitude': longitude,
@@ -144,7 +144,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
         Uint8List.fromList(thumbnailBytes),
         SettableMetadata(contentType: 'image/webp'),
       );
-      await _callables.httpsCallable('setNotePinImage').call<void>({
+      await _functions.httpsCallable('setNotePinImage').call<void>({
         'placeId': placeId,
         'pinImageStoragePath': path,
       });
@@ -164,7 +164,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
     required String placeId,
     required ReportReasonCode reasonCode,
   }) async {
-    await _callables.httpsCallable('reportNote').call<Map<String, dynamic>>({
+    await _functions.httpsCallable('reportNote').call<Map<String, dynamic>>({
       'placeId': placeId,
       'reasonCode': reasonCode.toJson(),
     });
@@ -272,7 +272,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
 
   @override
   Future<void> archivePlace(String placeId) async {
-    await _callables.httpsCallable('archiveNote').call<Map<String, dynamic>>({
+    await _functions.httpsCallable('archiveNote').call<Map<String, dynamic>>({
       'placeId': placeId,
     });
   }
@@ -305,7 +305,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
     required String placeId,
     required NoteThemeId themeId,
   }) async {
-    await _callables.httpsCallable('setNoteTheme').call<void>({
+    await _functions.httpsCallable('setNoteTheme').call<void>({
       'placeId': placeId,
       'themeId': themeId.toJson(),
     });
@@ -320,7 +320,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
     required NoteLockType lockType,
     String? lockHint,
   }) async {
-    await _callables
+    await _functions
         .httpsCallable('setNotePassword')
         .call<Map<String, dynamic>>({
           'placeId': placeId,
@@ -335,7 +335,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
     required String placeId,
     required String password,
   }) async {
-    await _callables.httpsCallable('unlockNote').call<Map<String, dynamic>>({
+    await _functions.httpsCallable('unlockNote').call<Map<String, dynamic>>({
       'placeId': placeId,
       'password': password,
     });
@@ -381,7 +381,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
     required String placeId,
     required bool liked,
   }) async {
-    await _callables.httpsCallable('setNoteLike').call<Map<String, dynamic>>({
+    await _functions.httpsCallable('setNoteLike').call<Map<String, dynamic>>({
       'placeId': placeId,
       'liked': liked,
     });
@@ -391,7 +391,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
 
   @override
   Future<String?> getInviteLink(String placeId) async {
-    final result = await _callables
+    final result = await _functions
         .httpsCallable('getInviteLink')
         .call<Map<String, dynamic>>({'placeId': placeId});
     return result.data['token'] as String?;
@@ -399,7 +399,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
 
   @override
   Future<String> createInviteLink(String placeId) async {
-    final result = await _callables
+    final result = await _functions
         .httpsCallable('createInviteLink')
         .call<Map<String, dynamic>>({'placeId': placeId});
     return result.data['token'] as String;
@@ -407,7 +407,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
 
   @override
   Future<void> revokeInvite(String placeId) async {
-    await _callables.httpsCallable('revokeInvite').call<Map<String, dynamic>>({
+    await _functions.httpsCallable('revokeInvite').call<Map<String, dynamic>>({
       'placeId': placeId,
     });
   }
@@ -417,7 +417,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
     required String placeId,
     required String userId,
   }) async {
-    await _callables
+    await _functions
         .httpsCallable('revokeNoteAccess')
         .call<Map<String, dynamic>>({'placeId': placeId, 'userId': userId});
   }
@@ -427,7 +427,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
     required String placeId,
     required String userId,
   }) async {
-    await _callables
+    await _functions
         .httpsCallable('grantNoteMaintainer')
         .call<Map<String, dynamic>>({'placeId': placeId, 'userId': userId});
   }
@@ -437,14 +437,14 @@ class PlaceRepositoryImpl implements PlaceRepository {
     required String placeId,
     required String userId,
   }) async {
-    await _callables
+    await _functions
         .httpsCallable('revokeNoteMaintainer')
         .call<Map<String, dynamic>>({'placeId': placeId, 'userId': userId});
   }
 
   @override
   Future<String> claimInvite(String token) async {
-    final result = await _callables
+    final result = await _functions
         .httpsCallable('claimInvite')
         .call<Map<String, dynamic>>({'token': token});
     return result.data['placeId'] as String;
@@ -473,7 +473,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
   Future<void> recordNoteVisit(String placeId) async {
     if (screenshotMode) return;
 
-    await _callables.httpsCallable('recordNoteVisit').call<void>({
+    await _functions.httpsCallable('recordNoteVisit').call<void>({
       'placeId': placeId,
     });
   }
@@ -524,7 +524,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
     required String placeId,
     required bool enabled,
   }) async {
-    await _callables.httpsCallable('setFootprintEnabled').call<void>({
+    await _functions.httpsCallable('setFootprintEnabled').call<void>({
       'placeId': placeId,
       'enabled': enabled,
     });
