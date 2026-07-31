@@ -3,10 +3,11 @@ import {
   DocumentReference,
   FieldValue,
   Timestamp,
-  getFirestore,
 } from "firebase-admin/firestore";
 import {BatchResponse, getMessaging} from "firebase-admin/messaging";
 import * as logger from "firebase-functions/logger";
+
+import {asiaWorldContext} from "./platform/worldContext";
 
 type NoticeCategory =
   "moderation" |
@@ -98,7 +99,7 @@ export async function createUserNotice(
   uid: string,
   input: CreateUserNoticeInput,
 ): Promise<string> {
-  const noticeRef = getFirestore()
+  const noticeRef = asiaWorldContext().firestore
     .collection("users")
     .doc(uid)
     .collection("notices")
@@ -130,7 +131,7 @@ export async function createUserNotice(
 }
 
 export async function sendNoticePush(notice: NoticePush): Promise<void> {
-  const tokenSnap = await getFirestore()
+  const tokenSnap = await asiaWorldContext().firestore
     .collection("users")
     .doc(notice.uid)
     .collection("fcmTokens")

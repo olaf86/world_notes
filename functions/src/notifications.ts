@@ -8,11 +8,11 @@ import {
   FieldValue,
   Firestore,
   Timestamp,
-  getFirestore,
 } from "firebase-admin/firestore";
 import {BatchResponse, getMessaging} from "firebase-admin/messaging";
 
 import {REGION} from "./constants";
+import {asiaWorldContext} from "./platform/worldContext";
 import {maintainerIdsOf} from "./noteMaintenance";
 import {hasUserBlockBetween} from "./userBlocks";
 
@@ -249,7 +249,7 @@ export const registerFcmToken = onCall<RegisterFcmTokenData>(
 
     const token = validToken(req.data?.token);
     const platform = platformOf(req.data?.platform);
-    const ref = getFirestore()
+    const ref = asiaWorldContext().firestore
       .collection("users")
       .doc(uid)
       .collection("fcmTokens")
@@ -281,7 +281,7 @@ export const deleteFcmToken = onCall<DeleteFcmTokenData>(
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
 
     const token = validToken(req.data?.token);
-    await getFirestore()
+    await asiaWorldContext().firestore
       .collection("users")
       .doc(uid)
       .collection("fcmTokens")
@@ -302,7 +302,7 @@ export const setMyNotesNotificationEnabled =
         throw new HttpsError("invalid-argument", "enabled is required.");
       }
 
-      await getFirestore()
+      await asiaWorldContext().firestore
         .collection("users")
         .doc(uid)
         .collection("notificationSettings")
@@ -329,7 +329,7 @@ export const setMyNotesNotificationPreviewEnabled =
         throw new HttpsError("invalid-argument", "enabled is required.");
       }
 
-      await getFirestore()
+      await asiaWorldContext().firestore
         .collection("users")
         .doc(uid)
         .collection("notificationSettings")

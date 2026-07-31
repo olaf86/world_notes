@@ -3,12 +3,11 @@ import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {
   FieldValue,
   Timestamp,
-  getFirestore,
 } from "firebase-admin/firestore";
-import {getStorage} from "firebase-admin/storage";
 import * as logger from "firebase-functions/logger";
 
 import {REGION} from "./constants";
+import {asiaWorldContext} from "./platform/worldContext";
 
 const DEFAULT_REVIEW_LIST_LIMIT = 20;
 const MAX_REVIEW_LIST_LIMIT = 50;
@@ -245,7 +244,7 @@ function reviewListItemFromDoc(
 
 async function deleteStoredImages(storagePaths: string[]): Promise<void> {
   if (storagePaths.length === 0) return;
-  const bucket = getStorage().bucket();
+  const bucket = asiaWorldContext().bucket;
   await Promise.all(storagePaths.map(async (storagePath) => {
     try {
       await bucket.file(storagePath).delete({ignoreNotFound: true});
@@ -265,7 +264,7 @@ export const adminListModerationReviews =
       const token = req.auth?.token as Record<string, unknown> | undefined;
       assertAdmin(req.auth?.uid, token?.admin);
       const input = validateAdminListModerationReviewsInput(req.data);
-      const snap = await getFirestore()
+      const snap = await asiaWorldContext().firestore
         .collection("moderationReviews")
         .where("status", "==", input.status)
         .orderBy("createdAt", "asc")
@@ -289,7 +288,7 @@ export const adminReviewMessage = onCall<AdminReviewMessageData>(
     assertAdmin(req.auth?.uid, token?.admin);
     const uid = req.auth?.uid as string;
     const input = validateAdminReviewMessageInput(req.data);
-    const db = getFirestore();
+    const db = asiaWorldContext().firestore;
     const placeRef = db.collection("places").doc(input.placeId);
     const messageRef = placeRef.collection("messages").doc(input.messageId);
     const reviewRef = db
@@ -406,7 +405,7 @@ export const adminReviewNote = onCall<AdminReviewNoteData>(
     assertAdmin(req.auth?.uid, token?.admin);
     const uid = req.auth?.uid as string;
     const input = validateAdminReviewNoteInput(req.data);
-    const db = getFirestore();
+    const db = asiaWorldContext().firestore;
     const placeRef = db.collection("places").doc(input.placeId);
     const reviewRef = db
       .collection("moderationReviews")

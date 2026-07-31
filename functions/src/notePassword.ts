@@ -1,11 +1,11 @@
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {
-  getFirestore,
   FieldValue,
   Timestamp,
 } from "firebase-admin/firestore";
 
 import {REGION} from "./constants";
+import {asiaWorldContext} from "./platform/worldContext";
 import {
   hashLockSecret,
   MAX_LOCK_HINT_LENGTH,
@@ -61,7 +61,7 @@ export const setNotePassword = onCall<{
       throw new HttpsError("invalid-argument", "Invalid hint.");
     }
 
-    const db = getFirestore();
+    const db = asiaWorldContext().firestore;
     const placeRef = db.collection("places").doc(placeId);
     const placeSnap = await placeRef.get();
     if (!placeSnap.exists) {
@@ -119,7 +119,7 @@ export const unlockNote = onCall<{placeId?: unknown; password?: unknown}>(
       throw new HttpsError("invalid-argument", "placeId/password required.");
     }
 
-    const db = getFirestore();
+    const db = asiaWorldContext().firestore;
     const placeRef = db.collection("places").doc(placeId);
     const attemptRef = placeRef.collection("attempts").doc(uid);
     const placeSnap = await placeRef.get();

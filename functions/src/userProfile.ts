@@ -1,11 +1,11 @@
 import {getAuth} from "firebase-admin/auth";
 import {
   FieldValue,
-  getFirestore,
 } from "firebase-admin/firestore";
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 
 import {REGION} from "./constants";
+import {asiaWorldContext} from "./platform/worldContext";
 
 const MAX_DISPLAY_NAME_LENGTH = 20;
 const LANGUAGE_PREFERENCES = new Set([
@@ -30,7 +30,8 @@ export async function profileForMember(
   uid: string,
   tokenName?: string,
 ): Promise<{displayName: string | null}> {
-  const snap = await getFirestore().collection("users").doc(uid).get();
+  const snap = await asiaWorldContext().firestore
+    .collection("users").doc(uid).get();
   const data = snap.data();
   const displayName = stringOrNull(data?.displayName) ??
     stringOrNull(tokenName);
@@ -74,7 +75,7 @@ export const updateDisplayName = onCall<{displayName?: unknown}>(
       );
     }
 
-    const db = getFirestore();
+    const db = asiaWorldContext().firestore;
     const userRef = db.collection("users").doc(uid);
     const publicProfileRef = db.collection("publicProfiles").doc(uid);
     await Promise.all([
@@ -167,8 +168,8 @@ export const setLanguagePreference = onCall<{
       );
     }
 
-    const userRef = getFirestore().collection("users").doc(uid);
-    await getFirestore().runTransaction(async (tx) => {
+    const userRef = asiaWorldContext().firestore.collection("users").doc(uid);
+    await asiaWorldContext().firestore.runTransaction(async (tx) => {
       const userSnap = await tx.get(userRef);
       if (!userSnap.exists) {
         throw new HttpsError("failed-precondition", "User profile missing.");

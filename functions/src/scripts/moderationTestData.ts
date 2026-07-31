@@ -7,8 +7,12 @@ import {
   DocumentReference,
   Firestore,
   Timestamp,
-  getFirestore,
 } from "firebase-admin/firestore";
+
+import {
+  createAdminWorldFirestoreClient,
+  DEFAULT_FIRESTORE_DATABASE_ID,
+} from "../platform/worldFirestoreProvider";
 
 const RUN_COLLECTION = "moderationTestRuns";
 const RUN_KIND = "admin-moderation-v1";
@@ -549,7 +553,10 @@ async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   assertSafeTarget(args);
   const app = initializeApp({projectId: args.projectId});
-  const db = getFirestore(app);
+  const db = createAdminWorldFirestoreClient(
+    app,
+    DEFAULT_FIRESTORE_DATABASE_ID,
+  );
   try {
     if (args.command === "seed") {
       await seed(db, args.projectId);

@@ -2,10 +2,10 @@
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {
   DocumentSnapshot,
-  getFirestore,
 } from "firebase-admin/firestore";
 
 import {REGION} from "./constants";
+import {asiaWorldContext} from "./platform/worldContext";
 import {
   assertLiked,
   hasValidMembership,
@@ -52,7 +52,7 @@ export const setNoteLike = onCall<SetNoteLikeData>(
 
     const placeId = assertPlaceId(req.data?.placeId);
     const desiredLiked = assertLiked(req.data?.liked);
-    const db = getFirestore();
+    const db = asiaWorldContext().firestore;
     const placeRef = db.collection("places").doc(placeId);
     const likeRef = placeRef.collection("likes").doc(uid);
     const memberRef = placeRef.collection("members").doc(uid);

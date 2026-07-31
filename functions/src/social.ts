@@ -5,13 +5,12 @@ import {
   DocumentSnapshot,
   FieldPath,
   FieldValue,
-  getFirestore,
   Timestamp,
   Transaction,
 } from "firebase-admin/firestore";
-import {getStorage} from "firebase-admin/storage";
 
 import {MAX_MESSAGES_PER_THREAD, REGION} from "./constants";
+import {asiaWorldContext} from "./platform/worldContext";
 import {createUserNotice} from "./notices";
 import {
   hasUserBlockBetween,
@@ -225,7 +224,7 @@ export const setUserFollow = onCall<SetUserFollowData>(
       throw new HttpsError("invalid-argument", "You cannot follow yourself.");
     }
 
-    const db = getFirestore();
+    const db = asiaWorldContext().firestore;
     const followerUserRef = db.collection("users").doc(uid);
     const followeeUserRef = db.collection("users").doc(targetUserId);
     const followerProfileRef = db.collection("publicProfiles").doc(uid);
@@ -392,7 +391,7 @@ async function removeBlockedUserFromOwnedNotes(
   blockerUid: string,
   blockedUid: string,
 ): Promise<void> {
-  const db = getFirestore();
+  const db = asiaWorldContext().firestore;
   let cursor: DocumentSnapshot | undefined;
   let hasMore = true;
 
@@ -434,7 +433,7 @@ async function cancelBlockedUserScheduledMessages(
   placeRef: DocumentReference,
   blockedUid: string,
 ): Promise<void> {
-  const db = getFirestore();
+  const db = asiaWorldContext().firestore;
   let hasMore = true;
 
   while (hasMore) {
@@ -503,7 +502,7 @@ async function cancelBlockedUserScheduledMessages(
     });
 
     if (imagePaths.size > 0) {
-      const bucket = getStorage().bucket();
+      const bucket = asiaWorldContext().bucket;
       await Promise.all([...imagePaths].map(async (path) => {
         try {
           await bucket.file(path).delete({ignoreNotFound: true});
@@ -541,7 +540,7 @@ export const setUserBlock = onCall<SetUserBlockData>(
       throw new HttpsError("invalid-argument", "You cannot block yourself.");
     }
 
-    const db = getFirestore();
+    const db = asiaWorldContext().firestore;
     const blockRef = userBlockRef(db, uid, targetUserId);
     const blockerUserRef = db.collection("users").doc(uid);
     const blockedUserRef = db.collection("users").doc(targetUserId);

@@ -1,9 +1,9 @@
 import {onSchedule} from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
-import {getFirestore, FieldValue, Timestamp} from "firebase-admin/firestore";
-import {getStorage} from "firebase-admin/storage";
+import {FieldValue, Timestamp} from "firebase-admin/firestore";
 
 import {MAX_MESSAGES_PER_THREAD, REGION} from "./constants";
+import {asiaWorldContext} from "./platform/worldContext";
 import {
   sendMyNotesMessageNotifications,
 } from "./notifications";
@@ -19,7 +19,7 @@ import {hasUserBlockBetweenInTransaction} from "./userBlocks";
 export const aggregatePublishedMessages = onSchedule(
   {schedule: "every 1 minutes", timeZone: "Asia/Tokyo", region: REGION},
   async () => {
-    const db = getFirestore();
+    const db = asiaWorldContext().firestore;
     const now = Timestamp.now();
     const batchSize = 100;
 
@@ -163,7 +163,7 @@ export const aggregatePublishedMessages = onSchedule(
           applied++;
         });
         if (imagePathsToDelete.size > 0) {
-          const bucket = getStorage().bucket();
+          const bucket = asiaWorldContext().bucket;
           await Promise.all([...imagePathsToDelete].map(async (path) => {
             try {
               await bucket.file(path).delete({ignoreNotFound: true});

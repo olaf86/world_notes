@@ -7,7 +7,6 @@ import {
   Firestore,
   QuerySnapshot,
   Timestamp,
-  getFirestore,
 } from "firebase-admin/firestore";
 
 import {
@@ -28,6 +27,7 @@ import {
   DISCOVERY_GEOHASH_PRECISION,
   REGION,
 } from "./constants";
+import {asiaWorldContext} from "./platform/worldContext";
 import {
   findUserIdsWithBlockRelationshipToViewer,
   hasUserBlockBetween,
@@ -504,7 +504,7 @@ export const listMapPins = onCall<ListMapPinsData>(
     );
     const searchRadiusKm = assertSearchRadiusKm(req.data?.searchRadiusKm);
 
-    const db = getFirestore();
+    const db = asiaWorldContext().firestore;
     const noteAccessRadiusKm = await noteAccessRadiusKmForUser(db, uid);
     const nowMillis = Date.now();
     const publishedAt = Timestamp.fromMillis(nowMillis);
@@ -622,7 +622,7 @@ export const validateNoteAccess = onCall<ValidateNoteAccessData>(
     }
     const user = assertCoordinatePair(req.data?.latitude, req.data?.longitude);
 
-    const db = getFirestore();
+    const db = asiaWorldContext().firestore;
     const [snap, noteAccessRadiusKm] = await Promise.all([
       db.collection("places").doc(placeId).get(),
       noteAccessRadiusKmForUser(db, uid),

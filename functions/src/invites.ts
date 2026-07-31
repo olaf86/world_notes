@@ -1,11 +1,11 @@
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {
-  getFirestore,
   FieldValue,
 } from "firebase-admin/firestore";
 import {randomBytes} from "crypto";
 
 import {REGION} from "./constants";
+import {asiaWorldContext} from "./platform/worldContext";
 import {
   canChangeNoteMaintainers,
   canMaintainNote,
@@ -25,7 +25,7 @@ import {
  * @param {string} uid The caller's uid.
  */
 async function assertMaintainer(placeId: string, uid: string) {
-  const db = getFirestore();
+  const db = asiaWorldContext().firestore;
   const snap = await db.collection("places").doc(placeId).get();
   if (!snap.exists) {
     throw new HttpsError("not-found", "Note not found.");
@@ -62,7 +62,7 @@ async function assertMaintainer(placeId: string, uid: string) {
  * @param {string} uid The caller's uid.
  */
 async function assertInviteRevoker(placeId: string, uid: string) {
-  const db = getFirestore();
+  const db = asiaWorldContext().firestore;
   const snap = await db.collection("places").doc(placeId).get();
   if (!snap.exists) {
     throw new HttpsError("not-found", "Note not found.");
@@ -84,7 +84,7 @@ async function assertInviteRevoker(placeId: string, uid: string) {
  * @param {string} placeId The note's id.
  */
 async function activeInviteToken(placeId: string): Promise<string | null> {
-  const existing = await getFirestore()
+  const existing = await asiaWorldContext().firestore
     .collection("invites")
     .where("placeId", "==", placeId)
     .limit(10)
@@ -130,7 +130,7 @@ export const createInviteLink = onCall<{placeId?: unknown}>(
     }
     await assertMaintainer(placeId, uid);
 
-    const db = getFirestore();
+    const db = asiaWorldContext().firestore;
     // Reuse an existing active token (one reusable link per note).
     const active = await activeInviteToken(placeId);
     if (active) return {token: active};
@@ -162,7 +162,7 @@ export const claimInvite = onCall<{token?: unknown}>(
       throw new HttpsError("invalid-argument", "token is required.");
     }
 
-    const db = getFirestore();
+    const db = asiaWorldContext().firestore;
     const profile = await profileForMember(
       uid,
       req.auth?.token.name,
@@ -245,7 +245,7 @@ export const revokeInvite = onCall<{placeId?: unknown}>(
     }
     await assertInviteRevoker(placeId, uid);
 
-    const db = getFirestore();
+    const db = asiaWorldContext().firestore;
     const tokens = await db
       .collection("invites")
       .where("placeId", "==", placeId)
@@ -280,7 +280,7 @@ export const revokeNoteAccess = onCall<{placeId?: unknown; userId?: unknown}>(
     }
     await assertMaintainer(placeId, uid);
 
-    const db = getFirestore();
+    const db = asiaWorldContext().firestore;
     const placeRef = db.collection("places").doc(placeId);
     const placeSnap = await placeRef.get();
     if (!placeSnap.exists) {
@@ -322,7 +322,7 @@ export const grantNoteMaintainer = onCall<{
       throw new HttpsError("invalid-argument", "placeId/userId required.");
     }
 
-    const db = getFirestore();
+    const db = asiaWorldContext().firestore;
     const placeRef = db.collection("places").doc(placeId);
     await db.runTransaction(async (tx) => {
       const placeSnap = await tx.get(placeRef);
@@ -391,7 +391,7 @@ export const revokeNoteMaintainer = onCall<{
     ) {
       throw new HttpsError("invalid-argument", "placeId/userId required.");
     }
-    const db = getFirestore();
+    const db = asiaWorldContext().firestore;
     const placeRef = db.collection("places").doc(placeId);
     await db.runTransaction(async (tx) => {
       const placeSnap = await tx.get(placeRef);

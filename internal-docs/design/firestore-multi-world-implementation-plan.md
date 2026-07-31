@@ -545,6 +545,20 @@ behavior while making later world selection invalidate their dependencies.
 Emulator configuration moved into the same adapter so lazily-created named
 clients cannot bypass it.
 
+Implementation note (2026-07-31): P05 adds the server `WorldRegistry`,
+`WorldContextProvider`, `WorldBucketProvider`, and `CallableRouteValidator`.
+Existing callable, scheduled, and helper code now resolves the fixed Asia
+context instead of constructing default Firestore or Storage clients. The
+context cross-checks database and bucket routes against the same trusted
+descriptor, while provisioning worlds are rejected before either client is
+created. The Asia Firestore trigger now also declares `(default)` explicitly.
+A repository boundary test permits raw Admin client construction only inside
+the reviewed platform adapters. Explicit request `worldId` validation is
+implemented but remains unenforced until the P06 client/entity route change;
+through P05, the deployed Function export itself remains the trusted fixed
+Asia route. `AuthorityRouter` remains deferred until P07 introduces the
+immutable home-authority data required to resolve it correctly.
+
 ### Phase 3 — account bootstrap and private/public separation
 
 Deliverables:

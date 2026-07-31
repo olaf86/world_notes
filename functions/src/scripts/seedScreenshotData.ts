@@ -5,9 +5,13 @@ import {
   CollectionReference,
   DocumentData,
   FieldValue,
-  getFirestore,
   Timestamp,
 } from "firebase-admin/firestore";
+
+import {
+  createAdminWorldFirestoreClient,
+  DEFAULT_FIRESTORE_DATABASE_ID,
+} from "../platform/worldFirestoreProvider";
 
 const projectId = process.env.GCLOUD_PROJECT || "world-notes-prod";
 process.env.FIREBASE_AUTH_EMULATOR_HOST =
@@ -16,7 +20,10 @@ process.env.FIRESTORE_EMULATOR_HOST =
   process.env.FIRESTORE_EMULATOR_HOST || "127.0.0.1:8080";
 
 const app = initializeApp({projectId});
-const db = getFirestore(app);
+const db = createAdminWorldFirestoreClient(
+  app,
+  DEFAULT_FIRESTORE_DATABASE_ID,
+);
 const auth = getAuth(app);
 type ScreenshotLocale = "en" | "ja" | "zh_Hant" | "zh_Hans" | "ko";
 

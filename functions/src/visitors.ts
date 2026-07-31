@@ -4,10 +4,10 @@ import {
   DocumentSnapshot,
   FieldValue,
   Timestamp,
-  getFirestore,
 } from "firebase-admin/firestore";
 
 import {REGION} from "./constants";
+import {asiaWorldContext} from "./platform/worldContext";
 import {canMaintainNote} from "./noteMaintenance";
 import {hasUserBlockBetweenInTransaction} from "./userBlocks";
 
@@ -81,7 +81,7 @@ export const recordNoteVisit = onCall<RecordNoteVisitData>(
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
 
     const placeId = placeIdOf(req.data?.placeId);
-    const db = getFirestore();
+    const db = asiaWorldContext().firestore;
     const placeRef = db.collection("places").doc(placeId);
     const userRef = db.collection("users").doc(uid);
     const noteStateRef = userRef.collection("noteStates").doc(placeId);
@@ -183,7 +183,7 @@ export const setFootprintEnabled = onCall<SetFootprintEnabledData>(
       throw new HttpsError("invalid-argument", "enabled is required.");
     }
 
-    const db = getFirestore();
+    const db = asiaWorldContext().firestore;
     const placeRef = db.collection("places").doc(placeId);
     await db.runTransaction(async (tx) => {
       const placeSnap = await tx.get(placeRef);

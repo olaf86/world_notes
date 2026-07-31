@@ -1,3 +1,5 @@
+import {ASIA_WORLD} from "./platform/worldRegistry";
+
 /**
  * Server-side mirror of the client's AppConfig constraints.
  * Keep these in sync with lib/config/app_config.dart.
@@ -57,9 +59,6 @@ export const NOTE_DETAIL_ACCESS_RADIUS_KM = 0.5;
 export const PRO_NOTE_DETAIL_ACCESS_RADIUS_KM = 1.0;
 
 /**
- * Region the functions are DEPLOYED to (matches the default DB in Tokyo).
- * The client picks which deployed region to call via Regions/effectiveRegion
- * in the app — keep the app's `available` regions in sync with where these
- * functions are actually deployed.
+ * Region of the Asia deployment, derived from the trusted world catalog.
  */
-export const REGION = "asia-northeast1";
+export const REGION = ASIA_WORLD.functionsRegion;

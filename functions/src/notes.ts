@@ -4,11 +4,9 @@ import * as logger from "firebase-functions/logger";
 import {
   DocumentReference,
   DocumentSnapshot,
-  getFirestore,
   FieldValue,
   Timestamp,
 } from "firebase-admin/firestore";
-import {getStorage} from "firebase-admin/storage";
 
 import {encodeGeohash} from "./geohash";
 import {
@@ -22,6 +20,7 @@ import {
   MAX_SUBTITLE_LENGTH,
   REGION,
 } from "./constants";
+import {asiaWorldContext} from "./platform/worldContext";
 import {
   hashLockSecret,
   MAX_LOCK_HINT_LENGTH,
@@ -249,7 +248,7 @@ export const createNote = onCall<CreateNoteData>(
         subtitle.trim() :
         null;
     const trimmedTitle = (title as string).trim();
-    const db = getFirestore();
+    const db = asiaWorldContext().firestore;
     const userRef = db.collection("users").doc(uid);
     const moderationResult = await moderateTextContent([
       `Title: ${trimmedTitle}`,
@@ -441,7 +440,7 @@ export const setNotePinImage = onCall<SetNotePinImageData>(
       );
     }
 
-    const bucket = getStorage().bucket();
+    const bucket = asiaWorldContext().bucket;
     let imageBytes: Uint8Array;
     try {
       const file = bucket.file(pinImageStoragePath);
@@ -467,7 +466,7 @@ export const setNotePinImage = onCall<SetNotePinImageData>(
       );
     }
 
-    const db = getFirestore();
+    const db = asiaWorldContext().firestore;
     let moderationResult: InternalModerationResult;
     try {
       moderationResult = await moderateContent("", [{
@@ -625,7 +624,7 @@ export const reportNote = onCall<ReportNoteData>(
       throw new HttpsError("unauthenticated", "Sign in required.");
     }
     const input = validateReportNoteInput(req.data);
-    const db = getFirestore();
+    const db = asiaWorldContext().firestore;
     const placeRef = db.collection("places").doc(input.placeId);
     const memberRef = placeRef.collection("members").doc(uid);
     const reportRef = db.collection("reports").doc();
@@ -743,7 +742,7 @@ export const setNoteTheme = onCall<SetNoteThemeData>(
       throw new HttpsError("invalid-argument", "Invalid note theme.");
     }
 
-    const db = getFirestore();
+    const db = asiaWorldContext().firestore;
     const placeRef = db.collection("places").doc(placeId);
     await db.runTransaction(async (tx) => {
       const placeSnap = await tx.get(placeRef);
@@ -797,7 +796,7 @@ export const archiveNote = onCall<ArchiveNoteData>(
       throw new HttpsError("invalid-argument", "placeId is required.");
     }
 
-    const db = getFirestore();
+    const db = asiaWorldContext().firestore;
     const placeRef = db.collection("places").doc(placeId);
     const archived = await db.runTransaction(async (tx) => {
       const placeSnap = await tx.get(placeRef);
@@ -876,7 +875,7 @@ export const archiveNote = onCall<ArchiveNoteData>(
 export const archiveExpiredNotes = onSchedule(
   {schedule: "every 24 hours", timeZone: "Asia/Tokyo", region: REGION},
   async () => {
-    const db = getFirestore();
+    const db = asiaWorldContext().firestore;
     const now = Timestamp.now();
     const batchSize = 200;
     let totalArchived = 0;

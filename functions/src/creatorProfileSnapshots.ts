@@ -1,8 +1,9 @@
 import {onDocumentWritten} from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
-import {getFirestore} from "firebase-admin/firestore";
 
 import {REGION} from "./constants";
+import {asiaWorldContext} from "./platform/worldContext";
+import {ASIA_WORLD} from "./platform/worldRegistry";
 
 const BATCH_WRITE_LIMIT = 450;
 
@@ -11,7 +12,11 @@ const BATCH_WRITE_LIMIT = 450;
  * profile. Map-pin reads can then stay a single collection query.
  */
 export const syncCreatorPhotoSnapshot = onDocumentWritten(
-  {document: "publicProfiles/{userId}", region: REGION},
+  {
+    database: ASIA_WORLD.databaseId,
+    document: "publicProfiles/{userId}",
+    region: REGION,
+  },
   async (event) => {
     const before = event.data?.before;
     const after = event.data?.after;
@@ -27,7 +32,7 @@ export const syncCreatorPhotoSnapshot = onDocumentWritten(
       previousPhotoVersion === photoVersion
     ) return;
 
-    const db = getFirestore();
+    const db = asiaWorldContext().firestore;
     const places = await db
       .collection("places")
       .where("createdByUserId", "==", event.params.userId)
