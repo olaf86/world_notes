@@ -1,6 +1,22 @@
 /// Wire schema version supported by this client.
 const int worldCatalogSchemaVersion = 1;
 
+/// Stable domain identifier for one independently routed world.
+final class WorldId {
+  const WorldId(this.value) : assert(value != '');
+
+  final String value;
+
+  @override
+  bool operator ==(Object other) => other is WorldId && other.value == value;
+
+  @override
+  int get hashCode => value.hashCode;
+
+  @override
+  String toString() => value;
+}
+
 /// Provisioning lifecycle for a world and its regional resources.
 enum WorldCatalogState {
   provisioning('provisioning'),
@@ -112,6 +128,17 @@ class WorldCatalogEntry {
   }
 }
 
+/// Routing metadata for a world.
+typedef WorldDescriptor = WorldCatalogEntry;
+
+/// The user's permanent home and currently selected content world.
+final class WorldSelection {
+  const WorldSelection({required this.homeWorld, required this.selectedWorld});
+
+  final WorldId homeWorld;
+  final WorldId selectedWorld;
+}
+
 /// Versioned world catalog received from the trusted server.
 class WorldCatalog {
   const WorldCatalog({
@@ -167,6 +194,24 @@ class WorldCatalog {
       if (world.worldId == worldId) return world;
     }
     return null;
+  }
+
+  WorldDescriptor requireWorld(WorldId worldId) {
+    final world = findWorld(worldId.value);
+    if (world == null) {
+      throw StateError('Unknown world: ${worldId.value}');
+    }
+    return world;
+  }
+
+  WorldDescriptor requireContentWorld(WorldId worldId) {
+    final world = requireWorld(worldId);
+    if (!world.contentAccessEnabled) {
+      throw StateError(
+        'World is not ready for content access: ${worldId.value}',
+      );
+    }
+    return world;
   }
 }
 

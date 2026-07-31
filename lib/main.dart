@@ -1,12 +1,9 @@
 import 'dart:async';
 
 import 'package:firebase_app_check/firebase_app_check.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -60,15 +57,6 @@ Future<void> _configureFirebaseServices() async {
     final host = firebaseEmulatorHost();
     debugPrint('Using Firebase emulators (host: $host)');
     FirebaseAuth.instance.useAuthEmulator(host, 9099);
-    FirebaseFirestore.instance.useFirestoreEmulator(host, 8080);
-    FirebaseStorage.instance.useStorageEmulator(host, 9199);
-    FirebaseFunctions.instance.useFunctionsEmulator(host, 5001);
-    FirebaseFunctions.instanceFor(
-      region: 'asia-northeast1',
-    ).useFunctionsEmulator(host, 5001);
-    FirebaseFirestore.instance.settings = const Settings(
-      persistenceEnabled: false,
-    );
     return;
   }
 

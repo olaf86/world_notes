@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:world_notes/config/bootstrap_world_catalog.dart';
 import 'package:world_notes/config/world_catalog.dart';
 
 void main() {
@@ -34,6 +35,27 @@ void main() {
     );
     expect(catalog.findWorld('europe')?.functionsRegion, 'europe-west1');
     expect(catalog.findWorld('unknown'), isNull);
+  });
+
+  test('bundled bootstrap catalog matches the server catalog', () {
+    expect(bootstrapWorldCatalogData, sourceCatalog);
+  });
+
+  test('permits content routing only for enabled worlds', () {
+    expect(
+      bootstrapWorldCatalog.requireContentWorld(asiaWorldId).databaseId,
+      '(default)',
+    );
+    expect(
+      () => bootstrapWorldCatalog.requireContentWorld(
+        const WorldId('northAmerica'),
+      ),
+      throwsStateError,
+    );
+    expect(
+      () => bootstrapWorldCatalog.requireContentWorld(const WorldId('unknown')),
+      throwsStateError,
+    );
   });
 
   test('rejects unknown and missing fields', () {

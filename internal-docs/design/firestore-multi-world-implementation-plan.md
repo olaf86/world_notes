@@ -533,6 +533,18 @@ Exit criteria:
 Rollback: catalog exposes only Asia; the adapter continues targeting the
 default resources.
 
+Implementation note (2026-07-31): P04 adds a bundled, validated Flutter
+catalog whose drift from the server JSON is covered by a contract test. The
+client recognizes all three worlds, but `contentAccessEnabled` is checked
+before any world-specific Firebase client can be resolved, so only Asia can
+currently route to content. `WorldFirebaseClientCache` is the sole constructor
+for Firestore, Functions, and Storage world clients and caches the aligned
+client set per `WorldId`. Existing repositories continue through compatibility
+providers backed by the selected world, preserving the current Asia/default
+behavior while making later world selection invalidate their dependencies.
+Emulator configuration moved into the same adapter so lazily-created named
+clients cannot bypass it.
+
 ### Phase 3 — account bootstrap and private/public separation
 
 Deliverables:

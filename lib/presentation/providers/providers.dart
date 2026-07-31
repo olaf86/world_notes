@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -13,8 +14,10 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../config/app_config.dart';
+import '../../config/bootstrap_world_catalog.dart';
 import '../../config/regions.dart';
 import '../../config/runtime_mode.dart';
+import '../../config/world_catalog.dart';
 import '../../core/map_style.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../data/repositories/follow_repository_impl.dart';
@@ -48,20 +51,84 @@ import '../../services/my_notes_notification_service.dart';
 import '../../services/notice_notification_service.dart';
 import '../../services/note_open_interstitial_service.dart';
 import '../../services/subscription_service.dart';
+import '../../services/world_firebase_clients.dart';
 
 // --- Infrastructure ---
 
-final firestoreProvider = Provider<FirebaseFirestore>(
-  (_) => FirebaseFirestore.instance,
+final worldCatalogProvider = Provider<WorldCatalog>(
+  (_) => bootstrapWorldCatalog,
 );
+
+/// Permanent home for pre-multi-world accounts during the P04 rollout.
+final homeWorldProvider = Provider<WorldId>((_) => asiaWorldId);
+
+class SelectedWorldNotifier extends Notifier<WorldId> {
+  @override
+  WorldId build() {
+    final homeWorld = ref.watch(homeWorldProvider);
+    ref.watch(worldCatalogProvider).requireContentWorld(homeWorld);
+    return homeWorld;
+  }
+
+  void selectWorld(WorldId worldId) {
+    ref.read(worldCatalogProvider).requireContentWorld(worldId);
+    state = worldId;
+  }
+}
+
+final selectedWorldProvider = NotifierProvider<SelectedWorldNotifier, WorldId>(
+  SelectedWorldNotifier.new,
+);
+
+final worldSelectionProvider = Provider<WorldSelection>((ref) {
+  return WorldSelection(
+    homeWorld: ref.watch(homeWorldProvider),
+    selectedWorld: ref.watch(selectedWorldProvider),
+  );
+});
+
+final selectedWorldDescriptorProvider = Provider<WorldDescriptor>((ref) {
+  return ref
+      .watch(worldCatalogProvider)
+      .requireContentWorld(ref.watch(selectedWorldProvider));
+});
+
+final worldFirebaseClientCacheProvider = Provider<WorldFirebaseClientCache>((
+  _,
+) {
+  return WorldFirebaseClientCache(
+    app: Firebase.app(),
+    emulatorHost: shouldUseFirebaseEmulators ? firebaseEmulatorHost() : null,
+  );
+});
+
+final worldFirebaseClientsProvider =
+    Provider.family<WorldFirebaseClients, WorldId>((ref, worldId) {
+      final descriptor = ref
+          .watch(worldCatalogProvider)
+          .requireContentWorld(worldId);
+      return ref.watch(worldFirebaseClientCacheProvider).forWorld(descriptor);
+    });
+
+final selectedWorldClientsProvider = Provider<WorldFirebaseClients>((ref) {
+  return ref.watch(
+    worldFirebaseClientsProvider(ref.watch(selectedWorldProvider)),
+  );
+});
+
+/// Compatibility boundary for repositories migrating to explicit world IDs.
+final firestoreProvider = Provider<FirebaseFirestore>((ref) {
+  return ref.watch(selectedWorldClientsProvider).firestore;
+});
 
 final firebaseAuthProvider = Provider<FirebaseAuth>(
   (_) => FirebaseAuth.instance,
 );
 
-final firebaseStorageProvider = Provider<FirebaseStorage>(
-  (_) => FirebaseStorage.instance,
-);
+/// Compatibility boundary for repositories migrating to explicit world IDs.
+final firebaseStorageProvider = Provider<FirebaseStorage>((ref) {
+  return ref.watch(selectedWorldClientsProvider).storage;
+});
 
 final firebaseMessagingProvider = Provider<FirebaseMessaging>(
   (_) => FirebaseMessaging.instance,
@@ -76,12 +143,9 @@ final firebaseCrashlyticsProvider = Provider<FirebaseCrashlytics>(
 /// the system-language default.
 final sharedPreferencesProvider = Provider<SharedPreferences?>((_) => null);
 
-// The client must target a region where the functions are actually deployed,
-// or callable lookups 404. The region is resolved by [effectiveRegionProvider]
-// (manual override > nearest available to current location > default).
+/// Compatibility boundary for repositories migrating to explicit world IDs.
 final firebaseFunctionsProvider = Provider<FirebaseFunctions>((ref) {
-  final region = ref.watch(effectiveRegionProvider);
-  return FirebaseFunctions.instanceFor(region: region);
+  return ref.watch(selectedWorldClientsProvider).functions;
 });
 
 // --- Services ---
@@ -1018,20 +1082,10 @@ final regionPreferenceProvider =
       (ref) => RegionPreferenceNotifier(),
     );
 
-/// The region the client actually targets:
-///   1. a valid, available manual override, else
-///   2. the nearest available region to the current location, else
-///   3. the default region.
+/// Legacy settings value derived from the selected world's Functions route.
+/// Region preferences no longer decide Firebase client routing.
 final effectiveRegionProvider = Provider<String>((ref) {
-  final override = ref.watch(regionPreferenceProvider);
-  if (override != null && (Regions.byId(override)?.available ?? false)) {
-    return override;
-  }
-  final pos = ref.watch(anchorPositionProvider);
-  if (pos != null) {
-    return Regions.nearestAvailableId(pos.latitude, pos.longitude);
-  }
-  return Regions.defaultId;
+  return ref.watch(selectedWorldDescriptorProvider).functionsRegion;
 });
 
 class MapLatLng {
