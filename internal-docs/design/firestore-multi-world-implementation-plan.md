@@ -489,6 +489,13 @@ uses an account notification setting because it exercises the complete
 request path without contacting Storage, FCM, OpenAI, or another non-emulated
 service.
 
+Implementation note (2026-07-31): P03 adds a least-privilege backend workflow
+with no production credentials or Firebase secrets. It installs the locked
+Functions dependencies under Node 24 and Java 21, then runs lint, build, unit
+tests, the Firestore Rules suite, and the callable Functions emulator contract.
+The emulator scripts pin Firebase CLI `15.25.1` so a future CLI release cannot
+change CI behavior without a reviewed source change.
+
 Exit criteria:
 
 - a clean environment can be provisioned repeatably;
