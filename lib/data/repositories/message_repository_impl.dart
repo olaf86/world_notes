@@ -17,16 +17,16 @@ import '../models/message_model.dart';
 
 class MessageRepositoryImpl implements MessageRepository {
   final FirebaseFirestore _firestore;
-  final WorldFunctionsClient _functions;
+  final WorldFunctionsClient _callables;
   final FirebaseStorage _storage;
   final _uuid = const Uuid();
 
   MessageRepositoryImpl({
     required FirebaseFirestore firestore,
-    required WorldFunctionsClient functions,
+    required WorldFunctionsClient callables,
     required FirebaseStorage storage,
   }) : _firestore = firestore,
-       _functions = functions,
+       _callables = callables,
        _storage = storage;
 
   // Messages live in a subcollection under their place:
@@ -247,7 +247,7 @@ class MessageRepositoryImpl implements MessageRepository {
     final now = DateTime.now();
     late final HttpsCallableResult<Map<String, dynamic>> result;
     try {
-      result = await _functions
+      result = await _callables
           .httpsCallable('sendMessage')
           .call<Map<String, dynamic>>({
             'messageId': messageId,
@@ -291,7 +291,7 @@ class MessageRepositoryImpl implements MessageRepository {
     required String placeId,
     required String messageId,
   }) async {
-    await _functions.httpsCallable('deleteMessage').call<Map<String, dynamic>>({
+    await _callables.httpsCallable('deleteMessage').call<Map<String, dynamic>>({
       'placeId': placeId,
       'messageId': messageId,
     });
@@ -302,7 +302,7 @@ class MessageRepositoryImpl implements MessageRepository {
     required String placeId,
     required String messageId,
   }) async {
-    await _functions
+    await _callables
         .httpsCallable('cancelScheduledMessage')
         .call<Map<String, dynamic>>({
           'placeId': placeId,
@@ -316,7 +316,7 @@ class MessageRepositoryImpl implements MessageRepository {
     required String placeId,
     required ReportReasonCode reasonCode,
   }) async {
-    await _functions.httpsCallable('reportMessage').call<Map<String, dynamic>>({
+    await _callables.httpsCallable('reportMessage').call<Map<String, dynamic>>({
       'messageId': messageId,
       'placeId': placeId,
       'reasonCode': reasonCode.toJson(),
@@ -329,7 +329,7 @@ class MessageRepositoryImpl implements MessageRepository {
     required String messageId,
     required bool liked,
   }) async {
-    await _functions.httpsCallable('setMessageLike').call<Map<String, dynamic>>(
+    await _callables.httpsCallable('setMessageLike').call<Map<String, dynamic>>(
       {'placeId': placeId, 'messageId': messageId, 'liked': liked},
     );
   }

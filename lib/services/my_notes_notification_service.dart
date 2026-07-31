@@ -18,7 +18,7 @@ class MyNotesNotificationService {
   );
 
   final FirebaseMessaging _messaging;
-  final WorldFunctionsClient _functions;
+  final WorldFunctionsClient _callables;
   final FirebaseAuth _auth;
   final FirebaseCrashlytics _crashlytics;
 
@@ -30,11 +30,11 @@ class MyNotesNotificationService {
 
   MyNotesNotificationService({
     required FirebaseMessaging messaging,
-    required WorldFunctionsClient functions,
+    required WorldFunctionsClient callables,
     required FirebaseAuth auth,
     required FirebaseCrashlytics crashlytics,
   }) : _messaging = messaging,
-       _functions = functions,
+       _callables = callables,
        _auth = auth,
        _crashlytics = crashlytics {
     _startNotificationOpenHandling();
@@ -56,20 +56,20 @@ class MyNotesNotificationService {
       sound: true,
     );
     await registerCurrentToken(reportUnavailableToken: true);
-    await _functions
+    await _callables
         .httpsCallable('setMyNotesNotificationEnabled')
         .call<Map<String, dynamic>>({'enabled': true});
     return true;
   }
 
   Future<void> disableMyNotesNotifications() async {
-    await _functions
+    await _callables
         .httpsCallable('setMyNotesNotificationEnabled')
         .call<Map<String, dynamic>>({'enabled': false});
   }
 
   Future<void> setMessagePreviewEnabled(bool enabled) async {
-    await _functions
+    await _callables
         .httpsCallable('setMyNotesNotificationPreviewEnabled')
         .call<Map<String, dynamic>>({'enabled': enabled});
   }
@@ -114,7 +114,7 @@ class MyNotesNotificationService {
     if (_auth.currentUser == null) return;
     final token = (await _currentFcmToken()).token;
     if (token == null || token.isEmpty) return;
-    await _functions.httpsCallable('deleteFcmToken').call<Map<String, dynamic>>(
+    await _callables.httpsCallable('deleteFcmToken').call<Map<String, dynamic>>(
       {'token': token},
     );
   }
@@ -191,7 +191,7 @@ class MyNotesNotificationService {
   }
 
   Future<void> _registerToken(String token) async {
-    await _functions
+    await _callables
         .httpsCallable('registerFcmToken')
         .call<Map<String, dynamic>>({'token': token, 'platform': _platform});
   }

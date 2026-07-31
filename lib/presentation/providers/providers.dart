@@ -145,7 +145,7 @@ final firebaseCrashlyticsProvider = Provider<FirebaseCrashlytics>(
 /// the system-language default.
 final sharedPreferencesProvider = Provider<SharedPreferences?>((_) => null);
 
-final selectedWorldFunctionsProvider = Provider<WorldFunctionsClient>((ref) {
+final selectedWorldCallablesProvider = Provider<WorldFunctionsClient>((ref) {
   return ref.watch(selectedWorldClientsProvider).callables;
 });
 
@@ -226,7 +226,7 @@ final myNotesNotificationServiceProvider = Provider<MyNotesNotificationService>(
   (ref) {
     final service = MyNotesNotificationService(
       messaging: ref.watch(firebaseMessagingProvider),
-      functions: ref.watch(selectedWorldFunctionsProvider),
+      callables: ref.watch(selectedWorldCallablesProvider),
       auth: ref.watch(firebaseAuthProvider),
       crashlytics: ref.watch(firebaseCrashlyticsProvider),
     );
@@ -250,7 +250,7 @@ final noticeNotificationServiceProvider = Provider<NoticeNotificationService>((
 
 final adminModerationServiceProvider = Provider<AdminModerationService>((ref) {
   return AdminModerationService(
-    functions: ref.watch(selectedWorldFunctionsProvider),
+    callables: ref.watch(selectedWorldCallablesProvider),
   );
 });
 
@@ -262,7 +262,7 @@ final appLanguagePreferenceProvider =
         return AppLanguagePreferenceNotifier(
           auth: ref.watch(firebaseAuthProvider),
           firestore: ref.watch(selectedWorldFirestoreProvider),
-          functions: ref.watch(selectedWorldFunctionsProvider),
+          callables: ref.watch(selectedWorldCallablesProvider),
           preferences: ref.watch(sharedPreferencesProvider),
           syncAccount: !screenshotMode,
         );
@@ -276,12 +276,12 @@ class AppLanguagePreferenceNotifier
   AppLanguagePreferenceNotifier({
     required FirebaseAuth auth,
     required FirebaseFirestore firestore,
-    required WorldFunctionsClient functions,
+    required WorldFunctionsClient callables,
     required SharedPreferences? preferences,
     required bool syncAccount,
   }) : _auth = auth,
        _firestore = firestore,
-       _functions = functions,
+       _callables = callables,
        _preferences = preferences,
        super(
          AppLanguagePreference.fromLocalStorage(
@@ -297,7 +297,7 @@ class AppLanguagePreferenceNotifier
     required SharedPreferences preferences,
   }) : _auth = null,
        _firestore = null,
-       _functions = null,
+       _callables = null,
        _preferences = preferences,
        super(
          AppLanguagePreference.fromLocalStorage(
@@ -307,7 +307,7 @@ class AppLanguagePreferenceNotifier
 
   final FirebaseAuth? _auth;
   final FirebaseFirestore? _firestore;
-  final WorldFunctionsClient? _functions;
+  final WorldFunctionsClient? _callables;
   SharedPreferences? _preferences;
   StreamSubscription<User?>? _authSubscription;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
@@ -319,11 +319,11 @@ class AppLanguagePreferenceNotifier
     state = preference;
     await _persistLocally(preference);
 
-    final functions = _functions;
-    if (_auth?.currentUser == null || functions == null) return;
+    final callables = _callables;
+    if (_auth?.currentUser == null || callables == null) return;
     _pendingPreference = preference;
     try {
-      await functions.httpsCallable('setLanguagePreference').call<void>({
+      await callables.httpsCallable('setLanguagePreference').call<void>({
         'languagePreference': preference.storageValue,
       });
     } catch (_) {
@@ -385,10 +385,10 @@ class AppLanguagePreferenceNotifier
   }
 
   Future<void> _seedAccountPreference() async {
-    final functions = _functions;
-    if (functions == null) return;
+    final callables = _callables;
+    if (callables == null) return;
     try {
-      await functions.httpsCallable('setLanguagePreference').call<void>({
+      await callables.httpsCallable('setLanguagePreference').call<void>({
         'languagePreference': AppLanguagePreference.system.storageValue,
       });
     } catch (error, stack) {
@@ -427,7 +427,7 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
     auth: ref.watch(firebaseAuthProvider),
     googleSignIn: GoogleSignIn(),
     firestore: ref.watch(selectedWorldFirestoreProvider),
-    functions: ref.watch(selectedWorldFunctionsProvider),
+    callables: ref.watch(selectedWorldCallablesProvider),
     myNotesNotificationService: ref.watch(myNotesNotificationServiceProvider),
     subscriptionService: ref.watch(subscriptionServiceProvider),
     messageImageService: ref.watch(messageImageServiceProvider),
@@ -437,7 +437,7 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 final placeRepositoryProvider = Provider<PlaceRepository>((ref) {
   return PlaceRepositoryImpl(
     firestore: ref.watch(selectedWorldFirestoreProvider),
-    functions: ref.watch(selectedWorldFunctionsProvider),
+    callables: ref.watch(selectedWorldCallablesProvider),
     storage: ref.watch(selectedWorldStorageProvider),
   );
 });
@@ -445,7 +445,7 @@ final placeRepositoryProvider = Provider<PlaceRepository>((ref) {
 final messageRepositoryProvider = Provider<MessageRepository>((ref) {
   return MessageRepositoryImpl(
     firestore: ref.watch(selectedWorldFirestoreProvider),
-    functions: ref.watch(selectedWorldFunctionsProvider),
+    callables: ref.watch(selectedWorldCallablesProvider),
     storage: ref.watch(selectedWorldStorageProvider),
   );
 });
@@ -453,7 +453,7 @@ final messageRepositoryProvider = Provider<MessageRepository>((ref) {
 final followRepositoryProvider = Provider<FollowRepository>((ref) {
   return FollowRepositoryImpl(
     firestore: ref.watch(selectedWorldFirestoreProvider),
-    functions: ref.watch(selectedWorldFunctionsProvider),
+    callables: ref.watch(selectedWorldCallablesProvider),
   );
 });
 
@@ -466,7 +466,7 @@ final noticeRepositoryProvider = Provider<NoticeRepository>((ref) {
 final userBlockRepositoryProvider = Provider<UserBlockRepository>((ref) {
   return UserBlockRepositoryImpl(
     firestore: ref.watch(selectedWorldFirestoreProvider),
-    functions: ref.watch(selectedWorldFunctionsProvider),
+    callables: ref.watch(selectedWorldCallablesProvider),
   );
 });
 

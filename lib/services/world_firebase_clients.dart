@@ -14,16 +14,17 @@ typedef WorldClientBuilder<T> = T Function(WorldCatalogEntry world);
 /// regional function without declaring its data world.
 final class WorldFunctionsClient {
   const WorldFunctionsClient({
-    required this.worldId,
+    required WorldId worldId,
     required FirebaseFunctions functions,
-  }) : _functions = functions;
+  }) : _worldId = worldId,
+       _functions = functions;
 
-  final WorldId worldId;
+  final WorldId _worldId;
   final FirebaseFunctions _functions;
 
   WorldHttpsCallable httpsCallable(String name) {
     return WorldHttpsCallable(
-      worldId: worldId,
+      worldId: _worldId,
       callable: _functions.httpsCallable(name),
     );
   }
@@ -32,11 +33,12 @@ final class WorldFunctionsClient {
 /// A single callable endpoint bound to a [WorldFunctionsClient].
 final class WorldHttpsCallable {
   const WorldHttpsCallable({
-    required this.worldId,
+    required WorldId worldId,
     required HttpsCallable callable,
-  }) : _callable = callable;
+  }) : _worldId = worldId,
+       _callable = callable;
 
-  final WorldId worldId;
+  final WorldId _worldId;
   final HttpsCallable _callable;
 
   Future<HttpsCallableResult<T>> call<T>([dynamic parameters]) async {
@@ -49,13 +51,13 @@ final class WorldHttpsCallable {
         'World callables require a string-keyed map.',
       ),
     };
-    data['worldId'] = worldId.value;
+    data['worldId'] = _worldId.value;
 
     final result = await _callable.call<T>(data);
     final dynamic responseData = result.data;
-    if (responseData is! Map || responseData['worldId'] != worldId.value) {
+    if (responseData is! Map || responseData['worldId'] != _worldId.value) {
       throw StateError(
-        'Callable world route mismatch: expected ${worldId.value}.',
+        'Callable world route mismatch: expected ${_worldId.value}.',
       );
     }
     return result;
@@ -78,18 +80,12 @@ final class WorldClientCache<T> {
 /// Firebase SDK clients that must always point to the same world.
 final class WorldFirebaseClients {
   const WorldFirebaseClients({
-    required this.worldId,
-    required this.world,
     required this.firestore,
-    required this.functions,
     required this.callables,
     required this.storage,
   });
 
-  final WorldId worldId;
-  final WorldCatalogEntry world;
   final FirebaseFirestore firestore;
-  final FirebaseFunctions functions;
   final WorldFunctionsClient callables;
   final FirebaseStorage storage;
 }
@@ -97,18 +93,11 @@ final class WorldFirebaseClients {
 /// The only production adapter allowed to construct world-specific clients.
 final class WorldFirebaseClientCache {
   WorldFirebaseClientCache({required FirebaseApp app, String? emulatorHost})
-    : _app = app,
-      _emulatorHost = emulatorHost,
-      _clients = WorldClientCache<WorldFirebaseClients>(
+    : _clients = WorldClientCache<WorldFirebaseClients>(
         (world) => _createClients(app, world, emulatorHost),
       );
 
-  final FirebaseApp _app;
-  final String? _emulatorHost;
   final WorldClientCache<WorldFirebaseClients> _clients;
-
-  FirebaseApp get app => _app;
-  String? get emulatorHost => _emulatorHost;
 
   WorldFirebaseClients forWorld(WorldCatalogEntry world) {
     return _clients.forWorld(world);
@@ -152,10 +141,7 @@ final class WorldFirebaseClientCache {
     }
 
     return WorldFirebaseClients(
-      worldId: WorldId(world.worldId),
-      world: world,
       firestore: firestore,
-      functions: functions,
       callables: WorldFunctionsClient(
         worldId: WorldId(world.worldId),
         functions: functions,

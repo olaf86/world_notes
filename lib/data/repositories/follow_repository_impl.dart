@@ -13,13 +13,13 @@ class FollowRepositoryImpl implements FollowRepository {
   static const int defaultPageSize = 20;
 
   final FirebaseFirestore _firestore;
-  final WorldFunctionsClient _functions;
+  final WorldFunctionsClient _callables;
 
   FollowRepositoryImpl({
     required FirebaseFirestore firestore,
-    required WorldFunctionsClient functions,
+    required WorldFunctionsClient callables,
   }) : _firestore = firestore,
-       _functions = functions;
+       _callables = callables;
 
   CollectionReference get _edges => _firestore.collection('socialEdges');
   CollectionReference get _profiles => _firestore.collection('publicProfiles');
@@ -48,7 +48,7 @@ class FollowRepositoryImpl implements FollowRepository {
     required String targetUserId,
     required bool following,
   }) async {
-    await _functions.httpsCallable('setUserFollow').call<void>({
+    await _callables.httpsCallable('setUserFollow').call<void>({
       'targetUserId': targetUserId,
       'following': following,
     });

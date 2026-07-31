@@ -545,6 +545,11 @@ selected-world providers, preserving the current Asia/default behavior while
 making later world selection invalidate their dependencies. The obsolete
 Functions-region preference and UI are removed rather than retained as a
 compatibility path.
+`WorldFirebaseClients` exposes only the three feature-facing capabilities:
+world Firestore, world-bound callables, and world Storage. The raw
+`FirebaseFunctions` instance and catalog routing metadata remain private to
+the construction adapter so feature code cannot bypass callable route
+validation or depend on redundant world state.
 Emulator configuration moved into the same adapter so lazily-created named
 clients cannot bypass it.
 

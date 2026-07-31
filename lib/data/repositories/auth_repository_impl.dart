@@ -16,7 +16,7 @@ class AuthRepositoryImpl implements AuthRepository {
   final FirebaseAuth _auth;
   final GoogleSignIn _googleSignIn;
   final FirebaseFirestore _firestore;
-  final WorldFunctionsClient _functions;
+  final WorldFunctionsClient _callables;
   final MyNotesNotificationService _myNotesNotificationService;
   final SubscriptionService _subscriptionService;
   final MessageImageService _messageImageService;
@@ -25,14 +25,14 @@ class AuthRepositoryImpl implements AuthRepository {
     required FirebaseAuth auth,
     required GoogleSignIn googleSignIn,
     required FirebaseFirestore firestore,
-    required WorldFunctionsClient functions,
+    required WorldFunctionsClient callables,
     required MyNotesNotificationService myNotesNotificationService,
     required SubscriptionService subscriptionService,
     required MessageImageService messageImageService,
   }) : _auth = auth,
        _googleSignIn = googleSignIn,
        _firestore = firestore,
-       _functions = functions,
+       _callables = callables,
        _myNotesNotificationService = myNotesNotificationService,
        _subscriptionService = subscriptionService,
        _messageImageService = messageImageService;
@@ -102,7 +102,7 @@ class AuthRepositoryImpl implements AuthRepository {
       throw StateError('No signed-in user.');
     }
 
-    await _functions
+    await _callables
         .httpsCallable('updateDisplayName')
         .call<Map<String, dynamic>>({'displayName': displayName});
     await firebaseUser.reload();

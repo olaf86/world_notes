@@ -9,13 +9,13 @@ import '../models/user_block_model.dart';
 
 class UserBlockRepositoryImpl implements UserBlockRepository {
   final FirebaseFirestore _firestore;
-  final WorldFunctionsClient _functions;
+  final WorldFunctionsClient _callables;
 
   UserBlockRepositoryImpl({
     required FirebaseFirestore firestore,
-    required WorldFunctionsClient functions,
+    required WorldFunctionsClient callables,
   }) : _firestore = firestore,
-       _functions = functions;
+       _callables = callables;
 
   CollectionReference _blocksOf(String blockerUserId) => _firestore
       .collection('users')
@@ -82,7 +82,7 @@ class UserBlockRepositoryImpl implements UserBlockRepository {
     required String targetUserId,
     required bool blocked,
   }) async {
-    await _functions.httpsCallable('setUserBlock').call<void>({
+    await _callables.httpsCallable('setUserBlock').call<void>({
       'targetUserId': targetUserId,
       'blocked': blocked,
     });
