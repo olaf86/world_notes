@@ -5,6 +5,11 @@ import {
 import {onCall, HttpsError} from "./platform/worldCallable";
 
 import {REGION} from "./constants";
+import {
+  executeGlobalCommand,
+  GlobalOperationBindingError,
+  GlobalOperationValidationError,
+} from "./globalOperations";
 import {asiaWorldContext} from "./platform/worldContext";
 
 const MAX_DISPLAY_NAME_LENGTH = 20;
@@ -151,9 +156,10 @@ export const updateDisplayName = onCall<{displayName?: unknown}>(
  */
 export const setLanguagePreference = onCall<{
   languagePreference?: unknown;
+  operationId?: unknown;
 }>(
   {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
 
@@ -168,18 +174,46 @@ export const setLanguagePreference = onCall<{
       );
     }
 
-    const userRef = asiaWorldContext().firestore.collection("users").doc(uid);
-    await asiaWorldContext().firestore.runTransaction(async (tx) => {
-      const userSnap = await tx.get(userRef);
-      if (!userSnap.exists) {
-        throw new HttpsError("failed-precondition", "User profile missing.");
-      }
-      tx.update(userRef, {
-        languagePreference,
-        updatedAt: FieldValue.serverTimestamp(),
+    const userRef = world.firestore.collection("users").doc(uid);
+    try {
+      const operation = await executeGlobalCommand({
+        firestore: world.firestore,
+        authorityWorld: world.worldId,
+        ownerUid: uid,
+        operationId: req.data?.operationId,
+        operationType: "setLanguagePreference",
+        entityId: uid,
+        payload: {languagePreference},
+        entityRef: userRef,
+        revisionField: "languagePreferenceRevision",
+        scope: "authorityOnly",
+        mutate: ({transaction, entity, revision, acceptedAt}) => {
+          if (!entity.exists) {
+            throw new HttpsError(
+              "failed-precondition",
+              "User profile missing.",
+            );
+          }
+          transaction.update(userRef, {
+            languagePreference,
+            languagePreferenceRevision: revision,
+            updatedAt: acceptedAt,
+          });
+        },
       });
-    });
 
-    return {languagePreference};
+      return {languagePreference, ...operation};
+    } catch (error) {
+      if (error instanceof GlobalOperationBindingError) {
+        throw new HttpsError(
+          "already-exists",
+          "operationId is already bound to another command.",
+        );
+      }
+      if (error instanceof GlobalOperationValidationError) {
+        throw new HttpsError("invalid-argument", error.message);
+      }
+      throw error;
+    }
   },
 );

@@ -238,6 +238,7 @@ describe(
       assert.equal(home.get("epoch"), 1);
       assert.equal(user.get("displayName"), "User");
       assert.equal(user.get("languagePreference"), "system");
+      assert.equal(user.get("languagePreferenceRevision"), 0);
       assert.equal(profile.get("followerCount"), 0);
       assert.equal(profile.get("followingCount"), 0);
       assert.equal(entitlement.get("isPremium"), false);
@@ -283,6 +284,103 @@ describe(
           .map((body) => (body.result ?? body.data)?.assignedNow)
           .sort(),
         [false, true],
+      );
+    });
+
+    test("commits and replays a language preference operation", async () => {
+      const credential = await signInAnonymously(requireAuth());
+      const uid = credential.user.uid;
+      const idToken = await credential.user.getIdToken();
+      const operationId = randomUUID();
+      const db = requireFirestore();
+      const userReference = db.collection("users").doc(uid);
+      const operationReference = db
+        .collection("globalOperations")
+        .doc(operationId);
+      cleanupReferences.push(
+        db.collection("userHomes").doc(uid),
+        userReference,
+        db.collection("publicProfiles").doc(uid),
+        db.collection("userEntitlements").doc(uid),
+        db.collection("userUsage").doc(uid),
+        operationReference,
+      );
+      const bootstrap = await callFunction(
+        "assignHomeWorld",
+        {worldId: "asia", homeWorld: "asia"},
+        idToken,
+      );
+      assert.equal(bootstrap.status, 200);
+
+      const responses = await Promise.all([
+        callFunction(
+          "setLanguagePreference",
+          {worldId: "asia", operationId, languagePreference: "ja"},
+          idToken,
+        ),
+        callFunction(
+          "setLanguagePreference",
+          {worldId: "asia", operationId, languagePreference: "ja"},
+          idToken,
+        ),
+      ]);
+      const bodies = await Promise.all(responses.map(async (response) =>
+        await response.json() as CallableSuccessBody<{
+        accepted: boolean;
+        replayed: boolean;
+        operationId: string;
+        authorityWorld: string;
+        revision: number;
+        status: string;
+        }>));
+      const results = bodies.map((body) => body.result ?? body.data);
+      const acceptedResult = results.find((result) => !result?.replayed);
+      const [user, operation] = await Promise.all([
+        userReference.get(),
+        operationReference.get(),
+      ]);
+
+      assert.deepEqual(
+        responses.map((response) => response.status),
+        [200, 200],
+      );
+      assert.deepEqual(
+        results.map((result) => result?.replayed).sort(),
+        [false, true],
+      );
+      assert.equal(acceptedResult?.accepted, true);
+      assert.equal(acceptedResult?.operationId, operationId);
+      assert.equal(acceptedResult?.authorityWorld, "asia");
+      assert.equal(acceptedResult?.revision, 1);
+      assert.equal(acceptedResult?.status, "complete");
+      assert.equal(user.get("languagePreference"), "ja");
+      assert.equal(user.get("languagePreferenceRevision"), 1);
+      assert.equal(operation.get("ownerUid"), uid);
+      assert.equal(operation.get("operationType"), "setLanguagePreference");
+      assert.equal(operation.get("entityId"), uid);
+      assert.equal(operation.get("status"), "complete");
+      assert.deepEqual(operation.get("requiredWorlds"), ["asia"]);
+      assert.equal(operation.get("worldAcks.asia.revision"), 1);
+      assert.equal(operation.get("worldCatalogVersion"), 1);
+      assert.match(operation.get("payloadHash") as string, /^[0-9a-f]{64}$/);
+      assert.notEqual(operation.get("completedAt"), undefined);
+      assert.notEqual(operation.get("expireAt"), undefined);
+
+      const conflict = await callFunction(
+        "setLanguagePreference",
+        {worldId: "asia", operationId, languagePreference: "en"},
+        idToken,
+      );
+      const conflictBody = await conflict.json() as CallableErrorBody;
+      assert.equal(conflict.status, 409);
+      assert.equal(conflictBody.error?.status, "ALREADY_EXISTS");
+      assert.equal(
+        (await userReference.get()).get("languagePreference"),
+        "ja",
+      );
+      assert.equal(
+        (await userReference.get()).get("languagePreferenceRevision"),
+        1,
       );
     });
 

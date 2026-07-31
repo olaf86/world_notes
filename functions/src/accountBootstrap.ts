@@ -139,6 +139,10 @@ function privateUserData(
     email: boundedNullableString(authUser.email, MAX_EMAIL_LENGTH),
     photoUrl: boundedNullableString(authUser.photoURL, MAX_PHOTO_URL_LENGTH),
     languagePreference: languagePreferenceOf(existing),
+    languagePreferenceRevision: nonNegativeInteger(
+      existing.get("languagePreferenceRevision"),
+      0,
+    ),
     createdAt: timestampOrServer(existing.get("createdAt")),
     updatedAt: FieldValue.serverTimestamp(),
   };

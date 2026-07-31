@@ -279,6 +279,48 @@ describe(
       });
     });
 
+    describe("global operation status", {concurrency: false}, () => {
+      test(
+        "allows only the bound owner to get an exact operation",
+        async () => {
+          await seedApplicationDocument(
+            "globalOperations/9c981950-3f3b-4db0-8505-3c5b7789ac83",
+            validGlobalOperation("alice"),
+          );
+          const alice =
+            requireApplicationRules().authenticatedContext("alice");
+          const bob = requireApplicationRules().authenticatedContext("bob");
+          const guest = requireApplicationRules().unauthenticatedContext();
+          const path =
+            "globalOperations/9c981950-3f3b-4db0-8505-3c5b7789ac83";
+
+          await assertSucceeds(alice.firestore().doc(path).get());
+          await assertFails(bob.firestore().doc(path).get());
+          await assertFails(guest.firestore().doc(path).get());
+        },
+      );
+
+      test("denies owner listing and every client write", async () => {
+        const operationId = "9c981950-3f3b-4db0-8505-3c5b7789ac83";
+        const path = `globalOperations/${operationId}`;
+        await seedApplicationDocument(path, validGlobalOperation("alice"));
+        const alice = requireApplicationRules().authenticatedContext("alice");
+
+        await assertFails(
+          alice.firestore().collection("globalOperations").get(),
+        );
+        await assertFails(
+          alice.firestore().doc("globalOperations/new-operation").set(
+            validGlobalOperation("alice"),
+          ),
+        );
+        await assertFails(
+          alice.firestore().doc(path).update({status: "complete"}),
+        );
+        await assertFails(alice.firestore().doc(path).delete());
+      });
+    });
+
     describe("bootstrap write guard", {concurrency: false}, () => {
       test(
         "allows an owner to mark a notice read after bootstrap",
@@ -507,6 +549,31 @@ function validNotice(): firebase.firestore.DocumentData {
     sourceId: null,
     createdAt: firebase.firestore.Timestamp.now(),
     readAt: null,
+  };
+}
+
+/** Creates a trusted server-written global operation status. */
+function validGlobalOperation(
+  ownerUid: string,
+): firebase.firestore.DocumentData {
+  const now = firebase.firestore.Timestamp.now();
+  return {
+    operationId: "9c981950-3f3b-4db0-8505-3c5b7789ac83",
+    operationType: "setLanguagePreference",
+    entityId: ownerUid,
+    revision: 1,
+    authorityWorld: "asia",
+    ownerUid,
+    payloadHash: "a".repeat(64),
+    status: "complete",
+    acceptedAt: now,
+    worldCatalogVersion: 1,
+    requiredWorlds: ["asia"],
+    worldAcks: {asia: {revision: 1, acknowledgedAt: now}},
+    createdAt: now,
+    updatedAt: now,
+    completedAt: now,
+    expireAt: now,
   };
 }
 

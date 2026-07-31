@@ -311,6 +311,7 @@ async function seedAccountBundle(
     email,
     photoUrl: null,
     languagePreference: "system",
+    languagePreferenceRevision: 0,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });

@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../config/app_config.dart';
 import '../../config/bootstrap_world_catalog.dart';
@@ -373,6 +374,7 @@ class AppLanguagePreferenceNotifier
   final FirebaseAuth? _auth;
   final FirebaseFirestore? _firestore;
   final WorldFunctionsClient? _functions;
+  final Uuid _uuid = const Uuid();
   SharedPreferences? _preferences;
   StreamSubscription<User?>? _authSubscription;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
@@ -390,6 +392,7 @@ class AppLanguagePreferenceNotifier
     try {
       await functions.httpsCallable('setLanguagePreference').call<void>({
         'languagePreference': preference.storageValue,
+        'operationId': _uuid.v4(),
       });
     } catch (_) {
       _pendingPreference = null;
@@ -455,6 +458,7 @@ class AppLanguagePreferenceNotifier
     try {
       await functions.httpsCallable('setLanguagePreference').call<void>({
         'languagePreference': AppLanguagePreference.system.storageValue,
+        'operationId': _uuid.v4(),
       });
     } catch (error, stack) {
       _accountBeingSeeded = null;

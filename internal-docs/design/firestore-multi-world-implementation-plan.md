@@ -682,6 +682,32 @@ Exit criteria:
 Rollback: stop accepting new command versions and keep reconcilers running
 until every accepted operation is terminal.
 
+Implementation note (2026-08-01): P08 adds the reusable global-operation
+envelope and authority transaction without enabling cross-world delivery yet.
+Client operation IDs are lowercase UUID v4 values. The command payload is
+bounded, canonically encoded with sorted object keys, and stored only as a
+SHA-256 hash. One transaction reads the existing operation binding, reads and
+increments the entity-specific revision, applies the typed authority mutation,
+and creates `globalOperations/{operationId}`. Repeating the same binding and
+payload returns its recorded revision; reusing an ID for another binding or
+payload is rejected. Persisted operation parsing enforces exact fields,
+timestamps, unique required-world membership, acknowledgement scoping, and
+terminal-state invariants. Revisioned tombstones use the same positive safe
+integer contract.
+
+`setLanguagePreference` is the first authority-only pilot. Its
+`languagePreferenceRevision` and the operation work item commit atomically in
+the user's home database. Since private language settings are not replicated,
+its trusted destination policy snapshots only the authority world and the
+operation completes immediately. Future profile, entitlement, social, block,
+and safety handlers will select `allActiveWorlds`, which includes
+`mirrorOnly`, `contentEnabled`, and `homeEnabled` worlds but excludes
+`provisioning`. Terminal operation documents receive a 30-day `expireAt`; the
+TTL field is enabled and exempted from indexing. Clients may get only their
+own remembered operation ID and cannot list or write operations. P09 remains
+responsible for per-database creation triggers, destination application and
+acknowledgement, reconciliation, and the durable Flutter observer.
+
 ### Phase 5 — cleanup and non-Firestore outbox infrastructure
 
 Deliverables:
