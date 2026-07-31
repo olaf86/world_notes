@@ -145,7 +145,7 @@ final firebaseCrashlyticsProvider = Provider<FirebaseCrashlytics>(
 /// the system-language default.
 final sharedPreferencesProvider = Provider<SharedPreferences?>((_) => null);
 
-final selectedWorldCallablesProvider = Provider<WorldFunctionsClient>((ref) {
+final selectedWorldFunctionsProvider = Provider<WorldFunctionsClient>((ref) {
   return ref.watch(selectedWorldClientsProvider).callables;
 });
 
@@ -226,7 +226,7 @@ final myNotesNotificationServiceProvider = Provider<MyNotesNotificationService>(
   (ref) {
     final service = MyNotesNotificationService(
       messaging: ref.watch(firebaseMessagingProvider),
-      callables: ref.watch(selectedWorldCallablesProvider),
+      callables: ref.watch(selectedWorldFunctionsProvider),
       auth: ref.watch(firebaseAuthProvider),
       crashlytics: ref.watch(firebaseCrashlyticsProvider),
     );
@@ -250,7 +250,7 @@ final noticeNotificationServiceProvider = Provider<NoticeNotificationService>((
 
 final adminModerationServiceProvider = Provider<AdminModerationService>((ref) {
   return AdminModerationService(
-    callables: ref.watch(selectedWorldCallablesProvider),
+    callables: ref.watch(selectedWorldFunctionsProvider),
   );
 });
 
@@ -262,7 +262,7 @@ final appLanguagePreferenceProvider =
         return AppLanguagePreferenceNotifier(
           auth: ref.watch(firebaseAuthProvider),
           firestore: ref.watch(selectedWorldFirestoreProvider),
-          callables: ref.watch(selectedWorldCallablesProvider),
+          callables: ref.watch(selectedWorldFunctionsProvider),
           preferences: ref.watch(sharedPreferencesProvider),
           syncAccount: !screenshotMode,
         );
@@ -427,7 +427,7 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
     auth: ref.watch(firebaseAuthProvider),
     googleSignIn: GoogleSignIn(),
     firestore: ref.watch(selectedWorldFirestoreProvider),
-    callables: ref.watch(selectedWorldCallablesProvider),
+    callables: ref.watch(selectedWorldFunctionsProvider),
     myNotesNotificationService: ref.watch(myNotesNotificationServiceProvider),
     subscriptionService: ref.watch(subscriptionServiceProvider),
     messageImageService: ref.watch(messageImageServiceProvider),
@@ -437,7 +437,7 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 final placeRepositoryProvider = Provider<PlaceRepository>((ref) {
   return PlaceRepositoryImpl(
     firestore: ref.watch(selectedWorldFirestoreProvider),
-    callables: ref.watch(selectedWorldCallablesProvider),
+    callables: ref.watch(selectedWorldFunctionsProvider),
     storage: ref.watch(selectedWorldStorageProvider),
   );
 });
@@ -445,7 +445,7 @@ final placeRepositoryProvider = Provider<PlaceRepository>((ref) {
 final messageRepositoryProvider = Provider<MessageRepository>((ref) {
   return MessageRepositoryImpl(
     firestore: ref.watch(selectedWorldFirestoreProvider),
-    callables: ref.watch(selectedWorldCallablesProvider),
+    callables: ref.watch(selectedWorldFunctionsProvider),
     storage: ref.watch(selectedWorldStorageProvider),
   );
 });
@@ -453,7 +453,7 @@ final messageRepositoryProvider = Provider<MessageRepository>((ref) {
 final followRepositoryProvider = Provider<FollowRepository>((ref) {
   return FollowRepositoryImpl(
     firestore: ref.watch(selectedWorldFirestoreProvider),
-    callables: ref.watch(selectedWorldCallablesProvider),
+    callables: ref.watch(selectedWorldFunctionsProvider),
   );
 });
 
@@ -466,7 +466,7 @@ final noticeRepositoryProvider = Provider<NoticeRepository>((ref) {
 final userBlockRepositoryProvider = Provider<UserBlockRepository>((ref) {
   return UserBlockRepositoryImpl(
     firestore: ref.watch(selectedWorldFirestoreProvider),
-    callables: ref.watch(selectedWorldCallablesProvider),
+    callables: ref.watch(selectedWorldFunctionsProvider),
   );
 });
 
