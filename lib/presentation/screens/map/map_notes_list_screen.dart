@@ -6,7 +6,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/place_icon.dart';
-import '../../../config/world_routes.dart';
 import '../../../domain/entities/note_list_sort.dart';
 import '../../../domain/entities/pin_summary_entity.dart';
 import '../../../l10n/l10n.dart';
@@ -424,15 +423,9 @@ class _MapNoteTileState extends ConsumerState<_MapNoteTile> {
           .beforeNoteOpen(placeId: widget.display.pin.placeId);
       if (!mounted) return;
       await context.push<void>(
-        Uri(
-          path: worldNotePath(
-            WorldRoute(
-              worldId: ref.read(selectedWorldProvider),
-              entityId: widget.display.pin.placeId,
-            ),
-          ),
-          queryParameters: {'title': widget.display.pin.title},
-        ).toString(),
+        ref
+            .read(selectedWorldNavigationProvider)
+            .note(widget.display.pin.placeId, title: widget.display.pin.title),
         extra: NoteAccessValidationRequest(
           placeId: widget.display.pin.placeId,
           latitude: widget.userLatitude,

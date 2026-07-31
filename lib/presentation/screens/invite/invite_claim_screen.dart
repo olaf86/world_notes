@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../config/world_catalog.dart';
-import '../../../config/world_routes.dart';
 import '../../providers/providers.dart';
 
 /// Handles world-routed invite deep links. If signed in, it redeems the token
@@ -35,7 +34,7 @@ class _InviteClaimScreenState extends ConsumerState<InviteClaimScreen> {
           .claimInvite(widget.token);
       if (mounted) {
         context.pushReplacement(
-          worldNotePath(WorldRoute(worldId: widget.worldId, entityId: placeId)),
+          ref.read(selectedWorldNavigationProvider).note(placeId),
         );
       }
     } on FirebaseFunctionsException catch (e) {

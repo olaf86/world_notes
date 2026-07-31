@@ -141,7 +141,8 @@ abstract class PlaceRepository {
   Future<String?> getInviteLink(String placeId);
 
   /// Maintainer-only: returns the note's reusable invite token (creating one
-  /// if needed) via `createInviteLink`. Combine with [AppConfig.inviteLink].
+  /// if needed) via `createInviteLink`. The selected-world navigation service
+  /// turns the returned token into the canonical shareable URL.
   Future<String> createInviteLink(String placeId);
 
   /// Creator-only: revokes the note's invite link.

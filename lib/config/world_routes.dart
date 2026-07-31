@@ -42,19 +42,6 @@ final class GlobalEntityRoute {
   String get persistentId => '${authorityWorld.value}:$entityType:$entityId';
 }
 
-String worldNotePath(WorldRoute note) {
-  return '/worlds/${note.worldId.value}/notes/${note.entityId}';
-}
-
-String worldNoteCreationPath(WorldId worldId) {
-  return '/worlds/${worldId.value}/notes/create';
-}
-
-String worldInvitePath({required WorldId worldId, required String token}) {
-  _requirePathSegment(token, 'token');
-  return '/worlds/${worldId.value}/invites/$token';
-}
-
 void _requirePathSegment(String value, String name) {
   if (value.isEmpty || value.trim() != value || value.contains('/')) {
     throw ArgumentError.value(

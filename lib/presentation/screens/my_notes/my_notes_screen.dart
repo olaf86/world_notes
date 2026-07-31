@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../config/world_catalog.dart';
-import '../../../config/world_routes.dart';
+import '../../../config/world_navigation.dart';
 import '../../../core/utils/place_icon.dart';
 import '../../../domain/entities/note_list_sort.dart';
 import '../../../domain/entities/place_entity.dart';
@@ -149,7 +148,7 @@ class _MyNotesListView extends ConsumerWidget {
                     );
                     return _MyNoteCard(
                       place: place,
-                      worldId: ref.watch(selectedWorldProvider),
+                      navigation: ref.watch(selectedWorldNavigationProvider),
                       onArchive: permissions.canArchive
                           ? () => _archivePlace(context, ref, place)
                           : null,
@@ -332,9 +331,9 @@ class _ArchivedNotesListViewState
         final place = _places[index];
         return _MyNoteCard(
           place: place,
-          worldId: ref.read(selectedWorldProvider),
+          navigation: ref.read(selectedWorldNavigationProvider),
           onCreateFromArchive: () => context.push(
-            worldNoteCreationPath(ref.read(selectedWorldProvider)),
+            ref.read(selectedWorldNavigationProvider).noteCreation,
             extra: NoteCreationDraft.fromPlace(place),
           ),
         );
@@ -531,13 +530,13 @@ class _ArchivedNotesSummary extends StatelessWidget {
 
 class _MyNoteCard extends StatelessWidget {
   final PlaceEntity place;
-  final WorldId worldId;
+  final WorldNavigation navigation;
   final VoidCallback? onArchive;
   final VoidCallback? onCreateFromArchive;
 
   const _MyNoteCard({
     required this.place,
-    required this.worldId,
+    required this.navigation,
     this.onArchive,
     this.onCreateFromArchive,
   });
@@ -610,14 +609,7 @@ class _MyNoteCard extends StatelessWidget {
             ],
           ],
         ),
-        onTap: () => context.push(
-          Uri(
-            path: worldNotePath(
-              WorldRoute(worldId: worldId, entityId: place.id),
-            ),
-            queryParameters: const {'readOnly': 'true'},
-          ).toString(),
-        ),
+        onTap: () => context.push(navigation.note(place.id, readOnly: true)),
       ),
     );
   }

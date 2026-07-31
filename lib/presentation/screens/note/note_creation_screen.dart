@@ -8,7 +8,6 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../config/app_config.dart';
-import '../../../config/world_routes.dart';
 import '../../../core/utils/place_icon.dart';
 import '../../../domain/entities/place_entity.dart';
 import '../../../domain/entities/note_theme.dart';
@@ -506,15 +505,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
 
       if (mounted) {
         context.pushReplacement(
-          Uri(
-            path: worldNotePath(
-              WorldRoute(
-                worldId: ref.read(selectedWorldProvider),
-                entityId: placeId,
-              ),
-            ),
-            queryParameters: {'title': title},
-          ).toString(),
+          ref.read(selectedWorldNavigationProvider).note(placeId, title: title),
         );
       }
     } on FirebaseFunctionsException catch (e) {

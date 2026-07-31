@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../config/app_config.dart';
 import '../../../domain/policies/note_permissions.dart';
 import '../../../l10n/l10n.dart';
 import '../../providers/providers.dart';
@@ -129,10 +128,7 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
     if (_token == null) return;
     await Clipboard.setData(
       ClipboardData(
-        text: AppConfig.inviteLink(
-          worldId: ref.read(selectedWorldProvider),
-          token: _token!,
-        ),
+        text: ref.read(selectedWorldNavigationProvider).inviteUrl(_token!),
       ),
     );
     if (!mounted) return;
@@ -234,10 +230,7 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: SelectableText(
-                  AppConfig.inviteLink(
-                    worldId: ref.watch(selectedWorldProvider),
-                    token: _token!,
-                  ),
+                  ref.watch(selectedWorldNavigationProvider).inviteUrl(_token!),
                   style: theme.textTheme.bodySmall,
                 ),
               ),

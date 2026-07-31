@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 
 import 'runtime_mode.dart';
-import 'world_catalog.dart';
 
 class AppConfig {
   static const stadiaApiKey = String.fromEnvironment(
@@ -206,13 +205,8 @@ class AppConfig {
   /// Must be one of [noteExpiryPresetDays].
   static const int defaultNoteExpiryDays = 90;
 
-  /// Base URL for private-note invite links.
-  /// handled as a deep link (Universal Links / App Links) once the associated
+  /// Base URL for private-note invite links. The path is supplied by the
+  /// selected-world navigation service and handled as a deep link once the
   /// domain is configured. Host: worldnotes.asobo.dev (Firebase Hosting).
   static const String inviteLinkBase = 'https://worldnotes.asobo.dev';
-
-  /// Builds the shareable invite URL for a token.
-  static String inviteLink({required WorldId worldId, required String token}) {
-    return '$inviteLinkBase/worlds/${worldId.value}/invites/$token';
-  }
 }

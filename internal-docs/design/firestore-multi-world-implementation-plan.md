@@ -240,6 +240,7 @@ WorldSelection
 WorldFirebaseClients
 WorldRoute
 GlobalEntityRoute
+WorldNavigation
 ```
 
 `WorldFirebaseClients` constructs and caches:
@@ -567,11 +568,16 @@ every regional callable. Flutter feature code receives a
 that do not echo it. Functions exports use one `worldCallable` boundary that
 validates the requested world against the deployed Asia route and stamps the
 response. A source-boundary test prevents future callables from bypassing this
-adapter. `WorldRoute` now addresses regional entities as `(worldId, entityId)`;
-note navigation, reports, visitors, invite URLs, message and notice FCM
-payloads, iOS notification-launch persistence, and moderation review results
-carry that route. Legacy notification and deep-link identifiers without a
-world are intentionally rejected because the app is still pre-production.
+adapter. `WorldRoute` addresses regional entities as `(worldId, entityId)` at
+external and persistent boundaries: invite URLs, message and notice FCM
+payloads, iOS notification-launch persistence, and moderation review results.
+Ordinary in-world UI code instead receives `WorldNavigation` through
+`selectedWorldNavigationProvider`; it supplies only the local entity ID while
+the provider injects the selected world into the canonical URL. The router
+still carries `worldId` and restores that selection before constructing a
+screen, so deep links and navigation history never depend on ambient state.
+Legacy notification and deep-link identifiers without a world are
+intentionally rejected because the app is still pre-production.
 North America and Europe remain provisioning-only, so routes to either world
 are refused before clients or screens can access regional content.
 

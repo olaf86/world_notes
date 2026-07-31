@@ -16,6 +16,7 @@ import '../../config/app_config.dart';
 import '../../config/bootstrap_world_catalog.dart';
 import '../../config/runtime_mode.dart';
 import '../../config/world_catalog.dart';
+import '../../config/world_navigation.dart';
 import '../../core/map_style.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../data/repositories/follow_repository_impl.dart';
@@ -77,6 +78,11 @@ class SelectedWorldNotifier extends Notifier<WorldId> {
 final selectedWorldProvider = NotifierProvider<SelectedWorldNotifier, WorldId>(
   SelectedWorldNotifier.new,
 );
+
+/// Canonical route builder with the current content world already injected.
+final selectedWorldNavigationProvider = Provider<WorldNavigation>((ref) {
+  return WorldNavigation(ref.watch(selectedWorldProvider));
+});
 
 final worldSelectionProvider = Provider<WorldSelection>((ref) {
   return WorldSelection(

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:go_router/go_router.dart';
 
+import 'world_navigation.dart';
 import 'world_routes.dart';
 
 class NotificationPlaceRoute {
@@ -12,12 +13,8 @@ class NotificationPlaceRoute {
 
   String get placeId => note.entityId;
 
-  String get location {
-    return Uri(
-      path: worldNotePath(note),
-      queryParameters: readOnly ? const {'readOnly': 'true'} : null,
-    ).toString();
-  }
+  String get location =>
+      WorldNavigation(note.worldId).note(note.entityId, readOnly: readOnly);
 }
 
 void openNotificationPlace(GoRouter router, NotificationPlaceRoute? route) {

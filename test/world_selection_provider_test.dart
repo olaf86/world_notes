@@ -12,6 +12,10 @@ void main() {
     expect(container.read(homeWorldProvider), asiaWorldId);
     expect(container.read(selectedWorldProvider), asiaWorldId);
     expect(container.read(worldSelectionProvider).selectedWorld, asiaWorldId);
+    expect(
+      container.read(selectedWorldNavigationProvider).note('note-1'),
+      '/worlds/asia/notes/note-1',
+    );
   });
 
   test('rejects selection of a provisioning world', () {
@@ -52,6 +56,10 @@ void main() {
     expect(
       container.read(selectedWorldCatalogEntryProvider).functionsRegion,
       'europe-west1',
+    );
+    expect(
+      container.read(selectedWorldNavigationProvider).note('note-1'),
+      '/worlds/europe/notes/note-1',
     );
   });
 }
