@@ -94,9 +94,11 @@ corresponding client routes and authorization tests are ready.
 Asia is not marked `homeEnabled` until the home-directory authority and legacy
 assignment migration exist.
 
-The current checked-in contract is `schemaVersion: 2` and
-`catalogVersion: 2`. Version 2 makes every bucket route mandatory after the
-three regional buckets were provisioned.
+The current checked-in contract remains `schemaVersion: 1` and
+`catalogVersion: 1`. The contract has not been released to external clients or
+persisted in global operations, so the development-time bucket nullability
+change is folded into the initial version. Every version 1 entry requires a
+bucket route.
 
 All three buckets use the same physical settings, differing only by immutable
 regional location:

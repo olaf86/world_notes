@@ -20,8 +20,8 @@ void main() {
   test('parses the server world catalog contract', () {
     final catalog = WorldCatalog.fromJson(sourceCatalog);
 
-    expect(catalog.schemaVersion, 2);
-    expect(catalog.catalogVersion, 2);
+    expect(catalog.schemaVersion, 1);
+    expect(catalog.catalogVersion, 1);
     expect(
       catalog.worlds
           .map((world) => (world.worldId, world.databaseId, world.catalogState))
@@ -91,7 +91,7 @@ void main() {
   });
 
   test('rejects unsupported schema versions', () {
-    final catalog = _mutableClone(sourceCatalog)..['schemaVersion'] = 3;
+    final catalog = _mutableClone(sourceCatalog)..['schemaVersion'] = 2;
 
     expect(
       () => WorldCatalog.fromJson(catalog),

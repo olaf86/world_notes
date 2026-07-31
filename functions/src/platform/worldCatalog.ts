@@ -1,6 +1,6 @@
 import rawWorldCatalog from "./worldCatalog.config.json";
 
-export const WORLD_CATALOG_SCHEMA_VERSION = 2;
+export const WORLD_CATALOG_SCHEMA_VERSION = 1;
 
 export const WORLD_CATALOG_STATES = [
   "provisioning",

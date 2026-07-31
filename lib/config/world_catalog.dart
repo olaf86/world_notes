@@ -1,5 +1,5 @@
 /// Wire schema version supported by this client.
-const int worldCatalogSchemaVersion = 2;
+const int worldCatalogSchemaVersion = 1;
 
 /// Provisioning lifecycle for a world and its regional resources.
 enum WorldCatalogState {
