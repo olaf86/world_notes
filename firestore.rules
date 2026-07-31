@@ -1,10 +1,18 @@
 rules_version = '2';
 
 // Assumed data ownership model:
-// - users/{uid}: private account and entitlement data; owner-readable.
+// - userHomes/{uid}: immutable server-written routing marker. Required fields:
+//   world (non-empty string), epoch (positive integer), createdAt (timestamp).
+//   Only that uid may read the exact document; collection listing is denied.
+// - users/{uid}: private owner-readable account data. The trusted bootstrap
+//   writes Auth-derived identity, language preference, and timestamps.
+// - userEntitlements/{uid}: server-only world-local entitlement mirror with
+//   isPremium (bool) and updatedAt (timestamp).
+// - userUsage/{uid}: server-only independent world usage with
+//   activeNoteCount (non-negative integer) and updatedAt (timestamp).
 // - publicProfiles/{uid}: authenticated-readable display data; displayName,
 //   nullable photoUrl, photoVersion, counters, createdAt and updatedAt are
-//   required.
+//   required. All writes are trusted-server only.
 // - socialEdges/{edgeId}: authenticated-readable, server-managed follow edge.
 // - users/{uid}/blockedUsers/{blockedUid}: owner-readable, server-managed
 //   private block relationship.
@@ -29,6 +37,17 @@ service cloud.firestore {
 
     function isCurrentUser(uid) {
       return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function hasReadyAccount() {
+      let path = /databases/$(database)/documents/userHomes/$(request.auth.uid);
+      return isSignedIn()
+             && exists(path)
+             && get(path).data.world is string
+             && get(path).data.world.size() > 0
+             && get(path).data.world.size() <= 32
+             && get(path).data.epoch is int
+             && get(path).data.epoch > 0;
     }
 
     function hasUserBlockBetween(firstUid, secondUid) {
@@ -147,71 +166,6 @@ service cloud.firestore {
              && (notice.readAt == null || notice.readAt is timestamp);
     }
 
-    function isValidPublicProfile(profile) {
-      return profile.keys().hasAll([
-               'displayName',
-               'photoUrl',
-               'photoVersion',
-               'followerCount',
-               'followingCount',
-               'createdAt',
-               'updatedAt'
-             ])
-             && profile.keys().hasOnly([
-               'displayName',
-               'photoUrl',
-               'photoVersion',
-               'followerCount',
-               'followingCount',
-               'createdAt',
-               'updatedAt'
-             ])
-             && profile.displayName is string
-             && profile.displayName.size() > 0
-             && profile.displayName.size() <= 20
-             && (profile.photoUrl == null
-                 || (profile.photoUrl is string
-                     && profile.photoUrl.size() > 0
-                     && profile.photoUrl.size() <= 2000))
-             && profile.photoVersion is int
-             && profile.photoVersion > 0
-             && profile.followerCount is int
-             && profile.followerCount >= 0
-             && profile.followingCount is int
-             && profile.followingCount >= 0
-             && profile.createdAt is timestamp
-             && profile.updatedAt is timestamp;
-    }
-
-    function createsOwnPublicProfile(uid) {
-      return isCurrentUser(uid)
-             && isValidPublicProfile(request.resource.data)
-             && request.resource.data.followerCount == 0
-             && request.resource.data.followingCount == 0
-             && request.resource.data.createdAt == request.time
-             && request.resource.data.updatedAt == request.time;
-    }
-
-    function updatesOwnPublicProfile(uid) {
-      return isCurrentUser(uid)
-             && isValidPublicProfile(resource.data)
-             && isValidPublicProfile(request.resource.data)
-             && request.resource.data.diff(resource.data)
-                 .affectedKeys()
-                 .hasOnly([
-                   'displayName',
-                   'photoUrl',
-                   'photoVersion',
-                   'updatedAt'
-                 ])
-             && request.resource.data.createdAt == resource.data.createdAt
-             && request.resource.data.followerCount ==
-                 resource.data.followerCount
-             && request.resource.data.followingCount ==
-                 resource.data.followingCount
-             && request.resource.data.updatedAt == request.time;
-    }
-
     function canReadMessage(placeId, message) {
       return canAccessNote(placeId)
              && (isPubliclyVisibleMessage(message)
@@ -233,24 +187,15 @@ service cloud.firestore {
              && (closesThread || reopensOwnerClosedThread);
     }
 
-    // ── users ─────────────────────────────────────────────────────────────────
+    // ── account bootstrap and private data ─────────────────────────────────
+    match /userHomes/{uid} {
+      allow get: if isCurrentUser(uid);
+      allow list, create, update, delete: if false;
+    }
+
     match /users/{uid} {
       allow read: if isCurrentUser(uid);
-      allow create: if isCurrentUser(uid)
-                    && request.resource.data.keys()
-                        .hasOnly(['displayName', 'email', 'photoUrl'])
-                    && request.resource.data.displayName is string
-                    && request.resource.data.displayName.size() > 0
-                    && request.resource.data.displayName.size() <= 20
-                    && (request.resource.data.email == null
-                        || (request.resource.data.email is string
-                            && request.resource.data.email.size() <= 320))
-                    && (request.resource.data.photoUrl == null
-                        || (request.resource.data.photoUrl is string
-                            && request.resource.data.photoUrl.size() <= 2000));
-      // Profile changes and all entitlement/counter fields are server-managed.
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if false;
 
       // Notification preferences are readable by the signed-in user, but only
       // callable Cloud Functions may change them. The server remains the single
@@ -285,6 +230,7 @@ service cloud.firestore {
         allow read: if isCurrentUser(uid);
         allow create: if false;
         allow update: if isCurrentUser(uid)
+                      && hasReadyAccount()
                       && isValidNotice(resource.data)
                       && isValidNotice(request.resource.data)
                       && request.resource.data.diff(resource.data)
@@ -295,12 +241,18 @@ service cloud.firestore {
       }
     }
 
+    match /userEntitlements/{uid} {
+      allow read, write: if false;
+    }
+
+    match /userUsage/{uid} {
+      allow read, write: if false;
+    }
+
     // ── public profiles ─────────────────────────────────────────────────────
     match /publicProfiles/{uid} {
       allow read: if isSignedIn();
-      allow create: if createsOwnPublicProfile(uid);
-      allow update: if updatesOwnPublicProfile(uid);
-      allow delete: if false;
+      allow write: if false;
     }
 
     // Flat, graph-ready user-following edges. Clients may read relationship
@@ -328,6 +280,7 @@ service cloud.firestore {
       //     closed manually by a maintainer; message-limit closes are
       //     permanent.
       allow update: if isPlaceMaintainer(resource.data)
+                    && hasReadyAccount()
                     && isValidClientThreadStateTransition();
 
       // messageCount / lastMessageAt are maintained ONLY by Cloud Functions

@@ -7,6 +7,7 @@ import '../domain/entities/content_report.dart';
 import '../presentation/providers/providers.dart';
 import '../presentation/screens/admin/admin_moderation_screen.dart';
 import '../presentation/screens/auth/sign_in_screen.dart';
+import '../presentation/screens/auth/home_world_selection_screen.dart';
 import '../presentation/screens/invite/invite_claim_screen.dart';
 import '../presentation/screens/map/map_notes_screen.dart';
 import '../presentation/screens/my_notes/my_notes_screen.dart';
@@ -26,16 +27,19 @@ import 'world_catalog.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
+  final homeAssignment = ref.watch(homeAssignmentProvider);
 
   return GoRouter(
     initialLocation: '/map',
     observers: [appRouteObserver],
-    redirect: (context, state) {
+    redirect: (context, state) async {
       // While auth state is still resolving, don't redirect.
       if (authState.isLoading) return null;
 
       final isLoggedIn = authState.valueOrNull != null;
       final isAuthRoute = state.matchedLocation.startsWith('/auth');
+      final isHomeSelectionRoute =
+          state.matchedLocation == '/onboarding/home-world';
       // Invite deep links are reachable while logged out so the claim screen
       // can prompt sign-in instead of bouncing to /map and losing the token.
       final isInviteRoute = state.matchedLocation.contains('/invites/');
@@ -43,12 +47,25 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (!isLoggedIn && !isAuthRoute && !isInviteRoute) {
         return '/auth/sign-in';
       }
-      if (isLoggedIn && isAuthRoute) return '/map';
+      if (!isLoggedIn) return null;
+
+      final assignment = homeAssignment.valueOrNull;
+      if (assignment == null) {
+        if (isHomeSelectionRoute) return null;
+        final continuation = Uri.encodeQueryComponent(state.uri.toString());
+        return '/onboarding/home-world?continue=$continuation';
+      }
+      if (isAuthRoute || isHomeSelectionRoute) {
+        final continuation = state.uri.queryParameters['continue'];
+        return continuation != null && continuation.startsWith('/')
+            ? continuation
+            : '/map';
+      }
 
       final routedWorldId = state.pathParameters['worldId'];
       if (routedWorldId != null) {
         try {
-          ref
+          await ref
               .read(selectedWorldProvider.notifier)
               .selectWorld(WorldId(routedWorldId));
         } on StateError {
@@ -61,6 +78,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/auth/sign-in',
         builder: (context, state) => const SignInScreen(),
+      ),
+      GoRoute(
+        path: '/onboarding/home-world',
+        builder: (context, state) => const HomeWorldSelectionScreen(),
       ),
       // StatefulShellRoute keeps every branch mounted in an IndexedStack, so
       // switching tabs no longer disposes the previous screen. MapNotesScreen's

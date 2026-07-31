@@ -110,6 +110,7 @@ describe(
 
     test("writes an authenticated setting through the callable", async () => {
       const credential = await signInAnonymously(requireAuth());
+      await seedReadyUser(credential.user.uid);
       const idToken = await credential.user.getIdToken();
       const settingReference = requireFirestore()
         .collection("users")
@@ -136,8 +137,31 @@ describe(
       assert.notEqual(setting.get("updatedAt"), undefined);
     });
 
+    test("rejects a stateful callable before world bootstrap", async () => {
+      const credential = await signInAnonymously(requireAuth());
+      const idToken = await credential.user.getIdToken();
+      const settingReference = requireFirestore()
+        .collection("users")
+        .doc(credential.user.uid)
+        .collection("notificationSettings")
+        .doc("main");
+      cleanupReferences.push(settingReference);
+
+      const response = await callFunction(
+        "setMyNotesNotificationEnabled",
+        {worldId: "asia", enabled: true},
+        idToken,
+      );
+      const body = await response.json() as CallableErrorBody;
+
+      assert.equal(response.status, 400);
+      assert.equal(body.error?.status, "FAILED_PRECONDITION");
+      assert.equal((await settingReference.get()).exists, false);
+    });
+
     test("rejects invalid callable data before writing", async () => {
       const credential = await signInAnonymously(requireAuth());
+      await seedReadyUser(credential.user.uid);
       const idToken = await credential.user.getIdToken();
       const settingReference = requireFirestore()
         .collection("users")
@@ -173,6 +197,109 @@ describe(
       assert.equal(response.status, 400);
       assert.equal(body.error?.status, "INVALID_ARGUMENT");
     });
+
+    test("atomically bootstraps the caller's Asia account", async () => {
+      const credential = await signInAnonymously(requireAuth());
+      const uid = credential.user.uid;
+      const idToken = await credential.user.getIdToken();
+      const db = requireFirestore();
+      const references = [
+        db.collection("userHomes").doc(uid),
+        db.collection("users").doc(uid),
+        db.collection("publicProfiles").doc(uid),
+        db.collection("userEntitlements").doc(uid),
+        db.collection("userUsage").doc(uid),
+      ];
+      cleanupReferences.push(...references);
+
+      const response = await callFunction(
+        "assignHomeWorld",
+        {worldId: "asia", homeWorld: "asia"},
+        idToken,
+      );
+      const body = await response.json() as CallableSuccessBody<{
+        homeWorld: string;
+        epoch: number;
+        ready: boolean;
+        assignedNow: boolean;
+        worldId: string;
+      }>;
+      const result = body.result ?? body.data;
+      const [home, user, profile, entitlement, usage] =
+        await Promise.all(references.map((reference) => reference.get()));
+
+      assert.equal(response.status, 200);
+      assert.equal(result?.homeWorld, "asia");
+      assert.equal(result?.epoch, 1);
+      assert.equal(result?.ready, true);
+      assert.equal(result?.assignedNow, true);
+      assert.equal(result?.worldId, "asia");
+      assert.equal(home.get("world"), "asia");
+      assert.equal(home.get("epoch"), 1);
+      assert.equal(user.get("displayName"), "User");
+      assert.equal(user.get("languagePreference"), "system");
+      assert.equal(profile.get("followerCount"), 0);
+      assert.equal(profile.get("followingCount"), 0);
+      assert.equal(entitlement.get("isPremium"), false);
+      assert.equal(usage.get("activeNoteCount"), 0);
+    });
+
+    test("makes a repeated home assignment idempotent", async () => {
+      const credential = await signInAnonymously(requireAuth());
+      const uid = credential.user.uid;
+      const idToken = await credential.user.getIdToken();
+      const db = requireFirestore();
+      cleanupReferences.push(
+        db.collection("userHomes").doc(uid),
+        db.collection("users").doc(uid),
+        db.collection("publicProfiles").doc(uid),
+        db.collection("userEntitlements").doc(uid),
+        db.collection("userUsage").doc(uid),
+      );
+
+      const responses = await Promise.all([
+        callFunction(
+          "assignHomeWorld",
+          {worldId: "asia", homeWorld: "asia"},
+          idToken,
+        ),
+        callFunction(
+          "assignHomeWorld",
+          {worldId: "asia", homeWorld: "asia"},
+          idToken,
+        ),
+      ]);
+      const bodies = await Promise.all(responses.map(async (response) =>
+        await response.json() as CallableSuccessBody<{
+          assignedNow: boolean;
+        }>));
+
+      assert.deepEqual(
+        responses.map((response) => response.status),
+        [200, 200],
+      );
+      assert.deepEqual(
+        bodies
+          .map((body) => (body.result ?? body.data)?.assignedNow)
+          .sort(),
+        [false, true],
+      );
+    });
+
+    test("rejects a home world that is not assignment-enabled", async () => {
+      const credential = await signInAnonymously(requireAuth());
+      const idToken = await credential.user.getIdToken();
+
+      const response = await callFunction(
+        "assignHomeWorld",
+        {worldId: "asia", homeWorld: "europe"},
+        idToken,
+      );
+      const body = await response.json() as CallableErrorBody;
+
+      assert.equal(response.status, 400);
+      assert.equal(body.error?.status, "FAILED_PRECONDITION");
+    });
   },
 );
 
@@ -188,6 +315,16 @@ function requireFirestore(): Firestore {
     throw new Error("Firestore emulator client is not initialized.");
   }
   return firestore;
+}
+
+async function seedReadyUser(uid: string): Promise<void> {
+  const reference = requireFirestore().collection("userHomes").doc(uid);
+  cleanupReferences.push(reference);
+  await reference.set({
+    world: "asia",
+    epoch: 1,
+    createdAt: new Date(),
+  });
 }
 
 async function callFunction(

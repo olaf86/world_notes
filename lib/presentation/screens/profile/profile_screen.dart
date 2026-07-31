@@ -251,6 +251,18 @@ class ProfileScreen extends ConsumerWidget {
                     ),
                   ),
                   onTap: () async {
+                    try {
+                      await ref
+                          .read(myNotesNotificationServiceProvider)
+                          .deleteCurrentToken();
+                    } catch (_) {
+                      // Token cleanup is best-effort; sign-out must continue.
+                    }
+                    try {
+                      await ref.read(messageImageServiceProvider).clearCache();
+                    } catch (_) {
+                      // Cached images contain no authority and can expire.
+                    }
                     await ref.read(authRepositoryProvider).signOut();
                     await ref.read(subscriptionServiceProvider).logOut();
                   },

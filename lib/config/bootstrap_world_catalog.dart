@@ -18,8 +18,8 @@ const Map<String, Object?> bootstrapWorldCatalogData = {
       'functionsRegion': 'asia-northeast1',
       'bucketName': 'world-notes-prod.firebasestorage.app',
       'displayNameKey': 'world.asia',
-      'catalogState': 'contentEnabled',
-      'homeAssignmentEnabled': false,
+      'catalogState': 'homeEnabled',
+      'homeAssignmentEnabled': true,
       'contentAccessEnabled': true,
     },
     <String, Object?>{

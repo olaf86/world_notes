@@ -82,10 +82,10 @@ describe(
         await assertFails(guest.firestore().doc("users/alice").get());
       });
 
-      test("allows a user to create their own valid account", async () => {
+      test("denies direct creation of the owner's account", async () => {
         const alice = requireApplicationRules().authenticatedContext("alice");
 
-        await assertSucceeds(
+        await assertFails(
           alice.firestore().doc("users/alice").set(validUser("Alice")),
         );
       });
@@ -108,6 +108,80 @@ describe(
           }),
         );
       });
+
+      test("denies owner account updates and deletes", async () => {
+        await seedApplicationDocument("users/alice", validUser("Alice"));
+        const alice = requireApplicationRules().authenticatedContext("alice");
+
+        await assertFails(
+          alice.firestore().doc("users/alice").update({isAdmin: true}),
+        );
+        await assertFails(alice.firestore().doc("users/alice").delete());
+      });
+    });
+
+    describe("home routing markers", {concurrency: false}, () => {
+      test("allows only the owner to get the exact marker", async () => {
+        await seedApplicationDocument("userHomes/alice", validUserHome());
+        const alice = requireApplicationRules().authenticatedContext("alice");
+        const bob = requireApplicationRules().authenticatedContext("bob");
+        const guest = requireApplicationRules().unauthenticatedContext();
+
+        await assertSucceeds(
+          alice.firestore().doc("userHomes/alice").get(),
+        );
+        await assertFails(bob.firestore().doc("userHomes/alice").get());
+        await assertFails(guest.firestore().doc("userHomes/alice").get());
+      });
+
+      test("denies marker listing and every client write", async () => {
+        await seedApplicationDocument("userHomes/alice", validUserHome());
+        const alice = requireApplicationRules().authenticatedContext("alice");
+
+        await assertFails(alice.firestore().collection("userHomes").get());
+        await assertFails(
+          alice.firestore().doc("userHomes/bob").set(validUserHome()),
+        );
+        await assertFails(
+          alice.firestore().doc("userHomes/alice").update({world: "europe"}),
+        );
+        await assertFails(alice.firestore().doc("userHomes/alice").delete());
+      });
+
+      test(
+        "denies all client access to entitlement and usage mirrors",
+        async () => {
+          await Promise.all([
+            seedApplicationDocument("userEntitlements/alice", {
+              isPremium: false,
+              updatedAt: firebase.firestore.Timestamp.now(),
+            }),
+            seedApplicationDocument("userUsage/alice", {
+              activeNoteCount: 0,
+              updatedAt: firebase.firestore.Timestamp.now(),
+            }),
+          ]);
+          const alice =
+            requireApplicationRules().authenticatedContext("alice");
+
+          await assertFails(
+            alice.firestore().doc("userEntitlements/alice").get(),
+          );
+          await assertFails(
+            alice.firestore().doc("userUsage/alice").get(),
+          );
+          await assertFails(
+            alice.firestore().doc("userEntitlements/alice").set({
+              isPremium: true,
+            }),
+          );
+          await assertFails(
+            alice.firestore().doc("userUsage/alice").update({
+              activeNoteCount: 1000000,
+            }),
+          );
+        },
+      );
     });
 
     describe("public profiles", {concurrency: false}, () => {
@@ -136,12 +210,12 @@ describe(
       });
 
       test(
-        "allows an owner to create a strictly validated profile",
+        "denies direct owner creation of a public profile",
         async () => {
           const alice =
             requireApplicationRules().authenticatedContext("alice");
 
-          await assertSucceeds(
+          await assertFails(
             alice.firestore().doc("publicProfiles/alice").set({
               displayName: "Alice",
               photoUrl: null,
@@ -182,6 +256,61 @@ describe(
           alice.firestore().doc("publicProfiles/alice").update({
             followerCount: 1,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          }),
+        );
+      });
+
+      test("denies owner display-field updates and deletes", async () => {
+        await seedApplicationDocument(
+          "publicProfiles/alice",
+          storedPublicProfile("Alice"),
+        );
+        const alice = requireApplicationRules().authenticatedContext("alice");
+
+        await assertFails(
+          alice.firestore().doc("publicProfiles/alice").update({
+            displayName: "Mallory",
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          }),
+        );
+        await assertFails(
+          alice.firestore().doc("publicProfiles/alice").delete(),
+        );
+      });
+    });
+
+    describe("bootstrap write guard", {concurrency: false}, () => {
+      test(
+        "allows an owner to mark a notice read after bootstrap",
+        async () => {
+          await Promise.all([
+            seedApplicationDocument("userHomes/alice", validUserHome()),
+            seedApplicationDocument(
+              "users/alice/notices/notice-1",
+              validNotice(),
+            ),
+          ]);
+          const alice =
+            requireApplicationRules().authenticatedContext("alice");
+
+          await assertSucceeds(
+            alice.firestore().doc("users/alice/notices/notice-1").update({
+              readAt: firebase.firestore.FieldValue.serverTimestamp(),
+            }),
+          );
+        },
+      );
+
+      test("denies a stateful write before bootstrap", async () => {
+        await seedApplicationDocument(
+          "users/alice/notices/notice-1",
+          validNotice(),
+        );
+        const alice = requireApplicationRules().authenticatedContext("alice");
+
+        await assertFails(
+          alice.firestore().doc("users/alice/notices/notice-1").update({
+            readAt: firebase.firestore.FieldValue.serverTimestamp(),
           }),
         );
       });
@@ -354,6 +483,30 @@ function validUser(displayName: string): firebase.firestore.DocumentData {
     displayName,
     email: `${displayName.toLowerCase()}@example.com`,
     photoUrl: null,
+  };
+}
+
+/** Creates an immutable home-routing marker for Rules tests. */
+function validUserHome(): firebase.firestore.DocumentData {
+  return {
+    world: "asia",
+    epoch: 1,
+    createdAt: firebase.firestore.Timestamp.now(),
+  };
+}
+
+/** Creates a valid owner-readable notice. */
+function validNotice(): firebase.firestore.DocumentData {
+  return {
+    category: "account",
+    severity: "info",
+    title: "Welcome",
+    body: "Your account is ready.",
+    action: null,
+    sourceType: null,
+    sourceId: null,
+    createdAt: firebase.firestore.Timestamp.now(),
+    readAt: null,
   };
 }
 

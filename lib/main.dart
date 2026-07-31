@@ -20,6 +20,7 @@ import 'l10n/l10n.dart';
 import 'presentation/providers/providers.dart';
 import 'services/notice_notification_service.dart';
 import 'services/subscription_service.dart';
+import 'services/account_bootstrap_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -117,26 +118,13 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp>
     with WidgetsBindingObserver {
   StreamSubscription<NotificationPlaceRoute>? _notificationOpenSubscription;
   StreamSubscription<NotificationNoticeRoute>? _noticeOpenSubscription;
+  HomeAssignment? _boundAssignment;
 
   @override
   void initState() {
     super.initState();
     if (screenshotMode) return;
     WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final service = ref.read(myNotesNotificationServiceProvider);
-      service.initialPlaceRouteFromLaunch().then(_openPlaceFromNotification);
-      _notificationOpenSubscription = service.openedPlaceRoutes.listen(
-        _openPlaceFromNotification,
-      );
-      final noticeService = ref.read(noticeNotificationServiceProvider);
-      noticeService.initialNoticeRouteFromLaunch().then(
-        _openNoticesFromNotification,
-      );
-      _noticeOpenSubscription = noticeService.openedNoticeRoutes.listen(
-        _openNoticesFromNotification,
-      );
-    });
   }
 
   @override
@@ -157,20 +145,24 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp>
     }
   }
 
-  void _openPlaceFromNotification(NotificationPlaceRoute? route) {
+  Future<void> _openPlaceFromNotification(NotificationPlaceRoute? route) async {
     if (!mounted || route == null) return;
     try {
-      ref.read(selectedWorldProvider.notifier).selectWorld(route.note.worldId);
+      await ref
+          .read(selectedWorldProvider.notifier)
+          .selectWorld(route.note.worldId);
     } on StateError {
       return;
     }
     openNotificationPlace(ref.read(routerProvider), route);
   }
 
-  void _openNoticesFromNotification(NotificationNoticeRoute? route) {
+  Future<void> _openNoticesFromNotification(
+    NotificationNoticeRoute? route,
+  ) async {
     if (!mounted || route == null) return;
     try {
-      ref
+      await ref
           .read(selectedWorldProvider.notifier)
           .selectWorld(route.notice.worldId);
     } on StateError {
@@ -179,8 +171,49 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp>
     openNotices(ref.read(routerProvider));
   }
 
+  Future<void> _bindNotificationServices(HomeAssignment assignment) async {
+    if (!mounted || _boundAssignment == assignment) return;
+    _boundAssignment = assignment;
+    await _notificationOpenSubscription?.cancel();
+    await _noticeOpenSubscription?.cancel();
+
+    final service = ref.read(myNotesNotificationServiceProvider);
+    await _openPlaceFromNotification(
+      await service.initialPlaceRouteFromLaunch(),
+    );
+    _notificationOpenSubscription = service.openedPlaceRoutes.listen(
+      _openPlaceFromNotification,
+    );
+    final noticeService = ref.read(noticeNotificationServiceProvider);
+    await _openNoticesFromNotification(
+      await noticeService.initialNoticeRouteFromLaunch(),
+    );
+    _noticeOpenSubscription = noticeService.openedNoticeRoutes.listen(
+      _openNoticesFromNotification,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    ref.listen<AsyncValue<HomeAssignment?>>(homeAssignmentProvider, (
+      previous,
+      next,
+    ) {
+      final assignment = next.valueOrNull;
+      if (assignment != null) {
+        unawaited(_bindNotificationServices(assignment));
+      } else if (previous?.valueOrNull != null) {
+        _boundAssignment = null;
+      }
+    });
+    final currentAssignment = ref.watch(homeAssignmentProvider).valueOrNull;
+    if (!screenshotMode &&
+        currentAssignment != null &&
+        _boundAssignment != currentAssignment) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(_bindNotificationServices(currentAssignment));
+      });
+    }
     final router = ref.watch(routerProvider);
     final languagePreference = ref.watch(appLanguagePreferenceProvider);
     // Keep the post-login UMP/ATT flow alive for the app lifetime. Ad widgets

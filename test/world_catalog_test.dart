@@ -28,7 +28,7 @@ void main() {
           .map((world) => (world.worldId, world.databaseId, world.catalogState))
           .toList(),
       [
-        ('asia', '(default)', WorldCatalogState.contentEnabled),
+        ('asia', '(default)', WorldCatalogState.homeEnabled),
         ('northAmerica', 'north-america', WorldCatalogState.provisioning),
         ('europe', 'europe', WorldCatalogState.provisioning),
       ],
@@ -44,6 +44,10 @@ void main() {
   test('permits content routing only for enabled worlds', () {
     expect(
       bootstrapWorldCatalog.requireContentWorld(asiaWorldId).databaseId,
+      '(default)',
+    );
+    expect(
+      bootstrapWorldCatalog.requireHomeWorld(asiaWorldId).databaseId,
       '(default)',
     );
     expect(
@@ -105,7 +109,7 @@ void main() {
     );
 
     final earlyHome = _mutableClone(sourceCatalog);
-    _worldAt(earlyHome, 0)['homeAssignmentEnabled'] = true;
+    _worldAt(earlyHome, 0)['catalogState'] = 'contentEnabled';
     expect(
       () => WorldCatalog.fromJson(earlyHome),
       throwsA(isA<FormatException>()),

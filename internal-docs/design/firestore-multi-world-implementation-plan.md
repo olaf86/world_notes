@@ -633,6 +633,23 @@ Exit criteria:
 Rollback: stop new home assignment. Already assigned homes are immutable and
 must continue to be served.
 
+Implementation note (2026-08-01): the first P07 slice enables Asia for new
+home assignments and adds the `assignHomeWorld` callable. One transaction uses
+`userHomes/{uid}` as its conflict point and installs the private `users`
+authority, server-owned `publicProfiles`, local `userEntitlements`, and local
+`userUsage`. Concurrent same-home calls converge idempotently; a different or
+inactive home is rejected. The home is also cached in Auth custom claims, but
+Firestore remains routing authority. All ordinary regional callables now
+require the caller's local marker, and the two remaining direct stateful Rules
+writes apply the same guard. Flutter sends an unassigned user through an
+explicit permanent-home confirmation, routes private preferences,
+notifications, and notices through the home client, and refuses a world switch
+until the target marker matches the assigned epoch. Client writes to `users`
+and `publicProfiles` were removed rather than retained as compatibility paths.
+The cross-world `globalOperations` envelope, mirror acknowledgements, and
+background installation remain P08/P09 work; therefore only Asia is
+home-assignment-enabled in catalog version 1.
+
 ### Phase 4 — global operation infrastructure
 
 Deliverables:

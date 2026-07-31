@@ -202,8 +202,8 @@ async function noteAccessRadiusKmForUser(
   db: Firestore,
   uid: string,
 ): Promise<number> {
-  const userSnap = await db.collection("users").doc(uid).get();
-  return userSnap.get("isPremium") === true ?
+  const entitlement = await db.collection("userEntitlements").doc(uid).get();
+  return entitlement.get("isPremium") === true ?
     PRO_NOTE_DETAIL_ACCESS_RADIUS_KM :
     NOTE_DETAIL_ACCESS_RADIUS_KM;
 }

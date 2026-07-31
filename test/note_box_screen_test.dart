@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:world_notes/domain/entities/message_thread_item.dart';
 import 'package:world_notes/domain/entities/place_entity.dart';
+import 'package:world_notes/domain/entities/public_profile_entity.dart';
 import 'package:world_notes/domain/entities/user_entity.dart';
 import 'package:world_notes/presentation/providers/providers.dart';
 import 'package:world_notes/presentation/screens/note/note_box_screen.dart';
@@ -185,9 +186,13 @@ void main() {
           placeProvider.overrideWith(
             (ref, String placeId) => Stream.value(place),
           ),
-          userProfileProvider.overrideWith(
-            (ref, String userId) => Stream<UserEntity?>.value(
-              const UserEntity(id: 'owner-1', name: 'Alice'),
+          publicProfileProvider.overrideWith(
+            (ref, String userId) => Stream<PublicProfile?>.value(
+              const PublicProfile(
+                id: 'owner-1',
+                displayName: 'Alice',
+                photoVersion: 1,
+              ),
             ),
           ),
           messagesProvider.overrideWith(
@@ -261,9 +266,13 @@ void main() {
           placeProvider.overrideWith(
             (ref, String placeId) => Stream.value(place),
           ),
-          userProfileProvider.overrideWith(
-            (ref, String userId) => Stream<UserEntity?>.value(
-              const UserEntity(id: 'owner-1', name: 'Alice'),
+          publicProfileProvider.overrideWith(
+            (ref, String userId) => Stream<PublicProfile?>.value(
+              const PublicProfile(
+                id: 'owner-1',
+                displayName: 'Alice',
+                photoVersion: 1,
+              ),
             ),
           ),
           messagesProvider.overrideWith(

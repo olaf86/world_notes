@@ -43,6 +43,7 @@ import '../../domain/repositories/place_repository.dart';
 import '../../domain/repositories/user_block_repository.dart';
 import '../../l10n/app_locale.dart';
 import '../../services/ad_privacy_service.dart';
+import '../../services/account_bootstrap_service.dart';
 import '../../services/location_service.dart';
 import '../../services/admin_moderation_service.dart';
 import '../../services/message_image_service.dart';
@@ -58,8 +59,18 @@ final worldCatalogProvider = Provider<WorldCatalog>(
   (_) => bootstrapWorldCatalog,
 );
 
-/// Permanent home for pre-multi-world accounts during the P04 rollout.
-final homeWorldProvider = Provider<WorldId>((_) => asiaWorldId);
+final homeAssignmentProvider = StreamProvider<HomeAssignment?>((ref) {
+  final user = ref.watch(authStateProvider).valueOrNull;
+  if (user == null) return Stream.value(null);
+  return ref.watch(accountBootstrapServiceProvider).watchHome(user.id);
+});
+
+/// Assigned authority world. Asia is also the bootstrap route before an
+/// assignment exists; the router keeps unassigned users out of product data.
+final homeWorldProvider = Provider<WorldId>((ref) {
+  return ref.watch(homeAssignmentProvider).valueOrNull?.homeWorld ??
+      asiaWorldId;
+});
 
 class SelectedWorldNotifier extends Notifier<WorldId> {
   @override
@@ -69,8 +80,17 @@ class SelectedWorldNotifier extends Notifier<WorldId> {
     return homeWorld;
   }
 
-  void selectWorld(WorldId worldId) {
+  Future<void> selectWorld(WorldId worldId) async {
     ref.read(worldCatalogProvider).requireContentWorld(worldId);
+    final user = ref.read(authStateProvider).valueOrNull;
+    final assignment = await ref.read(homeAssignmentProvider.future);
+    if (user == null || assignment == null) {
+      throw StateError('Account bootstrap is incomplete.');
+    }
+    final ready = await ref.read(worldReadinessProvider(worldId).future);
+    if (!ready) {
+      throw StateError('World is still preparing this account.');
+    }
     state = worldId;
   }
 }
@@ -113,6 +133,51 @@ final worldFirebaseClientsProvider =
           .requireContentWorld(worldId);
       return ref.watch(worldFirebaseClientCacheProvider).forWorld(world);
     });
+
+final bootstrapWorldClientsProvider = Provider<WorldFirebaseClients>((ref) {
+  final asia = ref.watch(worldCatalogProvider).requireContentWorld(asiaWorldId);
+  return ref.watch(worldFirebaseClientCacheProvider).forWorld(asia);
+});
+
+final accountBootstrapServiceProvider = Provider<AccountBootstrapService>((
+  ref,
+) {
+  final bootstrapClients = ref.watch(bootstrapWorldClientsProvider);
+  return AccountBootstrapService(
+    directoryFirestore: bootstrapClients.firestore,
+    directoryFunctions: bootstrapClients.functions,
+    catalog: ref.watch(worldCatalogProvider),
+  );
+});
+
+final homeWorldClientsProvider = Provider<WorldFirebaseClients>((ref) {
+  return ref.watch(worldFirebaseClientsProvider(ref.watch(homeWorldProvider)));
+});
+
+final homeWorldFirestoreProvider = Provider<FirebaseFirestore>((ref) {
+  return ref.watch(homeWorldClientsProvider).firestore;
+});
+
+final homeWorldFunctionsProvider = Provider<WorldFunctionsClient>((ref) {
+  return ref.watch(homeWorldClientsProvider).functions;
+});
+
+final worldReadinessProvider = FutureProvider.family<bool, WorldId>((
+  ref,
+  worldId,
+) async {
+  final user = ref.watch(authStateProvider).valueOrNull;
+  final assignment = await ref.watch(homeAssignmentProvider.future);
+  if (user == null || assignment == null) return false;
+  final destination = ref.watch(worldFirebaseClientsProvider(worldId));
+  return ref
+      .watch(accountBootstrapServiceProvider)
+      .isWorldReady(
+        uid: user.id,
+        assignment: assignment,
+        destination: destination.firestore,
+      );
+});
 
 final selectedWorldClientsProvider = Provider<WorldFirebaseClients>((ref) {
   return ref.watch(
@@ -226,7 +291,7 @@ final myNotesNotificationServiceProvider = Provider<MyNotesNotificationService>(
   (ref) {
     final service = MyNotesNotificationService(
       messaging: ref.watch(firebaseMessagingProvider),
-      functions: ref.watch(selectedWorldFunctionsProvider),
+      functions: ref.watch(homeWorldFunctionsProvider),
       auth: ref.watch(firebaseAuthProvider),
       crashlytics: ref.watch(firebaseCrashlyticsProvider),
     );
@@ -261,8 +326,8 @@ final appLanguagePreferenceProvider =
       (ref) {
         return AppLanguagePreferenceNotifier(
           auth: ref.watch(firebaseAuthProvider),
-          firestore: ref.watch(selectedWorldFirestoreProvider),
-          functions: ref.watch(selectedWorldFunctionsProvider),
+          firestore: ref.watch(homeWorldFirestoreProvider),
+          functions: ref.watch(homeWorldFunctionsProvider),
           preferences: ref.watch(sharedPreferencesProvider),
           syncAccount: !screenshotMode,
         );
@@ -426,11 +491,8 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepositoryImpl(
     auth: ref.watch(firebaseAuthProvider),
     googleSignIn: GoogleSignIn(),
-    firestore: ref.watch(selectedWorldFirestoreProvider),
-    functions: ref.watch(selectedWorldFunctionsProvider),
-    myNotesNotificationService: ref.watch(myNotesNotificationServiceProvider),
+    functionsProvider: () => ref.read(bootstrapWorldClientsProvider).functions,
     subscriptionService: ref.watch(subscriptionServiceProvider),
-    messageImageService: ref.watch(messageImageServiceProvider),
   );
 });
 
@@ -458,9 +520,7 @@ final followRepositoryProvider = Provider<FollowRepository>((ref) {
 });
 
 final noticeRepositoryProvider = Provider<NoticeRepository>((ref) {
-  return NoticeRepositoryImpl(
-    firestore: ref.watch(selectedWorldFirestoreProvider),
-  );
+  return NoticeRepositoryImpl(firestore: ref.watch(homeWorldFirestoreProvider));
 });
 
 final userBlockRepositoryProvider = Provider<UserBlockRepository>((ref) {
@@ -492,38 +552,19 @@ final authStateProvider = StreamProvider<UserEntity?>((ref) {
   return ref.watch(authRepositoryProvider).authStateChanges;
 });
 
-final userProfileProvider = StreamProvider.autoDispose
-    .family<UserEntity?, String>((ref, userId) {
-      final id = userId.trim();
-      if (id.isEmpty) return Stream.value(null);
-      return ref
-          .watch(selectedWorldFirestoreProvider)
-          .collection('users')
-          .doc(id)
-          .snapshots()
-          .map((snap) {
-            final data = snap.data();
-            if (data == null) return null;
-            final displayName = (data['displayName'] as String?)?.trim();
-            return UserEntity(
-              id: snap.id,
-              name: displayName == null || displayName.isEmpty
-                  ? 'User'
-                  : displayName,
-              email: data['email'] as String?,
-              photoUrl: data['photoUrl'] as String?,
-              isPremium: data['isPremium'] as bool? ?? false,
-            );
-          });
-    });
-
 final noteCreatorProfileProvider = Provider.autoDispose
     .family<UserEntity?, String>((ref, userId) {
       final id = userId.trim();
       if (id.isEmpty) return null;
-      final profile = ref.watch(userProfileProvider(id)).valueOrNull;
+      final profile = ref.watch(publicProfileProvider(id)).valueOrNull;
       final currentUser = ref.watch(authStateProvider).valueOrNull;
-      if (profile != null) return profile;
+      if (profile != null) {
+        return UserEntity(
+          id: id,
+          name: profile.displayName,
+          photoUrl: profile.photoUrl,
+        );
+      }
       return currentUser?.id == id ? currentUser : null;
     });
 
@@ -617,7 +658,7 @@ final myNotesNotificationEnabledProvider = StreamProvider<bool>((ref) {
   final user = ref.watch(authStateProvider).valueOrNull;
   if (user == null) return Stream.value(false);
   return ref
-      .watch(selectedWorldFirestoreProvider)
+      .watch(homeWorldFirestoreProvider)
       .collection('users')
       .doc(user.id)
       .collection('notificationSettings')
@@ -630,7 +671,7 @@ final myNotesNotificationPreviewEnabledProvider = StreamProvider<bool>((ref) {
   final user = ref.watch(authStateProvider).valueOrNull;
   if (user == null) return Stream.value(true);
   return ref
-      .watch(selectedWorldFirestoreProvider)
+      .watch(homeWorldFirestoreProvider)
       .collection('users')
       .doc(user.id)
       .collection('notificationSettings')

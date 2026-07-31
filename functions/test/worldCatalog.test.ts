@@ -22,7 +22,7 @@ test("loads the versioned initial world catalog", () => {
       {
         worldId: "asia",
         databaseId: "(default)",
-        state: "contentEnabled",
+        state: "homeEnabled",
       },
       {
         worldId: "northAmerica",
@@ -95,11 +95,19 @@ test("rejects missing buckets and premature lifecycle flags", () => {
   );
 
   const earlyHome = mutableCatalog();
-  earlyHome.worlds[0].homeAssignmentEnabled = true;
+  earlyHome.worlds[0].catalogState = "contentEnabled";
   assert.throws(
     () => parseWorldCatalog(earlyHome),
     /homeAssignmentEnabled requires homeEnabled state/,
   );
+});
+
+test("exposes only explicitly home-enabled worlds for assignment", () => {
+  const asia = WORLD_CATALOG.worlds[0];
+  const northAmerica = WORLD_CATALOG.worlds[1];
+
+  assert.equal(asia.homeAssignmentEnabled, true);
+  assert.equal(northAmerica.homeAssignmentEnabled, false);
 });
 
 test("rejects unsupported schema versions", () => {

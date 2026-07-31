@@ -124,12 +124,12 @@ const UUID_V7_PATTERN =
  * This is the ONLY way a `places` document may be created — Firestore rules
  * deny direct client creation. Enforcing the per-user note cap requires
  * counting the user's notes, which security rules cannot do; doing it here in
- * a transaction (reading + writing the same users/{uid} doc) makes the check
- * race-free: two concurrent creates serialize on that document.
+ * a transaction (reading + writing the same userUsage/{uid} doc) makes the
+ * check race-free: two concurrent creates serialize on that document.
  *
- * The active-note counter (users/{uid}.activeNoteCount) is the source of
- * truth for the cap. It is incremented here and decremented by the
- * auto-archive function.
+ * The world-local userUsage/{uid}.activeNoteCount is the source of truth for
+ * that world's cap. Entitlement is read from the local userEntitlements
+ * mirror, so neither read needs to leave the selected world.
  */
 export const createNote = onCall<CreateNoteData>(
   {
@@ -312,18 +312,22 @@ export const createNote = onCall<CreateNoteData>(
     );
 
     const publicProfileRef = db.collection("publicProfiles").doc(uid);
+    const entitlementRef = db.collection("userEntitlements").doc(uid);
+    const usageRef = db.collection("userUsage").doc(uid);
     const placeRef = db.collection("places").doc();
     const noteStateRef = userRef.collection("noteStates").doc(placeRef.id);
 
     await db.runTransaction(async (tx) => {
-      const [userSnap, publicProfileSnap] = await Promise.all([
-        tx.get(userRef),
-        tx.get(publicProfileRef),
-      ]);
+      const [publicProfileSnap, entitlementSnap, usageSnap] =
+        await Promise.all([
+          tx.get(publicProfileRef),
+          tx.get(entitlementRef),
+          tx.get(usageRef),
+        ]);
       await assertUserCanCreateContent(tx, userRef, nowMillis);
-      const isPremium = userSnap.get("isPremium") === true;
+      const isPremium = entitlementSnap.get("isPremium") === true;
       const limit = isPremium ? PREMIUM_NOTE_LIMIT : FREE_NOTE_LIMIT;
-      const activeCount = (userSnap.get("activeNoteCount") as number) ?? 0;
+      const activeCount = (usageSnap.get("activeNoteCount") as number) ?? 0;
       if (!publicProfileSnap.exists) {
         throw new HttpsError(
           "failed-precondition",
@@ -403,8 +407,11 @@ export const createNote = onCall<CreateNoteData>(
       }
 
       tx.set(
-        userRef,
-        {activeNoteCount: FieldValue.increment(1)},
+        usageRef,
+        {
+          activeNoteCount: FieldValue.increment(1),
+          updatedAt: FieldValue.serverTimestamp(),
+        },
         {merge: true},
       );
     });
@@ -815,10 +822,10 @@ export const archiveNote = onCall<ArchiveNoteData>(
       }
       if (placeSnap.get("isArchived") === true) return false;
 
-      const userRef = db.collection("users").doc(uid);
-      const userSnap = await tx.get(userRef);
+      const usageRef = db.collection("userUsage").doc(uid);
+      const usageSnap = await tx.get(usageRef);
       const activeCount =
-        (userSnap.get("activeNoteCount") as number | undefined) ?? 0;
+        (usageSnap.get("activeNoteCount") as number | undefined) ?? 0;
 
       tx.update(placeRef, {
         isArchived: true,
@@ -826,8 +833,11 @@ export const archiveNote = onCall<ArchiveNoteData>(
         isOpen: false,
       });
       tx.set(
-        userRef,
-        {activeNoteCount: Math.max(0, activeCount - 1)},
+        usageRef,
+        {
+          activeNoteCount: Math.max(0, activeCount - 1),
+          updatedAt: FieldValue.serverTimestamp(),
+        },
         {merge: true},
       );
       return true;
@@ -867,8 +877,8 @@ export const archiveNote = onCall<ArchiveNoteData>(
  *   • isArchived = true (so it drops out of proximity search and can no longer
  *     accept messages — both already enforced client-side / by rules),
  *   • archivedAt timestamp,
- *   • decrements the creator's activeNoteCount so the slot frees up against the
- *     creation cap (the counter is the source of truth used by createNote).
+ *   • decrements the creator's world-local activeNoteCount so the slot frees
+ *     up against that world's creation cap.
  *
  * Archival is terminal — there is no return to active. Notes are processed in
  * batches; because each batch flips isArchived to true, the same query no
@@ -905,9 +915,9 @@ export const archiveExpiredNotes = onSchedule(
       const archivedCounts = await Promise.all(
         [...placesByCreator.entries()].map(async ([creatorId, placeRefs]) => {
           return db.runTransaction(async (tx) => {
-            const userRef = db.collection("users").doc(creatorId);
-            const [userSnap, ...placeSnaps] = await Promise.all([
-              tx.get(userRef),
+            const usageRef = db.collection("userUsage").doc(creatorId);
+            const [usageSnap, ...placeSnaps] = await Promise.all([
+              tx.get(usageRef),
               ...placeRefs.map((ref) => tx.get(ref)),
             ]);
             const expiredPlacesToArchive = placeSnaps.filter((placeSnap) => {
@@ -929,14 +939,15 @@ export const archiveExpiredNotes = onSchedule(
               });
             }
             const activeCount =
-              (userSnap.get("activeNoteCount") as number | undefined) ?? 0;
+              (usageSnap.get("activeNoteCount") as number | undefined) ?? 0;
             tx.set(
-              userRef,
+              usageRef,
               {
                 activeNoteCount: Math.max(
                   0,
                   activeCount - expiredPlacesToArchive.length,
                 ),
+                updatedAt: FieldValue.serverTimestamp(),
               },
               {merge: true},
             );

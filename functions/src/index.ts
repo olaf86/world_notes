@@ -48,6 +48,7 @@ export {
 
 // Private account preferences and profile updates. Nickname changes also keep
 // future posts and note access-list member labels in sync.
+export {assignHomeWorld} from "./accountBootstrap";
 export {setLanguagePreference, updateDisplayName} from "./userProfile";
 export {syncCreatorPhotoSnapshot} from "./creatorProfileSnapshots";
 

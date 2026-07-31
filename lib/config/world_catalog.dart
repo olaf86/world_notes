@@ -210,6 +210,16 @@ class WorldCatalog {
     }
     return world;
   }
+
+  WorldCatalogEntry requireHomeWorld(WorldId worldId) {
+    final world = requireContentWorld(worldId);
+    if (!world.homeAssignmentEnabled) {
+      throw StateError(
+        'World is not ready for home assignment: ${worldId.value}',
+      );
+    }
+    return world;
+  }
 }
 
 const _catalogKeys = {'schemaVersion', 'catalogVersion', 'worlds'};

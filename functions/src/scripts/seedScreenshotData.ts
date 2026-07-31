@@ -288,15 +288,34 @@ function placeData(
 }
 
 async function seedUsers(user: ScreenshotUser): Promise<void> {
-  await db.collection("users").doc(user.uid).set({
-    displayName: user.displayName,
-    email: user.email,
-    photoUrl: null,
-    isPremium: false,
+  await seedAccountBundle(user.uid, user.displayName, user.email);
+
+  for (const other of otherUsers) {
+    await seedAccountBundle(other.uid, other.displayName, null);
+  }
+}
+
+async function seedAccountBundle(
+  uid: string,
+  displayName: string,
+  email: string | null,
+): Promise<void> {
+  const batch = db.batch();
+  batch.set(db.collection("userHomes").doc(uid), {
+    world: "asia",
+    epoch: 1,
     createdAt: FieldValue.serverTimestamp(),
   });
-  await db.collection("publicProfiles").doc(user.uid).set({
-    displayName: user.displayName,
+  batch.set(db.collection("users").doc(uid), {
+    displayName,
+    email,
+    photoUrl: null,
+    languagePreference: "system",
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  batch.set(db.collection("publicProfiles").doc(uid), {
+    displayName,
     photoUrl: null,
     photoVersion: 1,
     followerCount: 0,
@@ -304,25 +323,15 @@ async function seedUsers(user: ScreenshotUser): Promise<void> {
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });
-
-  for (const other of otherUsers) {
-    await db.collection("users").doc(other.uid).set({
-      displayName: other.displayName,
-      email: null,
-      photoUrl: null,
-      isPremium: false,
-      createdAt: FieldValue.serverTimestamp(),
-    });
-    await db.collection("publicProfiles").doc(other.uid).set({
-      displayName: other.displayName,
-      photoUrl: null,
-      photoVersion: 1,
-      followerCount: 0,
-      followingCount: 0,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    });
-  }
+  batch.set(db.collection("userEntitlements").doc(uid), {
+    isPremium: false,
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  batch.set(db.collection("userUsage").doc(uid), {
+    activeNoteCount: 0,
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  await batch.commit();
 }
 
 async function seedPlace(

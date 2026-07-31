@@ -7,7 +7,11 @@ import {
 
 import {CallableRouteValidator} from "./callableRouteValidator";
 import {asiaWorldContext, WorldContext} from "./worldContext";
-import {ASIA_WORLD, ASIA_WORLD_ID} from "./worldRegistry";
+import {
+  ASIA_WORLD,
+  ASIA_WORLD_ID,
+  WORLD_REGISTRY,
+} from "./worldRegistry";
 
 export {HttpsError};
 
@@ -16,6 +20,10 @@ type WorldCallableHandler<T> = (
   request: CallableRequest<T>,
   world: WorldContext,
 ) => WorldCallableResult | Promise<WorldCallableResult>;
+
+type WorldCallableOptions<T> = CallableOptions<T> & {
+  readonly requireAccountReady?: boolean;
+};
 
 const routeValidator = new CallableRouteValidator();
 
@@ -31,23 +39,66 @@ const routeValidator = new CallableRouteValidator();
  * @return {CallableFunction} Firebase callable function.
  */
 export function onCall<T = unknown>(
-  options: CallableOptions<T>,
+  options: WorldCallableOptions<T>,
   handler: WorldCallableHandler<T>,
 ) {
+  const {
+    requireAccountReady = true,
+    ...firebaseOptions
+  } = options;
   return firebaseOnCall<T>(
-    {...options, region: ASIA_WORLD.functionsRegion},
+    {...firebaseOptions, region: ASIA_WORLD.functionsRegion},
     async (request) => {
       routeValidator.requireContentRoute(
         worldIdFromData(request.data),
         ASIA_WORLD_ID,
       );
-      const result = await handler(request, asiaWorldContext());
+      const world = asiaWorldContext();
+      if (requireAccountReady && request.auth !== undefined) {
+        await assertAccountReady(request.auth.uid, world);
+      }
+      const result = await handler(request, world);
       return {
         ...(result ?? {}),
         worldId: ASIA_WORLD_ID,
       };
     },
   );
+}
+
+/**
+ * Requires the caller's revisioned bootstrap marker in the routed world.
+ *
+ * @param {string} uid Authenticated caller UID.
+ * @param {WorldContext} world Trusted routed world dependencies.
+ */
+async function assertAccountReady(
+  uid: string,
+  world: WorldContext,
+): Promise<void> {
+  const marker = await world.firestore.collection("userHomes").doc(uid).get();
+  const homeWorld = marker.get("world");
+  const epoch = marker.get("epoch");
+  let knownHome = false;
+  if (typeof homeWorld === "string") {
+    try {
+      WORLD_REGISTRY.requireWorld(homeWorld);
+      knownHome = true;
+    } catch {
+      knownHome = false;
+    }
+  }
+  if (!marker.exists ||
+      !knownHome ||
+      typeof epoch !== "number" ||
+      !Number.isInteger(epoch) ||
+      epoch <= 0) {
+    throw new HttpsError(
+      "failed-precondition",
+      "This world is still preparing your account.",
+      {reason: "world-not-ready", worldId: world.worldId},
+    );
+  }
 }
 
 /**
