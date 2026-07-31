@@ -128,9 +128,6 @@ class WorldCatalogEntry {
   }
 }
 
-/// Routing metadata for a world.
-typedef WorldDescriptor = WorldCatalogEntry;
-
 /// The user's permanent home and currently selected content world.
 final class WorldSelection {
   const WorldSelection({required this.homeWorld, required this.selectedWorld});
@@ -196,7 +193,7 @@ class WorldCatalog {
     return null;
   }
 
-  WorldDescriptor requireWorld(WorldId worldId) {
+  WorldCatalogEntry requireWorld(WorldId worldId) {
     final world = findWorld(worldId.value);
     if (world == null) {
       throw StateError('Unknown world: ${worldId.value}');
@@ -204,7 +201,7 @@ class WorldCatalog {
     return world;
   }
 
-  WorldDescriptor requireContentWorld(WorldId worldId) {
+  WorldCatalogEntry requireContentWorld(WorldId worldId) {
     final world = requireWorld(worldId);
     if (!world.contentAccessEnabled) {
       throw StateError(

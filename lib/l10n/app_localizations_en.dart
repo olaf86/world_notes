@@ -987,30 +987,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsMapStylePopDescription => 'Bright & colourful';
 
   @override
-  String get settingsDataRegionTitle => 'Data Region';
-
-  @override
-  String get settingsDataRegionDescription =>
-      'Choose which region serves your requests. Auto picks the closest to your current location — handy to override while travelling.';
-
-  @override
-  String get settingsDataRegionAuto => 'Auto (nearest)';
-
-  @override
-  String settingsDataRegionCurrent(String region) {
-    return 'Currently: $region';
-  }
-
-  @override
-  String get settingsRegionAsiaTokyo => 'Asia (Tokyo)';
-
-  @override
-  String get settingsRegionAmericasUsCentral => 'Americas (US Central)';
-
-  @override
-  String get settingsRegionEuropeBelgium => 'Europe (Belgium)';
-
-  @override
   String get settingsNotificationsTitle => 'Notifications';
 
   @override

@@ -1730,48 +1730,6 @@ abstract class AppLocalizations {
   /// **'Bright & colourful'**
   String get settingsMapStylePopDescription;
 
-  /// No description provided for @settingsDataRegionTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Data Region'**
-  String get settingsDataRegionTitle;
-
-  /// No description provided for @settingsDataRegionDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Choose which region serves your requests. Auto picks the closest to your current location — handy to override while travelling.'**
-  String get settingsDataRegionDescription;
-
-  /// No description provided for @settingsDataRegionAuto.
-  ///
-  /// In en, this message translates to:
-  /// **'Auto (nearest)'**
-  String get settingsDataRegionAuto;
-
-  /// No description provided for @settingsDataRegionCurrent.
-  ///
-  /// In en, this message translates to:
-  /// **'Currently: {region}'**
-  String settingsDataRegionCurrent(String region);
-
-  /// No description provided for @settingsRegionAsiaTokyo.
-  ///
-  /// In en, this message translates to:
-  /// **'Asia (Tokyo)'**
-  String get settingsRegionAsiaTokyo;
-
-  /// No description provided for @settingsRegionAmericasUsCentral.
-  ///
-  /// In en, this message translates to:
-  /// **'Americas (US Central)'**
-  String get settingsRegionAmericasUsCentral;
-
-  /// No description provided for @settingsRegionEuropeBelgium.
-  ///
-  /// In en, this message translates to:
-  /// **'Europe (Belgium)'**
-  String get settingsRegionEuropeBelgium;
-
   /// No description provided for @settingsNotificationsTitle.
   ///
   /// In en, this message translates to:

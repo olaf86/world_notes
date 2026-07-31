@@ -55,7 +55,7 @@ void main() {
     );
   });
 
-  testWidgets('data region stays compact until its picker is opened', (
+  testWidgets('does not expose the removed function-region picker', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({
@@ -66,20 +66,10 @@ void main() {
     await tester.pumpWidget(_testApp(preferences));
     await tester.pumpAndSettle();
 
-    final regionTile = find.byKey(const ValueKey('data-region-setting-tile'));
-    await tester.ensureVisible(regionTile);
-    expect(regionTile, findsOneWidget);
-    expect(find.byType(RadioListTile<String>), findsNothing);
-
-    await tester.tap(regionTile);
-    await tester.pumpAndSettle();
-
-    expect(find.byType(RadioListTile<String>), findsNWidgets(2));
-    await tester.tap(find.text('Asia (Tokyo)'));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(RadioListTile<String>), findsNothing);
-    expect(find.text('Asia (Tokyo)'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('data-region-setting-tile')),
+      findsNothing,
+    );
   });
 
   testWidgets(

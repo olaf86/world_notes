@@ -19,7 +19,7 @@ export class CallableRouteValidator {
    *
    * @param {unknown} value Client-provided world ID.
    * @param {string} deployedWorldId World bound to this Function export.
-   * @return {WorldCatalogEntry} Trusted matching descriptor.
+   * @return {WorldCatalogEntry} Trusted matching world entry.
    */
   requireContentRoute(
     value: unknown,

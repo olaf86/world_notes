@@ -85,7 +85,7 @@ Required production controls:
   dependency updates;
 - accept only catalog allowlisted database IDs, cache one client per database,
   and assert that the returned client's `databaseId` equals the requested
-  descriptor before any operation;
+  world catalog entry before any operation;
 - run read, write, transaction, batch, query, trigger, and cross-database
   replication contract tests against every staging database before an SDK
   upgrade or world activation;
@@ -98,7 +98,7 @@ Required production controls:
   the same contract suite so an emergency replacement does not require
   business-handler changes.
 
-## Current-state findings
+## Pre-migration findings
 
 ### Client
 
@@ -234,7 +234,7 @@ placement rule:
 
 ```text
 WorldId
-WorldDescriptor
+WorldCatalogEntry
 WorldCatalog
 WorldSelection
 WorldFirebaseClients
@@ -244,11 +244,11 @@ GlobalEntityRoute
 
 `WorldFirebaseClients` constructs and caches:
 
-- `FirebaseFirestore.instanceFor(databaseId: descriptor.databaseId)`;
-- `FirebaseFunctions.instanceFor(region: descriptor.functionsRegion)`;
-- `FirebaseStorage.instanceFor(bucket: descriptor.bucketName)`.
+- `FirebaseFirestore.instanceFor(databaseId: world.databaseId)`;
+- `FirebaseFunctions.instanceFor(region: world.functionsRegion)`;
+- `FirebaseStorage.instanceFor(bucket: world.bucketName)`.
 
-Replace `effectiveRegionProvider` with:
+Replace the old Functions-region routing with:
 
 - `worldCatalogProvider`;
 - `homeWorldProvider`;
@@ -539,9 +539,11 @@ client recognizes all three worlds, but `contentAccessEnabled` is checked
 before any world-specific Firebase client can be resolved, so only Asia can
 currently route to content. `WorldFirebaseClientCache` is the sole constructor
 for Firestore, Functions, and Storage world clients and caches the aligned
-client set per `WorldId`. Existing repositories continue through compatibility
-providers backed by the selected world, preserving the current Asia/default
-behavior while making later world selection invalidate their dependencies.
+client set per `WorldId`. Existing repositories read explicitly named
+selected-world providers, preserving the current Asia/default behavior while
+making later world selection invalidate their dependencies. The obsolete
+Functions-region preference and UI are removed rather than retained as a
+compatibility path.
 Emulator configuration moved into the same adapter so lazily-created named
 clients cannot bypass it.
 
@@ -549,8 +551,8 @@ Implementation note (2026-07-31): P05 adds the server `WorldRegistry`,
 `WorldContextProvider`, `WorldBucketProvider`, and `CallableRouteValidator`.
 Existing callable, scheduled, and helper code now resolves the fixed Asia
 context instead of constructing default Firestore or Storage clients. The
-context cross-checks database and bucket routes against the same trusted
-descriptor, while provisioning worlds are rejected before either client is
+context cross-checks database and bucket routes against the same trusted world
+catalog entry, while provisioning worlds are rejected before either client is
 created. The Asia Firestore trigger now also declares `(default)` explicitly.
 A repository boundary test permits raw Admin client construction only inside
 the reviewed platform adapters. Explicit request `worldId` validation is

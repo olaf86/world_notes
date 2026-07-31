@@ -911,30 +911,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsMapStylePopDescription => '明るくカラフルな表示';
 
   @override
-  String get settingsDataRegionTitle => 'データリージョン';
-
-  @override
-  String get settingsDataRegionDescription =>
-      'リクエストを処理するリージョンを選択します。自動では現在地に最も近いリージョンが選ばれ、旅行中は手動で変更できます。';
-
-  @override
-  String get settingsDataRegionAuto => '自動（最寄り）';
-
-  @override
-  String settingsDataRegionCurrent(String region) {
-    return '現在: $region';
-  }
-
-  @override
-  String get settingsRegionAsiaTokyo => 'アジア（東京）';
-
-  @override
-  String get settingsRegionAmericasUsCentral => 'アメリカ（米国中部）';
-
-  @override
-  String get settingsRegionEuropeBelgium => 'ヨーロッパ（ベルギー）';
-
-  @override
   String get settingsNotificationsTitle => '通知';
 
   @override

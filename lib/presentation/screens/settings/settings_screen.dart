@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../config/regions.dart';
 import '../../../core/map_style.dart';
 import '../../../l10n/app_locale.dart';
 import '../../../l10n/l10n.dart';
@@ -44,8 +43,6 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => ref.read(mapStyleProvider.notifier).setStyle(style),
             ),
           ),
-          const SizedBox(height: 24),
-          const _RegionSection(),
           const SizedBox(height: 24),
           const _MyNotesNotificationsSection(),
           const SizedBox(height: 24),
@@ -257,121 +254,6 @@ class _LanguageSectionState extends ConsumerState<_LanguageSection> {
   }
 }
 
-/// Data-region selector: "Auto" (nearest to your location) or a pinned region
-/// for travellers. Only regions where the backend is deployed are offered.
-class _RegionSection extends ConsumerWidget {
-  const _RegionSection();
-
-  Future<void> _showRegionPicker(
-    BuildContext context,
-    WidgetRef ref, {
-    required String? selected,
-    required String effective,
-  }) async {
-    final selection = await showModalBottomSheet<String>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (sheetContext) {
-        final l10n = sheetContext.l10n;
-        return SafeArea(
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 4),
-                  child: Text(
-                    l10n.settingsDataRegionTitle,
-                    style: Theme.of(sheetContext).textTheme.titleLarge,
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
-                  child: Text(
-                    l10n.settingsDataRegionDescription,
-                    style: Theme.of(sheetContext).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(
-                        sheetContext,
-                      ).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-                RadioGroup<String>(
-                  groupValue: selected ?? '',
-                  onChanged: (value) {
-                    if (value != null) Navigator.pop(sheetContext, value);
-                  },
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      RadioListTile<String>(
-                        value: '',
-                        title: Text(l10n.settingsDataRegionAuto),
-                        subtitle: Text(
-                          l10n.settingsDataRegionCurrent(
-                            _localizedRegionLabel(l10n, effective),
-                          ),
-                        ),
-                      ),
-                      ...Regions.available.map(
-                        (region) => RadioListTile<String>(
-                          value: region.id,
-                          title: Text(_localizedRegionLabel(l10n, region.id)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-    if (selection == null) return;
-    await ref
-        .read(regionPreferenceProvider.notifier)
-        .setOverride(selection.isEmpty ? null : selection);
-  }
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = context.l10n;
-    final override = ref.watch(regionPreferenceProvider);
-    final effective = ref.watch(effectiveRegionProvider);
-    final selectedLabel = override == null
-        ? '${l10n.settingsDataRegionAuto} · '
-              '${l10n.settingsDataRegionCurrent(_localizedRegionLabel(l10n, effective))}'
-        : _localizedRegionLabel(l10n, override);
-
-    return ListTile(
-      key: const ValueKey('data-region-setting-tile'),
-      contentPadding: EdgeInsets.zero,
-      leading: const Icon(Icons.dns_outlined),
-      title: Text(
-        l10n.settingsDataRegionTitle,
-        style: Theme.of(
-          context,
-        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-      ),
-      subtitle: Text(
-        selectedLabel,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: () => _showRegionPicker(
-        context,
-        ref,
-        selected: override,
-        effective: effective,
-      ),
-    );
-  }
-}
-
 class _MapStyleTile extends StatelessWidget {
   final MapStyle style;
   final bool usesAppleMaps;
@@ -499,14 +381,6 @@ String _localizedMapStyleDescription(
   MapStyle.dark => l10n.settingsMapStyleDarkDescription,
   MapStyle.pop => l10n.settingsMapStylePopDescription,
 };
-
-String _localizedRegionLabel(AppLocalizations l10n, String regionId) =>
-    switch (regionId) {
-      'asia-northeast1' => l10n.settingsRegionAsiaTokyo,
-      'us-central1' => l10n.settingsRegionAmericasUsCentral,
-      'europe-west1' => l10n.settingsRegionEuropeBelgium,
-      _ => Regions.byId(regionId)?.label ?? regionId,
-    };
 
 /// Simple painted preview that mimics the map's colour palette.
 class _StylePreview extends StatelessWidget {

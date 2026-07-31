@@ -16,7 +16,7 @@ import {
 /** Aligned regional dependencies for one trusted world. */
 export interface WorldContext {
   readonly worldId: string;
-  readonly descriptor: WorldCatalogEntry;
+  readonly world: WorldCatalogEntry;
   readonly firestore: Firestore;
   readonly bucket: WorldBucket;
 }
@@ -59,20 +59,20 @@ export class WorldContextProvider {
    * @return {WorldContext} Aligned regional dependencies.
    */
   forContentWorld(worldId: string): WorldContext {
-    const descriptor = this.registry.requireContentWorld(worldId);
+    const world = this.registry.requireContentWorld(worldId);
     const cached = this.contexts.get(worldId);
     if (cached !== undefined) return cached;
 
     const firestore = this.firestoreProvider.forWorld(worldId);
     const bucket = this.bucketProvider.forWorld(worldId);
-    if (firestore.databaseId !== descriptor.databaseId ||
-        bucket.name !== descriptor.bucketName) {
+    if (firestore.databaseId !== world.databaseId ||
+        bucket.name !== world.bucketName) {
       throw new Error(`World dependency route mismatch: ${worldId}`);
     }
 
     const context = Object.freeze({
       worldId,
-      descriptor,
+      world,
       firestore,
       bucket,
     });

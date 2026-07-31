@@ -902,30 +902,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsMapStylePopDescription => '明亮多彩的显示';
 
   @override
-  String get settingsDataRegionTitle => '数据区域';
-
-  @override
-  String get settingsDataRegionDescription =>
-      '选择处理请求的区域。自动会选择离当前位置最近的区域，旅行时也可手动更改。';
-
-  @override
-  String get settingsDataRegionAuto => '自动（最近）';
-
-  @override
-  String settingsDataRegionCurrent(String region) {
-    return '当前：$region';
-  }
-
-  @override
-  String get settingsRegionAsiaTokyo => '亚洲（东京）';
-
-  @override
-  String get settingsRegionAmericasUsCentral => '美洲（美国中部）';
-
-  @override
-  String get settingsRegionEuropeBelgium => '欧洲（比利时）';
-
-  @override
   String get settingsNotificationsTitle => '通知';
 
   @override
@@ -1938,30 +1914,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get settingsMapStylePopDescription => '明亮多彩的显示';
-
-  @override
-  String get settingsDataRegionTitle => '数据区域';
-
-  @override
-  String get settingsDataRegionDescription =>
-      '选择处理请求的区域。自动会选择离当前位置最近的区域，旅行时也可手动更改。';
-
-  @override
-  String get settingsDataRegionAuto => '自动（最近）';
-
-  @override
-  String settingsDataRegionCurrent(String region) {
-    return '当前：$region';
-  }
-
-  @override
-  String get settingsRegionAsiaTokyo => '亚洲（东京）';
-
-  @override
-  String get settingsRegionAmericasUsCentral => '美洲（美国中部）';
-
-  @override
-  String get settingsRegionEuropeBelgium => '欧洲（比利时）';
 
   @override
   String get settingsNotificationsTitle => '通知';
@@ -2977,30 +2929,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get settingsMapStylePopDescription => '明亮多彩的顯示';
-
-  @override
-  String get settingsDataRegionTitle => '資料區域';
-
-  @override
-  String get settingsDataRegionDescription =>
-      '選擇處理請求的區域。自動會選擇離目前位置最近的區域，旅行時也可手動變更。';
-
-  @override
-  String get settingsDataRegionAuto => '自動（最近）';
-
-  @override
-  String settingsDataRegionCurrent(String region) {
-    return '目前：$region';
-  }
-
-  @override
-  String get settingsRegionAsiaTokyo => '亞洲（東京）';
-
-  @override
-  String get settingsRegionAmericasUsCentral => '美洲（美國中部）';
-
-  @override
-  String get settingsRegionEuropeBelgium => '歐洲（比利時）';
 
   @override
   String get settingsNotificationsTitle => '通知';

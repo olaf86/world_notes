@@ -15,7 +15,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../config/app_config.dart';
 import '../../config/bootstrap_world_catalog.dart';
-import '../../config/regions.dart';
 import '../../config/runtime_mode.dart';
 import '../../config/world_catalog.dart';
 import '../../core/map_style.dart';
@@ -87,7 +86,7 @@ final worldSelectionProvider = Provider<WorldSelection>((ref) {
   );
 });
 
-final selectedWorldDescriptorProvider = Provider<WorldDescriptor>((ref) {
+final selectedWorldCatalogEntryProvider = Provider<WorldCatalogEntry>((ref) {
   return ref
       .watch(worldCatalogProvider)
       .requireContentWorld(ref.watch(selectedWorldProvider));
@@ -104,10 +103,10 @@ final worldFirebaseClientCacheProvider = Provider<WorldFirebaseClientCache>((
 
 final worldFirebaseClientsProvider =
     Provider.family<WorldFirebaseClients, WorldId>((ref, worldId) {
-      final descriptor = ref
+      final world = ref
           .watch(worldCatalogProvider)
           .requireContentWorld(worldId);
-      return ref.watch(worldFirebaseClientCacheProvider).forWorld(descriptor);
+      return ref.watch(worldFirebaseClientCacheProvider).forWorld(world);
     });
 
 final selectedWorldClientsProvider = Provider<WorldFirebaseClients>((ref) {
@@ -116,8 +115,7 @@ final selectedWorldClientsProvider = Provider<WorldFirebaseClients>((ref) {
   );
 });
 
-/// Compatibility boundary for repositories migrating to explicit world IDs.
-final firestoreProvider = Provider<FirebaseFirestore>((ref) {
+final selectedWorldFirestoreProvider = Provider<FirebaseFirestore>((ref) {
   return ref.watch(selectedWorldClientsProvider).firestore;
 });
 
@@ -125,8 +123,7 @@ final firebaseAuthProvider = Provider<FirebaseAuth>(
   (_) => FirebaseAuth.instance,
 );
 
-/// Compatibility boundary for repositories migrating to explicit world IDs.
-final firebaseStorageProvider = Provider<FirebaseStorage>((ref) {
+final selectedWorldStorageProvider = Provider<FirebaseStorage>((ref) {
   return ref.watch(selectedWorldClientsProvider).storage;
 });
 
@@ -143,8 +140,7 @@ final firebaseCrashlyticsProvider = Provider<FirebaseCrashlytics>(
 /// the system-language default.
 final sharedPreferencesProvider = Provider<SharedPreferences?>((_) => null);
 
-/// Compatibility boundary for repositories migrating to explicit world IDs.
-final firebaseFunctionsProvider = Provider<FirebaseFunctions>((ref) {
+final selectedWorldFunctionsProvider = Provider<FirebaseFunctions>((ref) {
   return ref.watch(selectedWorldClientsProvider).functions;
 });
 
@@ -185,7 +181,7 @@ final canRequestAdsProvider = Provider<bool>((ref) {
 
 final messageImageServiceProvider = Provider<MessageImageService>((ref) {
   final service = MessageImageService(
-    storage: ref.watch(firebaseStorageProvider),
+    storage: ref.watch(selectedWorldStorageProvider),
   );
   ref.onDispose(service.dispose);
   return service;
@@ -225,7 +221,7 @@ final myNotesNotificationServiceProvider = Provider<MyNotesNotificationService>(
   (ref) {
     final service = MyNotesNotificationService(
       messaging: ref.watch(firebaseMessagingProvider),
-      functions: ref.watch(firebaseFunctionsProvider),
+      functions: ref.watch(selectedWorldFunctionsProvider),
       auth: ref.watch(firebaseAuthProvider),
       crashlytics: ref.watch(firebaseCrashlyticsProvider),
     );
@@ -249,7 +245,7 @@ final noticeNotificationServiceProvider = Provider<NoticeNotificationService>((
 
 final adminModerationServiceProvider = Provider<AdminModerationService>((ref) {
   return AdminModerationService(
-    functions: ref.watch(firebaseFunctionsProvider),
+    functions: ref.watch(selectedWorldFunctionsProvider),
   );
 });
 
@@ -260,8 +256,8 @@ final appLanguagePreferenceProvider =
       (ref) {
         return AppLanguagePreferenceNotifier(
           auth: ref.watch(firebaseAuthProvider),
-          firestore: ref.watch(firestoreProvider),
-          functions: ref.watch(firebaseFunctionsProvider),
+          firestore: ref.watch(selectedWorldFirestoreProvider),
+          functions: ref.watch(selectedWorldFunctionsProvider),
           preferences: ref.watch(sharedPreferencesProvider),
           syncAccount: !screenshotMode,
         );
@@ -425,8 +421,8 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepositoryImpl(
     auth: ref.watch(firebaseAuthProvider),
     googleSignIn: GoogleSignIn(),
-    firestore: ref.watch(firestoreProvider),
-    functions: ref.watch(firebaseFunctionsProvider),
+    firestore: ref.watch(selectedWorldFirestoreProvider),
+    functions: ref.watch(selectedWorldFunctionsProvider),
     myNotesNotificationService: ref.watch(myNotesNotificationServiceProvider),
     subscriptionService: ref.watch(subscriptionServiceProvider),
     messageImageService: ref.watch(messageImageServiceProvider),
@@ -435,35 +431,37 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 
 final placeRepositoryProvider = Provider<PlaceRepository>((ref) {
   return PlaceRepositoryImpl(
-    firestore: ref.watch(firestoreProvider),
-    functions: ref.watch(firebaseFunctionsProvider),
-    storage: ref.watch(firebaseStorageProvider),
+    firestore: ref.watch(selectedWorldFirestoreProvider),
+    functions: ref.watch(selectedWorldFunctionsProvider),
+    storage: ref.watch(selectedWorldStorageProvider),
   );
 });
 
 final messageRepositoryProvider = Provider<MessageRepository>((ref) {
   return MessageRepositoryImpl(
-    firestore: ref.watch(firestoreProvider),
-    functions: ref.watch(firebaseFunctionsProvider),
-    storage: ref.watch(firebaseStorageProvider),
+    firestore: ref.watch(selectedWorldFirestoreProvider),
+    functions: ref.watch(selectedWorldFunctionsProvider),
+    storage: ref.watch(selectedWorldStorageProvider),
   );
 });
 
 final followRepositoryProvider = Provider<FollowRepository>((ref) {
   return FollowRepositoryImpl(
-    firestore: ref.watch(firestoreProvider),
-    functions: ref.watch(firebaseFunctionsProvider),
+    firestore: ref.watch(selectedWorldFirestoreProvider),
+    functions: ref.watch(selectedWorldFunctionsProvider),
   );
 });
 
 final noticeRepositoryProvider = Provider<NoticeRepository>((ref) {
-  return NoticeRepositoryImpl(firestore: ref.watch(firestoreProvider));
+  return NoticeRepositoryImpl(
+    firestore: ref.watch(selectedWorldFirestoreProvider),
+  );
 });
 
 final userBlockRepositoryProvider = Provider<UserBlockRepository>((ref) {
   return UserBlockRepositoryImpl(
-    firestore: ref.watch(firestoreProvider),
-    functions: ref.watch(firebaseFunctionsProvider),
+    firestore: ref.watch(selectedWorldFirestoreProvider),
+    functions: ref.watch(selectedWorldFunctionsProvider),
   );
 });
 
@@ -494,7 +492,7 @@ final userProfileProvider = StreamProvider.autoDispose
       final id = userId.trim();
       if (id.isEmpty) return Stream.value(null);
       return ref
-          .watch(firestoreProvider)
+          .watch(selectedWorldFirestoreProvider)
           .collection('users')
           .doc(id)
           .snapshots()
@@ -614,7 +612,7 @@ final myNotesNotificationEnabledProvider = StreamProvider<bool>((ref) {
   final user = ref.watch(authStateProvider).valueOrNull;
   if (user == null) return Stream.value(false);
   return ref
-      .watch(firestoreProvider)
+      .watch(selectedWorldFirestoreProvider)
       .collection('users')
       .doc(user.id)
       .collection('notificationSettings')
@@ -627,7 +625,7 @@ final myNotesNotificationPreviewEnabledProvider = StreamProvider<bool>((ref) {
   final user = ref.watch(authStateProvider).valueOrNull;
   if (user == null) return Stream.value(true);
   return ref
-      .watch(firestoreProvider)
+      .watch(selectedWorldFirestoreProvider)
       .collection('users')
       .doc(user.id)
       .collection('notificationSettings')
@@ -1044,49 +1042,6 @@ class MapStyleNotifier extends StateNotifier<MapStyle> {
     await prefs.setString(_prefKey, style.name);
   }
 }
-
-// --- Region selection ---
-
-/// User's region preference: a region id to force, or null for "Auto"
-/// (nearest available to the current location). Persisted across launches.
-class RegionPreferenceNotifier extends StateNotifier<String?> {
-  static const _prefKey = 'region_override';
-
-  RegionPreferenceNotifier() : super(null) {
-    _load();
-  }
-
-  Future<void> _load() async {
-    final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getString(_prefKey);
-    // Ignore a saved region that no longer exists / is unavailable.
-    if (saved != null && (Regions.byId(saved)?.available ?? false)) {
-      state = saved;
-    }
-  }
-
-  /// Pass a region id to pin it, or null to return to Auto.
-  Future<void> setOverride(String? regionId) async {
-    state = regionId;
-    final prefs = await SharedPreferences.getInstance();
-    if (regionId == null) {
-      await prefs.remove(_prefKey);
-    } else {
-      await prefs.setString(_prefKey, regionId);
-    }
-  }
-}
-
-final regionPreferenceProvider =
-    StateNotifierProvider<RegionPreferenceNotifier, String?>(
-      (ref) => RegionPreferenceNotifier(),
-    );
-
-/// Legacy settings value derived from the selected world's Functions route.
-/// Region preferences no longer decide Firebase client routing.
-final effectiveRegionProvider = Provider<String>((ref) {
-  return ref.watch(selectedWorldDescriptorProvider).functionsRegion;
-});
 
 class MapLatLng {
   final double lat;

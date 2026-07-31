@@ -913,30 +913,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get settingsMapStylePopDescription => '밝고 화려한 표시';
 
   @override
-  String get settingsDataRegionTitle => '데이터 지역';
-
-  @override
-  String get settingsDataRegionDescription =>
-      '요청을 처리할 지역을 선택합니다. 자동은 현재 위치에서 가장 가까운 지역을 선택하며 여행 중에는 직접 변경할 수 있습니다.';
-
-  @override
-  String get settingsDataRegionAuto => '자동(가장 가까운 지역)';
-
-  @override
-  String settingsDataRegionCurrent(String region) {
-    return '현재: $region';
-  }
-
-  @override
-  String get settingsRegionAsiaTokyo => '아시아(도쿄)';
-
-  @override
-  String get settingsRegionAmericasUsCentral => '아메리카(미국 중부)';
-
-  @override
-  String get settingsRegionEuropeBelgium => '유럽(벨기에)';
-
-  @override
   String get settingsNotificationsTitle => '알림';
 
   @override

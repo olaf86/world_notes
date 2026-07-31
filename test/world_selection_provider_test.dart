@@ -49,7 +49,10 @@ void main() {
             const WorldId('europe'),
           ),
     );
-    expect(container.read(effectiveRegionProvider), 'europe-west1');
+    expect(
+      container.read(selectedWorldCatalogEntryProvider).functionsRegion,
+      'europe-west1',
+    );
   });
 }
 

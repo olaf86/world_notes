@@ -83,7 +83,7 @@ test("resolves one aligned Asia context and caches it", () => {
     first.bucket.name,
     "world-notes-prod.firebasestorage.app",
   );
-  assert.equal(first.descriptor.functionsRegion, "asia-northeast1");
+  assert.equal(first.world.functionsRegion, "asia-northeast1");
   assert.equal(firestoreFactoryCalls, 1);
   assert.equal(bucketFactoryCalls, 1);
 });
