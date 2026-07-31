@@ -1013,6 +1013,47 @@ class AppLocalizationsJa extends AppLocalizations {
   String get signOut => 'サインアウト';
 
   @override
+  String get homeWorldSelectionTitle => 'ホームワールドを選択';
+
+  @override
+  String get homeWorldSelectionIntro => 'ホームワールドは、あなたのアカウントデータを身近な地域に保管する場所です。';
+
+  @override
+  String get homeWorldSelectionPermanentWarning =>
+      'この選択は後から変更できません。ホームを移動せずに、準備済みのほかのワールドを訪れることはできます。';
+
+  @override
+  String get homeWorldSelectionUnavailable => '現在選択できるホームワールドはありません。';
+
+  @override
+  String get homeWorldSelectionLoadFailed => 'アカウントの準備状況を読み込めませんでした。';
+
+  @override
+  String get homeWorldSelectionSubmitFailed =>
+      'ホームワールドを設定できませんでした。もう一度お試しください。';
+
+  @override
+  String get homeWorldSelectionConfirm => 'このワールドを変更できないホームに設定';
+
+  @override
+  String get worldAsia => 'アジア';
+
+  @override
+  String get worldAsiaLocation => '日本・東京';
+
+  @override
+  String get worldNorthAmerica => '北米';
+
+  @override
+  String get worldNorthAmericaLocation => 'アメリカ・アイオワ';
+
+  @override
+  String get worldEurope => 'ヨーロッパ';
+
+  @override
+  String get worldEuropeLocation => 'ベルギー';
+
+  @override
   String get followers => 'フォロワー';
 
   @override

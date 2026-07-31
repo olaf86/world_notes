@@ -1910,6 +1910,84 @@ abstract class AppLocalizations {
   /// **'Sign Out'**
   String get signOut;
 
+  /// No description provided for @homeWorldSelectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose your home world'**
+  String get homeWorldSelectionTitle;
+
+  /// No description provided for @homeWorldSelectionIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Your home world keeps your account data close to you.'**
+  String get homeWorldSelectionIntro;
+
+  /// No description provided for @homeWorldSelectionPermanentWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This choice cannot be changed later. You can still visit other prepared worlds without moving your home.'**
+  String get homeWorldSelectionPermanentWarning;
+
+  /// No description provided for @homeWorldSelectionUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No home world is currently available.'**
+  String get homeWorldSelectionUnavailable;
+
+  /// No description provided for @homeWorldSelectionLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load your account setup.'**
+  String get homeWorldSelectionLoadFailed;
+
+  /// No description provided for @homeWorldSelectionSubmitFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not set your home world. Please try again.'**
+  String get homeWorldSelectionSubmitFailed;
+
+  /// No description provided for @homeWorldSelectionConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Set as my permanent home'**
+  String get homeWorldSelectionConfirm;
+
+  /// No description provided for @worldAsia.
+  ///
+  /// In en, this message translates to:
+  /// **'Asia'**
+  String get worldAsia;
+
+  /// No description provided for @worldAsiaLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Tokyo, Japan'**
+  String get worldAsiaLocation;
+
+  /// No description provided for @worldNorthAmerica.
+  ///
+  /// In en, this message translates to:
+  /// **'North America'**
+  String get worldNorthAmerica;
+
+  /// No description provided for @worldNorthAmericaLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Iowa, United States'**
+  String get worldNorthAmericaLocation;
+
+  /// No description provided for @worldEurope.
+  ///
+  /// In en, this message translates to:
+  /// **'Europe'**
+  String get worldEurope;
+
+  /// No description provided for @worldEuropeLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Belgium'**
+  String get worldEuropeLocation;
+
   /// No description provided for @followers.
   ///
   /// In en, this message translates to:

@@ -1097,6 +1097,50 @@ class AppLocalizationsEn extends AppLocalizations {
   String get signOut => 'Sign Out';
 
   @override
+  String get homeWorldSelectionTitle => 'Choose your home world';
+
+  @override
+  String get homeWorldSelectionIntro =>
+      'Your home world keeps your account data close to you.';
+
+  @override
+  String get homeWorldSelectionPermanentWarning =>
+      'This choice cannot be changed later. You can still visit other prepared worlds without moving your home.';
+
+  @override
+  String get homeWorldSelectionUnavailable =>
+      'No home world is currently available.';
+
+  @override
+  String get homeWorldSelectionLoadFailed =>
+      'Could not load your account setup.';
+
+  @override
+  String get homeWorldSelectionSubmitFailed =>
+      'Could not set your home world. Please try again.';
+
+  @override
+  String get homeWorldSelectionConfirm => 'Set as my permanent home';
+
+  @override
+  String get worldAsia => 'Asia';
+
+  @override
+  String get worldAsiaLocation => 'Tokyo, Japan';
+
+  @override
+  String get worldNorthAmerica => 'North America';
+
+  @override
+  String get worldNorthAmericaLocation => 'Iowa, United States';
+
+  @override
+  String get worldEurope => 'Europe';
+
+  @override
+  String get worldEuropeLocation => 'Belgium';
+
+  @override
   String get followers => 'Followers';
 
   @override

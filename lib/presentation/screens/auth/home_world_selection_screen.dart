@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../config/world_catalog.dart';
+import '../../../l10n/l10n.dart';
 import '../../providers/providers.dart';
 
 /// One-time selection of the account's immutable authority world.
@@ -17,21 +18,21 @@ class _HomeWorldSelectionScreenState
     extends ConsumerState<HomeWorldSelectionScreen> {
   WorldId? _selectedWorld;
   bool _submitting = false;
-  String? _error;
+  bool _submissionFailed = false;
 
   Future<void> _confirm() async {
     final selectedWorld = _selectedWorld;
     if (selectedWorld == null || _submitting) return;
     setState(() {
       _submitting = true;
-      _error = null;
+      _submissionFailed = false;
     });
     try {
       await ref.read(accountBootstrapServiceProvider).assignHome(selectedWorld);
       await ref.read(firebaseAuthProvider).currentUser?.getIdToken(true);
       ref.invalidate(homeAssignmentProvider);
-    } catch (error) {
-      if (mounted) setState(() => _error = error.toString());
+    } catch (_) {
+      if (mounted) setState(() => _submissionFailed = true);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -39,6 +40,7 @@ class _HomeWorldSelectionScreenState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final assignment = ref.watch(homeAssignmentProvider);
     final worlds = ref
         .watch(worldCatalogProvider)
@@ -54,19 +56,18 @@ class _HomeWorldSelectionScreenState
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Choose your home world')),
+      appBar: AppBar(title: Text(l10n.homeWorldSelectionTitle)),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(24),
           children: [
             Text(
-              'Your home world keeps your account data close to you.',
+              l10n.homeWorldSelectionIntro,
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 12),
             Text(
-              'This choice cannot be changed later. You can still visit '
-              'other prepared worlds without moving your home.',
+              l10n.homeWorldSelectionPermanentWarning,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 24),
@@ -80,19 +81,20 @@ class _HomeWorldSelectionScreenState
                   for (final world in worlds)
                     RadioListTile<WorldId>(
                       value: WorldId(world.worldId),
-                      title: Text(_worldName(world)),
-                      subtitle: Text(world.firestoreLocation),
+                      title: Text(_worldName(l10n, world)),
+                      subtitle: Text(_worldLocation(l10n, world)),
                       enabled: !_submitting,
                     ),
                 ],
               ),
             ),
-            if (worlds.isEmpty)
-              const Text('No home world is currently available.'),
-            if (assignment.hasError || _error != null) ...[
+            if (worlds.isEmpty) Text(l10n.homeWorldSelectionUnavailable),
+            if (assignment.hasError || _submissionFailed) ...[
               const SizedBox(height: 16),
               Text(
-                _error ?? 'Could not load your account setup.',
+                _submissionFailed
+                    ? l10n.homeWorldSelectionSubmitFailed
+                    : l10n.homeWorldSelectionLoadFailed,
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             ],
@@ -106,7 +108,7 @@ class _HomeWorldSelectionScreenState
                       dimension: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Set as my permanent home'),
+                  : Text(l10n.homeWorldSelectionConfirm),
             ),
           ],
         ),
@@ -115,11 +117,20 @@ class _HomeWorldSelectionScreenState
   }
 }
 
-String _worldName(WorldCatalogEntry world) {
+String _worldName(AppLocalizations l10n, WorldCatalogEntry world) {
   return switch (world.displayNameKey) {
-    'world.asia' => 'Asia',
-    'world.northAmerica' => 'North America',
-    'world.europe' => 'Europe',
+    'world.asia' => l10n.worldAsia,
+    'world.northAmerica' => l10n.worldNorthAmerica,
+    'world.europe' => l10n.worldEurope,
     _ => world.worldId,
+  };
+}
+
+String _worldLocation(AppLocalizations l10n, WorldCatalogEntry world) {
+  return switch (world.displayNameKey) {
+    'world.asia' => l10n.worldAsiaLocation,
+    'world.northAmerica' => l10n.worldNorthAmericaLocation,
+    'world.europe' => l10n.worldEuropeLocation,
+    _ => world.firestoreLocation,
   };
 }

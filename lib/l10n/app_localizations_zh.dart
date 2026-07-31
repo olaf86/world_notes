@@ -1002,6 +1002,46 @@ class AppLocalizationsZh extends AppLocalizations {
   String get signOut => '退出登录';
 
   @override
+  String get homeWorldSelectionTitle => '选择主世界';
+
+  @override
+  String get homeWorldSelectionIntro => '主世界会将你的账户数据保存在离你较近的地区。';
+
+  @override
+  String get homeWorldSelectionPermanentWarning =>
+      '此选择以后无法更改。你仍可在不迁移主世界的情况下访问其他已准备好的世界。';
+
+  @override
+  String get homeWorldSelectionUnavailable => '目前没有可选择的主世界。';
+
+  @override
+  String get homeWorldSelectionLoadFailed => '无法加载账户准备状态。';
+
+  @override
+  String get homeWorldSelectionSubmitFailed => '无法设置主世界，请重试。';
+
+  @override
+  String get homeWorldSelectionConfirm => '设为永久主世界';
+
+  @override
+  String get worldAsia => '亚洲';
+
+  @override
+  String get worldAsiaLocation => '日本东京';
+
+  @override
+  String get worldNorthAmerica => '北美';
+
+  @override
+  String get worldNorthAmericaLocation => '美国爱荷华州';
+
+  @override
+  String get worldEurope => '欧洲';
+
+  @override
+  String get worldEuropeLocation => '比利时';
+
+  @override
   String get followers => '粉丝';
 
   @override
@@ -2014,6 +2054,46 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get signOut => '退出登录';
+
+  @override
+  String get homeWorldSelectionTitle => '选择主世界';
+
+  @override
+  String get homeWorldSelectionIntro => '主世界会将你的账户数据保存在离你较近的地区。';
+
+  @override
+  String get homeWorldSelectionPermanentWarning =>
+      '此选择以后无法更改。你仍可在不迁移主世界的情况下访问其他已准备好的世界。';
+
+  @override
+  String get homeWorldSelectionUnavailable => '目前没有可选择的主世界。';
+
+  @override
+  String get homeWorldSelectionLoadFailed => '无法加载账户准备状态。';
+
+  @override
+  String get homeWorldSelectionSubmitFailed => '无法设置主世界，请重试。';
+
+  @override
+  String get homeWorldSelectionConfirm => '设为永久主世界';
+
+  @override
+  String get worldAsia => '亚洲';
+
+  @override
+  String get worldAsiaLocation => '日本东京';
+
+  @override
+  String get worldNorthAmerica => '北美';
+
+  @override
+  String get worldNorthAmericaLocation => '美国爱荷华州';
+
+  @override
+  String get worldEurope => '欧洲';
+
+  @override
+  String get worldEuropeLocation => '比利时';
 
   @override
   String get followers => '粉丝';
@@ -3029,6 +3109,46 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get signOut => '登出';
+
+  @override
+  String get homeWorldSelectionTitle => '選擇主世界';
+
+  @override
+  String get homeWorldSelectionIntro => '主世界會將你的帳戶資料保存在離你較近的地區。';
+
+  @override
+  String get homeWorldSelectionPermanentWarning =>
+      '此選擇之後無法變更。你仍可在不遷移主世界的情況下造訪其他已準備好的世界。';
+
+  @override
+  String get homeWorldSelectionUnavailable => '目前沒有可選擇的主世界。';
+
+  @override
+  String get homeWorldSelectionLoadFailed => '無法載入帳戶準備狀態。';
+
+  @override
+  String get homeWorldSelectionSubmitFailed => '無法設定主世界，請再試一次。';
+
+  @override
+  String get homeWorldSelectionConfirm => '設為永久主世界';
+
+  @override
+  String get worldAsia => '亞洲';
+
+  @override
+  String get worldAsiaLocation => '日本東京';
+
+  @override
+  String get worldNorthAmerica => '北美';
+
+  @override
+  String get worldNorthAmericaLocation => '美國愛荷華州';
+
+  @override
+  String get worldEurope => '歐洲';
+
+  @override
+  String get worldEuropeLocation => '比利時';
 
   @override
   String get followers => '粉絲';

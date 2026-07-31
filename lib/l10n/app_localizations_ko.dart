@@ -1015,6 +1015,46 @@ class AppLocalizationsKo extends AppLocalizations {
   String get signOut => '로그아웃';
 
   @override
+  String get homeWorldSelectionTitle => '홈 월드 선택';
+
+  @override
+  String get homeWorldSelectionIntro => '홈 월드는 계정 데이터를 가까운 지역에 보관합니다.';
+
+  @override
+  String get homeWorldSelectionPermanentWarning =>
+      '이 선택은 나중에 변경할 수 없습니다. 홈을 옮기지 않고도 준비된 다른 월드를 방문할 수 있습니다.';
+
+  @override
+  String get homeWorldSelectionUnavailable => '현재 선택할 수 있는 홈 월드가 없습니다.';
+
+  @override
+  String get homeWorldSelectionLoadFailed => '계정 준비 상태를 불러오지 못했습니다.';
+
+  @override
+  String get homeWorldSelectionSubmitFailed => '홈 월드를 설정하지 못했습니다. 다시 시도해 주세요.';
+
+  @override
+  String get homeWorldSelectionConfirm => '영구 홈으로 설정';
+
+  @override
+  String get worldAsia => '아시아';
+
+  @override
+  String get worldAsiaLocation => '일본 도쿄';
+
+  @override
+  String get worldNorthAmerica => '북미';
+
+  @override
+  String get worldNorthAmericaLocation => '미국 아이오와';
+
+  @override
+  String get worldEurope => '유럽';
+
+  @override
+  String get worldEuropeLocation => '벨기에';
+
+  @override
   String get followers => '팔로워';
 
   @override
