@@ -472,6 +472,15 @@ Deliverables:
 - a staging index-readiness test because the emulator does not enforce
   composite indexes.
 
+Implementation note (2026-07-31): the initial Rules harness uses
+`@firebase/rules-unit-testing` and a dedicated demo-project emulator config.
+It loads the application Rules and the provisioning-world deny-all Rules into
+separate emulator namespaces, then tests authentication, ownership, schema
+pollution, server-only collections, block visibility, moderation visibility,
+and locked-world access as independent cases. This separation is intentional:
+the Firestore emulator does not emulate multiple database IDs, while the
+named-database contract test covers database routing and isolation separately.
+
 Exit criteria:
 
 - a clean environment can be provisioned repeatably;

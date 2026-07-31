@@ -5,6 +5,8 @@
     "build": "tsc",
     "build:test": "node -e \"require('node:fs').rmSync('.test-build', { recursive: true, force: true })\" && tsc -p tsconfig.test.json",
     "test": "npm run build:test && node --test .test-build/test/*.test.js",
+    "test:firestore-rules": "npm run build:test && npx -y firebase-tools@latest emulators:exec --config ../firebase.rules-test.json --project demo-world-notes-rules --only firestore \"npm run test:firestore-rules:emulator\"",
+    "test:firestore-rules:emulator": "node --test .test-build/test/firestoreRules.test.js",
     "test:firestore-contract": "npm run build:test && node --test .test-build/test/worldFirestore.contract.test.js",
     "test:firestore-contract:cloud": "npm run build:test && node --test .test-build/test/worldFirestore.contract.test.js",
     "evaluate:moderation": "npm run build && node lib/scripts/evaluateModeration.js",
@@ -30,11 +32,13 @@
     "libphonenumber-js": "^1.13.8"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.1",
     "@typescript-eslint/eslint-plugin": "^5.12.0",
     "@typescript-eslint/parser": "^5.12.0",
     "eslint": "^8.9.0",
     "eslint-config-google": "^0.14.0",
     "eslint-plugin-import": "^2.25.4",
+    "firebase": "^12.17.0",
     "firebase-functions-test": "^3.4.1",
     "typescript": "^6.0.0"
   },
