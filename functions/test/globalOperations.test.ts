@@ -13,7 +13,8 @@ import {
 } from "../src/globalOperations";
 import {WorldCatalog} from "../src/platform/worldCatalog";
 
-const OPERATION_ID = "9c981950-3f3b-4db0-8505-3c5b7789ac83";
+const TEST_OPERATION_ID = "00000000-0000-700a-800b-000000000001";
+const OTHER_TEST_OPERATION_ID = "00000000-0000-700a-800b-000000000002";
 
 test("canonical payload hashes ignore object key order", () => {
   const first = canonicalPayloadHash({
@@ -48,14 +49,14 @@ test("rejects unsupported or unbounded canonical payload values", () => {
   );
 });
 
-test("operation IDs are lowercase UUID v4 values", () => {
-  assert.equal(requireOperationId(OPERATION_ID), OPERATION_ID);
+test("operation IDs are lowercase UUID v7 values", () => {
+  assert.equal(requireOperationId(TEST_OPERATION_ID), TEST_OPERATION_ID);
   assert.throws(
-    () => requireOperationId("01941f58-7c76-7a0b-9b6e-6f7798c18f22"),
+    () => requireOperationId("9c981950-3f3b-4db0-8505-3c5b7789ac83"),
     GlobalOperationValidationError,
   );
   assert.throws(
-    () => requireOperationId(OPERATION_ID.toUpperCase()),
+    () => requireOperationId(TEST_OPERATION_ID.toUpperCase()),
     GlobalOperationValidationError,
   );
 });
@@ -98,7 +99,7 @@ test("revisioned tombstones require a positive safe revision", () => {
 test("operation parser enforces schema and terminal invariants", () => {
   const completedAt = Timestamp.fromMillis(1_000);
   const valid = {
-    operationId: OPERATION_ID,
+    operationId: TEST_OPERATION_ID,
     operationType: "setLanguagePreference",
     entityId: "alice",
     revision: 1,
@@ -118,21 +119,30 @@ test("operation parser enforces schema and terminal invariants", () => {
     expireAt: Timestamp.fromMillis(2_000),
   };
 
-  assert.equal(parseGlobalOperation(valid, OPERATION_ID).revision, 1);
+  assert.equal(parseGlobalOperation(valid, TEST_OPERATION_ID).revision, 1);
   assert.throws(
-    () => parseGlobalOperation({...valid, extraData: true}, OPERATION_ID),
+    () => parseGlobalOperation(
+      {...valid, extraData: true},
+      TEST_OPERATION_ID,
+    ),
     /fields are invalid/,
   );
   assert.throws(
-    () => parseGlobalOperation({...valid, worldAcks: {}}, OPERATION_ID),
+    () => parseGlobalOperation(
+      {...valid, worldAcks: {}},
+      TEST_OPERATION_ID,
+    ),
     /authority acknowledgement/,
   );
   assert.throws(
-    () => parseGlobalOperation({...valid, status: "pending"}, OPERATION_ID),
+    () => parseGlobalOperation(
+      {...valid, status: "pending"},
+      TEST_OPERATION_ID,
+    ),
     /Pending global operation/,
   );
   assert.throws(
-    () => parseGlobalOperation(valid, "8b9c445e-c810-440f-bc22-b7559195891d"),
+    () => parseGlobalOperation(valid, OTHER_TEST_OPERATION_ID),
     /does not match its document path/,
   );
 });

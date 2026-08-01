@@ -284,7 +284,7 @@ describe(
         "allows only the bound owner to get an exact operation",
         async () => {
           await seedApplicationDocument(
-            "globalOperations/9c981950-3f3b-4db0-8505-3c5b7789ac83",
+            "globalOperations/test-operation",
             validGlobalOperation("alice"),
           );
           const alice =
@@ -292,7 +292,7 @@ describe(
           const bob = requireApplicationRules().authenticatedContext("bob");
           const guest = requireApplicationRules().unauthenticatedContext();
           const path =
-            "globalOperations/9c981950-3f3b-4db0-8505-3c5b7789ac83";
+            "globalOperations/test-operation";
 
           await assertSucceeds(alice.firestore().doc(path).get());
           await assertFails(bob.firestore().doc(path).get());
@@ -301,7 +301,7 @@ describe(
       );
 
       test("denies owner listing and every client write", async () => {
-        const operationId = "9c981950-3f3b-4db0-8505-3c5b7789ac83";
+        const operationId = "test-operation";
         const path = `globalOperations/${operationId}`;
         await seedApplicationDocument(path, validGlobalOperation("alice"));
         const alice = requireApplicationRules().authenticatedContext("alice");
@@ -558,7 +558,7 @@ function validGlobalOperation(
 ): firebase.firestore.DocumentData {
   const now = firebase.firestore.Timestamp.now();
   return {
-    operationId: "9c981950-3f3b-4db0-8505-3c5b7789ac83",
+    operationId: "test-operation",
     operationType: "setLanguagePreference",
     entityId: ownerUid,
     revision: 1,

@@ -16,7 +16,7 @@ import {
 } from "./platform/worldCatalog";
 
 const OPERATION_ID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+  /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const OPERATION_TYPE_PATTERN = /^[a-z][A-Za-z0-9]{0,63}$/;
 const PATH_SEGMENT_PATTERN = /^[^/\s]{1,128}$/;
 const PAYLOAD_HASH_PATTERN = /^[0-9a-f]{64}$/;
@@ -227,11 +227,11 @@ export function canonicalPayloadHash(payload: unknown): string {
   return createHash("sha256").update(canonical, "utf8").digest("hex");
 }
 
-/** Validates and returns the client-generated UUID v4 operation ID. */
+/** Validates and returns the client-generated UUID v7 operation ID. */
 export function requireOperationId(value: unknown): string {
   if (typeof value !== "string" || !OPERATION_ID_PATTERN.test(value)) {
     throw new GlobalOperationValidationError(
-      "operationId must be a lowercase UUID v4.",
+      "operationId must be a lowercase UUID v7.",
     );
   }
   return value;

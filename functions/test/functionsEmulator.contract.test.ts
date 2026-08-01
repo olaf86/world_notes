@@ -32,6 +32,8 @@ const RUN_EMULATOR_TESTS =
 const PROJECT_ID = "demo-world-notes-functions";
 const FUNCTIONS_ORIGIN =
   `http://127.0.0.1:5001/${PROJECT_ID}/asia-northeast1`;
+const TEST_LANGUAGE_OPERATION_ID =
+  "00000000-0000-700a-800b-000000000001";
 
 let clientApp: FirebaseApp | undefined;
 let adminApp: AdminApp | undefined;
@@ -291,7 +293,7 @@ describe(
       const credential = await signInAnonymously(requireAuth());
       const uid = credential.user.uid;
       const idToken = await credential.user.getIdToken();
-      const operationId = randomUUID();
+      const operationId = TEST_LANGUAGE_OPERATION_ID;
       const db = requireFirestore();
       const userReference = db.collection("users").doc(uid);
       const operationReference = db

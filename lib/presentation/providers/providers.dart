@@ -392,7 +392,7 @@ class AppLanguagePreferenceNotifier
     try {
       await functions.httpsCallable('setLanguagePreference').call<void>({
         'languagePreference': preference.storageValue,
-        'operationId': _uuid.v4(),
+        'operationId': _uuid.v7(),
       });
     } catch (_) {
       _pendingPreference = null;
@@ -458,7 +458,7 @@ class AppLanguagePreferenceNotifier
     try {
       await functions.httpsCallable('setLanguagePreference').call<void>({
         'languagePreference': AppLanguagePreference.system.storageValue,
-        'operationId': _uuid.v4(),
+        'operationId': _uuid.v7(),
       });
     } catch (error, stack) {
       _accountBeingSeeded = null;

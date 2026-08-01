@@ -684,7 +684,7 @@ until every accepted operation is terminal.
 
 Implementation note (2026-08-01): P08 adds the reusable global-operation
 envelope and authority transaction without enabling cross-world delivery yet.
-Client operation IDs are lowercase UUID v4 values. The command payload is
+Client operation IDs are lowercase UUID v7 values. The command payload is
 bounded, canonically encoded with sorted object keys, and stored only as a
 SHA-256 hash. One transaction reads the existing operation binding, reads and
 increments the entity-specific revision, applies the typed authority mutation,
