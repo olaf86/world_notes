@@ -739,12 +739,11 @@ Flutter has the durable observer primitive: it persists pending
 `(authorityWorld, operationId)` references under the signed-in user's local
 key, restores authority listeners at app startup, publishes typed progress
 through an app-scoped provider, and removes local references only after a
-terminal snapshot. The current registration decision is still implicit at the
-call site. Before adding more command workflows, make observation policy an
-explicit `none | durable` argument so a pending response alone never creates a
-listener. The authority-only language pilot is classified as `none`; because
-it normally returns `complete`, the present implementation already creates no
-listener for it. The replication infrastructure intentionally registers no
+terminal snapshot. Every accepted-response call now requires an explicit
+`none | durable` policy. Response validation runs under either policy;
+`durable` pending work fails visibly if the app-scoped observer is unavailable
+rather than silently losing its guarantee. The authority-only language pilot
+uses `none`. The replication infrastructure intentionally registers no
 all-world domain handler yet. Profile,
 entitlement, social, block, and safety handlers are installed by P12–P15 when
 their revisioned destination schemas are introduced.
@@ -779,6 +778,24 @@ Exit criteria:
 
 Rollback: stop new producers only after their parent feature is disabled; keep
 workers and reconcilers alive until the queue drains.
+
+Implementation note (2026-08-02): the cleanup framework defines separate
+`cleanupQueues/firestore/jobs` and `cleanupQueues/storage/jobs` transports in
+every world. Jobs use deterministic SHA-256 IDs over the approved source/world/
+queue/type/partition binding, an exact persisted schema, short transactional
+leases, attempt-number fencing, bounded cursor checkpoints, and no terminal
+failure state. Recoverable errors return jobs to `pending` with the approved
+10-minute, 30-minute, 2-hour, 6-hour, then 24-hour backoff and jitter.
+Completed jobs receive the shared 30-day TTL.
+
+Each queue has its own regional creation trigger and 10-minute reconciler, but
+both reuse the same parser, runner, attention thresholds, and queue-aware
+handler registry. The production registries intentionally contain no handlers
+and no producers yet; product-specific handlers are registered only when their
+revision guards and resource schemas arrive in later units. Unit tests cover
+IDs, state validation, handler ownership, retry timing, alerts, and deployment
+routing. The named-database contract covers lease, cursor, completion, and
+idempotent replay through real Firestore transactions.
 
 ### Phase 6 — profiles, social graph, and notification authority
 

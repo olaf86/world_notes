@@ -15,6 +15,13 @@ import {
   GlobalReplicationHandlerRegistry,
   processGlobalOperation,
 } from "../src/globalReplication";
+import {
+  cleanupJobId,
+  CleanupJobHandler,
+  CleanupJobHandlerRegistry,
+  newCleanupJobData,
+  processCleanupJob,
+} from "../src/cleanupJobs";
 import {WORLD_CATALOG} from "../src/platform/worldCatalog";
 import {
   DEFAULT_FIRESTORE_DATABASE_ID,
@@ -319,6 +326,67 @@ firestoreContractTest(
     assert.equal(operation.get("worldAcks.europe.revision"), 1);
     assert.notEqual(operation.get("completedAt"), undefined);
     assert.notEqual(operation.get("expireAt"), undefined);
+  },
+);
+
+firestoreContractTest(
+  "leases, checkpoints, and completes one cleanup job",
+  async () => {
+    const {runId, asia, provider} = requireContext();
+    const input = {
+      sourceOperationId: `contract-${runId}`,
+      entityType: "profile",
+      entityId: runId,
+      revision: 1,
+      world: "asia",
+      queue: "firestore" as const,
+      jobType: "cleanupContractEntity",
+    };
+    const jobId = cleanupJobId(input);
+    const jobRef = asia.doc(`cleanupQueues/firestore/jobs/${jobId}`);
+    trackForCleanup(jobRef);
+    await jobRef.create(newCleanupJobData(input, Timestamp.now()));
+
+    const observedCursors: Array<string | null> = [];
+    const handler: CleanupJobHandler = {
+      queue: "firestore",
+      jobType: "cleanupContractEntity",
+      processBatch: async ({job}) => {
+        observedCursors.push(job.cursor);
+        return job.cursor === null ?
+          {complete: false, cursor: "page-1"} :
+          {complete: true};
+      },
+    };
+    const runtime = {
+      catalog: WORLD_CATALOG,
+      firestore: provider,
+      handlers: new CleanupJobHandlerRegistry([handler]),
+    };
+
+    const first = await processCleanupJob(
+      "asia",
+      "firestore",
+      jobId,
+      runtime,
+    );
+    const replay = await processCleanupJob(
+      "asia",
+      "firestore",
+      jobId,
+      runtime,
+    );
+    const completed = await jobRef.get();
+
+    assert.deepEqual(observedCursors, [null, "page-1"]);
+    assert.equal(first.status, "complete");
+    assert.equal(first.processed, true);
+    assert.equal(replay.status, "complete");
+    assert.equal(replay.processed, false);
+    assert.equal(completed.get("attemptCount"), 1);
+    assert.equal(completed.get("status"), "complete");
+    assert.notEqual(completed.get("completedAt"), null);
+    assert.notEqual(completed.get("expireAt"), null);
   },
 );
 

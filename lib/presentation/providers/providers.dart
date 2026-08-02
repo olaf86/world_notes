@@ -446,7 +446,11 @@ class AppLanguagePreferenceNotifier
             'languagePreference': preference.storageValue,
             'operationId': _uuid.v7(),
           });
-      await _operationObserver?.trackAcceptedResponse(response.data);
+      await handleAcceptedGlobalOperation(
+        response: response.data,
+        policy: GlobalOperationObservationPolicy.none,
+        observer: _operationObserver,
+      );
     } catch (_) {
       _pendingPreference = null;
       rethrow;
@@ -515,7 +519,11 @@ class AppLanguagePreferenceNotifier
             'languagePreference': AppLanguagePreference.system.storageValue,
             'operationId': _uuid.v7(),
           });
-      await _operationObserver?.trackAcceptedResponse(response.data);
+      await handleAcceptedGlobalOperation(
+        response: response.data,
+        policy: GlobalOperationObservationPolicy.none,
+        observer: _operationObserver,
+      );
     } catch (error, stack) {
       _accountBeingSeeded = null;
       debugPrint(

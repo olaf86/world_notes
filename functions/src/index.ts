@@ -59,6 +59,20 @@ export {
   reconcileNorthAmericaGlobalOperations,
   reconcileEuropeGlobalOperations,
 } from "./globalReplicationTriggers";
+export {
+  processAsiaFirestoreCleanupJob,
+  processNorthAmericaFirestoreCleanupJob,
+  processEuropeFirestoreCleanupJob,
+  processAsiaStorageCleanupJob,
+  processNorthAmericaStorageCleanupJob,
+  processEuropeStorageCleanupJob,
+  reconcileAsiaFirestoreCleanupJobs,
+  reconcileNorthAmericaFirestoreCleanupJobs,
+  reconcileEuropeFirestoreCleanupJobs,
+  reconcileAsiaStorageCleanupJobs,
+  reconcileNorthAmericaStorageCleanupJobs,
+  reconcileEuropeStorageCleanupJobs,
+} from "./cleanupTriggers";
 
 // Map exploration pin summaries and detail-entry proximity checks.
 export {listMapPins, validateNoteAccess} from "./mapPins";

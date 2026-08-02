@@ -30,7 +30,15 @@ void main() {
       operationId: '00000000-0000-700a-800b-000000000001',
     );
 
-    await observer.track(reference);
+    await handleAcceptedGlobalOperation(
+      response: {
+        'authorityWorld': reference.authorityWorld.value,
+        'operationId': reference.operationId,
+        'status': 'pending',
+      },
+      policy: GlobalOperationObservationPolicy.durable,
+      observer: observer,
+    );
     expect(repository.watched, [reference]);
     expect(
       jsonDecode(preferences.getString(storageKey)!) as List,
@@ -72,7 +80,7 @@ void main() {
     expect(repository.watched.single.authorityWorld, const WorldId('europe'));
   });
 
-  test('tracks only pending callable responses', () async {
+  test('none validates a pending response without observing it', () async {
     SharedPreferences.setMockInitialValues(const {});
     final preferences = await SharedPreferences.getInstance();
     final repository = _FakeGlobalOperationRepository();
@@ -85,19 +93,85 @@ void main() {
     );
     addTearDown(observer.dispose);
 
-    await observer.trackAcceptedResponse({
-      'authorityWorld': 'asia',
-      'operationId': '00000000-0000-700a-800b-000000000003',
-      'status': 'complete',
-    });
+    final reference = await handleAcceptedGlobalOperation(
+      response: {
+        'authorityWorld': 'asia',
+        'operationId': '00000000-0000-700a-800b-000000000003',
+        'status': 'pending',
+      },
+      policy: GlobalOperationObservationPolicy.none,
+      observer: observer,
+    );
+
+    expect(reference.authorityWorld, const WorldId('asia'));
+    expect(repository.watched, isEmpty);
+    expect(preferences.containsKey(storageKey), isFalse);
+  });
+
+  test('durable observes pending but not terminal responses', () async {
+    SharedPreferences.setMockInitialValues(const {});
+    final preferences = await SharedPreferences.getInstance();
+    final repository = _FakeGlobalOperationRepository();
+    addTearDown(repository.dispose);
+    final observer = GlobalOperationObserver(
+      userId: 'test-user',
+      repository: repository,
+      preferences: preferences,
+      reportError: (_, _) async {},
+    );
+    addTearDown(observer.dispose);
+
+    await handleAcceptedGlobalOperation(
+      response: {
+        'authorityWorld': 'asia',
+        'operationId': '00000000-0000-700a-800b-000000000003',
+        'status': 'complete',
+      },
+      policy: GlobalOperationObservationPolicy.durable,
+      observer: observer,
+    );
     expect(repository.watched, isEmpty);
 
-    await observer.trackAcceptedResponse({
-      'authorityWorld': 'asia',
-      'operationId': '00000000-0000-700a-800b-000000000004',
-      'status': 'pending',
-    });
+    await handleAcceptedGlobalOperation(
+      response: {
+        'authorityWorld': 'asia',
+        'operationId': '00000000-0000-700a-800b-000000000004',
+        'status': 'pending',
+      },
+      policy: GlobalOperationObservationPolicy.durable,
+      observer: observer,
+    );
     expect(repository.watched, hasLength(1));
+  });
+
+  test('durable pending response requires an observer', () async {
+    await expectLater(
+      handleAcceptedGlobalOperation(
+        response: const {
+          'authorityWorld': 'asia',
+          'operationId': '00000000-0000-700a-800b-000000000005',
+          'status': 'pending',
+        },
+        policy: GlobalOperationObservationPolicy.durable,
+        observer: null,
+      ),
+      throwsStateError,
+    );
+  });
+
+  test('none still rejects an invalid accepted response', () async {
+    await expectLater(
+      handleAcceptedGlobalOperation(
+        response: const {
+          'authorityWorld': 'asia',
+          'operationId': '00000000-0000-700a-800b-000000000006',
+          'status': 'unknown',
+        },
+        policy: GlobalOperationObservationPolicy.none,
+        observer: null,
+      ),
+      throwsFormatException,
+    );
   });
 }
 

@@ -321,6 +321,27 @@ describe(
       });
     });
 
+    describe("cleanup queues", {concurrency: false}, () => {
+      test("denies every client read and write", async () => {
+        const path =
+          "cleanupQueues/firestore/jobs/test-cleanup-job";
+        await seedApplicationDocument(path, {status: "pending"});
+        const alice = requireApplicationRules().authenticatedContext("alice");
+
+        await assertFails(alice.firestore().doc(path).get());
+        await assertFails(
+          alice.firestore().collection("cleanupQueues/firestore/jobs").get(),
+        );
+        await assertFails(
+          alice.firestore().doc(path).update({status: "complete"}),
+        );
+        await assertFails(
+          alice.firestore().doc(`${path}-new`).set({status: "pending"}),
+        );
+        await assertFails(alice.firestore().doc(path).delete());
+      });
+    });
+
     describe("bootstrap write guard", {concurrency: false}, () => {
       test(
         "allows an owner to mark a notice read after bootstrap",

@@ -10,6 +10,35 @@ import '../domain/repositories/global_operation_repository.dart';
 typedef GlobalOperationErrorReporter =
     Future<void> Function(Object error, StackTrace stack);
 
+/// Whether an accepted operation needs device-side progress observation.
+enum GlobalOperationObservationPolicy { none, durable }
+
+/// Validates an accepted callable response and applies its observation policy.
+Future<GlobalOperationReference> handleAcceptedGlobalOperation({
+  required Map<String, dynamic> response,
+  required GlobalOperationObservationPolicy policy,
+  required GlobalOperationObserver? observer,
+}) async {
+  final authorityWorld = response['authorityWorld'];
+  final operationId = response['operationId'];
+  if (authorityWorld is! String || operationId is! String) {
+    throw const FormatException('Global operation response is invalid.');
+  }
+  final reference = GlobalOperationReference(
+    authorityWorld: WorldId(authorityWorld),
+    operationId: operationId,
+  );
+  final status = GlobalOperationStatus.parse(response['status']);
+  if (policy == GlobalOperationObservationPolicy.durable &&
+      status == GlobalOperationStatus.pending) {
+    if (observer == null) {
+      throw StateError('Durable global operation observation is unavailable.');
+    }
+    await observer._track(reference);
+  }
+  return reference;
+}
+
 /// App-scoped observer for accepted operations that survive navigation/restart.
 final class GlobalOperationObserver {
   GlobalOperationObserver({
@@ -39,25 +68,7 @@ final class GlobalOperationObserver {
 
   Future<void> start() => _starting ??= _restore();
 
-  /// Validates an accepted callable result and remembers it only while pending.
-  Future<GlobalOperationReference> trackAcceptedResponse(
-    Map<String, dynamic> response,
-  ) async {
-    final authorityWorld = response['authorityWorld'];
-    final operationId = response['operationId'];
-    if (authorityWorld is! String || operationId is! String) {
-      throw const FormatException('Global operation response is invalid.');
-    }
-    final reference = GlobalOperationReference(
-      authorityWorld: WorldId(authorityWorld),
-      operationId: operationId,
-    );
-    final status = GlobalOperationStatus.parse(response['status']);
-    if (status == GlobalOperationStatus.pending) await track(reference);
-    return reference;
-  }
-
-  Future<void> track(GlobalOperationReference reference) async {
+  Future<void> _track(GlobalOperationReference reference) async {
     await start();
     if (_disposed || !_remembered.add(reference)) return;
     await _persist();
