@@ -572,16 +572,41 @@ the mutated entity. The operation document is both the client-visible status
 record and the durable replication work item, so no separate
 `globalOutbox/{eventId}` document is required for this path. The entity
 mutation and operation acceptance commit atomically. The operation response
-includes `authorityWorld`, and the app persists
-`(authorityWorld, operationId)` for reconnection.
+includes `authorityWorld`. Workflows that require durable client observation
+persist `(authorityWorld, operationId)` for reconnection.
 
-The app observes the authority operation document through a dedicated
-`GlobalOperationRepository`. The listener is app-scoped rather than
-screen-scoped, survives navigation, and is restored on app launch for locally
-remembered pending IDs. Clients may read only their own operation status and
-cannot write operation state. No selected-world status projection is included
-initially; one may be added later as a non-authoritative cache only if measured
-cross-region listener latency justifies it.
+The client does not observe every global operation. Each initiating workflow
+selects one of the client-observation policies below. This choice affects only
+device-side progress reporting: the operation document remains the durable
+server work item, and replication triggers and reconcilers continue regardless
+of whether any client is listening.
+
+### Client observation policy
+
+| Policy | Use when | Initial operation groups | Client behavior |
+| --- | --- | --- | --- |
+| `none` | Neither the user nor an administrator needs durable per-operation progress | Profile and public-profile edits, follow/unfollow, language and notification preferences, entitlement replication, notification delivery, and server-originated automation | Validate the accepted response, but do not persist the operation reference or create a Firestore listener. Optimistic UI or the replicated domain state supplies any later visible result. |
+| `durable` | The initiating user or administrator must be able to distinguish processing, delayed, and terminal states after navigation or app restart | Block/unblock and administrator-issued bans, posting restrictions, and other account-safety commands | Persist `(authorityWorld, operationId)`, listen through `GlobalOperationRepository`, restore pending listeners on app launch, and remove the remembered reference and listener at a terminal state. |
+
+World readiness is not represented by a remembered operation listener. World
+switching checks the target world's local readiness marker, which is the state
+that actually authorizes access. Operational monitoring of server-originated
+work uses backend metrics and administrator tooling rather than end-user
+listeners.
+
+The call site must select `none` or `durable` explicitly; operation type must
+not acquire observation merely because its response happens to be `pending`.
+There is no `sessionOnly` policy initially. A durable listener is app-scoped
+rather than screen-scoped and survives navigation. Clients may read only their
+own operation status and cannot write operation state. Since only pending
+durable operations are listened to and terminal listeners are cancelled, the
+normal listener count is zero or a small number. Do not add an arbitrary cap
+unless measurements show sustained accumulation; any future cap must retain a
+polling or app-resume recovery path rather than silently forgetting work.
+
+No selected-world status projection is included initially; one may be added
+later as a non-authoritative cache only if measured cross-region listener
+latency justifies it.
 
 ## Design decisions
 
@@ -590,7 +615,7 @@ used by the later operations:
 
 | Order | Status | Decision | Primary question | Recommended starting point | Unblocks |
 | --- | --- | --- | --- | --- | --- |
-| 0 | Decided | Shared global-command contract | How are retries, revisions, completion, failures, authority, and observation represented? | Operation-as-work-item, immediate acceptance, durable observation, reconciliation, retention, replay, and escalation thresholds are defined below | All replicated writes |
+| 0 | Decided | Shared global-command contract | How are retries, revisions, completion, failures, authority, and observation represented? | Operation-as-work-item, immediate acceptance, selective durable client observation, reconciliation, retention, replay, and escalation thresholds are defined below | All replicated writes |
 | 1 | Decided | Block completion semantics | When may block/unblock be reported as complete? | `complete` only after every required enforcement mirror acknowledges and the corresponding local cleanup intents are durable; cleanup execution remains a separate background phase | Follow, invite, note, message, like, and map enforcement |
 | 2 | Decided | Account-safety authority | Where are moderation points, restrictions, and bans serialized? | Subject user's home-world `accountSafety/{uid}`, immutable regional violation events, and one enforcement mirror per active world | Cross-world posting restrictions and bans |
 | 3 | Decided | Note-administrator invitation and routing | How is trusted note administration delegated and discovered across worlds? | Target-bound, single-use administrator invitation in the note world with a signed world hint; general private-note invitations are retired; managed notes are listed only in the selected world | Cross-world administrator delegation and removal of redundant member-invite paths |
@@ -675,9 +700,10 @@ The decisions are:
   authoritative mutation and operation work item commit; it never
   waits for destination acknowledgement);
 - how clients poll or observe completion
-  (**decided:** an app-scoped `GlobalOperationRepository` listens to the
-  operation in its `authorityWorld` and restores remembered pending IDs after
-  navigation or app restart);
+  (**decided:** each initiating workflow explicitly selects `none` or
+  `durable`; only `durable` uses an app-scoped `GlobalOperationRepository` to
+  listen in the operation's `authorityWorld` and restore remembered pending
+  IDs after navigation or app restart);
 - event delivery and durable work representation
   (**decided:** the operation document itself is the durable work item; a
   separate global replication outbox document is not created);

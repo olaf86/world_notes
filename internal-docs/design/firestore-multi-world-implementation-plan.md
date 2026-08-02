@@ -26,8 +26,10 @@ When this plan is complete:
   have one distributed authority and revisioned mirrors;
 - regional interaction paths consult local enforcement mirrors and do not add
   routine cross-region reads;
-- global writes return `accepted` after the authority commit and expose durable
-  completion through `globalOperations`;
+- global writes return `accepted` after the authority commit and expose
+  server-authoritative completion through `globalOperations`; only workflows
+  that need user- or administrator-visible progress install durable client
+  observation;
 - Firestore, Storage, Functions, indexes, Rules, workers, monitoring, and
   cleanup are provisioned as one world bundle;
 - optimistic moderation, notification delivery, and cleanup are durable,
@@ -378,10 +380,18 @@ Deploy a scheduled reconciler in every authority-capable world:
 
 ### Flutter observation
 
-`GlobalOperationRepository` stores `(authorityWorld, operationId)` locally
-before or immediately after command acceptance, listens through the
-authority-world Firestore client, and restores pending listeners after
-navigation and app restart.
+Every initiating workflow explicitly chooses a client-observation policy:
+
+| Policy | Operation groups | Flutter behavior |
+| --- | --- | --- |
+| `none` | Profile/public-profile, follow/unfollow, language and notification preferences, entitlement replication, notification delivery, and server automation | Validate the accepted response without storing `(authorityWorld, operationId)` or opening a listener. The operation still completes through server triggers and reconciliation. |
+| `durable` | Block/unblock, administrator bans, posting restrictions, and other account-safety commands whose progress must survive navigation or restart | Store `(authorityWorld, operationId)`, listen through the authority-world Firestore client, restore pending listeners on launch, and stop listening at a terminal state. |
+
+World switching observes the target world's readiness marker instead of a
+global-operation document. Server-originated backlog is surfaced through
+metrics and administrator tooling rather than end-user listeners. Only pending
+`durable` operations contribute to the app's listener count; do not introduce
+a fixed cap without a polling or app-resume fallback.
 
 UI states:
 
@@ -660,7 +670,8 @@ Deliverables:
 - per-entity revision helper and tombstone helper;
 - per-database replication triggers;
 - reconciler, acknowledgement logic, TTL, alerts, and replay tooling;
-- Flutter durable operation observer;
+- Flutter selective durable operation observer and explicit per-workflow
+  `none | durable` policy;
 - administrator status view for stuck operations.
 
 Pilot order:
@@ -724,13 +735,17 @@ attention remain derived rather than persisted: safety operations warn after
 critical log after 24 hours while remaining `pending` and repairable. The
 required `status + acceptedAt` composite index is shared by all databases.
 
-Flutter now persists pending `(authorityWorld, operationId)` references under
-the signed-in user's local key, restores authority listeners at app startup,
-publishes typed progress through an app-scoped provider, and removes local
-references only after a terminal snapshot. Callable responses are validated
-and pending responses are registered immediately; the authority-only language
-pilot normally returns `complete` and therefore requires no durable listener.
-P09 intentionally registers no all-world domain handler yet. Profile,
+Flutter has the durable observer primitive: it persists pending
+`(authorityWorld, operationId)` references under the signed-in user's local
+key, restores authority listeners at app startup, publishes typed progress
+through an app-scoped provider, and removes local references only after a
+terminal snapshot. The current registration decision is still implicit at the
+call site. Before adding more command workflows, make observation policy an
+explicit `none | durable` argument so a pending response alone never creates a
+listener. The authority-only language pilot is classified as `none`; because
+it normally returns `complete`, the present implementation already creates no
+listener for it. The replication infrastructure intentionally registers no
+all-world domain handler yet. Profile,
 entitlement, social, block, and safety handlers are installed by P12–P15 when
 their revisioned destination schemas are introduced.
 
