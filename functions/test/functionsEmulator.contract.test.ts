@@ -34,6 +34,8 @@ const FUNCTIONS_ORIGIN =
   `http://127.0.0.1:5001/${PROJECT_ID}/asia-northeast1`;
 const TEST_LANGUAGE_OPERATION_ID =
   "00000000-0000-700a-800b-000000000001";
+const TEST_PROFILE_OPERATION_ID =
+  "00000000-0000-700a-800b-000000000002";
 
 let clientApp: FirebaseApp | undefined;
 let adminApp: AdminApp | undefined;
@@ -243,8 +245,80 @@ describe(
       assert.equal(user.get("languagePreferenceRevision"), 0);
       assert.equal(profile.get("followerCount"), 0);
       assert.equal(profile.get("followingCount"), 0);
+      assert.equal(profile.get("revision"), 2);
       assert.equal(entitlement.get("isPremium"), false);
+      assert.equal(entitlement.get("sourceCheckedAt"), null);
+      assert.equal(entitlement.get("revision"), 2);
       assert.equal(usage.get("activeNoteCount"), 0);
+    });
+
+    test("accepts a revisioned home profile update", async () => {
+      const credential = await signInAnonymously(requireAuth());
+      const uid = credential.user.uid;
+      const idToken = await credential.user.getIdToken();
+      const db = requireFirestore();
+      const homeRef = db.collection("userHomes").doc(uid);
+      const userRef = db.collection("users").doc(uid);
+      const profileRef = db.collection("publicProfiles").doc(uid);
+      const entitlementRef = db.collection("userEntitlements").doc(uid);
+      const usageRef = db.collection("userUsage").doc(uid);
+      const operationRef = db
+        .collection("globalOperations")
+        .doc(TEST_PROFILE_OPERATION_ID);
+      cleanupReferences.push(
+        homeRef,
+        userRef,
+        profileRef,
+        entitlementRef,
+        usageRef,
+        operationRef,
+      );
+      const bootstrap = await callFunction(
+        "assignHomeWorld",
+        {worldId: "asia", homeWorld: "asia"},
+        idToken,
+      );
+      assert.equal(bootstrap.status, 200);
+
+      const response = await callFunction(
+        "updateDisplayName",
+        {
+          worldId: "asia",
+          operationId: TEST_PROFILE_OPERATION_ID,
+          displayName: "Updated User",
+        },
+        idToken,
+      );
+      const body = await response.json() as CallableSuccessBody<{
+        displayName: string;
+        accepted: boolean;
+        operationId: string;
+        authorityWorld: string;
+        revision: number;
+        status: string;
+      }>;
+      const result = body.result ?? body.data;
+      const [user, profile, operation] = await Promise.all([
+        userRef.get(),
+        profileRef.get(),
+        operationRef.get(),
+      ]);
+
+      assert.equal(response.status, 200);
+      assert.equal(result?.displayName, "Updated User");
+      assert.equal(result?.accepted, true);
+      assert.equal(result?.operationId, TEST_PROFILE_OPERATION_ID);
+      assert.equal(result?.authorityWorld, "asia");
+      assert.equal(result?.revision, 3);
+      assert.match(result?.status ?? "", /^(pending|complete)$/);
+      assert.equal(user.get("displayName"), "Updated User");
+      assert.equal(profile.get("displayName"), "Updated User");
+      assert.equal(profile.get("revision"), 3);
+      assert.equal(operation.get("operationType"), "updatePublicProfile");
+      assert.deepEqual(
+        operation.get("requiredWorlds"),
+        ["asia", "northAmerica", "europe"],
+      );
     });
 
     test("makes a repeated home assignment idempotent", async () => {

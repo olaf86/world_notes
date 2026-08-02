@@ -16,6 +16,11 @@ import {
 } from "./globalReplication";
 import {parseGlobalOperation} from "./globalOperations";
 import {
+  publicProfileReplicationHandler,
+  reconcilePublicProfileAuthCache,
+  userEntitlementReplicationHandler,
+} from "./profileEntitlementReplication";
+import {
   WorldDatabaseConfig,
   WorldFirestoreDatabaseId,
   WorldFirestoreProvider,
@@ -33,12 +38,13 @@ const worldDatabases = WORLD_CATALOG.worlds.map((world) => ({
   databaseId: world.databaseId as WorldFirestoreDatabaseId,
 })) satisfies readonly WorldDatabaseConfig[];
 
-// The transport is deployed before its domain projections. Handlers are added
-// as each authority projection becomes revisioned and globally replicated.
 const productionRuntime: GlobalReplicationRuntime = {
   catalog: WORLD_CATALOG,
   firestore: new WorldFirestoreProvider(worldDatabases),
-  handlers: new GlobalReplicationHandlerRegistry([]),
+  handlers: new GlobalReplicationHandlerRegistry([
+    publicProfileReplicationHandler,
+    userEntitlementReplicationHandler,
+  ]),
 };
 
 export interface GlobalReconcileResult {
@@ -103,6 +109,11 @@ export async function reconcileGlobalOperations(
         operation.operationId,
         runtime,
       );
+      await reconcilePublicProfileAuthCache(
+        authorityFirestore,
+        authorityWorld,
+        operation,
+      );
       if (result?.status === "complete") completed += 1;
     } catch (error) {
       failed += 1;
@@ -137,10 +148,22 @@ function replicationTrigger(worldId: string) {
       retry: true,
     },
     async (event) => {
+      if (event.data === undefined) {
+        throw new Error("Global operation create event is missing data.");
+      }
+      const operation = parseGlobalOperation(
+        event.data.data(),
+        event.params.operationId,
+      );
       await processGlobalOperation(
         worldId,
         event.params.operationId,
         productionRuntime,
+      );
+      await reconcilePublicProfileAuthCache(
+        productionRuntime.firestore.forWorld(worldId),
+        worldId,
+        operation,
       );
     },
   );

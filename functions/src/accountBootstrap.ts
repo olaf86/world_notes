@@ -4,30 +4,31 @@ import {getAuth, UserRecord} from "firebase-admin/auth";
 import {
   DocumentSnapshot,
   FieldValue,
-  Timestamp,
 } from "firebase-admin/firestore";
 import * as logger from "firebase-functions/logger";
 
+import {
+  newGlobalOperationId,
+  requireOperationId,
+} from "./globalOperations";
 import {onCall, HttpsError} from "./platform/worldCallable";
 import {asiaWorldContext} from "./platform/worldContext";
 import {
   ASIA_WORLD_ID,
   WORLD_REGISTRY,
 } from "./platform/worldRegistry";
+import {
+  executeEntitlementUpdate,
+  executePublicProfilePublish,
+} from "./profileEntitlementReplication";
 
 const HOME_EPOCH = 1;
 const MAX_DISPLAY_NAME_LENGTH = 20;
 const MAX_EMAIL_LENGTH = 320;
 const MAX_PHOTO_URL_LENGTH = 2000;
-const LANGUAGE_PREFERENCES = new Set([
-  "system",
-  "en",
-  "ja",
-  "ko",
-  "zh-Hans",
-  "zh-Hant",
-]);
-
+const PROFILE_REPLICATION_OPERATION_FIELD = "profileReplicationOperationId";
+const ENTITLEMENT_REPLICATION_OPERATION_FIELD =
+  "entitlementReplicationOperationId";
 interface AssignHomeWorldData {
   readonly homeWorld?: unknown;
 }
@@ -66,54 +67,131 @@ export const assignHomeWorld = onCall<AssignHomeWorldData>(
     const entitlementRef = db.collection("userEntitlements").doc(uid);
     const usageRef = db.collection("userUsage").doc(uid);
 
-    const assignedNow = await db.runTransaction(async (transaction) => {
-      const [home, user, profile, entitlement, usage] = await Promise.all([
-        transaction.get(homeRef),
-        transaction.get(userRef),
-        transaction.get(profileRef),
-        transaction.get(entitlementRef),
-        transaction.get(usageRef),
-      ]);
+    const candidateProfileOperationId = newGlobalOperationId();
+    const candidateEntitlementOperationId = newGlobalOperationId();
+    const bootstrap = await db.runTransaction(async (transaction) => {
+      const [homeSnapshot, user, profile, entitlement, usage] =
+        await Promise.all([
+          transaction.get(homeRef),
+          transaction.get(userRef),
+          transaction.get(profileRef),
+          transaction.get(entitlementRef),
+          transaction.get(usageRef),
+        ]);
 
-      if (home.exists) {
-        const existingWorld = home.get("world");
-        const existingEpoch = home.get("epoch");
+      if (homeSnapshot.exists) {
+        const existingWorld = homeSnapshot.get("world");
+        const existingEpoch = homeSnapshot.get("epoch");
         if (existingWorld !== homeWorld || existingEpoch !== HOME_EPOCH) {
           throw new HttpsError(
             "already-exists",
             "This account already has a different home assignment.",
           );
         }
-        if (user.exists &&
-            profile.exists &&
-            entitlement.exists &&
-            usage.exists) {
-          return false;
-        }
+        requireCompleteAccountBundle(user, profile, entitlement, usage);
       } else {
+        requireEmptyAccountBundle(user, profile, entitlement, usage);
         transaction.create(homeRef, {
           world: homeWorld,
           epoch: HOME_EPOCH,
+          [PROFILE_REPLICATION_OPERATION_FIELD]:
+            candidateProfileOperationId,
+          [ENTITLEMENT_REPLICATION_OPERATION_FIELD]:
+            candidateEntitlementOperationId,
           createdAt: FieldValue.serverTimestamp(),
         });
+        transaction.create(userRef, privateUserData(authUser));
+        transaction.create(profileRef, publicProfileData(authUser));
+        transaction.create(entitlementRef, entitlementData());
+        transaction.create(usageRef, usageData());
       }
-
-      transaction.set(userRef, privateUserData(authUser, user));
-      transaction.set(profileRef, publicProfileData(authUser, profile));
-      transaction.set(entitlementRef, entitlementData(user, entitlement));
-      transaction.set(usageRef, usageData(user, usage));
-      return !home.exists;
+      const assignedNow = !homeSnapshot.exists;
+      const profileOperationId = assignedNow ?
+        candidateProfileOperationId :
+        operationIdFromHome(
+          homeSnapshot,
+          PROFILE_REPLICATION_OPERATION_FIELD,
+        );
+      const entitlementOperationId = assignedNow ?
+        candidateEntitlementOperationId :
+        operationIdFromHome(
+          homeSnapshot,
+          ENTITLEMENT_REPLICATION_OPERATION_FIELD,
+        );
+      const isPremium = assignedNow ? false : entitlement.get("isPremium");
+      if (typeof isPremium !== "boolean") {
+        throw new HttpsError(
+          "failed-precondition",
+          "User entitlement is invalid.",
+        );
+      }
+      return {
+        assignedNow,
+        profileOperationId,
+        entitlementOperationId,
+        isPremium,
+      };
     });
 
+    await Promise.all([
+      executePublicProfilePublish({
+        firestore: db,
+        authorityWorld: homeWorld,
+        uid,
+        operationId: bootstrap.profileOperationId,
+        sourceEventId: "accountBootstrap:profile",
+      }),
+      executeEntitlementUpdate({
+        firestore: db,
+        authorityWorld: homeWorld,
+        uid,
+        operationId: bootstrap.entitlementOperationId,
+        isPremium: bootstrap.isPremium,
+        sourceCheckedAt: null,
+        sourceEventId: "accountBootstrap:entitlement",
+      }),
+    ]);
     await cacheHomeClaim(authUser, homeWorld);
     return {
       homeWorld,
       epoch: HOME_EPOCH,
       ready: true,
-      assignedNow,
+      assignedNow: bootstrap.assignedNow,
     };
   },
 );
+
+/** Reads one required bootstrap operation ID from the home document. */
+function operationIdFromHome(
+  homeSnapshot: DocumentSnapshot,
+  field: string,
+): string {
+  return requireOperationId(homeSnapshot.get(field));
+}
+
+/** Rejects a partially created authority bundle. */
+function requireCompleteAccountBundle(
+  ...snapshots: readonly DocumentSnapshot[]
+): void {
+  if (snapshots.some((snapshot) => !snapshot.exists)) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Account authority bundle is incomplete.",
+    );
+  }
+}
+
+/** Rejects orphaned account documents without an immutable home assignment. */
+function requireEmptyAccountBundle(
+  ...snapshots: readonly DocumentSnapshot[]
+): void {
+  if (snapshots.some((snapshot) => snapshot.exists)) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Account data exists without a home assignment.",
+    );
+  }
+}
 
 /** Validates the requested home against the trusted activation catalog. */
 function requireHomeWorld(value: unknown): string {
@@ -131,86 +209,52 @@ function requireHomeWorld(value: unknown): string {
 }
 
 /** Builds the owner-only account document from trusted Auth identity. */
-function privateUserData(
-  authUser: UserRecord,
-  existing: DocumentSnapshot,
-): Record<string, unknown> {
-  const data: Record<string, unknown> = {
+function privateUserData(authUser: UserRecord): Record<string, unknown> {
+  return {
     displayName: displayNameOf(authUser),
     email: boundedNullableString(authUser.email, MAX_EMAIL_LENGTH),
     photoUrl: boundedNullableString(authUser.photoURL, MAX_PHOTO_URL_LENGTH),
-    languagePreference: languagePreferenceOf(existing),
-    languagePreferenceRevision: nonNegativeInteger(
-      existing.get("languagePreferenceRevision"),
-      0,
-    ),
-    createdAt: timestampOrServer(existing.get("createdAt")),
+    languagePreference: "system",
+    languagePreferenceRevision: 0,
+    createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   };
-
-  // These fields remain private account state until P15 moves moderation
-  // authority into accountSafety/{uid}. Copy only the known schema so an old
-  // client cannot preserve arbitrary or privileged fields during bootstrap.
-  copyKnownFields(existing, data, [
-    "moderationStatus",
-    "violationPoints",
-    "lastViolationAt",
-    "restrictedUntil",
-    "bannedUntil",
-    "locale",
-  ]);
-  return data;
 }
 
 /** Builds the authenticated-readable public profile projection. */
-function publicProfileData(
-  authUser: UserRecord,
-  existing: DocumentSnapshot,
-): Record<string, unknown> {
+function publicProfileData(authUser: UserRecord): Record<string, unknown> {
   const displayName = displayNameOf(authUser);
   const photoUrl = boundedNullableString(
     authUser.photoURL,
     MAX_PHOTO_URL_LENGTH,
   );
-  const oldPhotoUrl = nullableString(existing.get("photoUrl"));
-  const oldPhotoVersion = nonNegativeInteger(existing.get("photoVersion"), 0);
-  const photoVersion = existing.exists && oldPhotoUrl === photoUrl ?
-    Math.max(1, oldPhotoVersion) :
-    Math.max(1, oldPhotoVersion + 1);
 
   return {
     displayName,
     photoUrl,
-    photoVersion,
-    followerCount: nonNegativeInteger(existing.get("followerCount"), 0),
-    followingCount: nonNegativeInteger(existing.get("followingCount"), 0),
-    createdAt: timestampOrServer(existing.get("createdAt")),
+    photoVersion: 1,
+    revision: 1,
+    followerCount: 0,
+    followingCount: 0,
+    createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   };
 }
 
-/** Migrates the current entitlement bit out of the private user document. */
-function entitlementData(
-  oldUser: DocumentSnapshot,
-  existing: DocumentSnapshot,
-): Record<string, unknown> {
-  const current = existing.get("isPremium");
-  const legacy = oldUser.get("isPremium");
+/** Builds the initial server-owned entitlement projection. */
+function entitlementData(): Record<string, unknown> {
   return {
-    isPremium: typeof current === "boolean" ? current : legacy === true,
+    isPremium: false,
+    revision: 1,
+    sourceCheckedAt: null,
     updatedAt: FieldValue.serverTimestamp(),
   };
 }
 
-/** Migrates the per-world active-note counter into its local document. */
-function usageData(
-  oldUser: DocumentSnapshot,
-  existing: DocumentSnapshot,
-): Record<string, unknown> {
-  const current = existing.get("activeNoteCount");
-  const legacy = oldUser.get("activeNoteCount");
+/** Builds the initial exact per-world note usage document. */
+function usageData(): Record<string, unknown> {
   return {
-    activeNoteCount: nonNegativeInteger(current, nonNegativeInteger(legacy, 0)),
+    activeNoteCount: 0,
     updatedAt: FieldValue.serverTimestamp(),
   };
 }
@@ -244,14 +288,6 @@ function displayNameOf(authUser: UserRecord): string {
   return Array.from(value).slice(0, MAX_DISPLAY_NAME_LENGTH).join("");
 }
 
-/** Preserves a supported private language preference. */
-function languagePreferenceOf(existing: DocumentSnapshot): string {
-  const value = existing.get("languagePreference");
-  return typeof value === "string" && LANGUAGE_PREFERENCES.has(value) ?
-    value :
-    "system";
-}
-
 /** Normalizes one optional bounded Auth string. */
 function boundedNullableString(
   value: string | undefined,
@@ -260,33 +296,4 @@ function boundedNullableString(
   const normalized = value?.trim();
   if (normalized === undefined || normalized.length === 0) return null;
   return normalized.slice(0, maxLength);
-}
-
-/** Reads a nullable string from existing projection data. */
-function nullableString(value: unknown): string | null {
-  return typeof value === "string" ? value : null;
-}
-
-/** Reads a non-negative integer or returns the supplied fallback. */
-function nonNegativeInteger(value: unknown, fallback: number): number {
-  return typeof value === "number" && Number.isInteger(value) && value >= 0 ?
-    value :
-    fallback;
-}
-
-/** Preserves a creation timestamp or allocates one at commit time. */
-function timestampOrServer(value: unknown): Timestamp | FieldValue {
-  return value instanceof Timestamp ? value : FieldValue.serverTimestamp();
-}
-
-/** Copies only explicitly allowlisted transitional private fields. */
-function copyKnownFields(
-  source: DocumentSnapshot,
-  destination: Record<string, unknown>,
-  fields: readonly string[],
-): void {
-  for (const field of fields) {
-    const value = source.get(field);
-    if (value !== undefined) destination[field] = value;
-  }
 }

@@ -24,7 +24,7 @@ void main() {
     );
   });
 
-  test('rejects selection of a provisioning world', () async {
+  test('rejects selection of a content-disabled world', () async {
     final container = ProviderContainer(
       overrides: [
         homeAssignmentProvider.overrideWith((ref) => Stream.value(null)),

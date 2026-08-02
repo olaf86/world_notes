@@ -261,6 +261,7 @@ function placeData(
     creatorName: user.displayName,
     creatorPhotoUrl: null,
     creatorPhotoVersion: 1,
+    creatorProfileRevision: 1,
     maintainerIds: [user.uid],
     createdAt: timestamp(hoursBefore(now, place.createdHoursAgo)),
     publishAt: timestamp(hoursBefore(now, place.publishHoursAgo ?? 1)),
@@ -319,6 +320,7 @@ async function seedAccountBundle(
     displayName,
     photoUrl: null,
     photoVersion: 1,
+    revision: 1,
     followerCount: 0,
     followingCount: 0,
     createdAt: FieldValue.serverTimestamp(),
@@ -326,6 +328,8 @@ async function seedAccountBundle(
   });
   batch.set(db.collection("userEntitlements").doc(uid), {
     isPremium: false,
+    revision: 1,
+    sourceCheckedAt: null,
     updatedAt: FieldValue.serverTimestamp(),
   });
   batch.set(db.collection("userUsage").doc(uid), {
@@ -346,7 +350,9 @@ async function seedPlace(
 
   if (place.visibility === "private") {
     await placeRef.collection("members").doc(user.uid).set({
+      userId: user.uid,
       displayName: user.displayName,
+      profileRevision: 1,
       invited: true,
       isMaintainer: true,
       viaPasswordVersion: 1,

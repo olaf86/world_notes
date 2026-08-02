@@ -1,18 +1,21 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../domain/entities/user_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../services/subscription_service.dart';
+import '../../services/global_operation_observer.dart';
 import '../../services/world_firebase_clients.dart';
 
-typedef HomeFunctionsProvider = WorldFunctionsClient Function();
+typedef HomeFunctionsProvider = Future<WorldFunctionsClient> Function();
 
 class AuthRepositoryImpl implements AuthRepository {
   final FirebaseAuth _auth;
   final GoogleSignIn _googleSignIn;
   final HomeFunctionsProvider _functionsProvider;
   final SubscriptionService _subscriptionService;
+  final Uuid _uuid = const Uuid();
 
   AuthRepositoryImpl({
     required FirebaseAuth auth,
@@ -93,9 +96,18 @@ class AuthRepositoryImpl implements AuthRepository {
       throw StateError('No signed-in user.');
     }
 
-    await _functionsProvider()
+    final functions = await _functionsProvider();
+    final response = await functions
         .httpsCallable('updateDisplayName')
-        .call<Map<String, dynamic>>({'displayName': displayName});
+        .call<Map<String, dynamic>>({
+          'displayName': displayName,
+          'operationId': _uuid.v7(),
+        });
+    await handleAcceptedGlobalOperation(
+      response: response.data,
+      policy: GlobalOperationObservationPolicy.none,
+      observer: null,
+    );
     await firebaseUser.reload();
     return _toEntity(_auth.currentUser ?? firebaseUser);
   }

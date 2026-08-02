@@ -198,6 +198,33 @@ final firebaseAuthProvider = Provider<FirebaseAuth>(
   (_) => FirebaseAuth.instance,
 );
 
+/// Resolves the immutable home Functions route from the directory authority.
+/// Returns null while a newly authenticated account has no home assignment.
+final homeWorldFunctionsResolverProvider =
+    Provider<Future<WorldFunctionsClient?> Function()>((ref) {
+      return () async {
+        final authUser = ref.read(firebaseAuthProvider).currentUser;
+        if (authUser == null) return null;
+        final directory = ref.read(bootstrapWorldClientsProvider).firestore;
+        final homeSnapshot = await directory
+            .collection('userHomes')
+            .doc(authUser.uid)
+            .get();
+        if (!homeSnapshot.exists) return null;
+        final worldId = homeSnapshot.data()?['world'];
+        if (worldId is! String) {
+          throw const FormatException('Home world field is invalid.');
+        }
+        final world = ref
+            .read(worldCatalogProvider)
+            .requireWorld(WorldId(worldId));
+        return ref
+            .read(worldFirebaseClientCacheProvider)
+            .forWorld(world)
+            .functions;
+      };
+    });
+
 final selectedWorldStorageProvider = Provider<FirebaseStorage>((ref) {
   return ref.watch(selectedWorldClientsProvider).storage;
 });
@@ -267,7 +294,29 @@ final locationServiceProvider = Provider<LocationService>(
 );
 
 final subscriptionServiceProvider = Provider<SubscriptionService>(
-  (_) => SubscriptionService(),
+  (ref) => SubscriptionService(
+    serverEntitlementSynchronizer: () async {
+      final functions = await ref.read(homeWorldFunctionsResolverProvider)();
+      if (functions == null) return;
+      final response = await functions
+          .httpsCallable('refreshEntitlement')
+          .call<Map<String, dynamic>>({
+            'operationId': const Uuid().v7(),
+            'platform': switch (defaultTargetPlatform) {
+              TargetPlatform.iOS => 'ios',
+              TargetPlatform.android => 'android',
+              _ => throw UnsupportedError(
+                'RevenueCat entitlement sync supports iOS and Android only.',
+              ),
+            },
+          });
+      await handleAcceptedGlobalOperation(
+        response: response.data,
+        policy: GlobalOperationObservationPolicy.none,
+        observer: null,
+      );
+    },
+  ),
 );
 
 final adPrivacyServiceProvider = Provider<AdPrivacyService>(
@@ -559,7 +608,13 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepositoryImpl(
     auth: ref.watch(firebaseAuthProvider),
     googleSignIn: GoogleSignIn(),
-    functionsProvider: () => ref.read(bootstrapWorldClientsProvider).functions,
+    functionsProvider: () async {
+      final functions = await ref.read(homeWorldFunctionsResolverProvider)();
+      if (functions == null) {
+        throw StateError('Home world is not assigned.');
+      }
+      return functions;
+    },
     subscriptionService: ref.watch(subscriptionServiceProvider),
   );
 });

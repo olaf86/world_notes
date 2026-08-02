@@ -29,6 +29,7 @@ class _HomeWorldSelectionScreenState
     });
     try {
       await ref.read(accountBootstrapServiceProvider).assignHome(selectedWorld);
+      await ref.read(subscriptionServiceProvider).syncEntitlement();
       await ref.read(firebaseAuthProvider).currentUser?.getIdToken(true);
       ref.invalidate(homeAssignmentProvider);
     } catch (_) {

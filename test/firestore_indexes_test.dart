@@ -4,6 +4,26 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('defines revisioned profile snapshot propagation indexes', () {
+    final config = _loadConfig();
+
+    expect(
+      _hasIndex(config, 'places', [
+        ('createdByUserId', 'ASCENDING'),
+        ('isArchived', 'ASCENDING'),
+        ('__name__', 'ASCENDING'),
+      ]),
+      isTrue,
+    );
+    expect(
+      _hasIndex(config, 'members', [
+        ('userId', 'ASCENDING'),
+        ('__name__', 'ASCENDING'),
+      ], queryScope: 'COLLECTION_GROUP'),
+      isTrue,
+    );
+  });
+
   test('defines archived-note indexes for both sort directions', () {
     final config =
         jsonDecode(File('firestore.indexes.json').readAsStringSync())
@@ -167,4 +187,35 @@ String? _orderOf(Map<String, dynamic> index, String fieldPath) {
     if (field['fieldPath'] == fieldPath) return field['order'] as String?;
   }
   return null;
+}
+
+Map<String, dynamic> _loadConfig() {
+  return jsonDecode(File('firestore.indexes.json').readAsStringSync())
+      as Map<String, dynamic>;
+}
+
+bool _hasIndex(
+  Map<String, dynamic> config,
+  String collectionGroup,
+  List<(String, String)> expectedFields, {
+  String queryScope = 'COLLECTION',
+}) {
+  final indexes = (config['indexes'] as List<dynamic>)
+      .cast<Map<String, dynamic>>();
+  return indexes.any((index) {
+    if (index['collectionGroup'] != collectionGroup ||
+        index['queryScope'] != queryScope) {
+      return false;
+    }
+    final fields = (index['fields'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+    if (fields.length != expectedFields.length) return false;
+    for (var index = 0; index < fields.length; index += 1) {
+      if (fields[index]['fieldPath'] != expectedFields[index].$1 ||
+          fields[index]['order'] != expectedFields[index].$2) {
+        return false;
+      }
+    }
+    return true;
+  });
 }

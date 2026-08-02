@@ -5,8 +5,11 @@ import {App} from "firebase-admin/app";
 import {Firestore} from "firebase-admin/firestore";
 import {HttpsError} from "firebase-functions/v2/https";
 
-import {syncCreatorPhotoSnapshot} from
-  "../src/creatorProfileSnapshots";
+import {
+  syncAsiaProfileSnapshots,
+  syncEuropeProfileSnapshots,
+  syncNorthAmericaProfileSnapshots,
+} from "../src/creatorProfileSnapshots";
 import {CallableRouteValidator} from
   "../src/platform/callableRouteValidator";
 import {
@@ -88,7 +91,7 @@ test("resolves one aligned Asia context and caches it", () => {
   assert.equal(bucketFactoryCalls, 1);
 });
 
-test("rejects a provisioning world before creating regional clients", () => {
+test("rejects a content-disabled world before client creation", () => {
   let firestoreFactoryCalls = 0;
   let bucketFactoryCalls = 0;
   const provider = new WorldContextProvider(registry, {
@@ -170,9 +173,18 @@ test("validates an explicit callable route against its deployment", () => {
   );
 });
 
-test("binds the Asia Firestore trigger to the default database", () => {
+test("binds profile snapshot triggers to each world database", () => {
   assert.equal(
-    syncCreatorPhotoSnapshot.__endpoint.eventTrigger?.eventFilters.database,
+    syncAsiaProfileSnapshots.__endpoint.eventTrigger?.eventFilters.database,
     "(default)",
+  );
+  assert.equal(
+    syncNorthAmericaProfileSnapshots.__endpoint.eventTrigger
+      ?.eventFilters.database,
+    "north-america",
+  );
+  assert.equal(
+    syncEuropeProfileSnapshots.__endpoint.eventTrigger?.eventFilters.database,
+    "europe",
   );
 });

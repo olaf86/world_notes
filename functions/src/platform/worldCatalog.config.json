@@ -20,7 +20,7 @@
       "functionsRegion": "us-central1",
       "bucketName": "world-notes-prod-north-america",
       "displayNameKey": "world.northAmerica",
-      "catalogState": "provisioning",
+      "catalogState": "mirrorOnly",
       "homeAssignmentEnabled": false,
       "contentAccessEnabled": false
     },
@@ -31,7 +31,7 @@
       "functionsRegion": "europe-west1",
       "bucketName": "world-notes-prod-europe",
       "displayNameKey": "world.europe",
-      "catalogState": "provisioning",
+      "catalogState": "mirrorOnly",
       "homeAssignmentEnabled": false,
       "contentAccessEnabled": false
     }

@@ -175,6 +175,10 @@ function upsertPublicProfile(
           typeof profileSnap.get("photoVersion") === "number" ?
         profileSnap.get("photoVersion") :
         profile.photoVersion,
+      revision: profileSnap.exists &&
+          typeof profileSnap.get("revision") === "number" ?
+        profileSnap.get("revision") :
+        1,
       followerCount,
       followingCount,
       createdAt: profileSnap.exists ?

@@ -339,6 +339,8 @@ export const createNote = onCall<CreateNoteData>(
         publicProfileSnap.get("photoUrl") as string | null;
       const creatorPhotoVersion =
         publicProfileSnap.get("photoVersion") as number;
+      const creatorProfileRevision =
+        publicProfileSnap.get("revision") as number;
 
       if (activeCount >= limit) {
         throw new HttpsError(
@@ -366,6 +368,7 @@ export const createNote = onCall<CreateNoteData>(
         creatorName,
         creatorPhotoUrl,
         creatorPhotoVersion,
+        creatorProfileRevision,
         maintainerIds: [uid],
         createdAt: FieldValue.serverTimestamp(),
         publishAt,

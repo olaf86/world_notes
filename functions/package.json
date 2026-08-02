@@ -18,6 +18,7 @@
     "admin:unset": "npm run build && node lib/scripts/setAdminClaim.js --unset",
     "moderation:test-data": "npm run build && node lib/scripts/moderationTestData.js",
     "seed:screenshot": "npm run build && node lib/scripts/seedScreenshotData.js",
+    "migrate:p12": "npm run build && node lib/scripts/migrateP12Data.js",
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",

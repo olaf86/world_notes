@@ -5,7 +5,9 @@ import {Timestamp} from "firebase-admin/firestore";
 
 import {
   canonicalPayloadHash,
+  GLOBAL_COMMAND_SCOPE,
   GlobalOperationValidationError,
+  newGlobalOperationId,
   parseGlobalOperation,
   requireOperationId,
   revisionedTombstone,
@@ -61,22 +63,42 @@ test("operation IDs are lowercase UUID v7 values", () => {
   );
 });
 
+test("server-originated operation IDs retain their UUID v7 timestamp", () => {
+  const timestamp = 1_750_000_000_123;
+  const operationId = newGlobalOperationId(timestamp);
+  const encodedTimestamp = Number.parseInt(
+    operationId.replace(/-/g, "").slice(0, 12),
+    16,
+  );
+
+  assert.equal(requireOperationId(operationId), operationId);
+  assert.equal(encodedTimestamp, timestamp);
+});
+
 test("required worlds snapshot only active catalog membership", () => {
   const catalog = testCatalog();
 
   assert.deepEqual(
-    snapshotRequiredWorlds(catalog, "asia", "authorityOnly"),
+    snapshotRequiredWorlds(
+      catalog,
+      "asia",
+      GLOBAL_COMMAND_SCOPE.authorityOnly,
+    ),
     ["asia"],
   );
   assert.deepEqual(
-    snapshotRequiredWorlds(catalog, "asia", "allActiveWorlds"),
+    snapshotRequiredWorlds(
+      catalog,
+      "asia",
+      GLOBAL_COMMAND_SCOPE.allActiveWorlds,
+    ),
     ["asia", "europe"],
   );
   assert.throws(
     () => snapshotRequiredWorlds(
       catalog,
       "northAmerica",
-      "allActiveWorlds",
+      GLOBAL_COMMAND_SCOPE.allActiveWorlds,
     ),
     GlobalOperationValidationError,
   );

@@ -27,12 +27,12 @@ test("loads the versioned initial world catalog", () => {
       {
         worldId: "northAmerica",
         databaseId: "north-america",
-        state: "provisioning",
+        state: "mirrorOnly",
       },
       {
         worldId: "europe",
         databaseId: "europe",
-        state: "provisioning",
+        state: "mirrorOnly",
       },
     ],
   );

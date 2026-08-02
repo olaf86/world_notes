@@ -184,10 +184,7 @@ export const unlockNote = onCall<{placeId?: unknown; password?: unknown}>(
       throw new HttpsError("permission-denied", "Incorrect password.");
     }
 
-    const profile = await profileForMember(
-      uid,
-      req.auth?.token.name,
-    );
+    const profile = await profileForMember(uid);
 
     const batch = db.batch();
     batch.set(
@@ -197,6 +194,7 @@ export const unlockNote = onCall<{placeId?: unknown; password?: unknown}>(
         viaPasswordVersion: authSnap.get("passwordVersion") as number,
         grantedAt: FieldValue.serverTimestamp(),
         displayName: profile.displayName,
+        profileRevision: profile.profileRevision,
       },
       {merge: true},
     );

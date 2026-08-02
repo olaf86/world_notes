@@ -938,10 +938,7 @@ export const sendMessage = onCall<SendMessageData>(
         );
       }
       const riskSignals = detectAppModerationRiskSignals(input.trimmedContent);
-      const profile = await profileForMember(
-        uid,
-        req.auth?.token.name,
-      );
+      const profile = await profileForMember(uid);
       const result = await createMessageInTransaction({
         db,
         refs,

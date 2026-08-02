@@ -132,7 +132,7 @@ globally completed while an enforcement mirror is unavailable.
 | --- | --- | --- | --- | --- | --- |
 | `aggregatePublishedMessages` | Every minute; reads at most 100 due scheduled messages, updates note/message counters, sends FCM | Per-world `B/W + S` | `SCHED-1M` | Each applied message is locally transactional | Capacity is only 100 messages per world per minute and the function does not drain the backlog in one run. Notification after commit needs an outbox to avoid loss/duplication. |
 | `archiveExpiredNotes` | Daily; batches 200 notes; updates note state and the per-world active-note count | Per-world `B/W` | `SCHED-24H` | Archive and slot release are exact in each world | Keep the counter local and do not emit a global count event. |
-| `syncCreatorPhotoSnapshot` | Firestore trigger; rewrites all active places for a user | Per-world `B/E` | seconds–minutes | Eventually updates place snapshots | Firestore event ordering is not guaranteed. The destination must reject an older `photoVersion`; the current batch update can roll a newer snapshot back. It also needs pagination/durable continuation for large histories. |
+| `sync*ProfileSnapshots` | Per-world Firestore trigger; pages through active creator places and memberships | Per-world `B/E` | seconds–minutes | Eventually installs the latest profile revision | Every page re-reads its targets in a transaction and updates only an older snapshot revision. Duplicate and out-of-order profile events therefore cannot roll a newer snapshot back. |
 
 ## Planned Global Consistency Layer operations
 
@@ -1611,13 +1611,10 @@ These already exist or become more visible under the new architecture:
 
 - The current `createInviteLink` has a concurrent-create race, but the target
   design retires this endpoint instead of repairing that reusable-token model.
-- `syncCreatorPhotoSnapshot` has no revision guard against out-of-order events.
 - `aggregatePublishedMessages` processes at most 100 items per minute and can
   accumulate an unbounded backlog during bursts.
 - FCM sends and several Storage deletions occur after the Firestore commit
   without a durable outbox/cleanup queue.
-- `updateDisplayName` synchronously scans and rewrites an unbounded number of
-  member/place snapshots.
 - Note, message-like, visitor, follower, and message-count aggregates can
   hotspot a popular document.
 - Moderation report resolution needs a world-aware full target identity.

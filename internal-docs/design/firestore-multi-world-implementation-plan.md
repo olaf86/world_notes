@@ -842,6 +842,44 @@ Exit criteria:
 Rollback: disable push producers while retaining in-app notices and draining
 already accepted outbox events according to their expiry policy.
 
+Implementation note (2026-08-02): P12 makes `publicProfiles/{uid}` and
+`userEntitlements/{uid}` revisioned home-world authorities and enables North
+America and Europe as `mirrorOnly` replication destinations. Profile identity
+and the small entitlement projection use `allActiveWorlds` global operations;
+destination profile writes preserve the social counters that will become edge
+aggregates in P13. `updateDisplayName` now returns after its authority commit
+and Firebase Auth cache update instead of synchronously scanning an unbounded
+number of notes and memberships. Per-world profile triggers page those
+snapshots and compare `creatorProfileRevision` or `profileRevision` inside each
+transaction, so duplicate and out-of-order events cannot regress them.
+
+The client never sends an `isPremium` value. `refreshEntitlement` fetches the
+latest RevenueCat CustomerInfo for the authenticated UID with the server-held
+app-specific public SDK key for the calling platform, derives the `pro`
+entitlement including its grace-period expiry, and publishes that result from
+the home authority. The RevenueCat
+`request_date_ms` is stored as `sourceCheckedAt`; an older concurrent provider
+response may advance the operation revision but cannot roll back the current
+entitlement value. The client requests this refresh after RevenueCat login,
+CustomerInfo changes, purchase, restore, and first home assignment. Active
+users therefore repair expiration on their next app start even before a
+RevenueCat webhook ingress is added. Before deploying this slice, set the
+Functions secrets with
+`firebase functions:secrets:set REVENUECAT_PUBLIC_API_KEY_IOS` and
+`firebase functions:secrets:set REVENUECAT_PUBLIC_API_KEY_ANDROID`.
+
+The P12 development-data rewrite is intentionally deferred to the final P21
+integration gate. Production code does not contain legacy-schema fallbacks;
+therefore the strict P12 runtime must not be treated as ready until this gate
+has completed. Run `npm run migrate:p12 --` first in its default read-only
+dry-run mode, review the account and profile-snapshot counts, then run
+`npm run migrate:p12 -- --apply --confirm-project world-notes-prod`. After the
+write, wait for every generated profile and entitlement global operation to
+reach a terminal result and verify the three world projections before the
+final end-to-end checks. The migration command is resumable through the
+operation IDs stored in `userHomes/{uid}`. No production data is changed while
+the earlier implementation units are still under review.
+
 ### Phase 7 — block and account-safety enforcement
 
 Deliverables:
@@ -891,7 +929,7 @@ Exit criteria:
 - the full current feature suite runs against each named staging database;
 - a note ID collision across worlds cannot misroute any operation;
 - map, note detail, messages, and My Notes never mix selected-world streams;
-- existing Asia data remains readable without migration.
+- migrated Asia data remains readable with no runtime legacy-schema branch.
 
 Rollback: catalog keeps new-world content access disabled.
 

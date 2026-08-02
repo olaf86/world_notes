@@ -1,6 +1,6 @@
 /* eslint-disable valid-jsdoc */
 
-import {createHash} from "node:crypto";
+import {createHash, randomBytes} from "node:crypto";
 
 import {
   DocumentReference,
@@ -53,7 +53,13 @@ const OPERATION_OPTIONAL_FIELDS = new Set([
 export type GlobalOperationStatus = "pending" | "complete" | "failed";
 
 /** Trusted policy selecting destinations for one global command type. */
-export type GlobalCommandScope = "authorityOnly" | "allActiveWorlds";
+export const GLOBAL_COMMAND_SCOPE = Object.freeze({
+  authorityOnly: "authorityOnly",
+  allActiveWorlds: "allActiveWorlds",
+} as const);
+
+export type GlobalCommandScope =
+  typeof GLOBAL_COMMAND_SCOPE[keyof typeof GLOBAL_COMMAND_SCOPE];
 
 export interface GlobalWorldAck {
   readonly revision: number;
@@ -129,6 +135,32 @@ export class GlobalOperationValidationError extends Error {
     super(message);
     this.name = "GlobalOperationValidationError";
   }
+}
+
+/** Creates a lowercase UUID v7 for trusted server-originated operations. */
+export function newGlobalOperationId(nowMillis = Date.now()): string {
+  if (!Number.isSafeInteger(nowMillis) || nowMillis < 0 ||
+      nowMillis > 0xffffffffffff) {
+    throw new GlobalOperationValidationError(
+      "Operation timestamp is outside the UUID v7 range.",
+    );
+  }
+  const bytes = randomBytes(16);
+  let timestamp = nowMillis;
+  for (let index = 5; index >= 0; index -= 1) {
+    bytes[index] = timestamp & 0xff;
+    timestamp = Math.floor(timestamp / 256);
+  }
+  bytes[6] = 0x70 | (bytes[6] & 0x0f);
+  bytes[8] = 0x80 | (bytes[8] & 0x3f);
+  const hex = bytes.toString("hex");
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    hex.slice(12, 16),
+    hex.slice(16, 20),
+    hex.slice(20),
+  ].join("-");
 }
 
 /**
@@ -282,8 +314,10 @@ export function snapshotRequiredWorlds(
       "Authority world is not active in the catalog.",
     );
   }
-  if (scope === "authorityOnly") return Object.freeze([authorityWorld]);
-  if (scope !== "allActiveWorlds") {
+  if (scope === GLOBAL_COMMAND_SCOPE.authorityOnly) {
+    return Object.freeze([authorityWorld]);
+  }
+  if (scope !== GLOBAL_COMMAND_SCOPE.allActiveWorlds) {
     throw new GlobalOperationValidationError("Unsupported command scope.");
   }
   return Object.freeze([

@@ -15,6 +15,7 @@ import {
   GlobalReplicationHandlerRegistry,
   processGlobalOperation,
 } from "../src/globalReplication";
+import {syncProfileSnapshots} from "../src/creatorProfileSnapshots";
 import {
   cleanupJobId,
   CleanupJobHandler,
@@ -22,6 +23,12 @@ import {
   newCleanupJobData,
   processCleanupJob,
 } from "../src/cleanupJobs";
+import {
+  publicProfileReplicationHandler,
+  SET_USER_ENTITLEMENT_OPERATION,
+  UPDATE_PUBLIC_PROFILE_OPERATION,
+  userEntitlementReplicationHandler,
+} from "../src/profileEntitlementReplication";
 import {WORLD_CATALOG} from "../src/platform/worldCatalog";
 import {
   DEFAULT_FIRESTORE_DATABASE_ID,
@@ -330,6 +337,167 @@ firestoreContractTest(
 );
 
 firestoreContractTest(
+  "replicates public identity without replacing destination social counts",
+  async () => {
+    const {runId, asia, europe, provider} = requireContext();
+    const uid = `profile-${runId}`;
+    const operationId = testOperationId(runId, "00c");
+    const sourceRef = asia.collection("publicProfiles").doc(uid);
+    const destinationRef = europe.collection("publicProfiles").doc(uid);
+    const operationRef = asia.collection("globalOperations").doc(operationId);
+    trackForCleanup(sourceRef, destinationRef, operationRef);
+    const now = Timestamp.now();
+    await Promise.all([
+      sourceRef.set({
+        displayName: "Authority",
+        photoUrl: null,
+        photoVersion: 2,
+        revision: 2,
+        followerCount: 4,
+        followingCount: 5,
+        createdAt: now,
+        updatedAt: now,
+      }),
+      destinationRef.set({
+        displayName: "Old",
+        photoUrl: null,
+        photoVersion: 1,
+        revision: 1,
+        followerCount: 99,
+        followingCount: 88,
+        createdAt: now,
+        updatedAt: now,
+      }),
+      operationRef.set(pendingOperationData({
+        operationId,
+        operationType: UPDATE_PUBLIC_PROFILE_OPERATION,
+        entityId: uid,
+        ownerUid: uid,
+        revision: 2,
+        acceptedAt: now,
+      })),
+    ]);
+
+    await processGlobalOperation("asia", operationId, {
+      catalog: WORLD_CATALOG,
+      firestore: provider,
+      handlers: new GlobalReplicationHandlerRegistry([
+        publicProfileReplicationHandler,
+      ]),
+    });
+    const [destination, operation] = await Promise.all([
+      destinationRef.get(),
+      operationRef.get(),
+    ]);
+
+    assert.equal(destination.get("displayName"), "Authority");
+    assert.equal(destination.get("revision"), 2);
+    assert.equal(destination.get("followerCount"), 99);
+    assert.equal(destination.get("followingCount"), 88);
+    assert.equal(operation.get("status"), "complete");
+  },
+);
+
+firestoreContractTest(
+  "replicates one entitlement projection into a named database",
+  async () => {
+    const {runId, asia, europe, provider} = requireContext();
+    const uid = `entitlement-${runId}`;
+    const operationId = testOperationId(runId, "00d");
+    const sourceRef = asia.collection("userEntitlements").doc(uid);
+    const destinationRef = europe.collection("userEntitlements").doc(uid);
+    const operationRef = asia.collection("globalOperations").doc(operationId);
+    trackForCleanup(sourceRef, destinationRef, operationRef);
+    const now = Timestamp.now();
+    await Promise.all([
+      sourceRef.set({
+        isPremium: true,
+        revision: 3,
+        sourceCheckedAt: now,
+        updatedAt: now,
+      }),
+      operationRef.set(pendingOperationData({
+        operationId,
+        operationType: SET_USER_ENTITLEMENT_OPERATION,
+        entityId: uid,
+        ownerUid: uid,
+        revision: 3,
+        acceptedAt: now,
+      })),
+    ]);
+
+    await processGlobalOperation("asia", operationId, {
+      catalog: WORLD_CATALOG,
+      firestore: provider,
+      handlers: new GlobalReplicationHandlerRegistry([
+        userEntitlementReplicationHandler,
+      ]),
+    });
+    const [destination, operation] = await Promise.all([
+      destinationRef.get(),
+      operationRef.get(),
+    ]);
+
+    assert.equal(destination.get("isPremium"), true);
+    assert.equal(destination.get("revision"), 3);
+    assert.deepEqual(destination.get("sourceCheckedAt"), now);
+    assert.equal(operation.get("status"), "complete");
+  },
+);
+
+firestoreContractTest(
+  "updates local profile snapshots and rejects an older replay",
+  async () => {
+    const {runId, europe} = requireContext();
+    const uid = `snapshot-${runId}`;
+    const placeRef = europe.collection("places").doc(`place-${runId}`);
+    const memberRef = placeRef.collection("members").doc(uid);
+    trackForCleanup(placeRef, memberRef);
+    const now = Timestamp.now();
+    await Promise.all([
+      placeRef.set({
+        createdByUserId: uid,
+        isArchived: false,
+        creatorName: "Old",
+        creatorPhotoUrl: null,
+        creatorPhotoVersion: 1,
+        creatorProfileRevision: 1,
+      }),
+      memberRef.set({
+        userId: uid,
+        displayName: "Old",
+        profileRevision: 1,
+      }),
+    ]);
+    const currentProfile = {
+      displayName: "Current",
+      photoUrl: "https://example.com/current.png",
+      photoVersion: 2,
+      revision: 2,
+      followerCount: 0,
+      followingCount: 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await syncProfileSnapshots(europe, uid, currentProfile);
+    await syncProfileSnapshots(europe, uid, {
+      ...currentProfile,
+      displayName: "Stale",
+      revision: 1,
+    });
+    const [place, member] = await Promise.all([
+      placeRef.get(),
+      memberRef.get(),
+    ]);
+
+    assert.equal(place.get("creatorName"), "Current");
+    assert.equal(place.get("creatorProfileRevision"), 2);
+    assert.equal(member.get("displayName"), "Current");
+    assert.equal(member.get("profileRevision"), 2);
+  },
+);
+
+firestoreContractTest(
   "leases, checkpoints, and completes one cleanup job",
   async () => {
     const {runId, asia, provider} = requireContext();
@@ -426,9 +594,49 @@ function trackForCleanup(...refs: DocumentReference[]): void {
  * Creates an obvious, run-scoped UUID v7 fixture.
  *
  * @param {string} runId Unique contract run identifier.
+ * @param {string} marker Three hexadecimal fixture marker characters.
  * @return {string} Valid deterministic UUID v7 test fixture.
  */
-function testOperationId(runId: string): string {
+function testOperationId(runId: string, marker = "00a"): string {
   const suffix = runId.replace(/-/g, "").slice(0, 12);
-  return `00000000-0000-700a-800b-${suffix}`;
+  return `00000000-0000-7${marker}-800b-${suffix}`;
+}
+
+interface PendingOperationInput {
+  readonly operationId: string;
+  readonly operationType: string;
+  readonly entityId: string;
+  readonly ownerUid: string;
+  readonly revision: number;
+  readonly acceptedAt: Timestamp;
+}
+
+/**
+ * Creates one two-world pending operation fixture.
+ *
+ * @param {PendingOperationInput} input Stable operation fields.
+ * @return {object} Persistable pending operation document.
+ */
+function pendingOperationData(input: PendingOperationInput) {
+  return {
+    operationId: input.operationId,
+    operationType: input.operationType,
+    entityId: input.entityId,
+    revision: input.revision,
+    authorityWorld: "asia",
+    ownerUid: input.ownerUid,
+    payloadHash: "b".repeat(64),
+    status: "pending",
+    acceptedAt: input.acceptedAt,
+    worldCatalogVersion: 1,
+    requiredWorlds: ["asia", "europe"],
+    worldAcks: {
+      asia: {
+        revision: input.revision,
+        acknowledgedAt: input.acceptedAt,
+      },
+    },
+    createdAt: input.acceptedAt,
+    updatedAt: input.acceptedAt,
+  };
 }

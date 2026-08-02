@@ -163,10 +163,7 @@ export const claimInvite = onCall<{token?: unknown}>(
     }
 
     const db = asiaWorldContext().firestore;
-    const profile = await profileForMember(
-      uid,
-      req.auth?.token.name,
-    );
+    const profile = await profileForMember(uid);
     const inviteRef = db.collection("invites").doc(token);
     const placeId = await db.runTransaction(async (tx) => {
       const inviteSnap = await tx.get(inviteRef);
@@ -218,6 +215,7 @@ export const claimInvite = onCall<{token?: unknown}>(
           invited: true,
           grantedAt: FieldValue.serverTimestamp(),
           displayName: profile.displayName,
+          profileRevision: profile.profileRevision,
         },
         {merge: true},
       );

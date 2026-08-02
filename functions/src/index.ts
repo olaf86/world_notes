@@ -46,11 +46,15 @@ export {
   setMyNotesNotificationPreviewEnabled,
 } from "./notifications";
 
-// Private account preferences and profile updates. Nickname changes also keep
-// future posts and note access-list member labels in sync.
+// Private account preferences and globally replicated profile updates.
 export {assignHomeWorld} from "./accountBootstrap";
 export {setLanguagePreference, updateDisplayName} from "./userProfile";
-export {syncCreatorPhotoSnapshot} from "./creatorProfileSnapshots";
+export {refreshEntitlement} from "./revenueCatEntitlements";
+export {
+  syncAsiaProfileSnapshots,
+  syncNorthAmericaProfileSnapshots,
+  syncEuropeProfileSnapshots,
+} from "./creatorProfileSnapshots";
 export {
   replicateAsiaGlobalOperation,
   replicateNorthAmericaGlobalOperation,

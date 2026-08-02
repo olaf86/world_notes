@@ -1,16 +1,16 @@
 import {getAuth} from "firebase-admin/auth";
-import {
-  FieldValue,
-} from "firebase-admin/firestore";
 import {onCall, HttpsError} from "./platform/worldCallable";
 
 import {REGION} from "./constants";
 import {
   executeGlobalCommand,
+  GLOBAL_COMMAND_SCOPE,
   GlobalOperationBindingError,
   GlobalOperationValidationError,
 } from "./globalOperations";
 import {asiaWorldContext} from "./platform/worldContext";
+import {UPDATE_PUBLIC_PROFILE_OPERATION} from
+  "./profileEntitlementReplication";
 
 const MAX_DISPLAY_NAME_LENGTH = 20;
 const LANGUAGE_PREFERENCES = new Set([
@@ -21,9 +21,6 @@ const LANGUAGE_PREFERENCES = new Set([
   "zh-Hans",
   "zh-Hant",
 ]);
-// Stay below Firestore's 500-write batch limit to leave operational headroom.
-const BATCH_WRITE_LIMIT = 450;
-
 /**
  * Returns the app profile fields shown in a note's member list.
  *
@@ -33,14 +30,23 @@ const BATCH_WRITE_LIMIT = 450;
  */
 export async function profileForMember(
   uid: string,
-  tokenName?: string,
-): Promise<{displayName: string | null}> {
+): Promise<{displayName: string; profileRevision: number}> {
   const snap = await asiaWorldContext().firestore
-    .collection("users").doc(uid).get();
+    .collection("publicProfiles").doc(uid).get();
+  if (!snap.exists) {
+    throw new HttpsError("failed-precondition", "Public profile missing.");
+  }
   const data = snap.data();
-  const displayName = stringOrNull(data?.displayName) ??
-    stringOrNull(tokenName);
-  return {displayName};
+  const displayName = stringOrNull(data?.displayName);
+  if (displayName === null) {
+    throw new HttpsError("failed-precondition", "Public profile is invalid.");
+  }
+  const revision = data?.revision;
+  if (typeof revision !== "number" ||
+      !Number.isSafeInteger(revision) || revision <= 0) {
+    throw new HttpsError("failed-precondition", "Profile revision is invalid.");
+  }
+  return {displayName, profileRevision: revision};
 }
 
 /**
@@ -58,9 +64,12 @@ function stringOrNull(value: unknown): string | null {
 /**
  * Updates the caller's nickname and refreshes access-list display names.
  */
-export const updateDisplayName = onCall<{displayName?: unknown}>(
+export const updateDisplayName = onCall<{
+  displayName?: unknown;
+  operationId?: unknown;
+}>(
   {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
 
@@ -80,73 +89,55 @@ export const updateDisplayName = onCall<{displayName?: unknown}>(
       );
     }
 
-    const db = asiaWorldContext().firestore;
-    const userRef = db.collection("users").doc(uid);
-    const publicProfileRef = db.collection("publicProfiles").doc(uid);
-    await Promise.all([
-      db.runTransaction(async (tx) => {
-        const [userSnap, publicProfileSnap] = await Promise.all([
-          tx.get(userRef),
-          tx.get(publicProfileRef),
-        ]);
-        if (!userSnap.exists) {
-          throw new HttpsError("failed-precondition", "User profile missing.");
-        }
-        if (!publicProfileSnap.exists) {
-          throw new HttpsError(
-            "failed-precondition",
-            "Public profile missing.",
-          );
-        }
-        tx.set(
-          userRef,
-          {
+    const userRef = world.firestore.collection("users").doc(uid);
+    const homeRef = world.firestore.collection("userHomes").doc(uid);
+    const publicProfileRef = world.firestore
+      .collection("publicProfiles")
+      .doc(uid);
+    try {
+      const operation = await executeGlobalCommand({
+        firestore: world.firestore,
+        authorityWorld: world.worldId,
+        ownerUid: uid,
+        operationId: req.data?.operationId,
+        operationType: UPDATE_PUBLIC_PROFILE_OPERATION,
+        entityId: uid,
+        payload: {displayName},
+        entityRef: publicProfileRef,
+        scope: GLOBAL_COMMAND_SCOPE.allActiveWorlds,
+        mutate: async ({transaction, entity, revision, acceptedAt}) => {
+          const [home, user] = await Promise.all([
+            transaction.get(homeRef),
+            transaction.get(userRef),
+          ]);
+          if (!home.exists || home.get("world") !== world.worldId) {
+            throw new HttpsError(
+              "failed-precondition",
+              "Profile updates must use the account's home world.",
+            );
+          }
+          if (!user.exists || !entity.exists) {
+            throw new HttpsError(
+              "failed-precondition",
+              "User profile missing.",
+            );
+          }
+          transaction.update(userRef, {displayName, updatedAt: acceptedAt});
+          transaction.update(publicProfileRef, {
             displayName,
-            updatedAt: FieldValue.serverTimestamp(),
-          },
-          {merge: true},
-        );
-        tx.update(publicProfileRef, {
-          displayName,
-          updatedAt: FieldValue.serverTimestamp(),
-        });
-      }),
-      getAuth().updateUser(uid, {displayName}),
-    ]);
+            revision,
+            updatedAt: acceptedAt,
+          });
+        },
+      });
 
-    const [members, activePlaces] = await Promise.all([
-      db
-        .collectionGroup("members")
-        .where("userId", "==", uid)
-        .get(),
-      db
-        .collection("places")
-        .where("createdByUserId", "==", uid)
-        .where("isArchived", "==", false)
-        .get(),
-    ]);
-
-    for (let i = 0; i < members.docs.length; i += BATCH_WRITE_LIMIT) {
-      const batch = db.batch();
-      for (const doc of members.docs.slice(i, i + BATCH_WRITE_LIMIT)) {
-        batch.update(doc.ref, {userId: uid, displayName});
-      }
-      await batch.commit();
+      // Firestore is authoritative. Auth remains a user-facing cache and is
+      // also repaired by the authority global-operation trigger.
+      await getAuth().updateUser(uid, {displayName});
+      return {displayName, ...operation};
+    } catch (error) {
+      throw globalCommandHttpsError(error);
     }
-
-    for (let i = 0; i < activePlaces.docs.length; i += BATCH_WRITE_LIMIT) {
-      const batch = db.batch();
-      for (const doc of activePlaces.docs.slice(i, i + BATCH_WRITE_LIMIT)) {
-        batch.update(doc.ref, {creatorName: displayName});
-      }
-      await batch.commit();
-    }
-
-    return {
-      displayName,
-      updatedMemberCount: members.size,
-      updatedPlaceCount: activePlaces.size,
-    };
   },
 );
 
@@ -175,6 +166,7 @@ export const setLanguagePreference = onCall<{
     }
 
     const userRef = world.firestore.collection("users").doc(uid);
+    const homeRef = world.firestore.collection("userHomes").doc(uid);
     try {
       const operation = await executeGlobalCommand({
         firestore: world.firestore,
@@ -186,8 +178,15 @@ export const setLanguagePreference = onCall<{
         payload: {languagePreference},
         entityRef: userRef,
         revisionField: "languagePreferenceRevision",
-        scope: "authorityOnly",
-        mutate: ({transaction, entity, revision, acceptedAt}) => {
+        scope: GLOBAL_COMMAND_SCOPE.authorityOnly,
+        mutate: async ({transaction, entity, revision, acceptedAt}) => {
+          const home = await transaction.get(homeRef);
+          if (!home.exists || home.get("world") !== world.worldId) {
+            throw new HttpsError(
+              "failed-precondition",
+              "Account preferences must use the account's home world.",
+            );
+          }
           if (!entity.exists) {
             throw new HttpsError(
               "failed-precondition",
@@ -204,16 +203,26 @@ export const setLanguagePreference = onCall<{
 
       return {languagePreference, ...operation};
     } catch (error) {
-      if (error instanceof GlobalOperationBindingError) {
-        throw new HttpsError(
-          "already-exists",
-          "operationId is already bound to another command.",
-        );
-      }
-      if (error instanceof GlobalOperationValidationError) {
-        throw new HttpsError("invalid-argument", error.message);
-      }
-      throw error;
+      throw globalCommandHttpsError(error);
     }
   },
 );
+
+/**
+ * Converts shared command validation into the stable callable contract.
+ *
+ * @param {unknown} error Command or domain error to translate.
+ * @return {unknown} Stable callable error or the original domain error.
+ */
+function globalCommandHttpsError(error: unknown): unknown {
+  if (error instanceof GlobalOperationBindingError) {
+    return new HttpsError(
+      "already-exists",
+      "operationId is already bound to another command.",
+    );
+  }
+  if (error instanceof GlobalOperationValidationError) {
+    return new HttpsError("invalid-argument", error.message);
+  }
+  return error;
+}

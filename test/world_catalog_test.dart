@@ -29,8 +29,8 @@ void main() {
           .toList(),
       [
         ('asia', '(default)', WorldCatalogState.homeEnabled),
-        ('northAmerica', 'north-america', WorldCatalogState.provisioning),
-        ('europe', 'europe', WorldCatalogState.provisioning),
+        ('northAmerica', 'north-america', WorldCatalogState.mirrorOnly),
+        ('europe', 'europe', WorldCatalogState.mirrorOnly),
       ],
     );
     expect(catalog.findWorld('europe')?.functionsRegion, 'europe-west1');
