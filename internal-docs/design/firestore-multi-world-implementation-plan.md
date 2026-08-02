@@ -704,9 +704,35 @@ and safety handlers will select `allActiveWorlds`, which includes
 `mirrorOnly`, `contentEnabled`, and `homeEnabled` worlds but excludes
 `provisioning`. Terminal operation documents receive a 30-day `expireAt`; the
 TTL field is enabled and exempted from indexing. Clients may get only their
-own remembered operation ID and cannot list or write operations. P09 remains
-responsible for per-database creation triggers, destination application and
-acknowledgement, reconciliation, and the durable Flutter observer.
+own remembered operation ID and cannot list or write operations.
+
+Implementation note (2026-08-01): P09 adds one retry-enabled
+`globalOperations/{operationId}` creation trigger and one 15-minute scheduled
+reconciler in each catalogued database region. Both invoke the same idempotent
+worker. A typed handler registry owns destination projection logic by
+`operationType`; handlers read the current revisioned authority state, apply
+it in a destination transaction only when newer, and return the installed
+revision before the worker records that world's acknowledgement. Installing a
+revision newer than the operation is valid and prevents an old operation from
+regressing a destination. The authority acknowledgement transaction completes
+the operation and adds its 30-day TTL only after every snapshotted required
+world has acknowledged.
+
+The reconciler queries a bounded page after 10 minutes. Warning and critical
+attention remain derived rather than persisted: safety operations warn after
+15 minutes, ordinary operations after one hour, and all operations emit a
+critical log after 24 hours while remaining `pending` and repairable. The
+required `status + acceptedAt` composite index is shared by all databases.
+
+Flutter now persists pending `(authorityWorld, operationId)` references under
+the signed-in user's local key, restores authority listeners at app startup,
+publishes typed progress through an app-scoped provider, and removes local
+references only after a terminal snapshot. Callable responses are validated
+and pending responses are registered immediately; the authority-only language
+pilot normally returns `complete` and therefore requires no durable listener.
+P09 intentionally registers no all-world domain handler yet. Profile,
+entitlement, social, block, and safety handlers are installed by P12–P15 when
+their revisioned destination schemas are introduced.
 
 ### Phase 5 — cleanup and non-Firestore outbox infrastructure
 

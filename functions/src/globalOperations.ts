@@ -20,7 +20,8 @@ const OPERATION_ID_PATTERN =
 const OPERATION_TYPE_PATTERN = /^[a-z][A-Za-z0-9]{0,63}$/;
 const PATH_SEGMENT_PATTERN = /^[^/\s]{1,128}$/;
 const PAYLOAD_HASH_PATTERN = /^[0-9a-f]{64}$/;
-const TERMINAL_RETENTION_MILLIS = 30 * 24 * 60 * 60 * 1000;
+export const GLOBAL_OPERATION_TERMINAL_RETENTION_MILLIS =
+  30 * 24 * 60 * 60 * 1000;
 const MAX_CANONICAL_DEPTH = 12;
 const MAX_CANONICAL_ITEMS = 100;
 const MAX_CANONICAL_STRING_LENGTH = 16_384;
@@ -203,7 +204,7 @@ export async function executeGlobalCommand(
       worldAcks,
       createdAt: acceptedAt,
       updatedAt: acceptedAt,
-      ...(complete ? terminalFields(acceptedAt) : {}),
+      ...(complete ? globalOperationTerminalFields(acceptedAt) : {}),
     };
     transaction.create(operationRef, operation);
 
@@ -444,14 +445,14 @@ function replayExistingOperation(
 }
 
 /** Adds completion and TTL fields to a terminal operation. */
-function terminalFields(completedAt: Timestamp): {
+export function globalOperationTerminalFields(completedAt: Timestamp): {
   completedAt: Timestamp;
   expireAt: Timestamp;
 } {
   return {
     completedAt,
     expireAt: Timestamp.fromMillis(
-      completedAt.toMillis() + TERMINAL_RETENTION_MILLIS,
+      completedAt.toMillis() + GLOBAL_OPERATION_TERMINAL_RETENTION_MILLIS,
     ),
   };
 }

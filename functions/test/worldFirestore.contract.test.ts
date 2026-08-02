@@ -7,8 +7,15 @@ import {
   DocumentReference,
   FieldValue,
   Firestore,
+  Timestamp,
 } from "firebase-admin/firestore";
 
+import {
+  GlobalReplicationHandler,
+  GlobalReplicationHandlerRegistry,
+  processGlobalOperation,
+} from "../src/globalReplication";
+import {WORLD_CATALOG} from "../src/platform/worldCatalog";
 import {
   DEFAULT_FIRESTORE_DATABASE_ID,
   WorldFirestoreProvider,
@@ -24,6 +31,7 @@ const shouldRunContract =
 interface FirestoreContractContext {
   readonly runId: string;
   readonly app: App;
+  readonly provider: WorldFirestoreProvider;
   readonly asia: Firestore;
   readonly northAmerica: Firestore;
   readonly europe: Firestore;
@@ -64,6 +72,7 @@ before(() => {
   context = {
     runId,
     app,
+    provider,
     asia: provider.forWorld("asia"),
     northAmerica: provider.forWorld("northAmerica"),
     europe: provider.forWorld("europe"),
@@ -228,6 +237,91 @@ firestoreContractTest(
   },
 );
 
+firestoreContractTest(
+  "replicates and acknowledges one durable global operation",
+  async () => {
+    const {runId, asia, europe, provider} = requireContext();
+    const operationId = testOperationId(runId);
+    const entityPath = `__firestore_contract_global_entities/${runId}`;
+    const sourceRef = asia.doc(entityPath);
+    const replicaRef = europe.doc(entityPath);
+    const operationRef = asia.collection("globalOperations").doc(operationId);
+    trackForCleanup(sourceRef, replicaRef, operationRef);
+
+    const acceptedAt = Timestamp.now();
+    await sourceRef.set({value: "authority", revision: 1});
+    await operationRef.set({
+      operationId,
+      operationType: "replicateContractEntity",
+      entityId: runId,
+      revision: 1,
+      authorityWorld: "asia",
+      ownerUid: "firestore-contract",
+      payloadHash: "a".repeat(64),
+      status: "pending",
+      acceptedAt,
+      worldCatalogVersion: 1,
+      requiredWorlds: ["asia", "europe"],
+      worldAcks: {
+        asia: {revision: 1, acknowledgedAt: acceptedAt},
+      },
+      createdAt: acceptedAt,
+      updatedAt: acceptedAt,
+    });
+
+    const handler: GlobalReplicationHandler = {
+      operationType: "replicateContractEntity",
+      apply: async ({authorityFirestore, destinationFirestore}) => {
+        const authority = await authorityFirestore.doc(entityPath).get();
+        const revision = authority.get("revision") as number;
+        await destinationFirestore.runTransaction(async (transaction) => {
+          const current = await transaction.get(
+            destinationFirestore.doc(entityPath),
+          );
+          const currentRevision = current.exists ?
+            current.get("revision") as number :
+            0;
+          if (currentRevision >= revision) return;
+          transaction.set(destinationFirestore.doc(entityPath), {
+            ...authority.data(),
+            replicatedFrom: authorityFirestore.databaseId,
+          });
+        });
+        return revision;
+      },
+    };
+    const runtime = {
+      catalog: WORLD_CATALOG,
+      firestore: provider,
+      handlers: new GlobalReplicationHandlerRegistry([handler]),
+    };
+
+    const first = await processGlobalOperation(
+      "asia",
+      operationId,
+      runtime,
+    );
+    const replay = await processGlobalOperation(
+      "asia",
+      operationId,
+      runtime,
+    );
+    const [replica, operation] = await Promise.all([
+      replicaRef.get(),
+      operationRef.get(),
+    ]);
+
+    assert.equal(first?.status, "complete");
+    assert.equal(replay?.status, "complete");
+    assert.equal(replica.get("value"), "authority");
+    assert.equal(replica.get("revision"), 1);
+    assert.equal(operation.get("status"), "complete");
+    assert.equal(operation.get("worldAcks.europe.revision"), 1);
+    assert.notEqual(operation.get("completedAt"), undefined);
+    assert.notEqual(operation.get("expireAt"), undefined);
+  },
+);
+
 /**
  * Registers a contract case that is skipped outside emulator/cloud runs.
  *
@@ -258,4 +352,15 @@ function requireContext(): FirestoreContractContext {
  */
 function trackForCleanup(...refs: DocumentReference[]): void {
   requireContext().cleanupRefs.push(...refs);
+}
+
+/**
+ * Creates an obvious, run-scoped UUID v7 fixture.
+ *
+ * @param {string} runId Unique contract run identifier.
+ * @return {string} Valid deterministic UUID v7 test fixture.
+ */
+function testOperationId(runId: string): string {
+  const suffix = runId.replace(/-/g, "").slice(0, 12);
+  return `00000000-0000-700a-800b-${suffix}`;
 }

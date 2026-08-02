@@ -140,6 +140,14 @@
         { "fieldPath": "followerUid", "order": "ASCENDING" },
         { "fieldPath": "followeeUid", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "globalOperations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "acceptedAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [

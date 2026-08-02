@@ -220,6 +220,9 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp>
     // remain disabled until this provider allows requests and initializes the
     // Mobile Ads SDK.
     ref.watch(adPrivacyStatusProvider);
+    // Operation listeners are app-scoped so accepted work remains observable
+    // after navigation and is restored from local storage after relaunch.
+    ref.watch(globalOperationObserverProvider);
 
     return MaterialApp.router(
       onGenerateTitle: (context) => context.l10n.appName,

@@ -51,6 +51,14 @@ export {
 export {assignHomeWorld} from "./accountBootstrap";
 export {setLanguagePreference, updateDisplayName} from "./userProfile";
 export {syncCreatorPhotoSnapshot} from "./creatorProfileSnapshots";
+export {
+  replicateAsiaGlobalOperation,
+  replicateNorthAmericaGlobalOperation,
+  replicateEuropeGlobalOperation,
+  reconcileAsiaGlobalOperations,
+  reconcileNorthAmericaGlobalOperations,
+  reconcileEuropeGlobalOperations,
+} from "./globalReplicationTriggers";
 
 // Map exploration pin summaries and detail-entry proximity checks.
 export {listMapPins, validateNoteAccess} from "./mapPins";

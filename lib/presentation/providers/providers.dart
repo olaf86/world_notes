@@ -21,12 +21,14 @@ import '../../config/world_navigation.dart';
 import '../../core/map_style.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../data/repositories/follow_repository_impl.dart';
+import '../../data/repositories/global_operation_repository_impl.dart';
 import '../../data/repositories/message_repository_impl.dart';
 import '../../data/repositories/notice_repository_impl.dart';
 import '../../data/repositories/place_repository_impl.dart';
 import '../../data/repositories/user_block_repository_impl.dart';
 import '../../domain/entities/follow_entity.dart';
 import '../../domain/entities/admin_moderation_review_entity.dart';
+import '../../domain/entities/global_operation_entity.dart';
 import '../../domain/entities/message_thread_item.dart';
 import '../../domain/entities/note_visitor_entity.dart';
 import '../../domain/entities/notice_entity.dart';
@@ -38,6 +40,7 @@ import '../../domain/entities/user_entity.dart';
 import '../../domain/entities/user_block_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/follow_repository.dart';
+import '../../domain/repositories/global_operation_repository.dart';
 import '../../domain/repositories/message_repository.dart';
 import '../../domain/repositories/notice_repository.dart';
 import '../../domain/repositories/place_repository.dart';
@@ -45,6 +48,7 @@ import '../../domain/repositories/user_block_repository.dart';
 import '../../l10n/app_locale.dart';
 import '../../services/ad_privacy_service.dart';
 import '../../services/account_bootstrap_service.dart';
+import '../../services/global_operation_observer.dart';
 import '../../services/location_service.dart';
 import '../../services/admin_moderation_service.dart';
 import '../../services/message_image_service.dart';
@@ -215,6 +219,47 @@ final selectedWorldFunctionsProvider = Provider<WorldFunctionsClient>((ref) {
   return ref.watch(selectedWorldClientsProvider).functions;
 });
 
+final globalOperationRepositoryProvider = Provider<GlobalOperationRepository>((
+  ref,
+) {
+  return GlobalOperationRepositoryImpl(
+    catalog: ref.watch(worldCatalogProvider),
+    clients: ref.watch(worldFirebaseClientCacheProvider),
+  );
+});
+
+/// Restores pending operation listeners for the signed-in account.
+final globalOperationObserverProvider = Provider<GlobalOperationObserver?>((
+  ref,
+) {
+  final user = ref.watch(authStateProvider).valueOrNull;
+  final preferences = ref.watch(sharedPreferencesProvider);
+  if (user == null || preferences == null) return null;
+
+  final observer = GlobalOperationObserver(
+    userId: user.id,
+    repository: ref.watch(globalOperationRepositoryProvider),
+    preferences: preferences,
+    reportError: (error, stack) => ref
+        .read(firebaseCrashlyticsProvider)
+        .recordError(
+          error,
+          stack,
+          reason: 'Global operation observation failed',
+          fatal: false,
+        ),
+  );
+  unawaited(observer.start());
+  ref.onDispose(() => unawaited(observer.dispose()));
+  return observer;
+});
+
+final observedGlobalOperationsProvider =
+    StreamProvider<List<GlobalOperationEntity>>((ref) {
+      final observer = ref.watch(globalOperationObserverProvider);
+      return observer?.operations ?? Stream.value(const []);
+    });
+
 // --- Services ---
 
 final locationServiceProvider = Provider<LocationService>(
@@ -330,6 +375,7 @@ final appLanguagePreferenceProvider =
           firestore: ref.watch(homeWorldFirestoreProvider),
           functions: ref.watch(homeWorldFunctionsProvider),
           preferences: ref.watch(sharedPreferencesProvider),
+          operationObserver: ref.watch(globalOperationObserverProvider),
           syncAccount: !screenshotMode,
         );
       },
@@ -344,11 +390,13 @@ class AppLanguagePreferenceNotifier
     required FirebaseFirestore firestore,
     required WorldFunctionsClient functions,
     required SharedPreferences? preferences,
+    required GlobalOperationObserver? operationObserver,
     required bool syncAccount,
   }) : _auth = auth,
        _firestore = firestore,
        _functions = functions,
        _preferences = preferences,
+       _operationObserver = operationObserver,
        super(
          AppLanguagePreference.fromLocalStorage(
            preferences?.getString(appLanguagePreferenceKey),
@@ -365,6 +413,7 @@ class AppLanguagePreferenceNotifier
        _firestore = null,
        _functions = null,
        _preferences = preferences,
+       _operationObserver = null,
        super(
          AppLanguagePreference.fromLocalStorage(
            preferences.getString(appLanguagePreferenceKey),
@@ -374,6 +423,7 @@ class AppLanguagePreferenceNotifier
   final FirebaseAuth? _auth;
   final FirebaseFirestore? _firestore;
   final WorldFunctionsClient? _functions;
+  final GlobalOperationObserver? _operationObserver;
   final Uuid _uuid = const Uuid();
   SharedPreferences? _preferences;
   StreamSubscription<User?>? _authSubscription;
@@ -390,10 +440,13 @@ class AppLanguagePreferenceNotifier
     if (_auth?.currentUser == null || functions == null) return;
     _pendingPreference = preference;
     try {
-      await functions.httpsCallable('setLanguagePreference').call<void>({
-        'languagePreference': preference.storageValue,
-        'operationId': _uuid.v7(),
-      });
+      final response = await functions
+          .httpsCallable('setLanguagePreference')
+          .call<Map<String, dynamic>>({
+            'languagePreference': preference.storageValue,
+            'operationId': _uuid.v7(),
+          });
+      await _operationObserver?.trackAcceptedResponse(response.data);
     } catch (_) {
       _pendingPreference = null;
       rethrow;
@@ -456,10 +509,13 @@ class AppLanguagePreferenceNotifier
     final functions = _functions;
     if (functions == null) return;
     try {
-      await functions.httpsCallable('setLanguagePreference').call<void>({
-        'languagePreference': AppLanguagePreference.system.storageValue,
-        'operationId': _uuid.v7(),
-      });
+      final response = await functions
+          .httpsCallable('setLanguagePreference')
+          .call<Map<String, dynamic>>({
+            'languagePreference': AppLanguagePreference.system.storageValue,
+            'operationId': _uuid.v7(),
+          });
+      await _operationObserver?.trackAcceptedResponse(response.data);
     } catch (error, stack) {
       _accountBeingSeeded = null;
       debugPrint(

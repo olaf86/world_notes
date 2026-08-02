@@ -693,10 +693,12 @@ Recommended invariant: the same `operationId` with the same payload is
 idempotent; reusing it with a different payload is rejected. Destination
 mirrors apply only a strictly newer revision.
 
-The client generates one cryptographically random operation ID for each
-logical user action and retains it for retries until a terminal result is
-observed. The authority command binds the ID to the authenticated caller,
-operation type, target entity, and a deterministic payload hash. Repeating
+The client generates one lowercase UUID v7 operation ID for each logical user
+action and retains it for retries until a terminal result is observed. The
+UUID includes a random component while keeping the identifier convention used
+by other client-created entities. The authority command binds the ID to the
+authenticated caller, operation type, target entity, and a deterministic
+payload hash. Repeating
 that binding returns the existing operation; the same caller reusing the ID
 with different input is rejected. Operation status is readable only by the
 bound caller or a privileged server process, so a client-chosen ID does not

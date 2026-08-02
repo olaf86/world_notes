@@ -35,10 +35,11 @@ interface AssignHomeWorldData {
 /**
  * Assigns the caller's immutable home and installs the Asia account bundle.
  *
- * P07 deliberately enables only Asia as a new-account home. P08/P09 will use
- * the same directory document as the authority operation and replicate this
- * bundle to additional home-enabled worlds. Until then, refusing a non-Asia
- * assignment avoids presenting cross-database writes as atomic.
+ * The initial catalog deliberately enables only Asia as a new-account home.
+ * Global replication will use the same directory document as its authority
+ * and install this bundle in additional home-enabled worlds. Until then,
+ * refusing a non-Asia assignment avoids presenting cross-database writes as
+ * atomic.
  */
 export const assignHomeWorld = onCall<AssignHomeWorldData>(
   {enforceAppCheck: true, requireAccountReady: false},

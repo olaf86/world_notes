@@ -39,6 +39,31 @@ void main() {
       isTrue,
     );
   });
+
+  test('defines the pending global-operation reconciliation index', () {
+    final config =
+        jsonDecode(File('firestore.indexes.json').readAsStringSync())
+            as Map<String, dynamic>;
+    final indexes = (config['indexes'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+
+    expect(
+      indexes.any((index) {
+        if (index['collectionGroup'] != 'globalOperations' ||
+            index['queryScope'] != 'COLLECTION') {
+          return false;
+        }
+        final fields = (index['fields'] as List<dynamic>)
+            .cast<Map<String, dynamic>>();
+        return fields.length == 2 &&
+            fields[0]['fieldPath'] == 'status' &&
+            fields[0]['order'] == 'ASCENDING' &&
+            fields[1]['fieldPath'] == 'acceptedAt' &&
+            fields[1]['order'] == 'ASCENDING';
+      }),
+      isTrue,
+    );
+  });
 }
 
 bool _isArchivedNotesIndex(Map<String, dynamic> index) {
