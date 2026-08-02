@@ -105,6 +105,40 @@ void main() {
       isTrue,
     );
   });
+
+  test('defines notification retry indexes and terminal TTL', () {
+    final config =
+        jsonDecode(File('firestore.indexes.json').readAsStringSync())
+            as Map<String, dynamic>;
+    final indexes = (config['indexes'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+    final secondFields = <String>{
+      for (final index in indexes)
+        if (index['collectionGroup'] == 'notificationOutbox' &&
+            index['queryScope'] == 'COLLECTION' &&
+            (index['fields'] as List<dynamic>).length == 2 &&
+            ((index['fields'] as List<dynamic>)[0]
+                    as Map<String, dynamic>)['fieldPath'] ==
+                'status')
+          ((index['fields'] as List<dynamic>)[1]
+                  as Map<String, dynamic>)['fieldPath']
+              as String,
+    };
+    final overrides = (config['fieldOverrides'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+
+    expect(secondFields, containsAll(<String>{'nextAttemptAt', 'leaseUntil'}));
+    expect(
+      overrides.any(
+        (override) =>
+            override['collectionGroup'] == 'notificationOutbox' &&
+            override['fieldPath'] == 'expireAt' &&
+            override['ttl'] == true &&
+            (override['indexes'] as List<dynamic>).isEmpty,
+      ),
+      isTrue,
+    );
+  });
 }
 
 bool _isArchivedNotesIndex(Map<String, dynamic> index) {

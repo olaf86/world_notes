@@ -340,6 +340,21 @@ describe(
         );
         await assertFails(alice.firestore().doc(path).delete());
       });
+
+      test("denies every notification outbox client access", async () => {
+        const path = "notificationOutbox/test-notification-event";
+        await seedApplicationDocument(path, {status: "pending"});
+        const alice = requireApplicationRules().authenticatedContext("alice");
+
+        await assertFails(alice.firestore().doc(path).get());
+        await assertFails(
+          alice.firestore().collection("notificationOutbox").get(),
+        );
+        await assertFails(
+          alice.firestore().doc(path).set({status: "complete"}),
+        );
+        await assertFails(alice.firestore().doc(path).delete());
+      });
     });
 
     describe("bootstrap write guard", {concurrency: false}, () => {

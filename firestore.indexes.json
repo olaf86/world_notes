@@ -164,6 +164,22 @@
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "leaseUntil", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "notificationOutbox",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "nextAttemptAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "notificationOutbox",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "leaseUntil", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [
@@ -175,6 +191,12 @@
     },
     {
       "collectionGroup": "jobs",
+      "fieldPath": "expireAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "notificationOutbox",
       "fieldPath": "expireAt",
       "ttl": true,
       "indexes": []

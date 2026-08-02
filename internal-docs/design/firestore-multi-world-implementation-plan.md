@@ -797,6 +797,26 @@ IDs, state validation, handler ownership, retry timing, alerts, and deployment
 routing. The named-database contract covers lease, cursor, completion, and
 idempotent replay through real Firestore transactions.
 
+Implementation note (2026-08-02): the notification outbox framework defines
+one `notificationOutbox/{eventId}` transport in every world. A deterministic
+source/world/type/partition binding produces the event ID. Each event snapshots
+at most 100 recipient UIDs and keeps their `pending`, `complete`, or `skipped`
+outcomes in the same bounded document, avoiding recipient subcollections and
+their orphan/TTL lifecycle. Larger future fanout must use deterministic
+partitions rather than enlarge one event indefinitely.
+
+The runner uses a five-minute lease and attempt-number fencing, retries after
+approximately 1 minute, 5 minutes, 30 minutes, 2 hours, and 6 hours with
+jitter, and schedules one final attempt shortly before expiry. Normal events
+use a 24-hour producer-supplied lifetime; administrator invitations may use up
+to seven days. Terminal `complete`, `skipped`, and `expired` events receive a
+30-day TTL. Each world has an immediate creation trigger and a one-minute
+reconciler for due events and expired leases. FCM result classification keeps
+transient errors retryable, distinguishes payload and deployment faults, and
+deletes tokens only for the two reviewed invalid/unregistered-token results.
+No existing push producer is migrated yet; handlers remain empty until the
+home authority and regional notification workflows are introduced later.
+
 ### Phase 6 — profiles, social graph, and notification authority
 
 Deliverables:
