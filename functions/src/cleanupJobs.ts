@@ -10,6 +10,10 @@ import {
 
 import {GLOBAL_OPERATION_TERMINAL_RETENTION_MILLIS} from "./globalOperations";
 import {WorldFirestoreProvider} from "./platform/worldFirestoreProvider";
+import {
+  WorldBucket,
+  WorldBucketProvider,
+} from "./platform/worldBucketProvider";
 import {WorldCatalog} from "./platform/worldCatalog";
 
 export const CLEANUP_JOB_LEASE_MILLIS = 5 * 60 * 1000;
@@ -80,6 +84,7 @@ export interface CleanupBatchContext {
   readonly firestore: Firestore;
   readonly jobId: string;
   readonly job: CleanupJobData;
+  readonly bucket?: WorldBucket;
 }
 
 export type CleanupBatchResult =
@@ -126,6 +131,7 @@ export interface CleanupRuntime {
   readonly catalog: WorldCatalog;
   readonly firestore: WorldFirestoreProvider;
   readonly handlers: CleanupJobHandlerRegistry;
+  readonly buckets?: WorldBucketProvider;
   readonly now?: () => Timestamp;
   readonly random?: () => number;
 }
@@ -302,6 +308,9 @@ export async function processCleanupJob(
         firestore,
         jobId,
         job: current.job,
+        bucket: queue === "storage" ?
+          runtime.buckets?.forWorld(world) :
+          undefined,
       });
       current = await checkpointCleanupJob(current, result, now());
       if (current.job.status === "complete") {

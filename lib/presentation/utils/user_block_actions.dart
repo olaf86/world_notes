@@ -51,6 +51,9 @@ Future<bool> confirmAndSetUserBlocked({
     await ref
         .read(userBlockRepositoryProvider)
         .setBlocked(targetUserId: targetUserId, blocked: blocked);
+    ref.read(optimisticUserBlockStatesProvider.notifier).update((states) {
+      return {...states, targetUserId: blocked};
+    });
     ref.invalidate(mapPinsProvider);
     if (!context.mounted) return true;
     ScaffoldMessenger.of(context).showSnackBar(

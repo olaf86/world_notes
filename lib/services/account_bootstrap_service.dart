@@ -97,7 +97,7 @@ final class AccountBootstrapService {
   }) async {
     final marker = await destination.collection('userHomes').doc(uid).get();
     if (!marker.exists) return false;
-    final installed = HomeAssignment.fromFirestore(marker, _catalog);
-    return installed == assignment;
+    final storedAssignment = HomeAssignment.fromFirestore(marker, _catalog);
+    return storedAssignment == assignment;
   }
 }

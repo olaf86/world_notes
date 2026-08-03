@@ -35,10 +35,18 @@ export interface GlobalReplicationApplyContext {
   readonly destinationWorld: string;
 }
 
-/** Installs one operation's current authority state in a destination world. */
+export interface GlobalReplicationFinalizeContext {
+  readonly operation: GlobalOperationData;
+  readonly authorityFirestore: Firestore;
+  readonly destinationFirestore: Firestore;
+  readonly destinationWorld: string;
+}
+
+/** Applies one operation's current authority state in a destination world. */
 export interface GlobalReplicationHandler {
   readonly operationType: string;
   apply(context: GlobalReplicationApplyContext): Promise<number>;
+  finalize?(context: GlobalReplicationFinalizeContext): Promise<void>;
 }
 
 /** Immutable operation-type allowlist for replication implementations. */
@@ -85,7 +93,7 @@ export interface GlobalReplicationResult {
  * Applies every missing destination and acknowledges it at the authority.
  *
  * Destination handlers must use a transaction and return the revision that is
- * installed after their call. Returning a newer revision is valid because it
+ * applied after their call. Returning a newer revision is valid because it
  * also semantically contains the operation's older state transition.
  */
 export async function processGlobalOperation(
@@ -111,24 +119,30 @@ export async function processGlobalOperation(
       `Operation authority route mismatch: ${operation.operationId}.`,
     );
   }
-  if (operation.status !== "pending") {
+  if (operation.status === "failed") return resultFor(operation);
+  const handler = runtime.handlers.require(operation.operationType);
+  if (operation.status === "complete") {
+    await finalizeGlobalOperation(
+      operation,
+      authorityFirestore,
+      handler,
+      runtime,
+    );
     return resultFor(operation);
   }
-
-  const handler = runtime.handlers.require(operation.operationType);
   for (const destinationWorld of missingDestinationWorlds(operation)) {
     const destinationFirestore = runtime.firestore.forWorld(destinationWorld);
-    const installedRevision = await handler.apply({
+    const appliedRevision = await handler.apply({
       operation,
       authorityFirestore,
       destinationFirestore,
       destinationWorld,
     });
-    if (!Number.isSafeInteger(installedRevision) ||
-        installedRevision < operation.revision) {
+    if (!Number.isSafeInteger(appliedRevision) ||
+        appliedRevision < operation.revision) {
       throw new Error(
-        `Handler ${operation.operationType} installed invalid revision ` +
-        `${installedRevision} in ${destinationWorld}.`,
+        `Handler ${operation.operationType} applied invalid revision ` +
+        `${appliedRevision} in ${destinationWorld}.`,
       );
     }
     await acknowledgeGlobalOperation({
@@ -141,7 +155,37 @@ export async function processGlobalOperation(
 
   const completed = await operationRef.get();
   if (!completed.exists) return undefined;
-  return resultFor(parseGlobalOperation(completed.data(), operationId));
+  const completedOperation = parseGlobalOperation(
+    completed.data(),
+    operationId,
+  );
+  if (completedOperation.status === "complete") {
+    await finalizeGlobalOperation(
+      completedOperation,
+      authorityFirestore,
+      handler,
+      runtime,
+    );
+  }
+  return resultFor(completedOperation);
+}
+
+/** Runs optional idempotent work that is anchored to all-world completion. */
+async function finalizeGlobalOperation(
+  operation: GlobalOperationData,
+  authorityFirestore: Firestore,
+  handler: GlobalReplicationHandler,
+  runtime: GlobalReplicationRuntime,
+): Promise<void> {
+  if (handler.finalize === undefined) return;
+  for (const destinationWorld of operation.requiredWorlds) {
+    await handler.finalize({
+      operation,
+      authorityFirestore,
+      destinationFirestore: runtime.firestore.forWorld(destinationWorld),
+      destinationWorld,
+    });
+  }
 }
 
 interface AcknowledgeGlobalOperationInput {

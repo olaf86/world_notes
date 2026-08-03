@@ -28,7 +28,7 @@ When this plan is complete:
   routine cross-region reads;
 - global writes return `accepted` after the authority commit and expose
   server-authoritative completion through `globalOperations`; only workflows
-  that need user- or administrator-visible progress install durable client
+  that need user- or administrator-visible progress start durable client
   observation;
 - Firestore, Storage, Functions, indexes, Rules, workers, monitoring, and
   cleanup are provisioned as one world bundle;
@@ -501,7 +501,7 @@ request path without contacting Storage, FCM, OpenAI, or another non-emulated
 service.
 
 Implementation note (2026-07-31): P03 adds a least-privilege backend workflow
-with no production credentials or Firebase secrets. It installs the locked
+with no production credentials or Firebase secrets. It applies the locked
 Functions dependencies under Node 24 and Java 21, then runs lint, build, unit
 tests, the Firestore Rules suite, and the callable Functions emulator contract.
 The emulator scripts pin Firebase CLI `15.25.1` so a future CLI release cannot
@@ -607,7 +607,7 @@ Deliverables:
   required local account initialization, not by all-world acknowledgement;
 - a home-assignment global operation that remains `pending` after onboarding
   until every snapshotted active-world mirror acknowledges;
-- atomic per-destination bootstrap installation using the local
+- atomic per-destination bootstrap application using the local
   `userHomes/{uid}` epoch as the readiness marker;
 - world selection, notification, invite, and deep-link guards that refuse an
   unprepared destination without initiating on-demand replication;
@@ -633,7 +633,7 @@ Exit criteria:
 - a user can enter the app when the selected home is ready while delayed
   non-home mirrors remain observable and retryable;
 - an unprepared world cannot become `selectedWorld`, and becomes selectable
-  after the existing Outbox path installs its bootstrap marker;
+  after the existing Outbox path writes its bootstrap marker;
 - Functions and direct-write Rules reject stateful writes when the caller's
   local bootstrap marker is missing;
 - an account can read private state only in its home world;
@@ -645,7 +645,7 @@ must continue to be served.
 
 Implementation note (2026-08-01): the first P07 slice enables Asia for new
 home assignments and adds the `assignHomeWorld` callable. One transaction uses
-`userHomes/{uid}` as its conflict point and installs the private `users`
+`userHomes/{uid}` as its conflict point and writes the private `users`
 authority, server-owned `publicProfiles`, local `userEntitlements`, and local
 `userUsage`. Concurrent same-home calls converge idempotently; a different or
 inactive home is rejected. The home is also cached in Auth custom claims, but
@@ -657,7 +657,7 @@ notifications, and notices through the home client, and refuses a world switch
 until the target marker matches the assigned epoch. Client writes to `users`
 and `publicProfiles` were removed rather than retained as compatibility paths.
 The cross-world `globalOperations` envelope, mirror acknowledgements, and
-background installation remain P08/P09 work; therefore only Asia is
+background application remain P08/P09 work; therefore only Asia is
 home-assignment-enabled in catalog version 1.
 
 ### Phase 4 — global operation infrastructure
@@ -722,8 +722,8 @@ Implementation note (2026-08-01): P09 adds one retry-enabled
 reconciler in each catalogued database region. Both invoke the same idempotent
 worker. A typed handler registry owns destination projection logic by
 `operationType`; handlers read the current revisioned authority state, apply
-it in a destination transaction only when newer, and return the installed
-revision before the worker records that world's acknowledgement. Installing a
+it in a destination transaction only when newer, and return the applied
+revision before the worker records that world's acknowledgement. Applying a
 revision newer than the operation is valid and prevents an old operation from
 regressing a destination. The authority acknowledgement transaction completes
 the operation and adds its 30-day TTL only after every snapshotted required
@@ -745,7 +745,7 @@ terminal snapshot. Every accepted-response call now requires an explicit
 rather than silently losing its guarantee. The authority-only language pilot
 uses `none`. The replication infrastructure intentionally registers no
 all-world domain handler yet. Profile,
-entitlement, social, block, and safety handlers are installed by P12–P15 when
+entitlement, social, block, and safety handlers are registered by P12–P15 when
 their revisioned destination schemas are introduced.
 
 ### Phase 5 — cleanup and non-Firestore outbox infrastructure
@@ -932,6 +932,33 @@ Exit criteria:
 
 Rollback: do not disable enforcement mirrors. Roll back only command ingress
 or UI while repair workers remain active.
+
+Implementation note (2026-08-03): P14 makes
+`users/{blockerUid}/blockedUsers/{blockedUid}` a revisioned directional
+projection owned by the blocker's home world. `setUserBlock` returns after the
+authority transaction and uses durable client observation; the app applies an
+optimistic local override immediately and removes it once the selected-world
+mirror catches up. Active reads explicitly query `isBlocked == true`, while
+Rules hide inactive tombstones and local enforcement checks never infer a
+block from document existence alone.
+
+Every destination applies the active mirror and its deterministic local
+Firestore cleanup intent in one transaction before acknowledging the global
+operation. Cleanup is not part of user-visible completion. Its leased,
+checkpointed handler permanently removes both follow directions through their
+respective authorities, removes symmetric memberships and maintainer access
+from notes owned by either user, cancels unpublished scheduled messages, and
+releases their slots. Exact Storage paths are placed into separate durable
+Storage jobs through server-only manifests; missing objects are successful
+deletions. Unblock applies a newer inactive mirror and never restores removed
+relationships. Authority inactive watermarks remain non-expiring;
+destination tombstones use the `blockedUsers.expireAt` 90-day TTL.
+
+The development reset remains the migration boundary: old `createdAt`-only
+block documents are not accepted by production parsers. Before any new home
+world is enabled, P21 must also ensure that each user's immutable `userHomes`
+marker is locally available in that home world so cross-authority follow
+cleanup can route each follower-owned edge without a global directory read.
 
 ### Phase 8 — regional content refactor
 

@@ -649,7 +649,8 @@ final noticeRepositoryProvider = Provider<NoticeRepository>((ref) {
 final userBlockRepositoryProvider = Provider<UserBlockRepository>((ref) {
   return UserBlockRepositoryImpl(
     firestore: ref.watch(selectedWorldFirestoreProvider),
-    functions: ref.watch(selectedWorldFunctionsProvider),
+    functions: ref.watch(homeWorldFunctionsProvider),
+    operationObserver: ref.watch(globalOperationObserverProvider),
   );
 });
 
@@ -703,16 +704,68 @@ final adminClaimProvider = FutureProvider<bool>((ref) async {
 
 // --- Social profiles and follows ---
 
+/// Locally accepted block states used until the selected-world mirror catches
+/// up. This makes safety filtering immediate after the home-world commit.
+final optimisticUserBlockStatesProvider = StateProvider<Map<String, bool>>(
+  (_) => const {},
+);
+
+void _clearOptimisticUserBlockIfCaughtUp(
+  Ref ref, {
+  required String userId,
+  required bool optimistic,
+  required bool server,
+}) {
+  if (optimistic != server) return;
+  unawaited(
+    Future<void>.microtask(() {
+      final current = ref.read(optimisticUserBlockStatesProvider);
+      if (current[userId] != optimistic) return;
+      final next = {...current}..remove(userId);
+      ref.read(optimisticUserBlockStatesProvider.notifier).state = next;
+    }),
+  );
+}
+
 final blockedUserIdsProvider = StreamProvider<Set<String>>((ref) {
   final user = ref.watch(authStateProvider).valueOrNull;
   if (user == null) return Stream.value(const {});
-  return ref.watch(userBlockRepositoryProvider).watchBlockedUserIds(user.id);
+  final optimistic = ref.watch(optimisticUserBlockStatesProvider);
+  return ref
+      .watch(userBlockRepositoryProvider)
+      .watchBlockedUserIds(user.id)
+      .map((serverIds) {
+        final ids = {...serverIds};
+        for (final MapEntry(key: userId, value: blocked)
+            in optimistic.entries) {
+          _clearOptimisticUserBlockIfCaughtUp(
+            ref,
+            userId: userId,
+            optimistic: blocked,
+            server: serverIds.contains(userId),
+          );
+          if (blocked) {
+            ids.add(userId);
+          } else {
+            ids.remove(userId);
+          }
+        }
+        return ids;
+      });
 });
 
 final blockedUsersProvider = StreamProvider<List<UserBlock>>((ref) {
   final user = ref.watch(authStateProvider).valueOrNull;
   if (user == null) return Stream.value(const []);
-  return ref.watch(userBlockRepositoryProvider).watchBlockedUsers(user.id);
+  final optimistic = ref.watch(optimisticUserBlockStatesProvider);
+  return ref
+      .watch(userBlockRepositoryProvider)
+      .watchBlockedUsers(user.id)
+      .map(
+        (users) => users
+            .where((block) => optimistic[block.userId] ?? true)
+            .toList(growable: false),
+      );
 });
 
 final isUserBlockedProvider = StreamProvider.family<bool, String>((
@@ -721,9 +774,22 @@ final isUserBlockedProvider = StreamProvider.family<bool, String>((
 ) {
   final user = ref.watch(authStateProvider).valueOrNull;
   if (user == null || user.id == blockedUserId) return Stream.value(false);
+  final optimistic = ref.watch(optimisticUserBlockStatesProvider);
+  final localState = optimistic[blockedUserId];
   return ref
       .watch(userBlockRepositoryProvider)
-      .watchIsBlocked(blockerUserId: user.id, blockedUserId: blockedUserId);
+      .watchIsBlocked(blockerUserId: user.id, blockedUserId: blockedUserId)
+      .map((serverState) {
+        if (localState != null) {
+          _clearOptimisticUserBlockIfCaughtUp(
+            ref,
+            userId: blockedUserId,
+            optimistic: localState,
+            server: serverState,
+          );
+        }
+        return localState ?? serverState;
+      });
 });
 
 final publicProfileProvider = StreamProvider.family<PublicProfile?, String>((

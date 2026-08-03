@@ -57,7 +57,7 @@ Functions parses the checked-in JSON at module initialization through
 Dart implements the same strict wire parser in `lib/config/world_catalog.dart`.
 It deliberately treats `worldId` as a validated string rather than a
 three-value enum. A future `getWorldCatalog` callable can therefore return a
-new world to a compatible installed client without changing the Dart type.
+new world to a compatible deployed client without changing the Dart type.
 
 The server remains authoritative. Clients may submit only `worldId`; the
 server resolves all Firebase resource identifiers from its validated catalog.

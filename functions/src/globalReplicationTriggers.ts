@@ -21,6 +21,7 @@ import {
   userEntitlementReplicationHandler,
 } from "./profileEntitlementReplication";
 import {socialEdgeReplicationHandler} from "./socialEdgeReplication";
+import {userBlockReplicationHandler} from "./userBlockReplication";
 import {
   WorldDatabaseConfig,
   WorldFirestoreDatabaseId,
@@ -46,6 +47,7 @@ const productionRuntime: GlobalReplicationRuntime = {
     publicProfileReplicationHandler,
     userEntitlementReplicationHandler,
     socialEdgeReplicationHandler,
+    userBlockReplicationHandler,
   ]),
 };
 

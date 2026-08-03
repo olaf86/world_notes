@@ -15,6 +15,9 @@ import {
   parseCleanupJob,
   processCleanupJob,
 } from "./cleanupJobs";
+import {blockRelationshipCleanupHandler} from "./blockCleanup";
+import {storageObjectCleanupHandler} from "./storageObjectCleanup";
+import {WorldBucketProvider} from "./platform/worldBucketProvider";
 import {
   WorldDatabaseConfig,
   WorldFirestoreDatabaseId,
@@ -36,7 +39,11 @@ const worldDatabases = WORLD_CATALOG.worlds.map((world) => ({
 const productionRuntime: CleanupRuntime = {
   catalog: WORLD_CATALOG,
   firestore: new WorldFirestoreProvider(worldDatabases),
-  handlers: new CleanupJobHandlerRegistry([]),
+  buckets: new WorldBucketProvider(),
+  handlers: new CleanupJobHandlerRegistry([
+    blockRelationshipCleanupHandler,
+    storageObjectCleanupHandler,
+  ]),
 };
 
 export interface CleanupReconcileResult {

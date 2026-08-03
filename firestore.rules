@@ -23,8 +23,9 @@ rules_version = '2';
 //   revision (positive integer), nullable createdAt and updatedAt (timestamp).
 //   Only active (`following == true`) edges are authenticated-readable;
 //   inactive revision tombstones remain server-only.
-// - users/{uid}/blockedUsers/{blockedUid}: owner-readable, server-managed
-//   private block relationship.
+// - users/{uid}/blockedUsers/{blockedUid}: server-managed directional block
+//   projection. Only active relationships are owner-readable; inactive
+//   revision tombstones remain server-only until TTL expiry.
 // - users/{uid}/notificationSettings: owner-readable, server-managed settings.
 // - users/{uid}/fcmTokens: sensitive server-managed delivery endpoints.
 // - users/{uid}/noteStates/{placeId}: private server-managed map activity
@@ -59,10 +60,15 @@ service cloud.firestore {
              && get(path).data.epoch > 0;
     }
 
+    function hasActiveUserBlock(blockerUid, blockedUid) {
+      let path = /databases/$(database)/documents/users/$(blockerUid)/blockedUsers/$(blockedUid);
+      return exists(path) && get(path).data.isBlocked == true;
+    }
+
     function hasUserBlockBetween(firstUid, secondUid) {
       return firstUid != secondUid
-             && (exists(/databases/$(database)/documents/users/$(firstUid)/blockedUsers/$(secondUid))
-                 || exists(/databases/$(database)/documents/users/$(secondUid)/blockedUsers/$(firstUid)));
+             && (hasActiveUserBlock(firstUid, secondUid)
+                 || hasActiveUserBlock(secondUid, firstUid));
     }
 
     function canInteractWithPlaceCreator(place) {
@@ -226,10 +232,11 @@ service cloud.firestore {
         allow read, write: if false;
       }
 
-      // Private user-block list. Clients may observe only their own list;
-      // setUserBlock performs every write together with social cleanup.
+      // Private user-block list. Clients may observe only active entries in
+      // their own list. Inactive revision tombstones are intentionally hidden.
       match /blockedUsers/{blockedUid} {
-        allow read: if isCurrentUser(uid);
+        allow read: if isCurrentUser(uid)
+                    && resource.data.isBlocked == true;
         allow write: if false;
       }
 
@@ -404,6 +411,11 @@ service cloud.firestore {
 
     // Server-only manifests used to track disposable moderation test data.
     match /moderationTestRuns/{runId} {
+      allow read, write: if false;
+    }
+
+    // Exact Storage object paths used by cleanup workers are server-only.
+    match /storageCleanupObjects/{jobId} {
       allow read, write: if false;
     }
 

@@ -34,6 +34,13 @@ import {
   socialEdgeId,
   socialEdgeReplicationHandler,
 } from "../src/socialEdgeReplication";
+import {
+  BLOCK_RELATIONSHIP_CLEANUP_JOB,
+  BLOCK_TOMBSTONE_RETENTION_MILLIS,
+  SET_USER_BLOCK_OPERATION,
+  userBlockEntityId,
+  userBlockReplicationHandler,
+} from "../src/userBlockReplication";
 import {WORLD_CATALOG} from "../src/platform/worldCatalog";
 import {
   DEFAULT_FIRESTORE_DATABASE_ID,
@@ -561,6 +568,121 @@ firestoreContractTest(
     assert.equal(inactive.get("revision"), 2);
     assert.equal(followerAfterDelete.get("followingCount"), 0);
     assert.equal(followeeAfterDelete.get("followerCount"), 0);
+  },
+);
+
+firestoreContractTest(
+  "applies block cleanup before ack and starts tombstone TTL at completion",
+  async () => {
+    const {runId, asia, europe, provider} = requireContext();
+    const blockerUid = `blocker-${runId}`;
+    const blockedUid = `blocked-${runId}`;
+    const entityId = userBlockEntityId(blockerUid, blockedUid);
+    const sourceRef = asia
+      .collection("users")
+      .doc(blockerUid)
+      .collection("blockedUsers")
+      .doc(blockedUid);
+    const destinationRef = europe
+      .collection("users")
+      .doc(blockerUid)
+      .collection("blockedUsers")
+      .doc(blockedUid);
+    const blockOperationId = testOperationId(runId, "010");
+    const unblockOperationId = testOperationId(runId, "011");
+    const blockOperationRef = asia
+      .collection("globalOperations")
+      .doc(blockOperationId);
+    const unblockOperationRef = asia
+      .collection("globalOperations")
+      .doc(unblockOperationId);
+    const cleanupInput = {
+      sourceOperationId: blockOperationId,
+      entityType: "userBlock",
+      entityId,
+      revision: 1,
+      world: "europe",
+      queue: "firestore" as const,
+      jobType: BLOCK_RELATIONSHIP_CLEANUP_JOB,
+    };
+    const cleanupRef = europe.doc(
+      `cleanupQueues/firestore/jobs/${cleanupJobId(cleanupInput)}`,
+    );
+    trackForCleanup(
+      sourceRef,
+      destinationRef,
+      blockOperationRef,
+      unblockOperationRef,
+      cleanupRef,
+    );
+    const blockedAt = Timestamp.now();
+    await Promise.all([
+      sourceRef.set({
+        blockedUid,
+        isBlocked: true,
+        revision: 1,
+        authorityWorld: "asia",
+        updatedAt: blockedAt,
+        expireAt: null,
+      }),
+      blockOperationRef.set(pendingOperationData({
+        operationId: blockOperationId,
+        operationType: SET_USER_BLOCK_OPERATION,
+        entityId,
+        ownerUid: blockerUid,
+        revision: 1,
+        acceptedAt: blockedAt,
+      })),
+    ]);
+    const runtime = {
+      catalog: WORLD_CATALOG,
+      firestore: provider,
+      handlers: new GlobalReplicationHandlerRegistry([
+        userBlockReplicationHandler,
+      ]),
+    };
+
+    await processGlobalOperation("asia", blockOperationId, runtime);
+    const [active, cleanup] = await Promise.all([
+      destinationRef.get(),
+      cleanupRef.get(),
+    ]);
+    assert.equal(active.get("isBlocked"), true);
+    assert.equal(active.get("expireAt"), null);
+    assert.equal(cleanup.get("status"), "pending");
+
+    const unblockedAt = Timestamp.fromMillis(blockedAt.toMillis() + 1);
+    await Promise.all([
+      sourceRef.set({
+        blockedUid,
+        isBlocked: false,
+        revision: 2,
+        authorityWorld: "asia",
+        updatedAt: unblockedAt,
+        expireAt: null,
+      }),
+      unblockOperationRef.set(pendingOperationData({
+        operationId: unblockOperationId,
+        operationType: SET_USER_BLOCK_OPERATION,
+        entityId,
+        ownerUid: blockerUid,
+        revision: 2,
+        acceptedAt: unblockedAt,
+      })),
+    ]);
+    await processGlobalOperation("asia", unblockOperationId, runtime);
+    const [inactive, completed] = await Promise.all([
+      destinationRef.get(),
+      unblockOperationRef.get(),
+    ]);
+    const completedAt = completed.get("completedAt") as Timestamp;
+    const expireAt = inactive.get("expireAt") as Timestamp;
+    assert.equal(inactive.get("isBlocked"), false);
+    assert.equal(inactive.get("revision"), 2);
+    assert.equal(
+      expireAt.toMillis(),
+      completedAt.toMillis() + BLOCK_TOMBSTONE_RETENTION_MILLIS,
+    );
   },
 );
 

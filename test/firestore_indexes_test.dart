@@ -53,6 +53,45 @@ void main() {
     );
   });
 
+  test('defines active block queries, cleanup lookup, and tombstone TTL', () {
+    final config = _loadConfig();
+
+    expect(
+      _hasIndex(config, 'blockedUsers', [
+        ('isBlocked', 'ASCENDING'),
+        ('updatedAt', 'DESCENDING'),
+      ]),
+      isTrue,
+    );
+    expect(
+      _hasIndex(config, 'blockedUsers', [
+        ('blockedUid', 'ASCENDING'),
+        ('isBlocked', 'ASCENDING'),
+      ]),
+      isTrue,
+    );
+    expect(
+      _hasIndex(config, 'messages', [
+        ('userId', 'ASCENDING'),
+        ('isPubliclyVisible', 'ASCENDING'),
+        ('placeAggregateAppliedAt', 'ASCENDING'),
+      ]),
+      isTrue,
+    );
+    final overrides = (config['fieldOverrides'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+    expect(
+      overrides.any(
+        (override) =>
+            override['collectionGroup'] == 'blockedUsers' &&
+            override['fieldPath'] == 'expireAt' &&
+            override['ttl'] == true &&
+            (override['indexes'] as List<dynamic>).isEmpty,
+      ),
+      isTrue,
+    );
+  });
+
   test('defines archived-note indexes for both sort directions', () {
     final config =
         jsonDecode(File('firestore.indexes.json').readAsStringSync())

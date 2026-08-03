@@ -1,21 +1,27 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../domain/entities/public_profile_entity.dart';
 import '../../domain/entities/user_block_entity.dart';
 import '../../domain/repositories/user_block_repository.dart';
 import '../../services/world_firebase_clients.dart';
+import '../../services/global_operation_observer.dart';
 import '../models/public_profile_model.dart';
 import '../models/user_block_model.dart';
 
 class UserBlockRepositoryImpl implements UserBlockRepository {
   final FirebaseFirestore _firestore;
   final WorldFunctionsClient _functions;
+  final GlobalOperationObserver? _operationObserver;
+  final Uuid _uuid = const Uuid();
 
   UserBlockRepositoryImpl({
     required FirebaseFirestore firestore,
     required WorldFunctionsClient functions,
+    required GlobalOperationObserver? operationObserver,
   }) : _firestore = firestore,
-       _functions = functions;
+       _functions = functions,
+       _operationObserver = operationObserver;
 
   CollectionReference _blocksOf(String blockerUserId) => _firestore
       .collection('users')
@@ -24,9 +30,10 @@ class UserBlockRepositoryImpl implements UserBlockRepository {
 
   @override
   Stream<Set<String>> watchBlockedUserIds(String blockerUserId) {
-    return _blocksOf(
-      blockerUserId,
-    ).snapshots().map((snapshot) => {for (final doc in snapshot.docs) doc.id});
+    return _blocksOf(blockerUserId)
+        .where('isBlocked', isEqualTo: true)
+        .snapshots()
+        .map((snapshot) => {for (final doc in snapshot.docs) doc.id});
   }
 
   @override
@@ -34,15 +41,19 @@ class UserBlockRepositoryImpl implements UserBlockRepository {
     required String blockerUserId,
     required String blockedUserId,
   }) {
-    return _blocksOf(
-      blockerUserId,
-    ).doc(blockedUserId).snapshots().map((snapshot) => snapshot.exists);
+    return _blocksOf(blockerUserId)
+        .where('blockedUid', isEqualTo: blockedUserId)
+        .where('isBlocked', isEqualTo: true)
+        .limit(1)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.isNotEmpty);
   }
 
   @override
   Stream<List<UserBlock>> watchBlockedUsers(String blockerUserId) {
     return _blocksOf(blockerUserId)
-        .orderBy('createdAt', descending: true)
+        .where('isBlocked', isEqualTo: true)
+        .orderBy('updatedAt', descending: true)
         .snapshots()
         .asyncMap((snapshot) async {
           final blockModels = snapshot.docs
@@ -71,7 +82,7 @@ class UserBlockRepositoryImpl implements UserBlockRepository {
                       displayName: block.blockedUserId,
                       photoVersion: 1,
                     ),
-                createdAt: block.createdAt,
+                updatedAt: block.updatedAt,
               ),
           ];
         });
@@ -82,9 +93,17 @@ class UserBlockRepositoryImpl implements UserBlockRepository {
     required String targetUserId,
     required bool blocked,
   }) async {
-    await _functions.httpsCallable('setUserBlock').call<void>({
-      'targetUserId': targetUserId,
-      'blocked': blocked,
-    });
+    final response = await _functions
+        .httpsCallable('setUserBlock')
+        .call<Map<String, dynamic>>({
+          'targetUserId': targetUserId,
+          'blocked': blocked,
+          'operationId': _uuid.v7(),
+        });
+    await handleAcceptedGlobalOperation(
+      response: response.data,
+      policy: GlobalOperationObservationPolicy.durable,
+      observer: _operationObserver,
+    );
   }
 }

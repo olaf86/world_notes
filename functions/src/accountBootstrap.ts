@@ -34,11 +34,11 @@ interface AssignHomeWorldData {
 }
 
 /**
- * Assigns the caller's immutable home and installs the Asia account bundle.
+ * Assigns the caller's immutable home and writes the Asia account bundle.
  *
  * The initial catalog deliberately enables only Asia as a new-account home.
  * Global replication will use the same directory document as its authority
- * and install this bundle in additional home-enabled worlds. Until then,
+ * and write this bundle in additional home-enabled worlds. Until then,
  * refusing a non-Asia assignment avoids presenting cross-database writes as
  * atomic.
  */

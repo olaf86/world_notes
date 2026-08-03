@@ -1,5 +1,6 @@
 /* eslint-disable require-jsdoc, valid-jsdoc */
 
+import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
 import {resolve} from "node:path";
 import {after, before, beforeEach, describe, test} from "node:test";
@@ -117,6 +118,61 @@ describe(
           alice.firestore().doc("users/alice").update({isAdmin: true}),
         );
         await assertFails(alice.firestore().doc("users/alice").delete());
+      });
+    });
+
+    describe("user block projections", {concurrency: false}, () => {
+      test(
+        "allows the owner to query only active block projections",
+        async () => {
+          await Promise.all([
+            seedApplicationDocument(
+              "users/alice/blockedUsers/bob",
+              storedUserBlock("bob", true),
+            ),
+            seedApplicationDocument(
+              "users/alice/blockedUsers/carol",
+              storedUserBlock("carol", false),
+            ),
+          ]);
+          const alice =
+            requireApplicationRules().authenticatedContext("alice");
+
+          const active = await assertSucceeds(
+            alice
+              .firestore()
+              .collection("users/alice/blockedUsers")
+              .where("isBlocked", "==", true)
+              .get(),
+          );
+          assert.equal(active.docs.length, 1);
+          assert.equal(active.docs[0].id, "bob");
+          await assertFails(
+            alice.firestore().collection("users/alice/blockedUsers").get(),
+          );
+          await assertFails(
+            alice.firestore().doc("users/alice/blockedUsers/carol").get(),
+          );
+        },
+      );
+
+      test("denies another user and every direct client write", async () => {
+        const path = "users/alice/blockedUsers/bob";
+        await seedApplicationDocument(path, storedUserBlock("bob", true));
+        const alice = requireApplicationRules().authenticatedContext("alice");
+        const bob = requireApplicationRules().authenticatedContext("bob");
+
+        await assertFails(bob.firestore().doc(path).get());
+        await assertFails(
+          alice.firestore().doc(path).update({isBlocked: false}),
+        );
+        await assertFails(
+          alice
+            .firestore()
+            .doc("users/alice/blockedUsers/carol")
+            .set(storedUserBlock("carol", true)),
+        );
+        await assertFails(alice.firestore().doc(path).delete());
       });
     });
 
@@ -430,6 +486,21 @@ describe(
         );
         await assertFails(alice.firestore().doc(path).delete());
       });
+
+      test("denies every storage cleanup manifest client access", async () => {
+        const path = "storageCleanupObjects/test-storage-cleanup";
+        await seedApplicationDocument(path, {objectPath: "messages/test.jpg"});
+        const alice = requireApplicationRules().authenticatedContext("alice");
+
+        await assertFails(alice.firestore().doc(path).get());
+        await assertFails(
+          alice.firestore().collection("storageCleanupObjects").get(),
+        );
+        await assertFails(
+          alice.firestore().doc(path).set({objectPath: "messages/other.jpg"}),
+        );
+        await assertFails(alice.firestore().doc(path).delete());
+      });
     });
 
     describe("bootstrap write guard", {concurrency: false}, () => {
@@ -491,12 +562,25 @@ describe(
         await Promise.all([
           seedApplicationDocument("places/tokyo", activePublicPlace()),
           seedApplicationDocument("users/alice/blockedUsers/bob", {
-            blockedAt: firebase.firestore.Timestamp.now(),
+            ...storedUserBlock("bob", true),
           }),
         ]);
         const bob = requireApplicationRules().authenticatedContext("bob");
 
         await assertFails(bob.firestore().doc("places/tokyo").get());
+      });
+
+      test("does not enforce an inactive block tombstone", async () => {
+        await Promise.all([
+          seedApplicationDocument("places/tokyo", activePublicPlace()),
+          seedApplicationDocument(
+            "users/alice/blockedUsers/bob",
+            storedUserBlock("bob", false),
+          ),
+        ]);
+        const bob = requireApplicationRules().authenticatedContext("bob");
+
+        await assertSucceeds(bob.firestore().doc("places/tokyo").get());
       });
 
       test("denies direct note creation", async () => {
@@ -716,6 +800,22 @@ function storedSocialEdge(
     revision: following ? 1 : 2,
     createdAt: now,
     updatedAt: now,
+  };
+}
+
+/** Creates a trusted active block or inactive revision tombstone. */
+function storedUserBlock(
+  blockedUid: string,
+  isBlocked: boolean,
+): firebase.firestore.DocumentData {
+  const now = firebase.firestore.Timestamp.now();
+  return {
+    blockedUid,
+    isBlocked,
+    revision: isBlocked ? 1 : 2,
+    authorityWorld: "asia",
+    updatedAt: now,
+    expireAt: isBlocked ? null : now,
   };
 }
 

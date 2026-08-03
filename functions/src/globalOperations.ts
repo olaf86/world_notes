@@ -163,6 +163,37 @@ export function newGlobalOperationId(nowMillis = Date.now()): string {
   ].join("-");
 }
 
+/** Derives a retry-stable child UUID v7 from a persisted parent operation. */
+export function derivedGlobalOperationId(
+  parentOperationId: string,
+  binding: string,
+): string {
+  requireOperationId(parentOperationId);
+  if (binding.length === 0 || binding.length > 1_024) {
+    throw new GlobalOperationValidationError(
+      "Derived operation binding is invalid.",
+    );
+  }
+  const parentHex = parentOperationId.replace(/-/g, "");
+  const timestampHex = parentHex.slice(0, 12);
+  const digest = createHash("sha256")
+    .update(parentOperationId, "utf8")
+    .update("\0", "utf8")
+    .update(binding, "utf8")
+    .digest("hex");
+  const bytes = Buffer.from(`${timestampHex}${digest.slice(0, 20)}`, "hex");
+  bytes[6] = 0x70 | (bytes[6] & 0x0f);
+  bytes[8] = 0x80 | (bytes[8] & 0x3f);
+  const hex = bytes.toString("hex");
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    hex.slice(12, 16),
+    hex.slice(16, 20),
+    hex.slice(20),
+  ].join("-");
+}
+
 /**
  * Commits an entity mutation and its durable operation work item atomically.
  */

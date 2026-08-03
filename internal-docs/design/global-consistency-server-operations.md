@@ -32,7 +32,7 @@ exclude the user's mobile-network round trip unless otherwise stated.
 | --- | --- | --- |
 | `W` | World-local transaction | Exact within the selected world database |
 | `G` | Global-entity authority transaction | Exact in that entity's `authorityWorld` |
-| `GM` | Authority write plus enforcement-mirror acknowledgement | Exact in the authority and installed in all safety-critical mirrors when the operation becomes `complete` |
+| `GM` | Authority write plus enforcement-mirror acknowledgement | Exact in the authority and applied to all safety-critical mirrors when the operation becomes `complete` |
 | `E` | Eventually replicated global data | Authority state is exact; local mirrors may lag |
 | `S` | Durable saga/outbox | Logical operation is accepted; cleanup and side effects converge asynchronously |
 | `X` | External provider involved | Firestore atomicity does not include the external system |
@@ -132,14 +132,14 @@ globally completed while an enforcement mirror is unavailable.
 | --- | --- | --- | --- | --- | --- |
 | `aggregatePublishedMessages` | Every minute; reads at most 100 due scheduled messages, updates note/message counters, sends FCM | Per-world `B/W + S` | `SCHED-1M` | Each applied message is locally transactional | Capacity is only 100 messages per world per minute and the function does not drain the backlog in one run. Notification after commit needs an outbox to avoid loss/duplication. |
 | `archiveExpiredNotes` | Daily; batches 200 notes; updates note state and the per-world active-note count | Per-world `B/W` | `SCHED-24H` | Archive and slot release are exact in each world | Keep the counter local and do not emit a global count event. |
-| `sync*ProfileSnapshots` | Per-world Firestore trigger; pages through active creator places and memberships | Per-world `B/E` | seconds–minutes | Eventually installs the latest profile revision | Every page re-reads its targets in a transaction and updates only an older snapshot revision. Duplicate and out-of-order profile events therefore cannot roll a newer snapshot back. |
+| `sync*ProfileSnapshots` | Per-world Firestore trigger; pages through active creator places and memberships | Per-world `B/E` | seconds–minutes | Eventually applies the latest profile revision | Every page re-reads its targets in a transaction and updates only an older snapshot revision. Duplicate and out-of-order profile events therefore cannot roll a newer snapshot back. |
 
 ## Planned Global Consistency Layer operations
 
 | Planned operation | Responsibility | Class | Expected latency | Required guarantee | Main failure mode and mitigation |
 | --- | --- | --- | --- | --- | --- |
 | `executeGlobalCommand` | Resolve `authorityWorld`, authenticate, validate operation ID, serialize the mutation, and atomically write authority state plus the operation work item | `G` | Acceptance `G1` | Idempotent authority commit | Retry with the same operation ID; reject a reused ID with different payload |
-| `installSafetyStateInWorlds` | Copy block/account-safety state to all enforcement mirrors | `GM` | `GM-COMPLETE` asynchronously | A completed safety command is visible to all world write paths | If one world is unavailable, leave operation pending and do not claim global completion |
+| `applySafetyStateToWorlds` | Copy block/account-safety state to all enforcement mirrors | `GM` | `GM-COMPLETE` asynchronously | A completed safety command is visible to all world write paths | If one world is unavailable, leave operation pending and do not claim global completion |
 | `replicateGlobalEntity` | Replicate profiles, settings, notices, social edges and tombstones | `E` | normally seconds; backlog-dependent | Monotonic revision application | At-least-once and out-of-order delivery; apply only newer revisions |
 | `applyAccountSafetyEvent` | Route to the subject user's home world, deduplicate the moderation event, and update points/restriction/BAN in authority order | `G` | `G1`; asynchronous after rejected publication | No lost violation events | Immutable event ID plus one home-world authority transaction |
 | `adminUpdateAccountSafety` | Apply an authenticated administrator point adjustment or restriction/BAN override in the subject user's home world | `G + GM` | Acceptance `G1`; completion `GM-COMPLETE` | Every override is audited and globally enforced after completion | Require `admin: true`, a reason and an idempotency key; deny direct client writes to authority and mirrors |
@@ -528,9 +528,9 @@ the mirror is missing. Client-supplied world values never establish authority.
 **Decided for onboarding readiness:** the Asia bootstrap authority commits the
 immutable home assignment and returns `accepted` without waiting for every
 world. The app remains in onboarding only until the selected `homeWorld` has
-acknowledged the routing revision and atomically installed the account state
+acknowledged the routing revision and atomically applied the account state
 required for normal use there. At that point the user may enter the app even
-while other world mirrors are still being installed.
+while other world mirrors are still being applied.
 
 The home-assignment `globalOperation` nevertheless snapshots every active
 world in `requiredWorlds` and remains `pending` until all of those mirrors
@@ -540,7 +540,7 @@ silently treated as synchronized. A world activated later is handled by that
 world's activation backfill rather than being added to the existing operation.
 
 **Decided for world entry:** version 1 does not perform on-demand mirror
-creation during a world switch. The destination bootstrap worker installs the
+creation during a world switch. The destination bootstrap worker applies the
 local routing mirror and the minimum account projections in one destination
 transaction; therefore an owner-readable `userHomes/{uid}` at the expected
 `epoch` is the readiness marker and no separate readiness collection or field
@@ -777,7 +777,7 @@ idempotent replication worker, which reads the durable operation document,
 applies the revision only to worlds that have not acknowledged it, and records
 each acknowledgement on the operation. The same worker path is used for
 duplicate event delivery, client retries, and scheduled repair; already
-installed revisions become no-ops. Firestore events are at-least-once and
+applied revisions become no-ops. Firestore events are at-least-once and
 unordered, so correctness still depends on the operation ID and per-entity
 revision guards.
 
@@ -790,7 +790,7 @@ transaction and therefore does not replace the operation document.
 
 Notification-delivery and object-deletion outboxes remain separate. They
 represent non-Firestore side effects such as FCM sends and Storage deletion,
-whereas `globalOperations` represents installation of revisioned Firestore
+whereas `globalOperations` represents application of revisioned Firestore
 state in the required world databases.
 
 Pending operations have no TTL. A terminal `complete` or pre-commit `failed`
@@ -857,7 +857,7 @@ deletes it through TTL. Ninety days is a defense-in-depth retention window,
 not a Firebase delivery requirement. It covers trigger configuration changes,
 unexpected delivery delay, and operational mistakes at low storage cost.
 Re-blocking increments the authority revision and removes the mirror TTL before
-the new active state is installed.
+the new active state is applied.
 
 **Decided for enforcement-mirror shape:** version 1 keeps the existing
 directional path in every world instead of adding a canonical-pair collection:
@@ -934,7 +934,7 @@ controls their visibility.
 **Decided for block completion versus cleanup:** the block operation becomes
 `complete` when every snapshotted required world acknowledges an active
 enforcement mirror.
-Installing a mirror and creating or upserting that world's required cleanup
+Applying a mirror and creating or upserting that world's required cleanup
 job intents occur in the same local transaction. Consequently, global
 completion guarantees that block enforcement is active everywhere and that no
 required cleanup work has been lost; it does not wait for the cleanup workers
@@ -1043,7 +1043,7 @@ accountSafety/{uid}
 ```
 
 Each content world writes an immutable, deduplicated violation event. One
-transaction in the subject user's `homeWorld` applies it, then installs the
+transaction in the subject user's `homeWorld` applies it, then propagates the
 resulting enforcement state in all world mirrors.
 
 **Decided for enforcement scope:** moderation points, posting restrictions,
@@ -1060,7 +1060,7 @@ finalization transaction. It does not wait for the violation event to reach the
 user's `homeWorld`, for points to be recalculated, or for a resulting
 restriction to propagate globally. The same transaction durably records the
 deduplicated violation-event intent; account-safety processing and mirror
-installation then continue asynchronously. This decision concerns the moment
+application then continue asynchronously. This decision concerns the moment
 of rejection: optimistically public content may remain visible while its
 moderation action is still `pending`.
 
@@ -1071,7 +1071,7 @@ global operation, after which the API may report `accepted`. Each world starts
 enforcing the revision when its local mirror applies it. The operation remains
 `pending` until every world in its `requiredWorlds` snapshot acknowledges that
 revision, and only then becomes `complete`. A regional outage therefore delays
-formal completion but never rolls back enforcement already installed
+formal completion but never rolls back enforcement already applied
 elsewhere.
 
 **Decided for point expiry:** violation points gradually decay after a period
@@ -1497,7 +1497,7 @@ notice remains available and no stale push is sent later.
 
 Per-token FCM results are classified before retry. A
 `registration-token-not-registered` (or the corresponding unregistered
-installation result) means a formerly valid app registration is no longer
+registration result) means a formerly valid app registration is no longer
 known to FCM and its home-world token record is deleted idempotently.
 `invalid-registration-token` means the stored target value is malformed or is
 not an FCM registration; it is also deleted after the server has separately

@@ -5,6 +5,7 @@ import {Timestamp} from "firebase-admin/firestore";
 
 import {
   canonicalPayloadHash,
+  derivedGlobalOperationId,
   GLOBAL_COMMAND_SCOPE,
   GlobalOperationValidationError,
   newGlobalOperationId,
@@ -73,6 +74,29 @@ test("server-originated operation IDs retain their UUID v7 timestamp", () => {
 
   assert.equal(requireOperationId(operationId), operationId);
   assert.equal(encodedTimestamp, timestamp);
+});
+
+test("derived operation IDs are stable, distinct UUID v7 values", () => {
+  const first = derivedGlobalOperationId(
+    TEST_OPERATION_ID,
+    "follow:alice:bob",
+  );
+  const retry = derivedGlobalOperationId(
+    TEST_OPERATION_ID,
+    "follow:alice:bob",
+  );
+  const reverse = derivedGlobalOperationId(
+    TEST_OPERATION_ID,
+    "follow:bob:alice",
+  );
+
+  assert.equal(first, retry);
+  assert.notEqual(first, reverse);
+  assert.equal(requireOperationId(first), first);
+  assert.equal(
+    first.replace(/-/g, "").slice(0, 12),
+    TEST_OPERATION_ID.replace(/-/g, "").slice(0, 12),
+  );
 });
 
 test("required worlds snapshot only active catalog membership", () => {
