@@ -2011,6 +2011,150 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{planName} is temporarily unavailable.'**
   String subscriptionTemporarilyUnavailable(String planName);
+
+  /// No description provided for @adminAccountSafety.
+  ///
+  /// In en, this message translates to:
+  /// **'Account safety'**
+  String get adminAccountSafety;
+
+  /// No description provided for @adminSafetyTargetUid.
+  ///
+  /// In en, this message translates to:
+  /// **'Target user ID'**
+  String get adminSafetyTargetUid;
+
+  /// No description provided for @adminSafetyLoad.
+  ///
+  /// In en, this message translates to:
+  /// **'Load account safety'**
+  String get adminSafetyLoad;
+
+  /// No description provided for @adminSafetyPoints.
+  ///
+  /// In en, this message translates to:
+  /// **'Violation points'**
+  String get adminSafetyPoints;
+
+  /// No description provided for @adminSafetyAuthorityWorld.
+  ///
+  /// In en, this message translates to:
+  /// **'Authority world'**
+  String get adminSafetyAuthorityWorld;
+
+  /// No description provided for @adminSafetyRestriction.
+  ///
+  /// In en, this message translates to:
+  /// **'Posting restriction'**
+  String get adminSafetyRestriction;
+
+  /// No description provided for @adminSafetyBan.
+  ///
+  /// In en, this message translates to:
+  /// **'Ban'**
+  String get adminSafetyBan;
+
+  /// No description provided for @adminSafetyNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get adminSafetyNone;
+
+  /// No description provided for @adminSafetyPermanent.
+  ///
+  /// In en, this message translates to:
+  /// **'Permanent'**
+  String get adminSafetyPermanent;
+
+  /// No description provided for @adminSafetyAdjustPoints.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjust points'**
+  String get adminSafetyAdjustPoints;
+
+  /// No description provided for @adminSafetyPointDelta.
+  ///
+  /// In en, this message translates to:
+  /// **'Point change'**
+  String get adminSafetyPointDelta;
+
+  /// No description provided for @adminSafetyPointDeltaHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an integer from -100 to 100, excluding 0.'**
+  String get adminSafetyPointDeltaHelp;
+
+  /// No description provided for @adminSafetySetRestriction.
+  ///
+  /// In en, this message translates to:
+  /// **'Restrict for {days} day(s)'**
+  String adminSafetySetRestriction(int days);
+
+  /// No description provided for @adminSafetyClearRestriction.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear restriction'**
+  String get adminSafetyClearRestriction;
+
+  /// No description provided for @adminSafetySetBan.
+  ///
+  /// In en, this message translates to:
+  /// **'Ban for {days} days'**
+  String adminSafetySetBan(int days);
+
+  /// No description provided for @adminSafetySetPermanentBan.
+  ///
+  /// In en, this message translates to:
+  /// **'Set permanent ban'**
+  String get adminSafetySetPermanentBan;
+
+  /// No description provided for @adminSafetyClearBan.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear ban'**
+  String get adminSafetyClearBan;
+
+  /// No description provided for @adminSafetyReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason (required)'**
+  String get adminSafetyReason;
+
+  /// No description provided for @adminSafetyReference.
+  ///
+  /// In en, this message translates to:
+  /// **'Review or support reference (optional)'**
+  String get adminSafetyReference;
+
+  /// No description provided for @adminSafetyApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get adminSafetyApply;
+
+  /// No description provided for @adminSafetyContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get adminSafetyContinue;
+
+  /// No description provided for @adminSafetyAccepted.
+  ///
+  /// In en, this message translates to:
+  /// **'The operation was accepted and will continue in the background.'**
+  String get adminSafetyAccepted;
+
+  /// No description provided for @adminSafetyAuditHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Administrator history'**
+  String get adminSafetyAuditHistory;
+
+  /// No description provided for @adminSafetyNoAudits.
+  ///
+  /// In en, this message translates to:
+  /// **'No administrator actions.'**
+  String get adminSafetyNoAudits;
 }
 
 class _AppLocalizationsDelegate

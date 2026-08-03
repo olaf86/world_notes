@@ -1155,4 +1155,82 @@ class AppLocalizationsEn extends AppLocalizations {
   String subscriptionTemporarilyUnavailable(String planName) {
     return '$planName is temporarily unavailable.';
   }
+
+  @override
+  String get adminAccountSafety => 'Account safety';
+
+  @override
+  String get adminSafetyTargetUid => 'Target user ID';
+
+  @override
+  String get adminSafetyLoad => 'Load account safety';
+
+  @override
+  String get adminSafetyPoints => 'Violation points';
+
+  @override
+  String get adminSafetyAuthorityWorld => 'Authority world';
+
+  @override
+  String get adminSafetyRestriction => 'Posting restriction';
+
+  @override
+  String get adminSafetyBan => 'Ban';
+
+  @override
+  String get adminSafetyNone => 'None';
+
+  @override
+  String get adminSafetyPermanent => 'Permanent';
+
+  @override
+  String get adminSafetyAdjustPoints => 'Adjust points';
+
+  @override
+  String get adminSafetyPointDelta => 'Point change';
+
+  @override
+  String get adminSafetyPointDeltaHelp =>
+      'Enter an integer from -100 to 100, excluding 0.';
+
+  @override
+  String adminSafetySetRestriction(int days) {
+    return 'Restrict for $days day(s)';
+  }
+
+  @override
+  String get adminSafetyClearRestriction => 'Clear restriction';
+
+  @override
+  String adminSafetySetBan(int days) {
+    return 'Ban for $days days';
+  }
+
+  @override
+  String get adminSafetySetPermanentBan => 'Set permanent ban';
+
+  @override
+  String get adminSafetyClearBan => 'Clear ban';
+
+  @override
+  String get adminSafetyReason => 'Reason (required)';
+
+  @override
+  String get adminSafetyReference => 'Review or support reference (optional)';
+
+  @override
+  String get adminSafetyApply => 'Apply';
+
+  @override
+  String get adminSafetyContinue => 'Continue';
+
+  @override
+  String get adminSafetyAccepted =>
+      'The operation was accepted and will continue in the background.';
+
+  @override
+  String get adminSafetyAuditHistory => 'Administrator history';
+
+  @override
+  String get adminSafetyNoAudits => 'No administrator actions.';
 }

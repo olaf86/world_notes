@@ -1069,4 +1069,80 @@ class AppLocalizationsKo extends AppLocalizations {
   String subscriptionTemporarilyUnavailable(String planName) {
     return '$planName을(를) 일시적으로 사용할 수 없습니다.';
   }
+
+  @override
+  String get adminAccountSafety => '계정 안전';
+
+  @override
+  String get adminSafetyTargetUid => '대상 사용자 ID';
+
+  @override
+  String get adminSafetyLoad => '계정 안전 불러오기';
+
+  @override
+  String get adminSafetyPoints => '위반 점수';
+
+  @override
+  String get adminSafetyAuthorityWorld => '기준 월드';
+
+  @override
+  String get adminSafetyRestriction => '게시 제한';
+
+  @override
+  String get adminSafetyBan => '차단';
+
+  @override
+  String get adminSafetyNone => '없음';
+
+  @override
+  String get adminSafetyPermanent => '영구';
+
+  @override
+  String get adminSafetyAdjustPoints => '점수 조정';
+
+  @override
+  String get adminSafetyPointDelta => '점수 변경값';
+
+  @override
+  String get adminSafetyPointDeltaHelp => '0을 제외한 -100부터 100 사이의 정수를 입력하세요.';
+
+  @override
+  String adminSafetySetRestriction(int days) {
+    return '$days일 게시 제한';
+  }
+
+  @override
+  String get adminSafetyClearRestriction => '게시 제한 해제';
+
+  @override
+  String adminSafetySetBan(int days) {
+    return '$days일 차단';
+  }
+
+  @override
+  String get adminSafetySetPermanentBan => '영구 차단';
+
+  @override
+  String get adminSafetyClearBan => '차단 해제';
+
+  @override
+  String get adminSafetyReason => '사유(필수)';
+
+  @override
+  String get adminSafetyReference => '검토 또는 지원 참조(선택)';
+
+  @override
+  String get adminSafetyApply => '적용';
+
+  @override
+  String get adminSafetyContinue => '계속';
+
+  @override
+  String get adminSafetyAccepted => '작업이 접수되었으며 백그라운드에서 계속됩니다.';
+
+  @override
+  String get adminSafetyAuditHistory => '관리자 작업 기록';
+
+  @override
+  String get adminSafetyNoAudits => '관리자 작업이 없습니다.';
 }

@@ -1068,4 +1068,80 @@ class AppLocalizationsJa extends AppLocalizations {
   String subscriptionTemporarilyUnavailable(String planName) {
     return '$planNameは現在利用できません。';
   }
+
+  @override
+  String get adminAccountSafety => 'アカウント安全性';
+
+  @override
+  String get adminSafetyTargetUid => '対象ユーザーID';
+
+  @override
+  String get adminSafetyLoad => 'アカウント安全性を読み込む';
+
+  @override
+  String get adminSafetyPoints => '違反ポイント';
+
+  @override
+  String get adminSafetyAuthorityWorld => '正本ワールド';
+
+  @override
+  String get adminSafetyRestriction => '投稿制限';
+
+  @override
+  String get adminSafetyBan => 'BAN';
+
+  @override
+  String get adminSafetyNone => 'なし';
+
+  @override
+  String get adminSafetyPermanent => '永久';
+
+  @override
+  String get adminSafetyAdjustPoints => 'ポイントを調整';
+
+  @override
+  String get adminSafetyPointDelta => 'ポイント増減値';
+
+  @override
+  String get adminSafetyPointDeltaHelp => '0を除く-100から100の整数を入力してください。';
+
+  @override
+  String adminSafetySetRestriction(int days) {
+    return '$days日間の投稿制限';
+  }
+
+  @override
+  String get adminSafetyClearRestriction => '投稿制限を解除';
+
+  @override
+  String adminSafetySetBan(int days) {
+    return '$days日間BAN';
+  }
+
+  @override
+  String get adminSafetySetPermanentBan => '永久BAN';
+
+  @override
+  String get adminSafetyClearBan => 'BANを解除';
+
+  @override
+  String get adminSafetyReason => '理由（必須）';
+
+  @override
+  String get adminSafetyReference => 'レビュー・サポート参照（任意）';
+
+  @override
+  String get adminSafetyApply => '適用';
+
+  @override
+  String get adminSafetyContinue => '続ける';
+
+  @override
+  String get adminSafetyAccepted => '処理を受け付けました。バックグラウンドで継続します。';
+
+  @override
+  String get adminSafetyAuditHistory => '管理者操作履歴';
+
+  @override
+  String get adminSafetyNoAudits => '管理者操作はありません。';
 }

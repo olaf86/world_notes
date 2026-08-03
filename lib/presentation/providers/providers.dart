@@ -411,6 +411,7 @@ final noticeNotificationServiceProvider = Provider<NoticeNotificationService>((
 final adminModerationServiceProvider = Provider<AdminModerationService>((ref) {
   return AdminModerationService(
     functions: ref.watch(selectedWorldFunctionsProvider),
+    operationObserver: ref.watch(globalOperationObserverProvider),
   );
 });
 

@@ -1056,6 +1056,82 @@ class AppLocalizationsZh extends AppLocalizations {
   String subscriptionTemporarilyUnavailable(String planName) {
     return '$planName 目前暂时无法使用。';
   }
+
+  @override
+  String get adminAccountSafety => '账户安全';
+
+  @override
+  String get adminSafetyTargetUid => '目标用户 ID';
+
+  @override
+  String get adminSafetyLoad => '加载账户安全状态';
+
+  @override
+  String get adminSafetyPoints => '违规积分';
+
+  @override
+  String get adminSafetyAuthorityWorld => '权威世界';
+
+  @override
+  String get adminSafetyRestriction => '发帖限制';
+
+  @override
+  String get adminSafetyBan => '封禁';
+
+  @override
+  String get adminSafetyNone => '无';
+
+  @override
+  String get adminSafetyPermanent => '永久';
+
+  @override
+  String get adminSafetyAdjustPoints => '调整积分';
+
+  @override
+  String get adminSafetyPointDelta => '积分变化值';
+
+  @override
+  String get adminSafetyPointDeltaHelp => '请输入 -100 到 100 之间且不为 0 的整数。';
+
+  @override
+  String adminSafetySetRestriction(int days) {
+    return '限制发帖 $days 天';
+  }
+
+  @override
+  String get adminSafetyClearRestriction => '解除发帖限制';
+
+  @override
+  String adminSafetySetBan(int days) {
+    return '封禁 $days 天';
+  }
+
+  @override
+  String get adminSafetySetPermanentBan => '永久封禁';
+
+  @override
+  String get adminSafetyClearBan => '解除封禁';
+
+  @override
+  String get adminSafetyReason => '原因（必填）';
+
+  @override
+  String get adminSafetyReference => '审核或支持工单引用（可选）';
+
+  @override
+  String get adminSafetyApply => '应用';
+
+  @override
+  String get adminSafetyContinue => '继续';
+
+  @override
+  String get adminSafetyAccepted => '操作已受理，将在后台继续处理。';
+
+  @override
+  String get adminSafetyAuditHistory => '管理员操作记录';
+
+  @override
+  String get adminSafetyNoAudits => '暂无管理员操作。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -2110,6 +2186,82 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String subscriptionTemporarilyUnavailable(String planName) {
     return '$planName 目前暂时无法使用。';
   }
+
+  @override
+  String get adminAccountSafety => '账户安全';
+
+  @override
+  String get adminSafetyTargetUid => '目标用户 ID';
+
+  @override
+  String get adminSafetyLoad => '加载账户安全状态';
+
+  @override
+  String get adminSafetyPoints => '违规积分';
+
+  @override
+  String get adminSafetyAuthorityWorld => '权威世界';
+
+  @override
+  String get adminSafetyRestriction => '发帖限制';
+
+  @override
+  String get adminSafetyBan => '封禁';
+
+  @override
+  String get adminSafetyNone => '无';
+
+  @override
+  String get adminSafetyPermanent => '永久';
+
+  @override
+  String get adminSafetyAdjustPoints => '调整积分';
+
+  @override
+  String get adminSafetyPointDelta => '积分变化值';
+
+  @override
+  String get adminSafetyPointDeltaHelp => '请输入 -100 到 100 之间且不为 0 的整数。';
+
+  @override
+  String adminSafetySetRestriction(int days) {
+    return '限制发帖 $days 天';
+  }
+
+  @override
+  String get adminSafetyClearRestriction => '解除发帖限制';
+
+  @override
+  String adminSafetySetBan(int days) {
+    return '封禁 $days 天';
+  }
+
+  @override
+  String get adminSafetySetPermanentBan => '永久封禁';
+
+  @override
+  String get adminSafetyClearBan => '解除封禁';
+
+  @override
+  String get adminSafetyReason => '原因（必填）';
+
+  @override
+  String get adminSafetyReference => '审核或支持工单引用（可选）';
+
+  @override
+  String get adminSafetyApply => '应用';
+
+  @override
+  String get adminSafetyContinue => '继续';
+
+  @override
+  String get adminSafetyAccepted => '操作已受理，将在后台继续处理。';
+
+  @override
+  String get adminSafetyAuditHistory => '管理员操作记录';
+
+  @override
+  String get adminSafetyNoAudits => '暂无管理员操作。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -3165,4 +3317,80 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String subscriptionTemporarilyUnavailable(String planName) {
     return '$planName 目前暫時無法使用。';
   }
+
+  @override
+  String get adminAccountSafety => '帳戶安全';
+
+  @override
+  String get adminSafetyTargetUid => '目標使用者 ID';
+
+  @override
+  String get adminSafetyLoad => '載入帳戶安全狀態';
+
+  @override
+  String get adminSafetyPoints => '違規點數';
+
+  @override
+  String get adminSafetyAuthorityWorld => '權威世界';
+
+  @override
+  String get adminSafetyRestriction => '發文限制';
+
+  @override
+  String get adminSafetyBan => '停權';
+
+  @override
+  String get adminSafetyNone => '無';
+
+  @override
+  String get adminSafetyPermanent => '永久';
+
+  @override
+  String get adminSafetyAdjustPoints => '調整點數';
+
+  @override
+  String get adminSafetyPointDelta => '點數變更值';
+
+  @override
+  String get adminSafetyPointDeltaHelp => '請輸入 -100 到 100 之間且不為 0 的整數。';
+
+  @override
+  String adminSafetySetRestriction(int days) {
+    return '限制發文 $days 天';
+  }
+
+  @override
+  String get adminSafetyClearRestriction => '解除發文限制';
+
+  @override
+  String adminSafetySetBan(int days) {
+    return '停權 $days 天';
+  }
+
+  @override
+  String get adminSafetySetPermanentBan => '永久停權';
+
+  @override
+  String get adminSafetyClearBan => '解除停權';
+
+  @override
+  String get adminSafetyReason => '原因（必填）';
+
+  @override
+  String get adminSafetyReference => '審查或支援案件參照（選填）';
+
+  @override
+  String get adminSafetyApply => '套用';
+
+  @override
+  String get adminSafetyContinue => '繼續';
+
+  @override
+  String get adminSafetyAccepted => '操作已受理，將在背景繼續處理。';
+
+  @override
+  String get adminSafetyAuditHistory => '管理員操作記錄';
+
+  @override
+  String get adminSafetyNoAudits => '目前沒有管理員操作。';
 }
