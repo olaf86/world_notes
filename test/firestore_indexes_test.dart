@@ -24,6 +24,35 @@ void main() {
     );
   });
 
+  test('defines active social-edge relationship and list indexes', () {
+    final config = _loadConfig();
+
+    expect(
+      _hasIndex(config, 'socialEdges', [
+        ('followerUid', 'ASCENDING'),
+        ('following', 'ASCENDING'),
+        ('createdAt', 'DESCENDING'),
+      ]),
+      isTrue,
+    );
+    expect(
+      _hasIndex(config, 'socialEdges', [
+        ('followeeUid', 'ASCENDING'),
+        ('following', 'ASCENDING'),
+        ('createdAt', 'DESCENDING'),
+      ]),
+      isTrue,
+    );
+    expect(
+      _hasIndex(config, 'socialEdges', [
+        ('followerUid', 'ASCENDING'),
+        ('followeeUid', 'ASCENDING'),
+        ('following', 'ASCENDING'),
+      ]),
+      isTrue,
+    );
+  });
+
   test('defines archived-note indexes for both sort directions', () {
     final config =
         jsonDecode(File('firestore.indexes.json').readAsStringSync())

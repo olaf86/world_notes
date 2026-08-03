@@ -18,7 +18,11 @@ rules_version = '2';
 // - publicProfiles/{uid}: authenticated-readable display data; displayName,
 //   nullable photoUrl, photoVersion, counters, createdAt and updatedAt are
 //   required. All writes are trusted-server only.
-// - socialEdges/{edgeId}: authenticated-readable, server-managed follow edge.
+// - socialEdges/{edgeId}: server-managed directed follow state. Required
+//   fields: followerUid/followeeUid (bounded UID strings), following (bool),
+//   revision (positive integer), nullable createdAt and updatedAt (timestamp).
+//   Only active (`following == true`) edges are authenticated-readable;
+//   inactive revision tombstones remain server-only.
 // - users/{uid}/blockedUsers/{blockedUid}: owner-readable, server-managed
 //   private block relationship.
 // - users/{uid}/notificationSettings: owner-readable, server-managed settings.
@@ -267,11 +271,12 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Flat, graph-ready user-following edges. Clients may read relationship
-    // pages, but all writes and public profile counters are maintained by the
-    // setUserFollow Cloud Function.
+    // Flat, graph-ready user-following edges. Every client query must include
+    // `following == true`; this prevents inactive revision tombstones from
+    // exposing former relationships. All writes and profile-counter changes
+    // remain trusted-server only.
     match /socialEdges/{edgeId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && resource.data.following == true;
       allow write: if false;
     }
 

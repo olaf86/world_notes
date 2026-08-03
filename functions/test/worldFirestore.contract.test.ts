@@ -29,6 +29,11 @@ import {
   UPDATE_PUBLIC_PROFILE_OPERATION,
   userEntitlementReplicationHandler,
 } from "../src/profileEntitlementReplication";
+import {
+  SET_USER_FOLLOW_OPERATION,
+  socialEdgeId,
+  socialEdgeReplicationHandler,
+} from "../src/socialEdgeReplication";
 import {WORLD_CATALOG} from "../src/platform/worldCatalog";
 import {
   DEFAULT_FIRESTORE_DATABASE_ID,
@@ -442,6 +447,120 @@ firestoreContractTest(
     assert.equal(destination.get("revision"), 3);
     assert.deepEqual(destination.get("sourceCheckedAt"), now);
     assert.equal(operation.get("status"), "complete");
+  },
+);
+
+firestoreContractTest(
+  "replicates social edge transitions with convergent profile counts",
+  async () => {
+    const {runId, asia, europe, provider} = requireContext();
+    const followerUid = `follower-${runId}`;
+    const followeeUid = `followee-${runId}`;
+    const edgeId = socialEdgeId(followerUid, followeeUid);
+    const sourceRef = asia.collection("socialEdges").doc(edgeId);
+    const destinationRef = europe.collection("socialEdges").doc(edgeId);
+    const followerProfileRef = europe
+      .collection("publicProfiles")
+      .doc(followerUid);
+    const followeeProfileRef = europe
+      .collection("publicProfiles")
+      .doc(followeeUid);
+    const createOperationId = testOperationId(runId, "00e");
+    const deleteOperationId = testOperationId(runId, "00f");
+    const createOperationRef = asia
+      .collection("globalOperations")
+      .doc(createOperationId);
+    const deleteOperationRef = asia
+      .collection("globalOperations")
+      .doc(deleteOperationId);
+    trackForCleanup(
+      sourceRef,
+      destinationRef,
+      followerProfileRef,
+      followeeProfileRef,
+      createOperationRef,
+      deleteOperationRef,
+    );
+    const createdAt = Timestamp.now();
+    const profile = {
+      displayName: "Contract User",
+      photoUrl: null,
+      photoVersion: 1,
+      revision: 1,
+      followerCount: 0,
+      followingCount: 0,
+      createdAt,
+      updatedAt: createdAt,
+    };
+    await Promise.all([
+      followerProfileRef.set(profile),
+      followeeProfileRef.set(profile),
+      sourceRef.set({
+        followerUid,
+        followeeUid,
+        following: true,
+        revision: 1,
+        createdAt,
+        updatedAt: createdAt,
+      }),
+      createOperationRef.set(pendingOperationData({
+        operationId: createOperationId,
+        operationType: SET_USER_FOLLOW_OPERATION,
+        entityId: edgeId,
+        ownerUid: followerUid,
+        revision: 1,
+        acceptedAt: createdAt,
+      })),
+    ]);
+    const runtime = {
+      catalog: WORLD_CATALOG,
+      firestore: provider,
+      handlers: new GlobalReplicationHandlerRegistry([
+        socialEdgeReplicationHandler,
+      ]),
+    };
+
+    await processGlobalOperation("asia", createOperationId, runtime);
+    const [active, followerAfterCreate, followeeAfterCreate] =
+      await Promise.all([
+        destinationRef.get(),
+        followerProfileRef.get(),
+        followeeProfileRef.get(),
+      ]);
+    assert.equal(active.get("following"), true);
+    assert.equal(followerAfterCreate.get("followingCount"), 1);
+    assert.equal(followeeAfterCreate.get("followerCount"), 1);
+
+    const removedAt = Timestamp.fromMillis(createdAt.toMillis() + 1);
+    await Promise.all([
+      sourceRef.set({
+        followerUid,
+        followeeUid,
+        following: false,
+        revision: 2,
+        createdAt,
+        updatedAt: removedAt,
+      }),
+      deleteOperationRef.set(pendingOperationData({
+        operationId: deleteOperationId,
+        operationType: SET_USER_FOLLOW_OPERATION,
+        entityId: edgeId,
+        ownerUid: followerUid,
+        revision: 2,
+        acceptedAt: removedAt,
+      })),
+    ]);
+    await processGlobalOperation("asia", deleteOperationId, runtime);
+    const [inactive, followerAfterDelete, followeeAfterDelete] =
+      await Promise.all([
+        destinationRef.get(),
+        followerProfileRef.get(),
+        followeeProfileRef.get(),
+      ]);
+    assert.equal(inactive.get("following"), false);
+    assert.equal(inactive.get("revision"), 2);
+    assert.equal(followerAfterDelete.get("followingCount"), 0);
+    assert.equal(followeeAfterDelete.get("followerCount"), 0);
   },
 );
 

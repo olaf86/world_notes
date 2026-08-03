@@ -20,6 +20,7 @@ import {
   reconcilePublicProfileAuthCache,
   userEntitlementReplicationHandler,
 } from "./profileEntitlementReplication";
+import {socialEdgeReplicationHandler} from "./socialEdgeReplication";
 import {
   WorldDatabaseConfig,
   WorldFirestoreDatabaseId,
@@ -44,6 +45,7 @@ const productionRuntime: GlobalReplicationRuntime = {
   handlers: new GlobalReplicationHandlerRegistry([
     publicProfileReplicationHandler,
     userEntitlementReplicationHandler,
+    socialEdgeReplicationHandler,
   ]),
 };
 

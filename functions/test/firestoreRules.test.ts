@@ -279,6 +279,81 @@ describe(
       });
     });
 
+    describe("social edge projections", {concurrency: false}, () => {
+      test("allows authenticated reads of active edges only", async () => {
+        await Promise.all([
+          seedApplicationDocument(
+            "socialEdges/active-edge",
+            storedSocialEdge(true),
+          ),
+          seedApplicationDocument(
+            "socialEdges/inactive-edge",
+            storedSocialEdge(false),
+          ),
+        ]);
+        const alice = requireApplicationRules()
+          .authenticatedContext("alice");
+        const guest = requireApplicationRules().unauthenticatedContext();
+
+        await assertSucceeds(
+          alice.firestore().doc("socialEdges/active-edge").get(),
+        );
+        await assertFails(
+          alice.firestore().doc("socialEdges/inactive-edge").get(),
+        );
+        await assertFails(
+          guest.firestore().doc("socialEdges/active-edge").get(),
+        );
+      });
+
+      test(
+        "requires active-state filtering for relationship lists",
+        async () => {
+          await seedApplicationDocument(
+            "socialEdges/active-edge",
+            storedSocialEdge(true),
+          );
+          const alice = requireApplicationRules()
+            .authenticatedContext("alice");
+          const edges = alice.firestore().collection("socialEdges");
+
+          await assertSucceeds(
+            edges
+              .where("followerUid", "==", "alice")
+              .where("following", "==", true)
+              .get(),
+          );
+          await assertFails(
+            edges.where("followerUid", "==", "alice").get(),
+          );
+        },
+      );
+
+      test("denies every direct social-edge write", async () => {
+        await seedApplicationDocument(
+          "socialEdges/active-edge",
+          storedSocialEdge(true),
+        );
+        const alice = requireApplicationRules()
+          .authenticatedContext("alice");
+
+        await assertFails(
+          alice.firestore().doc("socialEdges/new-edge").set(
+            storedSocialEdge(true),
+          ),
+        );
+        await assertFails(
+          alice.firestore().doc("socialEdges/active-edge").update({
+            following: false,
+            revision: 2,
+          }),
+        );
+        await assertFails(
+          alice.firestore().doc("socialEdges/active-edge").delete(),
+        );
+      });
+    });
+
     describe("global operation status", {concurrency: false}, () => {
       test(
         "allows only the bound owner to get an exact operation",
@@ -624,6 +699,21 @@ function storedPublicProfile(
     photoVersion: 1,
     followerCount: 0,
     followingCount: 0,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+/** Creates a trusted active edge or inactive revision tombstone. */
+function storedSocialEdge(
+  following: boolean,
+): firebase.firestore.DocumentData {
+  const now = firebase.firestore.Timestamp.now();
+  return {
+    followerUid: "alice",
+    followeeUid: "bob",
+    following,
+    revision: following ? 1 : 2,
     createdAt: now,
     updatedAt: now,
   };

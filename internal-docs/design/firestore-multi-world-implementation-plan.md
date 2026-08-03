@@ -868,17 +868,43 @@ Functions secrets with
 `firebase functions:secrets:set REVENUECAT_PUBLIC_API_KEY_IOS` and
 `firebase functions:secrets:set REVENUECAT_PUBLIC_API_KEY_ANDROID`.
 
-The P12 development-data rewrite is intentionally deferred to the final P21
-integration gate. Production code does not contain legacy-schema fallbacks;
-therefore the strict P12 runtime must not be treated as ready until this gate
-has completed. Run `npm run migrate:p12 --` first in its default read-only
-dry-run mode, review the account and profile-snapshot counts, then run
-`npm run migrate:p12 -- --apply --confirm-project world-notes-prod`. After the
-write, wait for every generated profile and entitlement global operation to
-reach a terminal result and verify the three world projections before the
-final end-to-end checks. The migration command is resumable through the
-operation IDs stored in `userHomes/{uid}`. No production data is changed while
-the earlier implementation units are still under review.
+The project is still in development and currently has only two Asia users, so
+P12 does not retain a general legacy-account migration path. At the final P21
+gate, keep the Firebase Auth users (and therefore their UIDs), reset their app
+account documents, and let the strict home-assignment flow recreate the account
+bundle and its mirrors. Production code contains no legacy-schema fallback.
+
+Implementation note (2026-08-02): P13 makes each directed
+`socialEdges/{edgeId}` document authoritative in the follower's immutable home
+world. `setUserFollow` is routed to the home-world Functions endpoint and
+returns after committing the authority edge, its two local profile counters,
+and an `allActiveWorlds` global operation in one transaction. Follow and
+unfollow use observation policy `none`: the follow button reflects the accepted
+authority result optimistically, while lists and counters converge through the
+selected world's local projection. The client does not keep a durable listener
+solely for background replication progress.
+
+An edge is never physically deleted by the follow command. It transitions
+between `following: true` and a revisioned `following: false` tombstone, and
+every destination applies only a newer revision. The destination transaction
+updates the edge and both local `publicProfiles` counters together. Duplicate,
+out-of-order, and no-op commands therefore cannot double-adjust an aggregate;
+the counters remain rebuildable caches whose truth is the set of active edge
+documents. Client reads must include `following == true`, and Rules keep
+inactive tombstones server-only. Blocking still owns its wider cross-authority
+follow cleanup in P14; the P13 representation is the revision-safe substrate
+for that cleanup.
+
+P13 likewise does not retain a general social-data migration. Existing social
+edges and counters are disposable development data and start empty after the
+reset. Only an explicit allowlist of selected Asia `places/{placeId}` root
+documents and their referenced `pinImageStoragePath` objects is preserved.
+Messages, members, visitors, likes, note states, reports, invites, moderation
+records, and all old aggregates are not restored. Restore each selected place
+only after its creator has completed the new home assignment, normalize its
+creator/profile revision fields to the recreated Asia profile, and recompute
+`userUsage.activeNoteCount` from the restored active place roots. Content
+remains in Asia and is not copied to the global account databases.
 
 ### Phase 7 — block and account-safety enforcement
 

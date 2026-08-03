@@ -10,17 +10,27 @@ import {
 } from "firebase-admin/firestore";
 
 import {MAX_MESSAGES_PER_THREAD, REGION} from "./constants";
+import {
+  GlobalOperationBindingError,
+  GlobalOperationValidationError,
+} from "./globalOperations";
 import {asiaWorldContext} from "./platform/worldContext";
 import {createUserNotice} from "./notices";
 import {
+  executeSocialEdgeCommand,
+  nextSocialEdgeProjection,
+  parseSocialEdgeProjection,
+  socialEdgeId,
+} from "./socialEdgeReplication";
+import {
   hasUserBlockBetween,
-  hasUserBlockBetweenInTransaction,
   userBlockRef,
 } from "./userBlocks";
 
 interface SetUserFollowData {
   targetUserId?: unknown;
   following?: unknown;
+  operationId?: unknown;
 }
 
 interface SetUserBlockData {
@@ -39,27 +49,6 @@ const UNKNOWN_USER_DISPLAY_NAME = "Unknown user";
 const NOTE_ACCESS_CLEANUP_PAGE_SIZE = 200;
 const SCHEDULED_MESSAGE_CLEANUP_PAGE_SIZE = 100;
 const SET_USER_BLOCK_TIMEOUT_SECONDS = 540;
-
-/**
- * Builds a stable edge document id without relying on uid delimiter safety.
- *
- * @param {string} followerUid The user creating the edge.
- * @param {string} followeeUid The user being followed.
- * @return {string} A Firestore document id for the edge.
- */
-export function socialEdgeId(followerUid: string, followeeUid: string): string {
-  return `${base64Url(followerUid)}.${base64Url(followeeUid)}`;
-}
-
-/**
- * Encodes a uid into a document-id-safe token.
- *
- * @param {string} value The uid to encode.
- * @return {string} A base64url token without padding.
- */
-function base64Url(value: string): string {
-  return Buffer.from(value, "utf8").toString("base64url");
-}
 
 /**
  * Validates a user id supplied by a client callable.
@@ -216,7 +205,7 @@ function publicProfileCounter(
  */
 export const setUserFollow = onCall<SetUserFollowData>(
   {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) {
       throw new HttpsError("unauthenticated", "You must be signed in.");
@@ -228,142 +217,50 @@ export const setUserFollow = onCall<SetUserFollowData>(
       throw new HttpsError("invalid-argument", "You cannot follow yourself.");
     }
 
-    const db = asiaWorldContext().firestore;
-    const followerUserRef = db.collection("users").doc(uid);
-    const followeeUserRef = db.collection("users").doc(targetUserId);
+    const db = world.firestore;
     const followerProfileRef = db.collection("publicProfiles").doc(uid);
-    const followeeProfileRef =
-      db.collection("publicProfiles").doc(targetUserId);
     const edgeRef = db
       .collection("socialEdges")
       .doc(socialEdgeId(uid, targetUserId));
 
-    const result = await db.runTransaction(async (tx) => {
-      const isBlocked = await hasUserBlockBetweenInTransaction(
-        tx,
-        db,
-        uid,
-        targetUserId,
-      );
-      const [
-        followerUserSnap,
-        followeeUserSnap,
-        followerProfileSnap,
-        followeeProfileSnap,
-        edgeSnap,
-      ] =
-        await Promise.all([
-          tx.get(followerUserRef),
-          tx.get(followeeUserRef),
-          tx.get(followerProfileRef),
-          tx.get(followeeProfileRef),
-          tx.get(edgeRef),
-        ]);
-
-      if (!followerUserSnap.exists) {
-        throw new HttpsError("failed-precondition", "Caller profile missing.");
-      }
-      if (!followeeUserSnap.exists) {
-        throw new HttpsError("not-found", "User not found.");
-      }
-      if (desiredFollowing && isBlocked) {
-        throw new HttpsError(
-          "failed-precondition",
-          "You cannot follow a blocked user.",
-          {reason: "user_blocked"},
-        );
-      }
-
-      const isFollowing = edgeSnap.exists;
-      if (isFollowing === desiredFollowing) {
-        upsertPublicProfile(
-          tx,
-          followerProfileRef,
-          followerProfileSnap,
-          publicProfileFromUser(followerUserSnap, UNKNOWN_USER_DISPLAY_NAME),
-          0,
-          0,
-        );
-        upsertPublicProfile(
-          tx,
-          followeeProfileRef,
-          followeeProfileSnap,
-          publicProfileFromUser(followeeUserSnap, UNKNOWN_USER_DISPLAY_NAME),
-          0,
-          0,
-        );
-        return {
-          following: desiredFollowing,
-          createdFollow: false,
-          followerName: publicProfileFromUser(
-            followerUserSnap,
-            UNKNOWN_USER_DISPLAY_NAME,
-          ).displayName,
-        };
-      }
-
-      if (desiredFollowing) {
-        upsertPublicProfile(
-          tx,
-          followerProfileRef,
-          followerProfileSnap,
-          publicProfileFromUser(followerUserSnap, UNKNOWN_USER_DISPLAY_NAME),
-          0,
-          1,
-        );
-        upsertPublicProfile(
-          tx,
-          followeeProfileRef,
-          followeeProfileSnap,
-          publicProfileFromUser(followeeUserSnap, UNKNOWN_USER_DISPLAY_NAME),
-          1,
-          0,
-        );
-        tx.set(edgeRef, {
-          followerUid: uid,
-          followeeUid: targetUserId,
-          createdAt: FieldValue.serverTimestamp(),
-        });
-      } else {
-        upsertPublicProfile(
-          tx,
-          followerProfileRef,
-          followerProfileSnap,
-          publicProfileFromUser(followerUserSnap, UNKNOWN_USER_DISPLAY_NAME),
-          0,
-          -1,
-        );
-        upsertPublicProfile(
-          tx,
-          followeeProfileRef,
-          followeeProfileSnap,
-          publicProfileFromUser(followeeUserSnap, UNKNOWN_USER_DISPLAY_NAME),
-          -1,
-          0,
-        );
-        tx.delete(edgeRef);
-      }
-
-      return {
+    let operation;
+    try {
+      operation = await executeSocialEdgeCommand({
+        firestore: db,
+        authorityWorld: world.worldId,
+        followerUid: uid,
+        followeeUid: targetUserId,
         following: desiredFollowing,
-        createdFollow: desiredFollowing,
-        followerName: publicProfileFromUser(
-          followerUserSnap,
-          UNKNOWN_USER_DISPLAY_NAME,
-        ).displayName,
-      };
-    });
+        operationId: req.data?.operationId,
+        sourceEventId: "clientSetUserFollow",
+      });
+    } catch (error) {
+      throw socialCommandHttpsError(error);
+    }
 
-    if (result.createdFollow) {
+    if (desiredFollowing && !operation.replayed) {
       try {
+        const [edgeSnapshot, followerProfile] = await Promise.all([
+          edgeRef.get(),
+          followerProfileRef.get(),
+        ]);
+        const edge = parseSocialEdgeProjection(edgeSnapshot, edgeRef.id);
+        const createdFollow = edge.following &&
+          edge.revision === operation.revision &&
+          edge.createdAt?.toMillis() === edge.updatedAt.toMillis();
         // Notice creation is outside the follow transaction. A block may have
         // committed after that transaction and removed the new follow edge.
-        if (!await hasUserBlockBetween(db, uid, targetUserId)) {
+        if (createdFollow &&
+            !await hasUserBlockBetween(db, uid, targetUserId)) {
+          const followerName = followerProfile.get("displayName");
+          if (typeof followerName !== "string" || followerName.length === 0) {
+            throw new Error("Follower public profile is invalid.");
+          }
           await createUserNotice(targetUserId, {
             category: "social",
             severity: "info",
             title: "New follower",
-            body: `${result.followerName} followed you.`,
+            body: `${followerName} followed you.`,
             sourceType: "userFollow",
             sourceId: uid,
             push: true,
@@ -378,9 +275,28 @@ export const setUserFollow = onCall<SetUserFollowData>(
       }
     }
 
-    return {following: result.following};
+    return {following: desiredFollowing, ...operation};
   },
 );
+
+/**
+ * Converts global-command validation into the stable callable contract.
+ *
+ * @param {unknown} error Command or domain error.
+ * @return {unknown} Stable callable error or original domain error.
+ */
+function socialCommandHttpsError(error: unknown): unknown {
+  if (error instanceof GlobalOperationBindingError) {
+    return new HttpsError(
+      "already-exists",
+      "operationId is already bound to another command.",
+    );
+  }
+  if (error instanceof GlobalOperationValidationError) {
+    return new HttpsError("invalid-argument", error.message);
+  }
+  return error;
+}
 
 /**
  * Removes one user from every note created by the blocker.
@@ -588,8 +504,14 @@ export const setUserBlock = onCall<SetUserBlockData>(
         throw new HttpsError("not-found", "User not found.");
       }
 
-      const removedOutgoing = outgoingEdgeSnap.exists;
-      const removedIncoming = incomingEdgeSnap.exists;
+      const outgoingEdge = outgoingEdgeSnap.exists ?
+        parseSocialEdgeProjection(outgoingEdgeSnap, outgoingEdgeRef.id) :
+        undefined;
+      const incomingEdge = incomingEdgeSnap.exists ?
+        parseSocialEdgeProjection(incomingEdgeSnap, incomingEdgeRef.id) :
+        undefined;
+      const removedOutgoing = outgoingEdge?.following === true;
+      const removedIncoming = incomingEdge?.following === true;
       upsertPublicProfile(
         tx,
         blockerProfileRef,
@@ -606,8 +528,31 @@ export const setUserBlock = onCall<SetUserBlockData>(
         removedOutgoing ? -1 : 0,
         removedIncoming ? -1 : 0,
       );
-      if (removedOutgoing) tx.delete(outgoingEdgeRef);
-      if (removedIncoming) tx.delete(incomingEdgeRef);
+      const removedAt = Timestamp.now();
+      if (removedOutgoing && outgoingEdge !== undefined) {
+        tx.set(outgoingEdgeRef, {
+          ...nextSocialEdgeProjection(
+            uid,
+            targetUserId,
+            false,
+            outgoingEdge.revision + 1,
+            removedAt,
+            outgoingEdge,
+          ),
+        });
+      }
+      if (removedIncoming && incomingEdge !== undefined) {
+        tx.set(incomingEdgeRef, {
+          ...nextSocialEdgeProjection(
+            targetUserId,
+            uid,
+            false,
+            incomingEdge.revision + 1,
+            removedAt,
+            incomingEdge,
+          ),
+        });
+      }
       if (!blockSnap.exists) {
         tx.set(blockRef, {createdAt: FieldValue.serverTimestamp()});
       }

@@ -21,6 +21,7 @@ class UserProfileScreen extends ConsumerStatefulWidget {
 
 class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
   bool _busy = false;
+  bool? _optimisticFollowing;
 
   Future<void> _setFollowing(bool following) async {
     if (_busy) return;
@@ -29,6 +30,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
       await ref
           .read(followRepositoryProvider)
           .setFollowing(targetUserId: widget.userId, following: following);
+      if (mounted) setState(() => _optimisticFollowing = following);
       ref.invalidate(mapPinsProvider);
     } on FirebaseFunctionsException catch (e) {
       _snack(e.message ?? 'Could not update follow state.');
@@ -53,6 +55,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
         targetName: targetName,
         blocked: blocked,
       );
+      if (blocked && mounted) {
+        setState(() => _optimisticFollowing = false);
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -124,13 +129,19 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                               data: (following) => FilledButton.icon(
                                 onPressed: _busy
                                     ? null
-                                    : () => _setFollowing(!following),
+                                    : () => _setFollowing(
+                                        !(_optimisticFollowing ?? following),
+                                      ),
                                 icon: Icon(
-                                  following
+                                  (_optimisticFollowing ?? following)
                                       ? Icons.person_remove_outlined
                                       : Icons.person_add_alt_1_outlined,
                                 ),
-                                label: Text(following ? 'Unfollow' : 'Follow'),
+                                label: Text(
+                                  (_optimisticFollowing ?? following)
+                                      ? 'Unfollow'
+                                      : 'Follow',
+                                ),
                               ),
                             ),
                             const SizedBox(height: 8),

@@ -139,6 +139,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "followerUid", "order": "ASCENDING" },
+        { "fieldPath": "following", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     },
@@ -147,6 +148,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "followeeUid", "order": "ASCENDING" },
+        { "fieldPath": "following", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     },
@@ -155,7 +157,8 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "followerUid", "order": "ASCENDING" },
-        { "fieldPath": "followeeUid", "order": "ASCENDING" }
+        { "fieldPath": "followeeUid", "order": "ASCENDING" },
+        { "fieldPath": "following", "order": "ASCENDING" }
       ]
     },
     {

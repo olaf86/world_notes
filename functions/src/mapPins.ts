@@ -445,6 +445,7 @@ async function addMarkerFlagsToPins(
           .collection("socialEdges")
           .where("followerUid", "==", uid)
           .where("followeeUid", "in", creatorUidChunk)
+          .where("following", "==", true)
           .get(),
       ),
     ),

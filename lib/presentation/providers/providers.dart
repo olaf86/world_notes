@@ -638,7 +638,7 @@ final messageRepositoryProvider = Provider<MessageRepository>((ref) {
 final followRepositoryProvider = Provider<FollowRepository>((ref) {
   return FollowRepositoryImpl(
     firestore: ref.watch(selectedWorldFirestoreProvider),
-    functions: ref.watch(selectedWorldFunctionsProvider),
+    functions: ref.watch(homeWorldFunctionsProvider),
   );
 });
 
