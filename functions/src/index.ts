@@ -25,6 +25,10 @@ export {
   adminReviewMessage,
   adminReviewNote,
 } from "./adminModeration";
+export {
+  adminGetAccountSafety,
+  adminUpdateAccountSafety,
+} from "./adminAccountSafety";
 
 // Invite-link functions (share-link access to private notes). Region set in
 // their own options.

@@ -213,6 +213,7 @@ describe(
         db.collection("publicProfiles").doc(uid),
         db.collection("userEntitlements").doc(uid),
         db.collection("userUsage").doc(uid),
+        db.collection("accountSafety").doc(uid),
       ];
       cleanupReferences.push(...references);
 
@@ -229,7 +230,7 @@ describe(
         worldId: string;
       }>;
       const result = body.result ?? body.data;
-      const [home, user, profile, entitlement, usage] =
+      const [home, user, profile, entitlement, usage, safety] =
         await Promise.all(references.map((reference) => reference.get()));
 
       assert.equal(response.status, 200);
@@ -250,6 +251,9 @@ describe(
       assert.equal(entitlement.get("sourceCheckedAt"), null);
       assert.equal(entitlement.get("revision"), 2);
       assert.equal(usage.get("activeNoteCount"), 0);
+      assert.equal(safety.get("violationPoints"), 0);
+      assert.equal(safety.get("revision"), 2);
+      assert.equal(safety.get("authorityWorld"), "asia");
     });
 
     test("accepts a revisioned home profile update", async () => {
@@ -262,6 +266,7 @@ describe(
       const profileRef = db.collection("publicProfiles").doc(uid);
       const entitlementRef = db.collection("userEntitlements").doc(uid);
       const usageRef = db.collection("userUsage").doc(uid);
+      const safetyRef = db.collection("accountSafety").doc(uid);
       const operationRef = db
         .collection("globalOperations")
         .doc(TEST_PROFILE_OPERATION_ID);
@@ -271,6 +276,7 @@ describe(
         profileRef,
         entitlementRef,
         usageRef,
+        safetyRef,
         operationRef,
       );
       const bootstrap = await callFunction(
@@ -332,6 +338,7 @@ describe(
         db.collection("publicProfiles").doc(uid),
         db.collection("userEntitlements").doc(uid),
         db.collection("userUsage").doc(uid),
+        db.collection("accountSafety").doc(uid),
       );
 
       const responses = await Promise.all([
@@ -379,6 +386,7 @@ describe(
         db.collection("publicProfiles").doc(uid),
         db.collection("userEntitlements").doc(uid),
         db.collection("userUsage").doc(uid),
+        db.collection("accountSafety").doc(uid),
         operationReference,
       );
       const bootstrap = await callFunction(

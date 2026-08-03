@@ -1036,11 +1036,23 @@ accountSafety/{uid}
   violationPoints
   lastViolationAt
   nextPointDecayAt
+  automatedRestrictedUntil
+  automatedBannedUntil
+  adminRestrictedUntil
+  adminBannedUntil
   restrictedUntil
   bannedUntil
   isPermanentlyBanned
+  authorityWorld
   updatedAt
 ```
+
+`restrictedUntil` and `bannedUntil` are the effective local-enforcement
+timestamps: each is the later of its automated and administrator source
+fields. Keeping the sources separate is what makes override independence
+implementable. Clearing an administrator override therefore reveals any
+still-active automated period instead of accidentally clearing it, and a new
+automated event cannot replace a longer administrator period.
 
 Each content world writes an immutable, deduplicated violation event. One
 transaction in the subject user's `homeWorld` applies it, then propagates the

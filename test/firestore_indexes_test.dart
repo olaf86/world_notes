@@ -227,6 +227,35 @@ void main() {
       isTrue,
     );
   });
+
+  test('enables account safety receipt TTL without indexing its timestamp', () {
+    final config =
+        jsonDecode(File('firestore.indexes.json').readAsStringSync())
+            as Map<String, dynamic>;
+    final overrides = (config['fieldOverrides'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+
+    expect(
+      overrides.any(
+        (override) =>
+            override['collectionGroup'] == 'appliedEvents' &&
+            override['fieldPath'] == 'expireAt' &&
+            override['ttl'] == true &&
+            (override['indexes'] as List<dynamic>).isEmpty,
+      ),
+      isTrue,
+    );
+    expect(
+      overrides.any(
+        (override) =>
+            override['collectionGroup'] == 'adminAudits' &&
+            override['fieldPath'] == 'expireAt' &&
+            override['ttl'] == true &&
+            (override['indexes'] as List<dynamic>).isEmpty,
+      ),
+      isTrue,
+    );
+  });
 }
 
 bool _isArchivedNotesIndex(Map<String, dynamic> index) {

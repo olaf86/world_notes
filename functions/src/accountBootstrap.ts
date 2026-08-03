@@ -1,9 +1,12 @@
 /* eslint-disable valid-jsdoc */
 
+import {createHash} from "node:crypto";
+
 import {getAuth, UserRecord} from "firebase-admin/auth";
 import {
   DocumentSnapshot,
   FieldValue,
+  Timestamp,
 } from "firebase-admin/firestore";
 import * as logger from "firebase-functions/logger";
 
@@ -21,6 +24,10 @@ import {
   executeEntitlementUpdate,
   executePublicProfilePublish,
 } from "./profileEntitlementReplication";
+import {
+  executeAccountSafetyEvent,
+  initialAccountSafetyData,
+} from "./accountSafety";
 
 const HOME_EPOCH = 1;
 const MAX_DISPLAY_NAME_LENGTH = 20;
@@ -29,6 +36,7 @@ const MAX_PHOTO_URL_LENGTH = 2000;
 const PROFILE_REPLICATION_OPERATION_FIELD = "profileReplicationOperationId";
 const ENTITLEMENT_REPLICATION_OPERATION_FIELD =
   "entitlementReplicationOperationId";
+const SAFETY_REPLICATION_OPERATION_FIELD = "safetyReplicationOperationId";
 interface AssignHomeWorldData {
   readonly homeWorld?: unknown;
 }
@@ -66,17 +74,20 @@ export const assignHomeWorld = onCall<AssignHomeWorldData>(
     const profileRef = db.collection("publicProfiles").doc(uid);
     const entitlementRef = db.collection("userEntitlements").doc(uid);
     const usageRef = db.collection("userUsage").doc(uid);
+    const safetyRef = db.collection("accountSafety").doc(uid);
 
     const candidateProfileOperationId = newGlobalOperationId();
     const candidateEntitlementOperationId = newGlobalOperationId();
+    const candidateSafetyOperationId = newGlobalOperationId();
     const bootstrap = await db.runTransaction(async (transaction) => {
-      const [homeSnapshot, user, profile, entitlement, usage] =
+      const [homeSnapshot, user, profile, entitlement, usage, safety] =
         await Promise.all([
           transaction.get(homeRef),
           transaction.get(userRef),
           transaction.get(profileRef),
           transaction.get(entitlementRef),
           transaction.get(usageRef),
+          transaction.get(safetyRef),
         ]);
 
       if (homeSnapshot.exists) {
@@ -88,9 +99,9 @@ export const assignHomeWorld = onCall<AssignHomeWorldData>(
             "This account already has a different home assignment.",
           );
         }
-        requireCompleteAccountBundle(user, profile, entitlement, usage);
+        requireCompleteAccountBundle(user, profile, entitlement, usage, safety);
       } else {
-        requireEmptyAccountBundle(user, profile, entitlement, usage);
+        requireEmptyAccountBundle(user, profile, entitlement, usage, safety);
         transaction.create(homeRef, {
           world: homeWorld,
           epoch: HOME_EPOCH,
@@ -98,12 +109,17 @@ export const assignHomeWorld = onCall<AssignHomeWorldData>(
             candidateProfileOperationId,
           [ENTITLEMENT_REPLICATION_OPERATION_FIELD]:
             candidateEntitlementOperationId,
+          [SAFETY_REPLICATION_OPERATION_FIELD]: candidateSafetyOperationId,
           createdAt: FieldValue.serverTimestamp(),
         });
         transaction.create(userRef, privateUserData(authUser));
         transaction.create(profileRef, publicProfileData(authUser));
         transaction.create(entitlementRef, entitlementData());
         transaction.create(usageRef, usageData());
+        transaction.create(
+          safetyRef,
+          initialAccountSafetyData(homeWorld, Timestamp.now()),
+        );
       }
       const assignedNow = !homeSnapshot.exists;
       const profileOperationId = assignedNow ?
@@ -118,6 +134,12 @@ export const assignHomeWorld = onCall<AssignHomeWorldData>(
           homeSnapshot,
           ENTITLEMENT_REPLICATION_OPERATION_FIELD,
         );
+      const safetyOperationId = assignedNow ?
+        candidateSafetyOperationId :
+        operationIdFromHome(
+          homeSnapshot,
+          SAFETY_REPLICATION_OPERATION_FIELD,
+        );
       const isPremium = assignedNow ? false : entitlement.get("isPremium");
       if (typeof isPremium !== "boolean") {
         throw new HttpsError(
@@ -129,6 +151,7 @@ export const assignHomeWorld = onCall<AssignHomeWorldData>(
         assignedNow,
         profileOperationId,
         entitlementOperationId,
+        safetyOperationId,
         isPremium,
       };
     });
@@ -150,6 +173,17 @@ export const assignHomeWorld = onCall<AssignHomeWorldData>(
         sourceCheckedAt: null,
         sourceEventId: "accountBootstrap:entitlement",
       }),
+      executeAccountSafetyEvent({
+        firestore: db,
+        authorityWorld: homeWorld,
+        uid,
+        operationId: bootstrap.safetyOperationId,
+        eventId: bootstrapSafetyEventId(uid),
+        points: 0,
+        sourceWorld: homeWorld,
+        sourceType: "accountBootstrap",
+        sourceEntityId: uid,
+      }),
     ]);
     await cacheHomeClaim(authUser, homeWorld);
     return {
@@ -167,6 +201,14 @@ function operationIdFromHome(
   field: string,
 ): string {
   return requireOperationId(homeSnapshot.get(field));
+}
+
+/** Derives the one immutable safety-bootstrap receipt ID for an account. */
+function bootstrapSafetyEventId(uid: string): string {
+  return createHash("sha256")
+    .update("accountSafetyBootstrap\0", "utf8")
+    .update(uid, "utf8")
+    .digest("hex");
 }
 
 /** Rejects a partially created authority bundle. */

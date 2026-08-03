@@ -10,6 +10,10 @@ rules_version = '2';
 //   isPremium (bool) and updatedAt (timestamp).
 // - userUsage/{uid}: server-only independent world usage with
 //   activeNoteCount (non-negative integer) and updatedAt (timestamp).
+// - accountSafety/{uid}: server-only authority or regional enforcement mirror
+//   containing a revisioned 0-100 score, independent automated/admin expiry
+//   sources, effective restriction/BAN fields, authority world and timestamps.
+//   appliedEvents receipts and adminAudits below it are also server-only.
 // - globalOperations/{operationId}: server-written durable global-command
 //   status. Contains bounded routing/status metadata, revision, SHA-256
 //   payloadHash, required-world snapshot, acknowledgements and timestamps.
@@ -263,6 +267,18 @@ service cloud.firestore {
 
     match /userUsage/{uid} {
       allow read, write: if false;
+    }
+
+    match /accountSafety/{uid} {
+      allow read, write: if false;
+
+      match /appliedEvents/{eventId} {
+        allow read, write: if false;
+      }
+
+      match /adminAudits/{auditId} {
+        allow read, write: if false;
+      }
     }
 
     match /globalOperations/{operationId} {

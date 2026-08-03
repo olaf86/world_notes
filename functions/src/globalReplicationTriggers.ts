@@ -14,6 +14,10 @@ import {
   missingDestinationWorlds,
   processGlobalOperation,
 } from "./globalReplication";
+import {
+  accountSafetyReplicationHandler,
+  adminAccountSafetyReplicationHandler,
+} from "./accountSafety";
 import {parseGlobalOperation} from "./globalOperations";
 import {
   publicProfileReplicationHandler,
@@ -48,6 +52,8 @@ const productionRuntime: GlobalReplicationRuntime = {
     userEntitlementReplicationHandler,
     socialEdgeReplicationHandler,
     userBlockReplicationHandler,
+    accountSafetyReplicationHandler,
+    adminAccountSafetyReplicationHandler,
   ]),
 };
 

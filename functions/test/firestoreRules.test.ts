@@ -452,6 +452,55 @@ describe(
       });
     });
 
+    describe("account safety", {concurrency: false}, () => {
+      test("denies every client authority and mirror access", async () => {
+        const path = "accountSafety/alice";
+        await seedApplicationDocument(path, {
+          revision: 1,
+          violationPoints: 0,
+        });
+        const alice = requireApplicationRules().authenticatedContext("alice");
+        const bob = requireApplicationRules().authenticatedContext("bob");
+        const guest = requireApplicationRules().unauthenticatedContext();
+
+        await assertFails(alice.firestore().doc(path).get());
+        await assertFails(bob.firestore().doc(path).get());
+        await assertFails(guest.firestore().doc(path).get());
+        await assertFails(
+          alice.firestore().collection("accountSafety").get(),
+        );
+        await assertFails(
+          alice.firestore().doc(path).update({violationPoints: 100}),
+        );
+        await assertFails(
+          alice.firestore().doc("accountSafety/bob").set({
+            revision: 1,
+            violationPoints: 0,
+          }),
+        );
+        await assertFails(alice.firestore().doc(path).delete());
+      });
+
+      test("denies access to an orphaned application receipt", async () => {
+        const receiptPath =
+          "accountSafety/missing/appliedEvents/test-safety-event";
+        await seedApplicationDocument(receiptPath, {revision: 1});
+        const alice = requireApplicationRules().authenticatedContext("alice");
+
+        await assertFails(alice.firestore().doc(receiptPath).get());
+        await assertFails(
+          alice.firestore().doc(receiptPath).set({revision: 2}),
+        );
+        const auditPath =
+          "accountSafety/missing/adminAudits/test-admin-operation";
+        await seedApplicationDocument(auditPath, {revision: 1});
+        await assertFails(alice.firestore().doc(auditPath).get());
+        await assertFails(
+          alice.firestore().doc(auditPath).set({revision: 2}),
+        );
+      });
+    });
+
     describe("cleanup queues", {concurrency: false}, () => {
       test("denies every client read and write", async () => {
         const path =
