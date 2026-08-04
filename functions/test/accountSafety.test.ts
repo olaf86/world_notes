@@ -10,6 +10,7 @@ import {
   ACCOUNT_SAFETY_DECAY_GRACE_MILLIS,
   ACCOUNT_SAFETY_DECAY_INTERVAL_MILLIS,
   ACCOUNT_SAFETY_RESTRICTION_MILLIS,
+  accountSafetyDenialReason,
   applyAdminAction,
   applyAccountSafetyDecay,
   initialAccountSafetyData,
@@ -31,6 +32,52 @@ test("initial account safety permits all operations", () => {
     parseAccountSafetyProjection(snapshot(initial), "asia").authorityWorld,
     "asia",
   );
+});
+
+test("posting restrictions deny content but allow participation", () => {
+  const restrictedUntil = Timestamp.fromMillis(NOW.toMillis() + 60_000);
+  const restricted = {
+    ...initialAccountSafetyData("asia", NOW),
+    automatedRestrictedUntil: restrictedUntil,
+    restrictedUntil,
+  };
+
+  assert.equal(
+    accountSafetyDenialReason(restricted, "contentWrite", NOW),
+    "posting-restricted",
+  );
+  assert.equal(
+    accountSafetyDenialReason(restricted, "participation", NOW),
+    null,
+  );
+  assert.equal(
+    accountSafetyDenialReason(restricted, "contentWrite", restrictedUntil),
+    null,
+  );
+});
+
+test("temporary and permanent bans deny every protected family", () => {
+  const bannedUntil = Timestamp.fromMillis(NOW.toMillis() + 60_000);
+  const temporarilyBanned = {
+    ...initialAccountSafetyData("asia", NOW),
+    automatedBannedUntil: bannedUntil,
+    bannedUntil,
+  };
+  const permanentlyBanned = {
+    ...initialAccountSafetyData("asia", NOW),
+    isPermanentlyBanned: true,
+  };
+
+  for (const family of ["contentWrite", "participation"] as const) {
+    assert.equal(
+      accountSafetyDenialReason(temporarilyBanned, family, NOW),
+      "account-banned",
+    );
+    assert.equal(
+      accountSafetyDenialReason(permanentlyBanned, family, NOW),
+      "account-banned",
+    );
+  }
 });
 
 test("point decay starts after the grace and first interval", () => {

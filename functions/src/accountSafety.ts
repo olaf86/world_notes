@@ -42,8 +42,8 @@ export const ACCOUNT_SAFETY_BAN_MILLIS =
 export const ACCOUNT_SAFETY_AUDIT_RETENTION_MILLIS =
   365 * 24 * 60 * 60 * 1000;
 
-const UID_PATTERN = /^[^/\s]{1,128}$/;
-const EVENT_ID_PATTERN = /^[0-9a-f]{64}$/;
+const MAX_UID_LENGTH = 128;
+const MAX_EVENT_ID_LENGTH = 256;
 const SAFETY_FIELDS = new Set([
   "revision",
   "violationPoints",
@@ -113,6 +113,8 @@ export interface ExecuteAdminAccountSafetyUpdateInput {
 }
 
 export type AccountSafetyOperationFamily = "contentWrite" | "participation";
+export type AccountSafetyDenialReason =
+  "account-banned" | "posting-restricted" | null;
 
 /** Replicates the complete local account-enforcement projection. */
 export const accountSafetyReplicationHandler: GlobalReplicationHandler = {
@@ -472,23 +474,67 @@ export async function assertAccountSafetyAllows(
       {reason: "world-not-ready"},
     );
   }
-  const banned = safety.isPermanentlyBanned ||
-    isFuture(safety.bannedUntil, now);
-  if (banned) {
+  assertAccountSafetyProjectionAllows(safety, family, now);
+}
+
+/** Rejects a disallowed request before paid or storage-heavy preprocessing. */
+export async function assertAccountSafetyPreflight(
+  firestore: Firestore,
+  uid: string,
+  family: AccountSafetyOperationFamily,
+  now: Timestamp,
+): Promise<void> {
+  const snapshot = await accountSafetyRef(firestore, uid).get();
+  let safety: AccountSafetyProjection;
+  try {
+    safety = parseAccountSafetyProjection(snapshot);
+  } catch {
+    throw new HttpsError(
+      "failed-precondition",
+      "This world is still preparing your account safety state.",
+      {reason: "world-not-ready"},
+    );
+  }
+  assertAccountSafetyProjectionAllows(safety, family, now);
+}
+
+/** Converts a parsed local projection into the stable callable errors. */
+function assertAccountSafetyProjectionAllows(
+  safety: AccountSafetyProjection,
+  family: AccountSafetyOperationFamily,
+  now: Timestamp,
+): void {
+  const denialReason = accountSafetyDenialReason(safety, family, now);
+  if (denialReason === "account-banned") {
     throw new HttpsError(
       "permission-denied",
       "Your account is currently banned.",
       {reason: "account-banned"},
     );
   }
-  if (family === "contentWrite" &&
-      isFuture(safety.restrictedUntil, now)) {
+  if (denialReason === "posting-restricted") {
     throw new HttpsError(
       "permission-denied",
       "Your account is temporarily restricted from posting.",
       {reason: "posting-restricted"},
     );
   }
+}
+
+/** Derives the local enforcement result without performing a database read. */
+export function accountSafetyDenialReason(
+  safety: AccountSafetyProjection,
+  family: AccountSafetyOperationFamily,
+  now: Timestamp,
+): AccountSafetyDenialReason {
+  if (safety.isPermanentlyBanned || isFuture(safety.bannedUntil, now)) {
+    return "account-banned";
+  }
+  if (family === "contentWrite" &&
+      isFuture(safety.restrictedUntil, now)) {
+    return "posting-restricted";
+  }
+  return null;
 }
 
 async function replicateAccountSafety(
@@ -644,14 +690,16 @@ function sameTimestamp(
 }
 
 function requireUid(value: unknown): string {
-  if (typeof value !== "string" || !UID_PATTERN.test(value)) {
+  if (typeof value !== "string" || value.length === 0 ||
+      value.length > MAX_UID_LENGTH || value.includes("/")) {
     throw new Error("Account safety UID is invalid.");
   }
   return value;
 }
 
 function requireEventId(value: unknown): string {
-  if (typeof value !== "string" || !EVENT_ID_PATTERN.test(value)) {
+  if (typeof value !== "string" || value.length === 0 ||
+      value.length > MAX_EVENT_ID_LENGTH || value.includes("/")) {
     throw new Error("Account safety event ID is invalid.");
   }
   return value;

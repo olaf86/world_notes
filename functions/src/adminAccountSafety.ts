@@ -122,19 +122,23 @@ export const adminUpdateAccountSafety = onCall<AdminUpdateAccountSafetyData>(
   },
 );
 
+/** Resolves the target user's immutable userHomes assignment and authority. */
 async function resolveTargetAuthority(
   sourceFirestore: Firestore,
   sourceWorld: string,
   uid: string,
 ): Promise<Readonly<{worldId: string; firestore: Firestore}>> {
-  let marker = await sourceFirestore.collection("userHomes").doc(uid).get();
-  if (!marker.exists && sourceWorld !== ASIA_WORLD_ID) {
-    marker = await worldFirestore.forWorld(ASIA_WORLD_ID)
+  let homeAssignmentSnapshot = await sourceFirestore
+    .collection("userHomes")
+    .doc(uid)
+    .get();
+  if (!homeAssignmentSnapshot.exists && sourceWorld !== ASIA_WORLD_ID) {
+    homeAssignmentSnapshot = await worldFirestore.forWorld(ASIA_WORLD_ID)
       .collection("userHomes")
       .doc(uid)
       .get();
   }
-  const worldId = marker.get("world");
+  const worldId = homeAssignmentSnapshot.get("world");
   if (typeof worldId !== "string") {
     throw new HttpsError("not-found", "Target account was not found.");
   }

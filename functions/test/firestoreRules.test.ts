@@ -640,6 +640,146 @@ describe(
         );
       });
 
+      test("allows an unrestricted maintainer to close a thread", async () => {
+        await Promise.all([
+          seedApplicationDocument("userHomes/alice", validUserHome()),
+          seedApplicationDocument(
+            "accountSafety/alice",
+            validAccountSafety(),
+          ),
+          seedApplicationDocument("places/tokyo", activePublicPlace()),
+        ]);
+        const alice = requireApplicationRules().authenticatedContext("alice");
+
+        await assertSucceeds(
+          alice.firestore().doc("places/tokyo").update({
+            isOpen: false,
+            closedReason: "owner",
+            closedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          }),
+        );
+      });
+
+      test("denies thread edits during a posting restriction", async () => {
+        const future = firebase.firestore.Timestamp.fromMillis(
+          Date.now() + 60_000,
+        );
+        await Promise.all([
+          seedApplicationDocument("userHomes/alice", validUserHome()),
+          seedApplicationDocument(
+            "accountSafety/alice",
+            validAccountSafety({
+              automatedRestrictedUntil: future,
+              restrictedUntil: future,
+            }),
+          ),
+          seedApplicationDocument("places/tokyo", activePublicPlace()),
+        ]);
+        const alice = requireApplicationRules().authenticatedContext("alice");
+
+        await assertFails(
+          alice.firestore().doc("places/tokyo").update({
+            isOpen: false,
+            closedReason: "owner",
+            closedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          }),
+        );
+      });
+
+      test("denies thread edits during a temporary ban", async () => {
+        const future = firebase.firestore.Timestamp.fromMillis(
+          Date.now() + 60_000,
+        );
+        await Promise.all([
+          seedApplicationDocument("userHomes/alice", validUserHome()),
+          seedApplicationDocument(
+            "accountSafety/alice",
+            validAccountSafety({
+              automatedBannedUntil: future,
+              bannedUntil: future,
+            }),
+          ),
+          seedApplicationDocument("places/tokyo", activePublicPlace()),
+        ]);
+        const alice = requireApplicationRules().authenticatedContext("alice");
+
+        await assertFails(
+          alice.firestore().doc("places/tokyo").update({
+            isOpen: false,
+            closedReason: "owner",
+            closedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          }),
+        );
+      });
+
+      test(
+        "allows thread edits after a posting restriction expires",
+        async () => {
+          const past = firebase.firestore.Timestamp.fromMillis(
+            Date.now() - 60_000,
+          );
+          await Promise.all([
+            seedApplicationDocument("userHomes/alice", validUserHome()),
+            seedApplicationDocument(
+              "accountSafety/alice",
+              validAccountSafety({
+                automatedRestrictedUntil: past,
+                restrictedUntil: past,
+              }),
+            ),
+            seedApplicationDocument("places/tokyo", activePublicPlace()),
+          ]);
+          const alice = requireApplicationRules().authenticatedContext("alice");
+
+          await assertSucceeds(
+            alice.firestore().doc("places/tokyo").update({
+              isOpen: false,
+              closedReason: "owner",
+              closedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            }),
+          );
+        },
+      );
+
+      test("fails closed without a valid account safety mirror", async () => {
+        await Promise.all([
+          seedApplicationDocument("userHomes/alice", validUserHome()),
+          seedApplicationDocument("places/tokyo", activePublicPlace()),
+        ]);
+        const alice = requireApplicationRules().authenticatedContext("alice");
+
+        await assertFails(
+          alice.firestore().doc("places/tokyo").update({
+            isOpen: false,
+            closedReason: "owner",
+            closedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          }),
+        );
+      });
+
+      test(
+        "fails closed when the safety mirror schema is polluted",
+        async () => {
+          await Promise.all([
+            seedApplicationDocument("userHomes/alice", validUserHome()),
+            seedApplicationDocument(
+              "accountSafety/alice",
+              validAccountSafety({untrustedOverride: true}),
+            ),
+            seedApplicationDocument("places/tokyo", activePublicPlace()),
+          ]);
+          const alice = requireApplicationRules().authenticatedContext("alice");
+
+          await assertFails(
+            alice.firestore().doc("places/tokyo").update({
+              isOpen: false,
+              closedReason: "owner",
+              closedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            }),
+          );
+        },
+      );
+
       test(
         "allows reading a visible message in an accessible note",
         async () => {
@@ -778,6 +918,29 @@ function validUserHome(): firebase.firestore.DocumentData {
     world: "asia",
     epoch: 1,
     createdAt: firebase.firestore.Timestamp.now(),
+  };
+}
+
+/** Creates a complete server-written account-safety projection. */
+function validAccountSafety(
+  overrides: firebase.firestore.DocumentData = {},
+): firebase.firestore.DocumentData {
+  const now = firebase.firestore.Timestamp.now();
+  return {
+    revision: 1,
+    violationPoints: 0,
+    lastViolationAt: null,
+    nextPointDecayAt: null,
+    automatedRestrictedUntil: null,
+    automatedBannedUntil: null,
+    adminRestrictedUntil: null,
+    adminBannedUntil: null,
+    restrictedUntil: null,
+    bannedUntil: null,
+    isPermanentlyBanned: false,
+    authorityWorld: "asia",
+    updatedAt: now,
+    ...overrides,
   };
 }
 

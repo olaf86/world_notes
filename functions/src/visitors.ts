@@ -7,6 +7,7 @@ import {
 } from "firebase-admin/firestore";
 
 import {REGION} from "./constants";
+import {assertAccountSafetyAllows} from "./accountSafety";
 import {asiaWorldContext} from "./platform/worldContext";
 import {canMaintainNote} from "./noteMaintenance";
 import {hasUserBlockBetweenInTransaction} from "./userBlocks";
@@ -91,6 +92,13 @@ export const recordNoteVisit = onCall<RecordNoteVisitData>(
 
     await db.runTransaction(async (tx) => {
       const placeSnap = await tx.get(placeRef);
+      await assertAccountSafetyAllows(
+        tx,
+        db,
+        uid,
+        "participation",
+        Timestamp.fromMillis(nowMillis),
+      );
       if (!placeSnap.exists) {
         throw new HttpsError("not-found", "Note not found.");
       }
@@ -187,6 +195,13 @@ export const setFootprintEnabled = onCall<SetFootprintEnabledData>(
     const placeRef = db.collection("places").doc(placeId);
     await db.runTransaction(async (tx) => {
       const placeSnap = await tx.get(placeRef);
+      await assertAccountSafetyAllows(
+        tx,
+        db,
+        uid,
+        "contentWrite",
+        Timestamp.now(),
+      );
       if (!placeSnap.exists) {
         throw new HttpsError("not-found", "Note not found.");
       }

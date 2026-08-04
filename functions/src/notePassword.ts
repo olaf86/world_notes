@@ -5,6 +5,7 @@ import {
 } from "firebase-admin/firestore";
 
 import {REGION} from "./constants";
+import {assertAccountSafetyAllows} from "./accountSafety";
 import {asiaWorldContext} from "./platform/worldContext";
 import {
   hashLockSecret,
@@ -63,35 +64,42 @@ export const setNotePassword = onCall<{
 
     const db = asiaWorldContext().firestore;
     const placeRef = db.collection("places").doc(placeId);
-    const placeSnap = await placeRef.get();
-    if (!placeSnap.exists) {
-      throw new HttpsError("not-found", "Note not found.");
-    }
-    if (!canChangeNoteLock(placeSnap, uid)) {
-      throw new HttpsError(
-        "permission-denied",
-        "Only the note creator can change this lock.",
-      );
-    }
-
-    const newVersion = ((placeSnap.get("passwordVersion") as number) ?? 0) + 1;
     const hash = await hashLockSecret(password);
-
-    const batch = db.batch();
-    batch.set(placeRef.collection("secret").doc("auth"), {
-      hash,
-      passwordVersion: newVersion,
+    const newVersion = await db.runTransaction(async (tx) => {
+      const placeSnap = await tx.get(placeRef);
+      await assertAccountSafetyAllows(
+        tx,
+        db,
+        uid,
+        "contentWrite",
+        Timestamp.now(),
+      );
+      if (!placeSnap.exists) {
+        throw new HttpsError("not-found", "Note not found.");
+      }
+      if (!canChangeNoteLock(placeSnap, uid)) {
+        throw new HttpsError(
+          "permission-denied",
+          "Only the note creator can change this lock.",
+        );
+      }
+      const version =
+        ((placeSnap.get("passwordVersion") as number) ?? 0) + 1;
+      tx.set(placeRef.collection("secret").doc("auth"), {
+        hash,
+        passwordVersion: version,
+      });
+      tx.update(placeRef, {
+        visibility: "private",
+        passwordVersion: version,
+        lockType: requestedLockType,
+        lockHint:
+          typeof lockHint === "string" && lockHint.trim().length > 0 ?
+            lockHint.trim() :
+            FieldValue.delete(),
+      });
+      return version;
     });
-    batch.update(placeRef, {
-      visibility: "private",
-      passwordVersion: newVersion,
-      lockType: requestedLockType,
-      lockHint:
-        typeof lockHint === "string" && lockHint.trim().length > 0 ?
-          lockHint.trim() :
-          FieldValue.delete(),
-    });
-    await batch.commit();
 
     return {ok: true, passwordVersion: newVersion};
   },
@@ -186,20 +194,23 @@ export const unlockNote = onCall<{placeId?: unknown; password?: unknown}>(
 
     const profile = await profileForMember(uid);
 
-    const batch = db.batch();
-    batch.set(
-      placeRef.collection("members").doc(uid),
-      {
+    await db.runTransaction(async (tx) => {
+      await assertAccountSafetyAllows(
+        tx,
+        db,
+        uid,
+        "participation",
+        Timestamp.fromMillis(now),
+      );
+      tx.set(placeRef.collection("members").doc(uid), {
         userId: uid,
         viaPasswordVersion: authSnap.get("passwordVersion") as number,
         grantedAt: FieldValue.serverTimestamp(),
         displayName: profile.displayName,
         profileRevision: profile.profileRevision,
-      },
-      {merge: true},
-    );
-    batch.delete(attemptRef);
-    await batch.commit();
+      }, {merge: true});
+      tx.delete(attemptRef);
+    });
 
     return {ok: true};
   },

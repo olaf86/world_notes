@@ -64,6 +64,86 @@ service cloud.firestore {
              && get(path).data.epoch > 0;
     }
 
+    function isEffectiveSafetyExpiry(effective, automated, administrator) {
+      return (effective == null
+              && automated == null
+              && administrator == null)
+             || (effective is timestamp
+                 && (automated == null || automated <= effective)
+                 && (administrator == null || administrator <= effective)
+                 && (effective == automated || effective == administrator));
+    }
+
+    function isValidAccountSafetyProjection(safety) {
+      return safety.keys().hasOnly([
+               'revision',
+               'violationPoints',
+               'lastViolationAt',
+               'nextPointDecayAt',
+               'automatedRestrictedUntil',
+               'automatedBannedUntil',
+               'adminRestrictedUntil',
+               'adminBannedUntil',
+               'restrictedUntil',
+               'bannedUntil',
+               'isPermanentlyBanned',
+               'authorityWorld',
+               'updatedAt'
+             ])
+             && safety.revision is int
+             && safety.revision > 0
+             && safety.violationPoints is int
+             && safety.violationPoints >= 0
+             && safety.violationPoints <= 100
+             && (safety.lastViolationAt == null
+                 || safety.lastViolationAt is timestamp)
+             && (safety.nextPointDecayAt == null
+                 || safety.nextPointDecayAt is timestamp)
+             && (safety.automatedRestrictedUntil == null
+                 || safety.automatedRestrictedUntil is timestamp)
+             && (safety.automatedBannedUntil == null
+                 || safety.automatedBannedUntil is timestamp)
+             && (safety.adminRestrictedUntil == null
+                 || safety.adminRestrictedUntil is timestamp)
+             && (safety.adminBannedUntil == null
+                 || safety.adminBannedUntil is timestamp)
+             && (safety.restrictedUntil == null
+                 || safety.restrictedUntil is timestamp)
+             && (safety.bannedUntil == null
+                 || safety.bannedUntil is timestamp)
+             && safety.isPermanentlyBanned is bool
+             && safety.authorityWorld is string
+             && safety.authorityWorld.size() > 0
+             && safety.authorityWorld.size() <= 32
+             && safety.updatedAt is timestamp
+             && isEffectiveSafetyExpiry(
+                  safety.restrictedUntil,
+                  safety.automatedRestrictedUntil,
+                  safety.adminRestrictedUntil
+                )
+             && isEffectiveSafetyExpiry(
+                  safety.bannedUntil,
+                  safety.automatedBannedUntil,
+                  safety.adminBannedUntil
+                );
+    }
+
+    function accountSafetyAllowsContentWrite(safety) {
+      return isValidAccountSafetyProjection(safety)
+             && safety.isPermanentlyBanned == false
+             && (safety.bannedUntil == null
+                 || safety.bannedUntil <= request.time)
+             && (safety.restrictedUntil == null
+                 || safety.restrictedUntil <= request.time);
+    }
+
+    function canPerformContentWrite() {
+      let path = /databases/$(database)/documents/accountSafety/$(request.auth.uid);
+      return hasReadyAccount()
+             && exists(path)
+             && accountSafetyAllowsContentWrite(get(path).data);
+    }
+
     function hasActiveUserBlock(blockerUid, blockedUid) {
       let path = /databases/$(database)/documents/users/$(blockerUid)/blockedUsers/$(blockedUid);
       return exists(path) && get(path).data.isBlocked == true;
@@ -321,6 +401,7 @@ service cloud.firestore {
       //     permanent.
       allow update: if isPlaceMaintainer(resource.data)
                     && hasReadyAccount()
+                    && canPerformContentWrite()
                     && isValidClientThreadStateTransition();
 
       // messageCount / lastMessageAt are maintained ONLY by Cloud Functions

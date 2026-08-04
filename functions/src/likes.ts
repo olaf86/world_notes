@@ -2,8 +2,10 @@
 import {onCall, HttpsError} from "./platform/worldCallable";
 import {
   DocumentSnapshot,
+  Timestamp,
 } from "firebase-admin/firestore";
 
+import {assertAccountSafetyAllows} from "./accountSafety";
 import {REGION} from "./constants";
 import {asiaWorldContext} from "./platform/worldContext";
 import {
@@ -68,6 +70,15 @@ export const setNoteLike = onCall<SetNoteLikeData>(
           !canMaintainNote(placeSnap, uid) ?
           await tx.get(memberRef) :
           null;
+      if (desiredLiked) {
+        await assertAccountSafetyAllows(
+          tx,
+          db,
+          uid,
+          "participation",
+          Timestamp.fromMillis(nowMs),
+        );
+      }
       if (!canLikeNote(placeSnap, memberSnap, uid, nowMs)) {
         throw new HttpsError(
           "permission-denied",

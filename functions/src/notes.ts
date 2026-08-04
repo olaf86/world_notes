@@ -10,6 +10,10 @@ import {
 
 import {encodeGeohash} from "./geohash";
 import {
+  assertAccountSafetyAllows,
+  assertAccountSafetyPreflight,
+} from "./accountSafety";
+import {
   DISCOVERY_GEOHASH_PRECISION,
   FREE_NOTE_LIMIT,
   MAP_PIN_MID_GEOHASH_PRECISION,
@@ -251,6 +255,12 @@ export const createNote = onCall<CreateNoteData>(
     const trimmedTitle = (title as string).trim();
     const db = asiaWorldContext().firestore;
     const userRef = db.collection("users").doc(uid);
+    await assertAccountSafetyPreflight(
+      db,
+      uid,
+      "contentWrite",
+      Timestamp.now(),
+    );
     const moderationResult = await moderateTextContent([
       `Title: ${trimmedTitle}`,
       ...(trimmedSubtitle == null ?
@@ -324,6 +334,13 @@ export const createNote = onCall<CreateNoteData>(
           tx.get(entitlementRef),
           tx.get(usageRef),
         ]);
+      await assertAccountSafetyAllows(
+        tx,
+        db,
+        uid,
+        "contentWrite",
+        Timestamp.fromMillis(nowMillis),
+      );
       await assertUserCanCreateContent(tx, userRef, nowMillis);
       const isPremium = entitlementSnap.get("isPremium") === true;
       const limit = isPremium ? PREMIUM_NOTE_LIMIT : FREE_NOTE_LIMIT;
@@ -451,7 +468,15 @@ export const setNotePinImage = onCall<SetNotePinImageData>(
       );
     }
 
-    const bucket = asiaWorldContext().bucket;
+    const world = asiaWorldContext();
+    const db = world.firestore;
+    await assertAccountSafetyPreflight(
+      db,
+      uid,
+      "contentWrite",
+      Timestamp.now(),
+    );
+    const bucket = world.bucket;
     let imageBytes: Uint8Array;
     try {
       const file = bucket.file(pinImageStoragePath);
@@ -477,7 +502,6 @@ export const setNotePinImage = onCall<SetNotePinImageData>(
       );
     }
 
-    const db = asiaWorldContext().firestore;
     let moderationResult: InternalModerationResult;
     try {
       moderationResult = await moderateContent("", [{
@@ -532,6 +556,13 @@ export const setNotePinImage = onCall<SetNotePinImageData>(
     try {
       previousPath = await db.runTransaction(async (tx) => {
         const placeSnap = await tx.get(placeRef);
+        await assertAccountSafetyAllows(
+          tx,
+          db,
+          uid,
+          "contentWrite",
+          Timestamp.now(),
+        );
         if (!placeSnap.exists) {
           throw new HttpsError("not-found", "Note not found.");
         }
@@ -760,6 +791,13 @@ export const setNoteTheme = onCall<SetNoteThemeData>(
     const placeRef = db.collection("places").doc(placeId);
     await db.runTransaction(async (tx) => {
       const placeSnap = await tx.get(placeRef);
+      await assertAccountSafetyAllows(
+        tx,
+        db,
+        uid,
+        "contentWrite",
+        Timestamp.now(),
+      );
       if (!placeSnap.exists) {
         throw new HttpsError("not-found", "Note not found.");
       }

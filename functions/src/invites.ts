@@ -1,10 +1,15 @@
 import {onCall, HttpsError} from "./platform/worldCallable";
 import {
   FieldValue,
+  Timestamp,
 } from "firebase-admin/firestore";
 import {randomBytes} from "crypto";
 
 import {REGION} from "./constants";
+import {
+  assertAccountSafetyAllows,
+  assertAccountSafetyPreflight,
+} from "./accountSafety";
 import {asiaWorldContext} from "./platform/worldContext";
 import {
   canChangeNoteMaintainers,
@@ -107,6 +112,12 @@ export const getInviteLink = onCall<{placeId?: unknown}>(
     if (typeof placeId !== "string" || placeId.length === 0) {
       throw new HttpsError("invalid-argument", "placeId is required.");
     }
+    await assertAccountSafetyPreflight(
+      asiaWorldContext().firestore,
+      uid,
+      "participation",
+      Timestamp.now(),
+    );
     await assertMaintainer(placeId, uid);
 
     return {token: await activeInviteToken(placeId)};
@@ -128,6 +139,12 @@ export const createInviteLink = onCall<{placeId?: unknown}>(
     if (typeof placeId !== "string" || placeId.length === 0) {
       throw new HttpsError("invalid-argument", "placeId is required.");
     }
+    await assertAccountSafetyPreflight(
+      asiaWorldContext().firestore,
+      uid,
+      "participation",
+      Timestamp.now(),
+    );
     await assertMaintainer(placeId, uid);
 
     const db = asiaWorldContext().firestore;
@@ -136,12 +153,21 @@ export const createInviteLink = onCall<{placeId?: unknown}>(
     if (active) return {token: active};
 
     const token = randomBytes(16).toString("base64url");
-    await db.collection("invites").doc(token).set({
-      placeId,
-      createdBy: uid,
-      createdAt: FieldValue.serverTimestamp(),
-      revoked: false,
-      useCount: 0,
+    await db.runTransaction(async (tx) => {
+      await assertAccountSafetyAllows(
+        tx,
+        db,
+        uid,
+        "participation",
+        Timestamp.now(),
+      );
+      tx.create(db.collection("invites").doc(token), {
+        placeId,
+        createdBy: uid,
+        createdAt: FieldValue.serverTimestamp(),
+        revoked: false,
+        useCount: 0,
+      });
     });
     return {token};
   },
@@ -167,6 +193,13 @@ export const claimInvite = onCall<{token?: unknown}>(
     const inviteRef = db.collection("invites").doc(token);
     const placeId = await db.runTransaction(async (tx) => {
       const inviteSnap = await tx.get(inviteRef);
+      await assertAccountSafetyAllows(
+        tx,
+        db,
+        uid,
+        "participation",
+        Timestamp.now(),
+      );
       if (!inviteSnap.exists || inviteSnap.get("revoked") === true) {
         throw new HttpsError(
           "not-found",
@@ -324,6 +357,23 @@ export const grantNoteMaintainer = onCall<{
     const placeRef = db.collection("places").doc(placeId);
     await db.runTransaction(async (tx) => {
       const placeSnap = await tx.get(placeRef);
+      const now = Timestamp.now();
+      await Promise.all([
+        assertAccountSafetyAllows(
+          tx,
+          db,
+          uid,
+          "participation",
+          now,
+        ),
+        assertAccountSafetyAllows(
+          tx,
+          db,
+          userId,
+          "participation",
+          now,
+        ),
+      ]);
       if (!placeSnap.exists) {
         throw new HttpsError("not-found", "Note not found.");
       }

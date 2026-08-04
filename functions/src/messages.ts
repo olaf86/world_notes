@@ -11,6 +11,10 @@ import {
 import * as logger from "firebase-functions/logger";
 
 import {
+  assertAccountSafetyAllows,
+  assertAccountSafetyPreflight,
+} from "./accountSafety";
+import {
   MAX_MESSAGE_IMAGES,
   MAX_MESSAGE_PUBLISH_DELAY_DAYS,
   MAX_MESSAGES_PER_THREAD,
@@ -663,6 +667,13 @@ async function createMessageInTransaction({
         {reason: "user_blocked"},
       );
     }
+    await assertAccountSafetyAllows(
+      tx,
+      db,
+      uid,
+      "contentWrite",
+      Timestamp.fromMillis(nowMs),
+    );
     await assertUserCanCreateContent(tx, refs.userRef, nowMs);
     const memberSnap =
       placeSnap.get("visibility") === "private" &&
@@ -885,6 +896,12 @@ export const sendMessage = onCall<SendMessageData>(
       nowMs,
     );
     if (existingResult) return existingResult;
+    await assertAccountSafetyPreflight(
+      db,
+      uid,
+      "contentWrite",
+      Timestamp.fromMillis(nowMs),
+    );
 
     try {
       const placeSnap = await refs.placeRef.get();
@@ -1118,6 +1135,13 @@ async function applyMessageLikeState(
   }
 
   if (input.liked) {
+    await assertAccountSafetyAllows(
+      tx,
+      db,
+      uid,
+      "participation",
+      Timestamp.fromMillis(nowMs),
+    );
     const relatedUserIds = new Set<string>([
       placeSnap.get("createdByUserId") as string,
       messageSnap.get("userId") as string,

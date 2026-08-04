@@ -954,6 +954,21 @@ deletions. Unblock applies a newer inactive mirror and never restores removed
 relationships. Authority inactive watermarks remain non-expiring;
 destination tombstones use the `blockedUsers.expireAt` 90-day TTL.
 
+Implementation note (2026-08-04): P15 stores account-safety authority in the
+subject's home world and copies the complete revisioned enforcement projection
+to every active world. Every current content-write and participation callable
+checks the selected world's local mirror in the same transaction as its
+protected mutation. Note and message moderation paths also perform a local
+preflight before paid provider or Storage work. Posting restrictions deny
+content writes; bans additionally deny new likes, follows, memberships,
+maintainer grants, invitations, and visit records. Unlike, unfollow, archive,
+delete, cancellation, revocation, reporting, and block operations remain
+available. The sole direct client note-state edit (maintainer close/reopen)
+uses the same local mirror through Firestore Rules and fails closed if the
+projection is missing or malformed. Existing synchronous moderation retains
+its current `users/{uid}` restriction check until P20 replaces that workflow
+with deduplicated account-safety events.
+
 The development reset remains the migration boundary: old `createdAt`-only
 block documents are not accepted by production parsers. Before any new home
 world is enabled, P21 must also ensure that each user's immutable `userHomes`

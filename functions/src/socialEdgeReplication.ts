@@ -9,6 +9,7 @@ import {
 } from "firebase-admin/firestore";
 import {HttpsError} from "firebase-functions/v2/https";
 
+import {assertAccountSafetyAllows} from "./accountSafety";
 import {
   GlobalReplicationApplyContext,
   GlobalReplicationHandler,
@@ -102,6 +103,15 @@ export async function executeSocialEdgeCommand(
     entityRef: edgeRef,
     scope: GLOBAL_COMMAND_SCOPE.allActiveWorlds,
     mutate: async ({transaction, entity, revision, acceptedAt}) => {
+      if (input.following) {
+        await assertAccountSafetyAllows(
+          transaction,
+          input.firestore,
+          input.followerUid,
+          "participation",
+          acceptedAt,
+        );
+      }
       const isBlocked = await hasUserBlockBetweenInTransaction(
         transaction,
         input.firestore,
