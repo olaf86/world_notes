@@ -44,7 +44,7 @@ import {
 } from "./reporting";
 import {profileForMember} from "./userProfile";
 import {
-  sendMyNotesMessageNotifications,
+  enqueueMyNotesMessageNotification,
 } from "./notifications";
 import {
   assertLiked,
@@ -140,7 +140,6 @@ interface CreateMessageParams {
 
 interface CreateMessageResult {
   created: boolean;
-  notifyImmediately: boolean;
   publishAtMillis: number;
   isScheduled: boolean;
   moderationNoticePoints: number;
@@ -632,7 +631,6 @@ async function createMessageInTransaction({
   riskSignals,
   nowMs,
 }: CreateMessageParams): Promise<CreateMessageResult> {
-  let notifyImmediately = false;
   let created = false;
   let publishAtMillis = nowMs;
   let isScheduled = false;
@@ -709,7 +707,6 @@ async function createMessageInTransaction({
     const isImmediate = publishAt.toMillis() <= nowMs;
     isScheduled = !isImmediate;
     const removedByModeration = isModerationRemoval(moderationResult);
-    notifyImmediately = isImmediate && !removedByModeration;
     publishAtMillis = publishAt.toMillis();
     created = true;
     moderationNoticePoints = await applyModerationToUser(
@@ -764,6 +761,15 @@ async function createMessageInTransaction({
         FieldValue.serverTimestamp() :
         null,
     });
+    if (isImmediate && !removedByModeration) {
+      enqueueMyNotesMessageNotification(tx, db, {
+        sourceWorld: worldId,
+        place: placeSnap,
+        messageId: refs.messageRef.id,
+        senderId: uid,
+        createdAt: Timestamp.fromMillis(nowMs),
+      });
+    }
     if (shouldCreateModerationReview(moderationResult, riskSignals)) {
       tx.set(refs.moderationReviewRef, moderationReviewDocumentData({
         uid,
@@ -783,7 +789,6 @@ async function createMessageInTransaction({
 
   return {
     created,
-    notifyImmediately,
     publishAtMillis,
     isScheduled,
     moderationNoticePoints,
@@ -820,39 +825,7 @@ async function createModerationNoticeSafely({
   }
 }
 
-async function sendMessageNotificationsSafely({
-  worldId,
-  db,
-  placeId,
-  messageId,
-  uid,
-}: {
-  worldId: string;
-  db: Firestore;
-  placeId: string;
-  messageId: string;
-  uid: string;
-}): Promise<void> {
-  try {
-    await sendMyNotesMessageNotifications(
-      worldId,
-      db,
-      placeId,
-      messageId,
-      uid,
-    );
-  } catch (error) {
-    logger.error(
-      "sendMessage: failed to send My Notes notification for " +
-        `places/${placeId}/messages/${messageId}.`,
-      error,
-    );
-  }
-}
-
 async function runSendMessageSideEffects({
-  worldId,
-  db,
   bucket,
   uid,
   input,
@@ -860,8 +833,6 @@ async function runSendMessageSideEffects({
   moderationResult,
   result,
 }: {
-  worldId: string;
-  db: Firestore;
   bucket: WorldBucket;
   uid: string;
   input: ValidatedSendMessageInput;
@@ -881,15 +852,6 @@ async function runSendMessageSideEffects({
     moderationResult,
     moderationNoticePoints: result.moderationNoticePoints,
   });
-  if (result.notifyImmediately) {
-    await sendMessageNotificationsSafely({
-      worldId,
-      db,
-      placeId: input.placeId,
-      messageId,
-      uid,
-    });
-  }
 }
 
 /**
@@ -989,8 +951,6 @@ export const sendMessage = onCall<SendMessageData>(
         nowMs,
       });
       await runSendMessageSideEffects({
-        worldId: world.worldId,
-        db,
         bucket: world.bucket,
         uid,
         input,

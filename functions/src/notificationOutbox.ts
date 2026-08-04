@@ -21,6 +21,9 @@ const TYPE_PATTERN = /^[a-z][A-Za-z0-9]{0,63}$/;
 const VALUE_PATTERN = /^[^/\s]{1,256}$/;
 const ERROR_CODE_PATTERN = /^[A-Za-z0-9_.:/-]{1,128}$/;
 const EVENT_ID_PATTERN = /^[0-9a-f]{64}$/;
+// Application envelope limit. Firestore's 6 KiB document-name limit applies
+// to the fully qualified UTF-8 name, not this relative source path.
+const MAX_SOURCE_PATH_UTF8_BYTES = 1_024;
 const EVENT_FIELDS = new Set([
   "eventId",
   "eventType",
@@ -28,6 +31,7 @@ const EVENT_FIELDS = new Set([
   "sourceWorld",
   "entityType",
   "entityId",
+  "sourcePath",
   "recipientUids",
   "recipientResults",
   "status",
@@ -55,6 +59,7 @@ export interface NotificationOutboxData {
   readonly sourceWorld: string;
   readonly entityType: string;
   readonly entityId: string;
+  readonly sourcePath: string;
   readonly recipientUids: readonly string[];
   readonly recipientResults: Readonly<
     Record<string, NotificationRecipientStatus>
@@ -83,6 +88,7 @@ export interface NewNotificationOutboxInput extends NotificationEventIdInput {
   readonly sourceWorld: string;
   readonly entityType: string;
   readonly entityId: string;
+  readonly sourcePath: string;
   readonly recipientUids: readonly string[];
   readonly expiresAt: Timestamp;
 }
@@ -185,6 +191,7 @@ export function newNotificationOutboxData(
     sourceWorld: input.sourceWorld,
     entityType: input.entityType,
     entityId: input.entityId,
+    sourcePath: input.sourcePath,
     recipientUids: recipients,
     recipientResults,
     status: "pending",
@@ -284,6 +291,7 @@ export function parseNotificationOutbox(
     sourceWorld: requirePattern(data.sourceWorld, "sourceWorld", VALUE_PATTERN),
     entityType: requirePattern(data.entityType, "entityType", VALUE_PATTERN),
     entityId: requirePattern(data.entityId, "entityId", VALUE_PATTERN),
+    sourcePath: requireDocumentPath(data.sourcePath),
     recipientUids: Object.freeze(recipientUids),
     recipientResults: Object.freeze(recipientResults),
     status,
@@ -598,6 +606,7 @@ function validateNewEventInput(
   requirePattern(input.sourceWorld, "sourceWorld", VALUE_PATTERN);
   requirePattern(input.entityType, "entityType", VALUE_PATTERN);
   requirePattern(input.entityId, "entityId", VALUE_PATTERN);
+  requireDocumentPath(input.sourcePath);
   requireRecipients(input.recipientUids);
   const lifetime = input.expiresAt.toMillis() - createdAt.toMillis();
   if (lifetime <= 0 || lifetime > NOTIFICATION_MAX_LIFETIME_MILLIS) {
@@ -657,6 +666,20 @@ function requirePattern(
 ): string {
   if (typeof value !== "string" || !pattern.test(value)) {
     throw new Error(`Notification ${field} is invalid.`);
+  }
+  return value;
+}
+
+/** Validates a bounded even-segment Firestore document path. */
+function requireDocumentPath(value: unknown): string {
+  if (typeof value !== "string" ||
+      Buffer.byteLength(value, "utf8") > MAX_SOURCE_PATH_UTF8_BYTES) {
+    throw new Error("Notification sourcePath is invalid.");
+  }
+  const segments = value.split("/");
+  if (segments.length < 2 || segments.length % 2 !== 0 ||
+      segments.some((segment) => segment.length === 0)) {
+    throw new Error("Notification sourcePath is invalid.");
   }
   return value;
 }

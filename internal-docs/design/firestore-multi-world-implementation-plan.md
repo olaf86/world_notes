@@ -814,8 +814,8 @@ to seven days. Terminal `complete`, `skipped`, and `expired` events receive a
 reconciler for due events and expired leases. FCM result classification keeps
 transient errors retryable, distinguishes payload and deployment faults, and
 deletes tokens only for the two reviewed invalid/unregistered-token results.
-No existing push producer is migrated yet; handlers remain empty until the
-home authority and regional notification workflows are introduced later.
+At this point no existing push producer had been migrated; the transport was
+deployed before the home authority and regional notification workflows.
 
 Implementation note (2026-08-04): notification credentials now have one
 authority. Registration, deletion, and preference callables must be routed to
@@ -829,9 +829,26 @@ source message visibility and the local block projection, resolves each
 recipient's home from the mirrored `userHomes/{uid}` route, and reads only that
 recipient's settings and tokens from the home database. The FCM payload carries
 the source world so notification navigation selects the correct content
-world. This step establishes the authority boundary first; replacing the
-remaining best-effort send with the existing durable outbox producer and
-delivery handler is the next P19 slice.
+world. This step established the authority boundary before changing delivery.
+
+Implementation note (2026-08-04): public immediate messages and scheduled
+messages now create a deterministic `notifyNoteMessage` event in the same
+source-world transaction that makes the message public. The outbox stores the
+immutable recipient snapshot and explicit source document path. The registered
+handler rechecks current message visibility, note lifetime, maintainer status,
+and the source-world block mirror before reading notification preferences and
+FCM tokens from each recipient's home database.
+
+Recipient progress is checkpointed in the outbox. A successful delivery to
+any of a recipient's devices completes that recipient, invalid tokens are
+removed only for the reviewed permanent FCM errors, transient and deployment
+errors retain the recipient for retry, and payload faults are logged without
+retrying an unchanged payload. The FCM payload includes the stable event ID,
+which is also used as the APNs collapse ID and Android notification tag for
+duplicate suppression, plus the source world for navigation. Direct
+best-effort message notification sends have been removed; event creation is
+atomic with publication and the one-minute reconciler repairs missed triggers
+or expired worker leases.
 
 ### Phase 6 — profiles, social graph, and notification authority
 

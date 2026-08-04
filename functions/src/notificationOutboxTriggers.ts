@@ -12,6 +12,7 @@ import {
   parseNotificationOutbox,
   processNotificationOutboxEvent,
 } from "./notificationOutbox";
+import {myNotesMessageNotificationHandler} from "./notifications";
 import {
   WorldDatabaseConfig,
   WorldFirestoreDatabaseId,
@@ -30,11 +31,12 @@ const worldDatabases = WORLD_CATALOG.worlds.map((world) => ({
   databaseId: world.databaseId as WorldFirestoreDatabaseId,
 })) satisfies readonly WorldDatabaseConfig[];
 
-// Transport is deployed before later units migrate notification producers.
 const productionRuntime: NotificationOutboxRuntime = {
   catalog: WORLD_CATALOG,
   firestore: new WorldFirestoreProvider(worldDatabases),
-  handlers: new NotificationDeliveryHandlerRegistry([]),
+  handlers: new NotificationDeliveryHandlerRegistry([
+    myNotesMessageNotificationHandler,
+  ]),
 };
 
 export interface NotificationReconcileResult {

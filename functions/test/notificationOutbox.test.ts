@@ -64,6 +64,20 @@ test("new outbox data snapshots unique pending recipients", () => {
     }, CREATED_AT),
     /duplicates/,
   );
+  assert.throws(
+    () => newNotificationOutboxData({
+      ...input,
+      sourcePath: "places/test-place/messages",
+    }, CREATED_AT),
+    /sourcePath/,
+  );
+  assert.throws(
+    () => newNotificationOutboxData({
+      ...input,
+      sourcePath: `places/${"あ".repeat(400)}`,
+    }, CREATED_AT),
+    /sourcePath/,
+  );
 });
 
 test("notification retry includes the final due time", () => {
@@ -148,6 +162,7 @@ function eventInput() {
     sourceWorld: "asia",
     entityType: "message",
     entityId: "test-message",
+    sourcePath: "places/test-place/messages/test-message",
     recipientUids: ["test-recipient-a", "test-recipient-b"],
     expiresAt: EXPIRES_AT,
   };

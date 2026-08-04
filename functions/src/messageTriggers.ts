@@ -6,7 +6,7 @@ import {MAX_MESSAGES_PER_THREAD} from "./constants";
 import {worldContext} from "./platform/worldContext";
 import {WORLD_REGISTRY} from "./platform/worldRegistry";
 import {
-  sendMyNotesMessageNotifications,
+  enqueueMyNotesMessageNotification,
 } from "./notifications";
 import {hasUserBlockBetweenInTransaction} from "./userBlocks";
 
@@ -41,12 +41,6 @@ export async function publishScheduledMessagesForWorld(
   let published = 0;
   let after:
     FirebaseFirestore.QueryDocumentSnapshot | undefined;
-  const publishedMessages: Array<{
-    placeId: string;
-    messageId: string;
-    senderId: string;
-    notify: boolean;
-  }> = [];
 
   for (
     let batchIndex = 0;
@@ -168,12 +162,15 @@ export async function publishScheduledMessagesForWorld(
             placeAggregateAppliedAt: FieldValue.serverTimestamp(),
             isPubliclyVisible: true,
           });
-          publishedMessages.push({
-            placeId: placeRef.id,
-            messageId: messageDocument.id,
-            senderId: message.get("userId") as string,
-            notify: !isModerationRemoval,
-          });
+          if (!isModerationRemoval && typeof senderId === "string") {
+            enqueueMyNotesMessageNotification(transaction, db, {
+              sourceWorld: worldId,
+              place,
+              messageId: messageDocument.id,
+              senderId,
+              createdAt: now,
+            });
+          }
           return {processed: true, published: true};
         });
 
@@ -196,26 +193,6 @@ export async function publishScheduledMessagesForWorld(
     published += batchResults.filter((result) => result.published).length;
     if (snapshot.size < SCHEDULED_MESSAGE_BATCH_SIZE) break;
   }
-
-  await Promise.all(
-    publishedMessages.map(async ({placeId, messageId, senderId, notify}) => {
-      if (!notify) return;
-      try {
-        await sendMyNotesMessageNotifications(
-          worldId,
-          db,
-          placeId,
-          messageId,
-          senderId,
-        );
-      } catch (error) {
-        logger.error(
-          "Scheduled message notification failed.",
-          {worldId, placeId, messageId, error},
-        );
-      }
-    }),
-  );
 
   logger.info("Scheduled-message publication finished.", {
     worldId,
