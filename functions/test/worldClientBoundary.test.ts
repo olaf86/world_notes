@@ -17,6 +17,14 @@ const REGIONALIZED_CONTENT_FILES = [
   "notes.ts",
   "visitors.ts",
 ] as const;
+const ALLOWED_ASIA_FIXED_FILES = new Set([
+  "accountBootstrap.ts",
+  "adminAccountSafety.ts",
+  "notices.ts",
+  "notifications.ts",
+  "platform/worldContext.ts",
+  "platform/worldRegistry.ts",
+]);
 
 test("raw Firebase client construction stays in platform adapters", () => {
   const sourceRoot = join(process.cwd(), "src");
@@ -69,6 +77,22 @@ test("regionalized content handlers use only the injected world", () => {
     }
     return dependencies.map((dependency) => `${sourcePath}: ${dependency}`);
   });
+
+  assert.deepEqual(violations, []);
+});
+
+test("Asia-fixed dependencies remain only in reviewed transition code", () => {
+  const sourceRoot = join(process.cwd(), "src");
+  const violations: string[] = [];
+
+  for (const file of typescriptFiles(sourceRoot)) {
+    const sourcePath = relative(sourceRoot, file);
+    if (ALLOWED_ASIA_FIXED_FILES.has(sourcePath)) continue;
+    const source = readFileSync(file, "utf8");
+    if (/\basiaWorldContext\b|\bASIA_WORLD_ID\b/.test(source)) {
+      violations.push(sourcePath);
+    }
+  }
 
   assert.deepEqual(violations, []);
 });

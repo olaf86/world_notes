@@ -1022,6 +1022,22 @@ routing and the three scheduler regions. The world-aware moderation cursor,
 remaining notification ownership, Rules/index deployment verification, and
 full named-database contract suite remain subsequent P16/P19 work.
 
+Implementation note (2026-08-04): administrator moderation listing now uses
+an opaque versioned cursor bound to the selected world, review status,
+`createdAt`, and document ID. A cursor from another world or status is rejected
+instead of silently changing the query scope. The endpoint reads one extra
+document to return `nextCursor` only when another page exists, and the Flutter
+service exposes that cursor without interpreting it.
+
+All three catalog databases are confirmed as Standard Edition with delete
+protection, point-in-time recovery, and backups enabled. Deployment-contract
+tests require the three database IDs to share `firestore.indexes.json`, retain
+the named databases' deny-all client Rules while they are `mirrorOnly`, and
+include the moderation `status + createdAt` cursor index. Comparing those
+checked-in indexes with the live named-database indexes remains a P21
+deployment check; no Rules were opened and no production configuration was
+mutated in this slice.
+
 ### Phase 9 — regional Storage and signed image access
 
 Deliverables:

@@ -8,6 +8,16 @@ import 'global_operation_observer.dart';
 
 const defaultAdminModerationReviewListLimit = 20;
 
+final class AdminModerationReviewPage {
+  const AdminModerationReviewPage({
+    required this.reviews,
+    required this.nextCursor,
+  });
+
+  final List<AdminModerationReviewEntity> reviews;
+  final String? nextCursor;
+}
+
 final class AdminModerationService {
   final WorldFunctionsClient _functions;
   final GlobalOperationObserver? _operationObserver;
@@ -25,16 +35,39 @@ final class AdminModerationService {
     required AdminModerationReviewStatus status,
     int limit = defaultAdminModerationReviewListLimit,
   }) async {
+    return (await listReviewPage(status: status, limit: limit)).reviews;
+  }
+
+  Future<AdminModerationReviewPage> listReviewPage({
+    required AdminModerationReviewStatus status,
+    int limit = defaultAdminModerationReviewListLimit,
+    String? cursor,
+  }) async {
     final result = await _functions
         .httpsCallable('adminListModerationReviews')
-        .call<Map<String, dynamic>>({'status': status.name, 'limit': limit});
+        .call<Map<String, dynamic>>({
+          'status': status.name,
+          'limit': limit,
+          'cursor': ?cursor,
+        });
     final data = result.data;
     final reviews = data['reviews'];
-    if (reviews is! List) return const [];
-    return reviews
-        .whereType<Map>()
-        .map((item) => AdminModerationReviewEntity.fromJson(_stringKeyed(item)))
-        .toList(growable: false);
+    if (reviews is! List) {
+      throw const FormatException('Moderation review page is invalid.');
+    }
+    final nextCursor = data['nextCursor'];
+    if (nextCursor != null && nextCursor is! String) {
+      throw const FormatException('Moderation review cursor is invalid.');
+    }
+    return AdminModerationReviewPage(
+      reviews: reviews
+          .whereType<Map>()
+          .map(
+            (item) => AdminModerationReviewEntity.fromJson(_stringKeyed(item)),
+          )
+          .toList(growable: false),
+      nextCursor: nextCursor as String?,
+    );
   }
 
   Future<void> reviewContent({

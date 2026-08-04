@@ -128,6 +128,18 @@ void main() {
     );
   });
 
+  test('defines the moderation review cursor index', () {
+    final config = _loadConfig();
+
+    expect(
+      _hasIndex(config, 'moderationReviews', [
+        ('status', 'ASCENDING'),
+        ('createdAt', 'ASCENDING'),
+      ]),
+      isTrue,
+    );
+  });
+
   test('defines the pending global-operation reconciliation index', () {
     final config =
         jsonDecode(File('firestore.indexes.json').readAsStringSync())

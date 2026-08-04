@@ -1,6 +1,7 @@
 /* eslint-disable require-jsdoc */
 import {onCall, HttpsError} from "./platform/worldCallable";
 import {
+  FieldPath,
   FieldValue,
   Timestamp,
 } from "firebase-admin/firestore";
@@ -16,6 +17,7 @@ type AdminModerationAction = "allow" | "sensitive" | "hidden";
 type AdminModerationReviewStatus = "open" | "resolved";
 
 interface AdminListModerationReviewsData {
+  cursor?: unknown;
   limit?: unknown;
   status?: unknown;
 }
@@ -47,8 +49,17 @@ interface ValidatedAdminReviewNoteInput {
 }
 
 interface ValidatedAdminListModerationReviewsInput {
+  cursor: AdminModerationReviewCursor | null;
   limit: number;
   status: AdminModerationReviewStatus;
+}
+
+interface AdminModerationReviewCursor {
+  schemaVersion: 1;
+  worldId: string;
+  status: AdminModerationReviewStatus;
+  createdAtMillis: number;
+  documentId: string;
 }
 
 function assertAdmin(uid: string | undefined, adminClaim: unknown) {
@@ -82,11 +93,58 @@ function reviewStatus(value: unknown): AdminModerationReviewStatus {
 
 function validateAdminListModerationReviewsInput(
   data: AdminListModerationReviewsData | undefined,
+  worldId: string,
 ): ValidatedAdminListModerationReviewsInput {
+  const status = reviewStatus(data?.status);
   return {
+    cursor: parseAdminModerationReviewCursor(data?.cursor, worldId, status),
     limit: validateLimit(data?.limit),
-    status: reviewStatus(data?.status),
+    status,
   };
+}
+
+export function adminModerationReviewCursor(
+  value: AdminModerationReviewCursor,
+): string {
+  return Buffer.from(JSON.stringify(value), "utf8").toString("base64url");
+}
+
+export function parseAdminModerationReviewCursor(
+  value: unknown,
+  worldId: string,
+  status: AdminModerationReviewStatus,
+): AdminModerationReviewCursor | null {
+  if (value == null) return null;
+  if (typeof value !== "string" || value.length === 0 || value.length > 4096) {
+    throw new HttpsError("invalid-argument", "Invalid review cursor.");
+  }
+  try {
+    const decoded = JSON.parse(
+      Buffer.from(value, "base64url").toString("utf8"),
+    ) as unknown;
+    if (typeof decoded !== "object" || decoded === null ||
+        Array.isArray(decoded)) {
+      throw new Error("Cursor is not an object.");
+    }
+    const cursor = decoded as Record<string, unknown>;
+    if (Object.keys(cursor).length !== 5 ||
+        cursor.schemaVersion !== 1 ||
+        cursor.worldId !== worldId ||
+        cursor.status !== status ||
+        typeof cursor.createdAtMillis !== "number" ||
+        !Number.isSafeInteger(cursor.createdAtMillis) ||
+        cursor.createdAtMillis < 0 ||
+        typeof cursor.documentId !== "string" ||
+        cursor.documentId.length === 0 ||
+        cursor.documentId.length > 1500 ||
+        cursor.documentId.includes("/")) {
+      throw new Error("Cursor fields are invalid.");
+    }
+    return cursor as unknown as AdminModerationReviewCursor;
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    throw new HttpsError("invalid-argument", "Invalid review cursor.");
+  }
 }
 
 function requiredString(value: unknown, fieldName: string): string {
@@ -267,18 +325,48 @@ export const adminListModerationReviews =
     async (req, world) => {
       const token = req.auth?.token as Record<string, unknown> | undefined;
       assertAdmin(req.auth?.uid, token?.admin);
-      const input = validateAdminListModerationReviewsInput(req.data);
-      const snap = await world.firestore
+      const input = validateAdminListModerationReviewsInput(
+        req.data,
+        world.worldId,
+      );
+      let query = world.firestore
         .collection("moderationReviews")
         .where("status", "==", input.status)
         .orderBy("createdAt", "asc")
-        .limit(input.limit)
-        .get();
+        .orderBy(FieldPath.documentId(), "asc")
+        .limit(input.limit + 1);
+      if (input.cursor !== null) {
+        query = query.startAfter(
+          Timestamp.fromMillis(input.cursor.createdAtMillis),
+          input.cursor.documentId,
+        );
+      }
+      const snap = await query.get();
+      const pageDocuments = snap.docs.slice(0, input.limit);
+      const hasMore = snap.size > pageDocuments.length;
+      const lastDocument = pageDocuments.at(-1);
+      const lastCreatedAt = lastDocument?.get("createdAt");
+      if (lastDocument !== undefined && !(lastCreatedAt instanceof Timestamp)) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Moderation review timestamp is invalid.",
+        );
+      }
+      const nextCursor = hasMore && lastDocument !== undefined ?
+        adminModerationReviewCursor({
+          schemaVersion: 1,
+          worldId: world.worldId,
+          status: input.status,
+          createdAtMillis: (lastCreatedAt as Timestamp).toMillis(),
+          documentId: lastDocument.id,
+        }) :
+        null;
 
       return {
         status: input.status,
-        reviews: snap.docs.map((doc) =>
+        reviews: pageDocuments.map((doc) =>
           reviewListItemFromDoc(doc, world.worldId)),
+        nextCursor,
       };
     },
   );
