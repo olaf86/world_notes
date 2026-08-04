@@ -7,6 +7,16 @@ const ALLOWED_RAW_CLIENT_FILES = new Set([
   "platform/worldBucketProvider.ts",
   "platform/worldFirestoreProvider.ts",
 ]);
+const REGIONALIZED_CONTENT_FILES = [
+  "adminModeration.ts",
+  "invites.ts",
+  "likes.ts",
+  "mapPins.ts",
+  "messages.ts",
+  "notePassword.ts",
+  "notes.ts",
+  "visitors.ts",
+] as const;
 
 test("raw Firebase client construction stays in platform adapters", () => {
   const sourceRoot = join(process.cwd(), "src");
@@ -42,6 +52,23 @@ test("regional callables use the world-routing wrapper", () => {
       violations.push(sourcePath);
     }
   }
+
+  assert.deepEqual(violations, []);
+});
+
+test("regionalized content handlers use only the injected world", () => {
+  const sourceRoot = join(process.cwd(), "src");
+  const violations = REGIONALIZED_CONTENT_FILES.flatMap((sourcePath) => {
+    const source = readFileSync(join(sourceRoot, sourcePath), "utf8");
+    const dependencies: string[] = [];
+    if (/\basiaWorldContext\b/.test(source)) {
+      dependencies.push("asiaWorldContext");
+    }
+    if (/\bASIA_WORLD_ID\b/.test(source)) {
+      dependencies.push("ASIA_WORLD_ID");
+    }
+    return dependencies.map((dependency) => `${sourcePath}: ${dependency}`);
+  });
 
   assert.deepEqual(violations, []);
 });

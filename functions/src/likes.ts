@@ -7,7 +7,6 @@ import {
 
 import {assertAccountSafetyAllows} from "./accountSafety";
 import {REGION} from "./constants";
-import {asiaWorldContext} from "./platform/worldContext";
 import {
   assertLiked,
   hasValidMembership,
@@ -46,7 +45,7 @@ function canLikeNote(
 
 export const setNoteLike = onCall<SetNoteLikeData>(
   {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) {
       throw new HttpsError("unauthenticated", "You must be signed in.");
@@ -54,7 +53,7 @@ export const setNoteLike = onCall<SetNoteLikeData>(
 
     const placeId = assertPlaceId(req.data?.placeId);
     const desiredLiked = assertLiked(req.data?.liked);
-    const db = asiaWorldContext().firestore;
+    const db = world.firestore;
     const placeRef = db.collection("places").doc(placeId);
     const likeRef = placeRef.collection("likes").doc(uid);
     const memberRef = placeRef.collection("members").doc(uid);

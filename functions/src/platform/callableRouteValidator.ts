@@ -13,6 +13,26 @@ export class CallableRouteValidator {
   constructor(private readonly registry: WorldRegistry = WORLD_REGISTRY) {}
 
   /**
+   * Validates an explicit request route for a multi-region callable.
+   *
+   * @param {unknown} value Client-provided world ID.
+   * @return {WorldCatalogEntry} Trusted content-enabled world entry.
+   */
+  requireContentWorld(value: unknown): WorldCatalogEntry {
+    if (typeof value !== "string" || value.length === 0) {
+      throw new HttpsError("invalid-argument", "worldId is required.");
+    }
+    try {
+      return this.registry.requireContentWorld(value);
+    } catch {
+      throw new HttpsError(
+        "failed-precondition",
+        "The requested world is not available.",
+      );
+    }
+  }
+
+  /**
    * Validates an explicit request route for a deployed callable.
    *
    * Resource IDs and regions are never accepted from request data.
@@ -25,9 +45,7 @@ export class CallableRouteValidator {
     value: unknown,
     deployedWorldId: string,
   ): WorldCatalogEntry {
-    if (typeof value !== "string" || value.length === 0) {
-      throw new HttpsError("invalid-argument", "worldId is required.");
-    }
+    const world = this.requireContentWorld(value);
     if (value !== deployedWorldId) {
       throw new HttpsError(
         "failed-precondition",
@@ -36,13 +54,6 @@ export class CallableRouteValidator {
       );
     }
 
-    try {
-      return this.registry.requireContentWorld(value);
-    } catch {
-      throw new HttpsError(
-        "failed-precondition",
-        "The requested world is not available.",
-      );
-    }
+    return world;
   }
 }

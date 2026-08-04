@@ -1,4 +1,5 @@
 import {getAuth} from "firebase-admin/auth";
+import {Firestore} from "firebase-admin/firestore";
 import {onCall, HttpsError} from "./platform/worldCallable";
 
 import {REGION} from "./constants";
@@ -8,7 +9,6 @@ import {
   GlobalOperationBindingError,
   GlobalOperationValidationError,
 } from "./globalOperations";
-import {asiaWorldContext} from "./platform/worldContext";
 import {UPDATE_PUBLIC_PROFILE_OPERATION} from
   "./profileEntitlementReplication";
 
@@ -24,14 +24,15 @@ const LANGUAGE_PREFERENCES = new Set([
 /**
  * Returns the app profile fields shown in a note's member list.
  *
+ * @param {Firestore} firestore The routed world's Firestore database.
  * @param {string} uid The signed-in user's uid.
- * @param {string | undefined} tokenName Display name from the auth token.
  * @return {Promise<object>} User-facing profile fields.
  */
 export async function profileForMember(
+  firestore: Firestore,
   uid: string,
 ): Promise<{displayName: string; profileRevision: number}> {
-  const snap = await asiaWorldContext().firestore
+  const snap = await firestore
     .collection("publicProfiles").doc(uid).get();
   if (!snap.exists) {
     throw new HttpsError("failed-precondition", "Public profile missing.");

@@ -7,8 +7,7 @@ import {
 import * as logger from "firebase-functions/logger";
 
 import {REGION} from "./constants";
-import {asiaWorldContext} from "./platform/worldContext";
-import {ASIA_WORLD_ID} from "./platform/worldRegistry";
+import {WorldBucket} from "./platform/worldBucketProvider";
 
 const DEFAULT_REVIEW_LIST_LIMIT = 20;
 const MAX_REVIEW_LIST_LIMIT = 50;
@@ -245,9 +244,11 @@ function reviewListItemFromDoc(
   };
 }
 
-async function deleteStoredImages(storagePaths: string[]): Promise<void> {
+async function deleteStoredImages(
+  bucket: WorldBucket,
+  storagePaths: string[],
+): Promise<void> {
   if (storagePaths.length === 0) return;
-  const bucket = asiaWorldContext().bucket;
   await Promise.all(storagePaths.map(async (storagePath) => {
     try {
       await bucket.file(storagePath).delete({ignoreNotFound: true});
@@ -287,12 +288,12 @@ export const adminListModerationReviews =
  */
 export const adminReviewMessage = onCall<AdminReviewMessageData>(
   {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  async (req, world) => {
     const token = req.auth?.token as Record<string, unknown> | undefined;
     assertAdmin(req.auth?.uid, token?.admin);
     const uid = req.auth?.uid as string;
     const input = validateAdminReviewMessageInput(req.data);
-    const db = asiaWorldContext().firestore;
+    const db = world.firestore;
     const placeRef = db.collection("places").doc(input.placeId);
     const messageRef = placeRef.collection("messages").doc(input.messageId);
     const reviewRef = db
@@ -349,7 +350,7 @@ export const adminReviewMessage = onCall<AdminReviewMessageData>(
         moderationReviewReason: input.reason,
       });
       tx.update(reviewRef, {
-        worldId: ASIA_WORLD_ID,
+        worldId: world.worldId,
         status: "resolved",
         humanDecision: input.action,
         decisionReason: input.reason,
@@ -360,7 +361,7 @@ export const adminReviewMessage = onCall<AdminReviewMessageData>(
         targetPath: `places/${input.placeId}/messages/${input.messageId}`,
       });
       tx.set(auditRef, {
-        worldId: ASIA_WORLD_ID,
+        worldId: world.worldId,
         eventType: "adminDecision",
         actorType: "admin",
         actorId: uid,
@@ -390,7 +391,7 @@ export const adminReviewMessage = onCall<AdminReviewMessageData>(
       });
     });
 
-    await deleteStoredImages(imageStoragePathsToDelete);
+    await deleteStoredImages(world.bucket, imageStoragePathsToDelete);
     return {
       ok: true,
       placeId: input.placeId,
@@ -406,12 +407,12 @@ export const adminReviewMessage = onCall<AdminReviewMessageData>(
  */
 export const adminReviewNote = onCall<AdminReviewNoteData>(
   {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  async (req, world) => {
     const token = req.auth?.token as Record<string, unknown> | undefined;
     assertAdmin(req.auth?.uid, token?.admin);
     const uid = req.auth?.uid as string;
     const input = validateAdminReviewNoteInput(req.data);
-    const db = asiaWorldContext().firestore;
+    const db = world.firestore;
     const placeRef = db.collection("places").doc(input.placeId);
     const reviewRef = db
       .collection("moderationReviews")
@@ -448,7 +449,7 @@ export const adminReviewNote = onCall<AdminReviewNoteData>(
         moderationReviewReason: input.reason,
       });
       tx.update(reviewRef, {
-        worldId: ASIA_WORLD_ID,
+        worldId: world.worldId,
         status: "resolved",
         humanDecision: hidden ? "hidden" : "allow",
         decisionReason: input.reason,
@@ -459,7 +460,7 @@ export const adminReviewNote = onCall<AdminReviewNoteData>(
         targetPath: `places/${input.placeId}`,
       });
       tx.set(auditRef, {
-        worldId: ASIA_WORLD_ID,
+        worldId: world.worldId,
         eventType: "adminDecision",
         actorType: "admin",
         actorId: uid,

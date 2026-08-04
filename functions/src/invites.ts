@@ -1,6 +1,7 @@
 import {onCall, HttpsError} from "./platform/worldCallable";
 import {
   FieldValue,
+  Firestore,
   Timestamp,
 } from "firebase-admin/firestore";
 import {randomBytes} from "crypto";
@@ -10,7 +11,6 @@ import {
   assertAccountSafetyAllows,
   assertAccountSafetyPreflight,
 } from "./accountSafety";
-import {asiaWorldContext} from "./platform/worldContext";
 import {
   canChangeNoteMaintainers,
   canMaintainNote,
@@ -26,11 +26,16 @@ import {
 /**
  * Loads a place and asserts the caller can maintain it. Throws otherwise.
  *
+ * @param {Firestore} firestore The routed world's Firestore database.
  * @param {string} placeId The note's id.
  * @param {string} uid The caller's uid.
  */
-async function assertMaintainer(placeId: string, uid: string) {
-  const db = asiaWorldContext().firestore;
+async function assertMaintainer(
+  firestore: Firestore,
+  placeId: string,
+  uid: string,
+) {
+  const db = firestore;
   const snap = await db.collection("places").doc(placeId).get();
   if (!snap.exists) {
     throw new HttpsError("not-found", "Note not found.");
@@ -63,11 +68,16 @@ async function assertMaintainer(placeId: string, uid: string) {
 /**
  * Loads a place and asserts the caller can revoke its invite links.
  *
+ * @param {Firestore} firestore The routed world's Firestore database.
  * @param {string} placeId The note's id.
  * @param {string} uid The caller's uid.
  */
-async function assertInviteRevoker(placeId: string, uid: string) {
-  const db = asiaWorldContext().firestore;
+async function assertInviteRevoker(
+  firestore: Firestore,
+  placeId: string,
+  uid: string,
+) {
+  const db = firestore;
   const snap = await db.collection("places").doc(placeId).get();
   if (!snap.exists) {
     throw new HttpsError("not-found", "Note not found.");
@@ -86,10 +96,14 @@ async function assertInviteRevoker(placeId: string, uid: string) {
 /**
  * Returns the active reusable invite token for a place, if one exists.
  *
+ * @param {Firestore} firestore The routed world's Firestore database.
  * @param {string} placeId The note's id.
  */
-async function activeInviteToken(placeId: string): Promise<string | null> {
-  const existing = await asiaWorldContext().firestore
+async function activeInviteToken(
+  firestore: Firestore,
+  placeId: string,
+): Promise<string | null> {
+  const existing = await firestore
     .collection("invites")
     .where("placeId", "==", placeId)
     .limit(10)
@@ -105,7 +119,7 @@ async function activeInviteToken(placeId: string): Promise<string | null> {
  */
 export const getInviteLink = onCall<{placeId?: unknown}>(
   {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
     const {placeId} = req.data ?? {};
@@ -113,14 +127,14 @@ export const getInviteLink = onCall<{placeId?: unknown}>(
       throw new HttpsError("invalid-argument", "placeId is required.");
     }
     await assertAccountSafetyPreflight(
-      asiaWorldContext().firestore,
+      world.firestore,
       uid,
       "participation",
       Timestamp.now(),
     );
-    await assertMaintainer(placeId, uid);
+    await assertMaintainer(world.firestore, placeId, uid);
 
-    return {token: await activeInviteToken(placeId)};
+    return {token: await activeInviteToken(world.firestore, placeId)};
   },
 );
 
@@ -132,7 +146,7 @@ export const getInviteLink = onCall<{placeId?: unknown}>(
  */
 export const createInviteLink = onCall<{placeId?: unknown}>(
   {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
     const {placeId} = req.data ?? {};
@@ -140,16 +154,16 @@ export const createInviteLink = onCall<{placeId?: unknown}>(
       throw new HttpsError("invalid-argument", "placeId is required.");
     }
     await assertAccountSafetyPreflight(
-      asiaWorldContext().firestore,
+      world.firestore,
       uid,
       "participation",
       Timestamp.now(),
     );
-    await assertMaintainer(placeId, uid);
+    await assertMaintainer(world.firestore, placeId, uid);
 
-    const db = asiaWorldContext().firestore;
+    const db = world.firestore;
     // Reuse an existing active token (one reusable link per note).
-    const active = await activeInviteToken(placeId);
+    const active = await activeInviteToken(db, placeId);
     if (active) return {token: active};
 
     const token = randomBytes(16).toString("base64url");
@@ -180,7 +194,7 @@ export const createInviteLink = onCall<{placeId?: unknown}>(
  */
 export const claimInvite = onCall<{token?: unknown}>(
   {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
     const {token} = req.data ?? {};
@@ -188,8 +202,8 @@ export const claimInvite = onCall<{token?: unknown}>(
       throw new HttpsError("invalid-argument", "token is required.");
     }
 
-    const db = asiaWorldContext().firestore;
-    const profile = await profileForMember(uid);
+    const db = world.firestore;
+    const profile = await profileForMember(db, uid);
     const inviteRef = db.collection("invites").doc(token);
     const placeId = await db.runTransaction(async (tx) => {
       const inviteSnap = await tx.get(inviteRef);
@@ -267,16 +281,16 @@ export const claimInvite = onCall<{token?: unknown}>(
  */
 export const revokeInvite = onCall<{placeId?: unknown}>(
   {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
     const {placeId} = req.data ?? {};
     if (typeof placeId !== "string" || placeId.length === 0) {
       throw new HttpsError("invalid-argument", "placeId is required.");
     }
-    await assertInviteRevoker(placeId, uid);
+    await assertInviteRevoker(world.firestore, placeId, uid);
 
-    const db = asiaWorldContext().firestore;
+    const db = world.firestore;
     const tokens = await db
       .collection("invites")
       .where("placeId", "==", placeId)
@@ -297,7 +311,7 @@ export const revokeInvite = onCall<{placeId?: unknown}>(
  */
 export const revokeNoteAccess = onCall<{placeId?: unknown; userId?: unknown}>(
   {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
     const {placeId, userId} = req.data ?? {};
@@ -309,9 +323,9 @@ export const revokeNoteAccess = onCall<{placeId?: unknown; userId?: unknown}>(
     ) {
       throw new HttpsError("invalid-argument", "placeId/userId required.");
     }
-    await assertMaintainer(placeId, uid);
+    await assertMaintainer(world.firestore, placeId, uid);
 
-    const db = asiaWorldContext().firestore;
+    const db = world.firestore;
     const placeRef = db.collection("places").doc(placeId);
     const placeSnap = await placeRef.get();
     if (!placeSnap.exists) {
@@ -340,7 +354,7 @@ export const grantNoteMaintainer = onCall<{
   userId?: unknown;
 }>(
   {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
     const {placeId, userId} = req.data ?? {};
@@ -353,7 +367,7 @@ export const grantNoteMaintainer = onCall<{
       throw new HttpsError("invalid-argument", "placeId/userId required.");
     }
 
-    const db = asiaWorldContext().firestore;
+    const db = world.firestore;
     const placeRef = db.collection("places").doc(placeId);
     await db.runTransaction(async (tx) => {
       const placeSnap = await tx.get(placeRef);
@@ -427,7 +441,7 @@ export const revokeNoteMaintainer = onCall<{
   userId?: unknown;
 }>(
   {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
     const {placeId, userId} = req.data ?? {};
@@ -439,7 +453,7 @@ export const revokeNoteMaintainer = onCall<{
     ) {
       throw new HttpsError("invalid-argument", "placeId/userId required.");
     }
-    const db = asiaWorldContext().firestore;
+    const db = world.firestore;
     const placeRef = db.collection("places").doc(placeId);
     await db.runTransaction(async (tx) => {
       const placeSnap = await tx.get(placeRef);

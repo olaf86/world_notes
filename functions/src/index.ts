@@ -19,7 +19,11 @@ export {
   reportMessage,
   setMessageLike,
 } from "./messages";
-export {aggregatePublishedMessages} from "./messageTriggers";
+export {
+  publishAsiaScheduledMessages,
+  publishNorthAmericaScheduledMessages,
+  publishEuropeScheduledMessages,
+} from "./messageTriggers";
 export {
   adminListModerationReviews,
   adminReviewMessage,
@@ -109,6 +113,8 @@ export {
   setNotePinImage,
   setNoteTheme,
   archiveNote,
-  archiveExpiredNotes,
+  archiveAsiaExpiredNotes,
+  archiveNorthAmericaExpiredNotes,
+  archiveEuropeExpiredNotes,
 }
   from "./notes";

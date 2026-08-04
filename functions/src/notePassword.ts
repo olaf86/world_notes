@@ -6,7 +6,6 @@ import {
 
 import {REGION} from "./constants";
 import {assertAccountSafetyAllows} from "./accountSafety";
-import {asiaWorldContext} from "./platform/worldContext";
 import {
   hashLockSecret,
   MAX_LOCK_HINT_LENGTH,
@@ -38,7 +37,7 @@ export const setNotePassword = onCall<{
   lockHint?: unknown;
 }>(
   {secrets: [NOTE_PW_PEPPER], enforceAppCheck: true, region: REGION},
-  async (req) => {
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
 
@@ -62,7 +61,7 @@ export const setNotePassword = onCall<{
       throw new HttpsError("invalid-argument", "Invalid hint.");
     }
 
-    const db = asiaWorldContext().firestore;
+    const db = world.firestore;
     const placeRef = db.collection("places").doc(placeId);
     const hash = await hashLockSecret(password);
     const newVersion = await db.runTransaction(async (tx) => {
@@ -114,7 +113,7 @@ export const setNotePassword = onCall<{
  */
 export const unlockNote = onCall<{placeId?: unknown; password?: unknown}>(
   {secrets: [NOTE_PW_PEPPER], enforceAppCheck: true, region: REGION},
-  async (req) => {
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
 
@@ -127,7 +126,7 @@ export const unlockNote = onCall<{placeId?: unknown; password?: unknown}>(
       throw new HttpsError("invalid-argument", "placeId/password required.");
     }
 
-    const db = asiaWorldContext().firestore;
+    const db = world.firestore;
     const placeRef = db.collection("places").doc(placeId);
     const attemptRef = placeRef.collection("attempts").doc(uid);
     const placeSnap = await placeRef.get();
@@ -192,7 +191,7 @@ export const unlockNote = onCall<{placeId?: unknown; password?: unknown}>(
       throw new HttpsError("permission-denied", "Incorrect password.");
     }
 
-    const profile = await profileForMember(uid);
+    const profile = await profileForMember(db, uid);
 
     await db.runTransaction(async (tx) => {
       await assertAccountSafetyAllows(

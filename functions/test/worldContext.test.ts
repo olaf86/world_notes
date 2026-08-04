@@ -10,6 +10,17 @@ import {
   syncEuropeProfileSnapshots,
   syncNorthAmericaProfileSnapshots,
 } from "../src/creatorProfileSnapshots";
+import {
+  publishAsiaScheduledMessages,
+  publishEuropeScheduledMessages,
+  publishNorthAmericaScheduledMessages,
+} from "../src/messageTriggers";
+import {setNoteLike} from "../src/likes";
+import {
+  archiveAsiaExpiredNotes,
+  archiveEuropeExpiredNotes,
+  archiveNorthAmericaExpiredNotes,
+} from "../src/notes";
 import {CallableRouteValidator} from
   "../src/platform/callableRouteValidator";
 import {
@@ -119,6 +130,24 @@ test("rejects a content-disabled world before client creation", () => {
   assert.equal(bucketFactoryCalls, 0);
 });
 
+test("regional workers can resolve a content-disabled catalog world", () => {
+  const provider = new WorldContextProvider(registry, {
+    firestoreProvider: new WorldFirestoreProvider(worldDatabases, {
+      appProvider: () => ({} as App),
+      clientFactory: (_app, databaseId) => fakeFirestore(databaseId),
+    }),
+    bucketProvider: new WorldBucketProvider(registry, {
+      appProvider: () => ({} as App),
+      bucketFactory: (_app, bucketName) => fakeBucket(bucketName),
+    }),
+  });
+
+  const europe = provider.forWorld("europe");
+
+  assert.equal(europe.firestore.databaseId, "europe");
+  assert.equal(europe.bucket.name, "world-notes-prod-europe");
+});
+
 test("rejects a bucket returned for the wrong world", () => {
   const provider = new WorldBucketProvider(registry, {
     appProvider: () => ({} as App),
@@ -173,6 +202,25 @@ test("validates an explicit callable route against its deployment", () => {
   );
 });
 
+test("validates content routes for multi-region callables", () => {
+  const validator = new CallableRouteValidator(registry);
+
+  assert.equal(validator.requireContentWorld("asia").databaseId, "(default)");
+  assert.throws(
+    () => validator.requireContentWorld("europe"),
+    (error: unknown) =>
+      error instanceof HttpsError && error.code === "failed-precondition",
+  );
+});
+
+test("deploys regional callables to every configured Functions region", () => {
+  assert.deepEqual(setNoteLike.__endpoint.region, [
+    "asia-northeast1",
+    "us-central1",
+    "europe-west1",
+  ]);
+});
+
 test("binds profile snapshot triggers to each world database", () => {
   assert.equal(
     syncAsiaProfileSnapshots.__endpoint.eventTrigger?.eventFilters.database,
@@ -187,4 +235,19 @@ test("binds profile snapshot triggers to each world database", () => {
     syncEuropeProfileSnapshots.__endpoint.eventTrigger?.eventFilters.database,
     "europe",
   );
+});
+
+test("deploys content schedulers in every world region", () => {
+  const schedules = [
+    [archiveAsiaExpiredNotes, "asia-northeast1"],
+    [archiveNorthAmericaExpiredNotes, "us-central1"],
+    [archiveEuropeExpiredNotes, "europe-west1"],
+    [publishAsiaScheduledMessages, "asia-northeast1"],
+    [publishNorthAmericaScheduledMessages, "us-central1"],
+    [publishEuropeScheduledMessages, "europe-west1"],
+  ] as const;
+
+  for (const [schedule, region] of schedules) {
+    assert.equal(schedule.__endpoint.region?.[0], region);
+  }
 });

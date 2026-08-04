@@ -53,13 +53,13 @@ export class WorldContextProvider {
   }
 
   /**
-   * Resolves dependencies only for a content-enabled world.
+   * Resolves dependencies for any trusted catalog world.
    *
    * @param {string} worldId Trusted domain world ID.
    * @return {WorldContext} Aligned regional dependencies.
    */
-  forContentWorld(worldId: string): WorldContext {
-    const world = this.registry.requireContentWorld(worldId);
+  forWorld(worldId: string): WorldContext {
+    const world = this.registry.requireWorld(worldId);
     const cached = this.contexts.get(worldId);
     if (cached !== undefined) return cached;
 
@@ -79,6 +79,17 @@ export class WorldContextProvider {
     this.contexts.set(worldId, context);
     return context;
   }
+
+  /**
+   * Resolves dependencies only for a content-enabled world.
+   *
+   * @param {string} worldId Trusted domain world ID.
+   * @return {WorldContext} Aligned regional dependencies.
+   */
+  forContentWorld(worldId: string): WorldContext {
+    this.registry.requireContentWorld(worldId);
+    return this.forWorld(worldId);
+  }
 }
 
 let productionProvider: WorldContextProvider | undefined;
@@ -94,4 +105,15 @@ let productionProvider: WorldContextProvider | undefined;
 export function asiaWorldContext(): WorldContext {
   productionProvider ??= new WorldContextProvider();
   return productionProvider.forContentWorld(ASIA_WORLD_ID);
+}
+
+/**
+ * Resolves aligned dependencies for a trusted regional worker.
+ *
+ * @param {string} worldId Trusted domain world ID.
+ * @return {WorldContext} Aligned regional dependencies.
+ */
+export function worldContext(worldId: string): WorldContext {
+  productionProvider ??= new WorldContextProvider();
+  return productionProvider.forWorld(worldId);
 }

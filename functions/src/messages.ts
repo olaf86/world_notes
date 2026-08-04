@@ -20,8 +20,7 @@ import {
   MAX_MESSAGES_PER_THREAD,
   REGION,
 } from "./constants";
-import {asiaWorldContext} from "./platform/worldContext";
-import {ASIA_WORLD_ID} from "./platform/worldRegistry";
+import {WorldBucket} from "./platform/worldBucketProvider";
 import {
   type AppModerationRiskSignal,
   type InternalModerationResult,
@@ -128,6 +127,7 @@ type ModerationReviewSource = "provider" | "riskSignal" | "userReport";
 
 interface CreateMessageParams {
   db: Firestore;
+  worldId: string;
   refs: SendMessageRefs;
   uid: string;
   input: ValidatedSendMessageInput;
@@ -343,9 +343,11 @@ function isModerationRemoval(
   return moderationResult.action === "hidden";
 }
 
-async function deleteStoredImages(storagePaths: string[]): Promise<void> {
+async function deleteStoredImages(
+  bucket: WorldBucket,
+  storagePaths: string[],
+): Promise<void> {
   if (storagePaths.length === 0) return;
-  const bucket = asiaWorldContext().bucket;
   for (const storagePath of storagePaths) {
     try {
       await bucket.file(storagePath).delete({ignoreNotFound: true});
@@ -356,10 +358,10 @@ async function deleteStoredImages(storagePaths: string[]): Promise<void> {
 }
 
 async function moderationImagesFor(
+  bucket: WorldBucket,
   storagePaths: string[],
 ): Promise<ModerationImageInput[]> {
   if (storagePaths.length === 0) return [];
-  const bucket = asiaWorldContext().bucket;
   return Promise.all(storagePaths.map(async (storagePath) => {
     const file = bucket.file(storagePath);
     try {
@@ -449,6 +451,7 @@ function messageDocumentData({
 
 function moderationReviewDocumentData({
   uid,
+  worldId,
   placeId,
   messageId,
   moderationResult,
@@ -457,6 +460,7 @@ function moderationReviewDocumentData({
   submittedImageStoragePaths,
 }: {
   uid: string;
+  worldId: string;
   placeId: string;
   messageId: string;
   moderationResult: InternalModerationResult;
@@ -474,7 +478,7 @@ function moderationReviewDocumentData({
       []),
   ];
   return {
-    worldId: ASIA_WORLD_ID,
+    worldId,
     userId: uid,
     targetType: "message",
     targetId: messageId,
@@ -618,6 +622,7 @@ function messageCreationPlaceUpdate(
 
 async function createMessageInTransaction({
   db,
+  worldId,
   refs,
   uid,
   input,
@@ -762,6 +767,7 @@ async function createMessageInTransaction({
     if (shouldCreateModerationReview(moderationResult, riskSignals)) {
       tx.set(refs.moderationReviewRef, moderationReviewDocumentData({
         uid,
+        worldId,
         placeId: input.placeId,
         messageId: input.messageId,
         moderationResult,
@@ -838,6 +844,7 @@ async function sendMessageNotificationsSafely({
 
 async function runSendMessageSideEffects({
   db,
+  bucket,
   uid,
   input,
   messageId,
@@ -845,6 +852,7 @@ async function runSendMessageSideEffects({
   result,
 }: {
   db: Firestore;
+  bucket: WorldBucket;
   uid: string;
   input: ValidatedSendMessageInput;
   messageId: string;
@@ -854,7 +862,7 @@ async function runSendMessageSideEffects({
   if (!result.created) return;
 
   if (result.imageStoragePathsToDelete.length > 0) {
-    await deleteStoredImages(result.imageStoragePathsToDelete);
+    await deleteStoredImages(bucket, result.imageStoragePathsToDelete);
   }
   await createModerationNoticeSafely({
     uid,
@@ -882,12 +890,12 @@ async function runSendMessageSideEffects({
  */
 export const sendMessage = onCall<SendMessageData>(
   {enforceAppCheck: true, region: REGION, secrets: [OPENAI_API_KEY]},
-  async (req) => {
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
 
     const input = validateSendMessageInput(req.data, uid);
-    const db = asiaWorldContext().firestore;
+    const db = world.firestore;
     const refs = sendMessageRefs(db, input, uid);
     const nowMs = Date.now();
     const existingResult = await existingMessageResult(
@@ -921,6 +929,7 @@ export const sendMessage = onCall<SendMessageData>(
         );
       }
       const moderationImages = await moderationImagesFor(
+        world.bucket,
         input.trimmedImageStoragePaths,
       );
       const moderationResult = await moderateContent(
@@ -955,9 +964,10 @@ export const sendMessage = onCall<SendMessageData>(
         );
       }
       const riskSignals = detectAppModerationRiskSignals(input.trimmedContent);
-      const profile = await profileForMember(uid);
+      const profile = await profileForMember(db, uid);
       const result = await createMessageInTransaction({
         db,
+        worldId: world.worldId,
         refs,
         uid,
         input,
@@ -969,6 +979,7 @@ export const sendMessage = onCall<SendMessageData>(
       });
       await runSendMessageSideEffects({
         db,
+        bucket: world.bucket,
         uid,
         input,
         messageId: refs.messageRef.id,
@@ -982,7 +993,7 @@ export const sendMessage = onCall<SendMessageData>(
         isScheduled: result.isScheduled,
       };
     } catch (error) {
-      await deleteStoredImages(input.trimmedImageStoragePaths);
+      await deleteStoredImages(world.bucket, input.trimmedImageStoragePaths);
       throw error;
     }
   },
@@ -993,13 +1004,13 @@ export const sendMessage = onCall<SendMessageData>(
  */
 export const reportMessage = onCall<ReportMessageData>(
   {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) {
       throw new HttpsError("unauthenticated", "Sign in required.");
     }
     const input = validateReportMessageInput(req.data);
-    const db = asiaWorldContext().firestore;
+    const db = world.firestore;
     const placeRef = db.collection("places").doc(input.placeId);
     const memberRef = placeRef.collection("members").doc(uid);
     const messageRef = placeRef.collection("messages").doc(input.messageId);
@@ -1057,7 +1068,7 @@ export const reportMessage = onCall<ReportMessageData>(
       }
 
       tx.set(reportRef, {
-        worldId: ASIA_WORLD_ID,
+        worldId: world.worldId,
         targetType: "message",
         targetId: input.messageId,
         targetPath: `places/${input.placeId}/messages/${input.messageId}`,
@@ -1069,7 +1080,7 @@ export const reportMessage = onCall<ReportMessageData>(
         createdAt: reportCreatedAt,
       });
       tx.set(rateLimitRef, {
-        lastWorldId: ASIA_WORLD_ID,
+        lastWorldId: world.worldId,
         lastCreatedAt: reportCreatedAt,
         lastTargetType: "message",
         lastTargetId: input.messageId,
@@ -1080,7 +1091,7 @@ export const reportMessage = onCall<ReportMessageData>(
         reportCount: FieldValue.increment(1),
       });
       tx.set(moderationReviewRef, {
-        worldId: ASIA_WORLD_ID,
+        worldId: world.worldId,
         userId: messageSnap.get("userId") ?? null,
         targetType: "message",
         targetId: input.messageId,
@@ -1191,12 +1202,12 @@ async function applyMessageLikeState(
  */
 export const setMessageLike = onCall<SetMessageLikeData>(
   {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
 
     const input = validateSetMessageLikeInput(req.data);
-    const db = asiaWorldContext().firestore;
+    const db = world.firestore;
     const refs = messageLikeRefs(db, input, uid);
     const nowMs = Date.now();
 
@@ -1211,7 +1222,7 @@ export const setMessageLike = onCall<SetMessageLikeData>(
  */
 export const deleteMessage = onCall<DeleteMessageData>(
   {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
 
@@ -1223,14 +1234,15 @@ export const deleteMessage = onCall<DeleteMessageData>(
       throw new HttpsError("invalid-argument", "messageId is required.");
     }
 
-    const messageRef = asiaWorldContext().firestore
+    const db = world.firestore;
+    const messageRef = db
       .collection("places")
       .doc(placeId)
       .collection("messages")
       .doc(messageId);
     let imageStoragePaths: string[] = [];
 
-    await asiaWorldContext().firestore.runTransaction(async (tx) => {
+    await db.runTransaction(async (tx) => {
       const messageSnap = await tx.get(messageRef);
       if (!messageSnap.exists) {
         throw new HttpsError("not-found", "Message not found.");
@@ -1259,7 +1271,7 @@ export const deleteMessage = onCall<DeleteMessageData>(
       });
     });
 
-    await deleteStoredImages(imageStoragePaths);
+    await deleteStoredImages(world.bucket, imageStoragePaths);
     return {ok: true};
   },
 );
@@ -1269,7 +1281,7 @@ export const deleteMessage = onCall<DeleteMessageData>(
  */
 export const cancelScheduledMessage = onCall<CancelScheduledMessageData>(
   {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
 
@@ -1281,7 +1293,7 @@ export const cancelScheduledMessage = onCall<CancelScheduledMessageData>(
       throw new HttpsError("invalid-argument", "messageId is required.");
     }
 
-    const db = asiaWorldContext().firestore;
+    const db = world.firestore;
     const placeRef = db.collection("places").doc(placeId);
     const counterRef = placeRef.collection("counters").doc("messageSlots");
     const messageRef = placeRef.collection("messages").doc(messageId);
@@ -1355,7 +1367,7 @@ export const cancelScheduledMessage = onCall<CancelScheduledMessageData>(
       tx.delete(messageRef);
     });
 
-    await deleteStoredImages(imageStoragePaths);
+    await deleteStoredImages(world.bucket, imageStoragePaths);
     return {ok: true};
   },
 );

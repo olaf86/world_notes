@@ -27,7 +27,6 @@ import {
   DISCOVERY_GEOHASH_PRECISION,
   REGION,
 } from "./constants";
-import {asiaWorldContext} from "./platform/worldContext";
 import {
   findUserIdsWithBlockRelationshipToViewer,
   hasUserBlockBetween,
@@ -489,7 +488,7 @@ async function addMarkerFlagsToPins(
 
 export const listMapPins = onCall<ListMapPinsData>(
   {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  async (req, world) => {
     const startedAt = Date.now();
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
@@ -505,7 +504,7 @@ export const listMapPins = onCall<ListMapPinsData>(
     );
     const searchRadiusKm = assertSearchRadiusKm(req.data?.searchRadiusKm);
 
-    const db = asiaWorldContext().firestore;
+    const db = world.firestore;
     const noteAccessRadiusKm = await noteAccessRadiusKmForUser(db, uid);
     const nowMillis = Date.now();
     const publishedAt = Timestamp.fromMillis(nowMillis);
@@ -613,7 +612,7 @@ export const listMapPins = onCall<ListMapPinsData>(
 
 export const validateNoteAccess = onCall<ValidateNoteAccessData>(
   {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
 
@@ -623,7 +622,7 @@ export const validateNoteAccess = onCall<ValidateNoteAccessData>(
     }
     const user = assertCoordinatePair(req.data?.latitude, req.data?.longitude);
 
-    const db = asiaWorldContext().firestore;
+    const db = world.firestore;
     const [snap, noteAccessRadiusKm] = await Promise.all([
       db.collection("places").doc(placeId).get(),
       noteAccessRadiusKmForUser(db, uid),

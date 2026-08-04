@@ -8,7 +8,6 @@ import {
 
 import {REGION} from "./constants";
 import {assertAccountSafetyAllows} from "./accountSafety";
-import {asiaWorldContext} from "./platform/worldContext";
 import {canMaintainNote} from "./noteMaintenance";
 import {hasUserBlockBetweenInTransaction} from "./userBlocks";
 
@@ -77,12 +76,12 @@ function canAccessNote({
 
 export const recordNoteVisit = onCall<RecordNoteVisitData>(
   {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
 
     const placeId = placeIdOf(req.data?.placeId);
-    const db = asiaWorldContext().firestore;
+    const db = world.firestore;
     const placeRef = db.collection("places").doc(placeId);
     const userRef = db.collection("users").doc(uid);
     const noteStateRef = userRef.collection("noteStates").doc(placeId);
@@ -181,7 +180,7 @@ export const recordNoteVisit = onCall<RecordNoteVisitData>(
 
 export const setFootprintEnabled = onCall<SetFootprintEnabledData>(
   {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
 
@@ -191,7 +190,7 @@ export const setFootprintEnabled = onCall<SetFootprintEnabledData>(
       throw new HttpsError("invalid-argument", "enabled is required.");
     }
 
-    const db = asiaWorldContext().firestore;
+    const db = world.firestore;
     const placeRef = db.collection("places").doc(placeId);
     await db.runTransaction(async (tx) => {
       const placeSnap = await tx.get(placeRef);

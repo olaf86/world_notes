@@ -1001,6 +1001,27 @@ Exit criteria:
 
 Rollback: catalog keeps new-world content access disabled.
 
+Implementation note (2026-08-04): the first P16 slice deploys the shared
+callable exports to every catalogued Functions region while retaining one
+logical function name. The client still selects its world-specific Functions
+region; the server validates the explicit `worldId` against the trusted
+content-enabled catalog entry and injects the matching Firestore database and
+Storage bucket. Europe and North America therefore have deployed ingress but
+continue rejecting content traffic while their catalog entries remain
+`mirrorOnly` with content access disabled.
+
+Note, message, membership, visit, like, report, password, map-pin, and
+administrator moderation handlers now use only that injected world context.
+World-local public-profile lookups no longer fall back to Asia, and report and
+moderation records persist their source world. Expired-note archival and
+scheduled-message publication each have an explicit schedule in all three
+regions. Scheduled-message publication paginates at most ten 100-document
+batches per invocation, avoiding both an unbounded run and the previous
+single-page backlog ceiling. Boundary and manifest tests protect injected
+routing and the three scheduler regions. The world-aware moderation cursor,
+remaining notification ownership, Rules/index deployment verification, and
+full named-database contract suite remain subsequent P16/P19 work.
+
 ### Phase 9 — regional Storage and signed image access
 
 Deliverables:

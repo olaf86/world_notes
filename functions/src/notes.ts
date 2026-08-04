@@ -24,8 +24,8 @@ import {
   MAX_SUBTITLE_LENGTH,
   REGION,
 } from "./constants";
-import {asiaWorldContext} from "./platform/worldContext";
-import {ASIA_WORLD_ID} from "./platform/worldRegistry";
+import {worldContext} from "./platform/worldContext";
+import {WORLD_REGISTRY} from "./platform/worldRegistry";
 import {
   hashLockSecret,
   MAX_LOCK_HINT_LENGTH,
@@ -141,7 +141,7 @@ export const createNote = onCall<CreateNoteData>(
     region: REGION,
     secrets: [NOTE_PW_PEPPER, OPENAI_API_KEY],
   },
-  async (req) => {
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) {
       throw new HttpsError("unauthenticated", "You must be signed in.");
@@ -253,7 +253,7 @@ export const createNote = onCall<CreateNoteData>(
         subtitle.trim() :
         null;
     const trimmedTitle = (title as string).trim();
-    const db = asiaWorldContext().firestore;
+    const db = world.firestore;
     const userRef = db.collection("users").doc(uid);
     await assertAccountSafetyPreflight(
       db,
@@ -446,7 +446,7 @@ export const setNotePinImage = onCall<SetNotePinImageData>(
     region: REGION,
     secrets: [OPENAI_API_KEY],
   },
-  async (req) => {
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) {
       throw new HttpsError("unauthenticated", "You must be signed in.");
@@ -468,7 +468,6 @@ export const setNotePinImage = onCall<SetNotePinImageData>(
       );
     }
 
-    const world = asiaWorldContext();
     const db = world.firestore;
     await assertAccountSafetyPreflight(
       db,
@@ -660,13 +659,13 @@ function canReportNote(
 /** Records a user report and queues the note for administrator review. */
 export const reportNote = onCall<ReportNoteData>(
   {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) {
       throw new HttpsError("unauthenticated", "Sign in required.");
     }
     const input = validateReportNoteInput(req.data);
-    const db = asiaWorldContext().firestore;
+    const db = world.firestore;
     const placeRef = db.collection("places").doc(input.placeId);
     const memberRef = placeRef.collection("members").doc(uid);
     const reportRef = db.collection("reports").doc();
@@ -726,7 +725,7 @@ export const reportNote = onCall<ReportNoteData>(
       const targetPath = `places/${input.placeId}`;
 
       tx.set(reportRef, {
-        worldId: ASIA_WORLD_ID,
+        worldId: world.worldId,
         targetType: "note",
         targetId: input.placeId,
         targetPath,
@@ -738,7 +737,7 @@ export const reportNote = onCall<ReportNoteData>(
         createdAt: reportCreatedAt,
       });
       tx.set(rateLimitRef, {
-        lastWorldId: ASIA_WORLD_ID,
+        lastWorldId: world.worldId,
         lastCreatedAt: reportCreatedAt,
         lastTargetType: "note",
         lastTargetId: input.placeId,
@@ -746,7 +745,7 @@ export const reportNote = onCall<ReportNoteData>(
         lastMessageId: FieldValue.delete(),
       }, {merge: true});
       tx.set(reviewRef, {
-        worldId: ASIA_WORLD_ID,
+        worldId: world.worldId,
         userId: placeSnap.get("createdByUserId") ?? null,
         targetType: "note",
         targetId: input.placeId,
@@ -774,7 +773,7 @@ export const reportNote = onCall<ReportNoteData>(
 /** Updates the built-in appearance theme of an active note. */
 export const setNoteTheme = onCall<SetNoteThemeData>(
   {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) {
       throw new HttpsError("unauthenticated", "You must be signed in.");
@@ -787,7 +786,7 @@ export const setNoteTheme = onCall<SetNoteThemeData>(
       throw new HttpsError("invalid-argument", "Invalid note theme.");
     }
 
-    const db = asiaWorldContext().firestore;
+    const db = world.firestore;
     const placeRef = db.collection("places").doc(placeId);
     await db.runTransaction(async (tx) => {
       const placeSnap = await tx.get(placeRef);
@@ -838,7 +837,7 @@ export const setNoteTheme = onCall<SetNoteThemeData>(
  */
 export const archiveNote = onCall<ArchiveNoteData>(
   {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) {
       throw new HttpsError("unauthenticated", "You must be signed in.");
@@ -848,7 +847,7 @@ export const archiveNote = onCall<ArchiveNoteData>(
       throw new HttpsError("invalid-argument", "placeId is required.");
     }
 
-    const db = asiaWorldContext().firestore;
+    const db = world.firestore;
     const placeRef = db.collection("places").doc(placeId);
     const archived = await db.runTransaction(async (tx) => {
       const placeSnap = await tx.get(placeRef);
@@ -926,80 +925,111 @@ export const archiveNote = onCall<ArchiveNoteData>(
  * longer returns them, so re-querying until empty drains the backlog.
  *
  * Requires composite index (isArchived ASC, expiresAt ASC).
+ *
+ * @param {string} worldId Trusted catalog world to archive.
+ * @return {Promise<number>} Number of notes archived during this run.
  */
-export const archiveExpiredNotes = onSchedule(
-  {schedule: "every 24 hours", timeZone: "Asia/Tokyo", region: REGION},
-  async () => {
-    const db = asiaWorldContext().firestore;
-    const now = Timestamp.now();
-    const batchSize = 200;
-    let totalArchived = 0;
+export async function archiveExpiredNotesForWorld(
+  worldId: string,
+): Promise<number> {
+  const db = worldContext(worldId).firestore;
+  const now = Timestamp.now();
+  const batchSize = 200;
+  let totalArchived = 0;
 
-    for (;;) {
-      const snap = await db
-        .collection("places")
-        .where("isArchived", "==", false)
-        .where("expiresAt", "<=", now)
-        .limit(batchSize)
-        .get();
+  for (;;) {
+    const snap = await db
+      .collection("places")
+      .where("isArchived", "==", false)
+      .where("expiresAt", "<=", now)
+      .limit(batchSize)
+      .get();
 
-      if (snap.empty) break;
+    if (snap.empty) break;
 
-      const placesByCreator = new Map<string, DocumentReference[]>();
-      for (const doc of snap.docs) {
-        const creatorId = doc.get("createdByUserId") as string;
-        const refs = placesByCreator.get(creatorId) ?? [];
-        refs.push(doc.ref);
-        placesByCreator.set(creatorId, refs);
-      }
+    const placesByCreator = new Map<string, DocumentReference[]>();
+    for (const doc of snap.docs) {
+      const creatorId = doc.get("createdByUserId") as string;
+      const refs = placesByCreator.get(creatorId) ?? [];
+      refs.push(doc.ref);
+      placesByCreator.set(creatorId, refs);
+    }
 
-      const archivedCounts = await Promise.all(
-        [...placesByCreator.entries()].map(async ([creatorId, placeRefs]) => {
-          return db.runTransaction(async (tx) => {
-            const usageRef = db.collection("userUsage").doc(creatorId);
-            const [usageSnap, ...placeSnaps] = await Promise.all([
-              tx.get(usageRef),
-              ...placeRefs.map((ref) => tx.get(ref)),
-            ]);
-            const expiredPlacesToArchive = placeSnaps.filter((placeSnap) => {
-              const expiresAt =
+    const archivedCounts = await Promise.all(
+      [...placesByCreator.entries()].map(async ([creatorId, placeRefs]) => {
+        return db.runTransaction(async (tx) => {
+          const usageRef = db.collection("userUsage").doc(creatorId);
+          const [usageSnap, ...placeSnaps] = await Promise.all([
+            tx.get(usageRef),
+            ...placeRefs.map((ref) => tx.get(ref)),
+          ]);
+          const expiredPlacesToArchive = placeSnaps.filter((placeSnap) => {
+            const expiresAt =
                 placeSnap.get("expiresAt") as Timestamp | undefined;
-              return placeSnap.exists &&
+            return placeSnap.exists &&
                 placeSnap.get("isArchived") !== true &&
                 placeSnap.get("createdByUserId") === creatorId &&
                 expiresAt != null &&
                 expiresAt.toMillis() <= now.toMillis();
-            });
-            if (expiredPlacesToArchive.length === 0) return 0;
-
-            for (const placeSnap of expiredPlacesToArchive) {
-              tx.update(placeSnap.ref, {
-                isArchived: true,
-                archivedAt: FieldValue.serverTimestamp(),
-                isOpen: false,
-              });
-            }
-            const activeCount =
-              (usageSnap.get("activeNoteCount") as number | undefined) ?? 0;
-            tx.set(
-              usageRef,
-              {
-                activeNoteCount: Math.max(
-                  0,
-                  activeCount - expiredPlacesToArchive.length,
-                ),
-                updatedAt: FieldValue.serverTimestamp(),
-              },
-              {merge: true},
-            );
-            return expiredPlacesToArchive.length;
           });
-        }),
-      );
-      totalArchived += archivedCounts.reduce((sum, count) => sum + count, 0);
-      if (snap.size < batchSize) break;
-    }
+          if (expiredPlacesToArchive.length === 0) return 0;
 
-    logger.info(`archiveExpiredNotes: archived ${totalArchived} notes.`);
-  },
-);
+          for (const placeSnap of expiredPlacesToArchive) {
+            tx.update(placeSnap.ref, {
+              isArchived: true,
+              archivedAt: FieldValue.serverTimestamp(),
+              isOpen: false,
+            });
+          }
+          const activeCount =
+              (usageSnap.get("activeNoteCount") as number | undefined) ?? 0;
+          tx.set(
+            usageRef,
+            {
+              activeNoteCount: Math.max(
+                0,
+                activeCount - expiredPlacesToArchive.length,
+              ),
+              updatedAt: FieldValue.serverTimestamp(),
+            },
+            {merge: true},
+          );
+          return expiredPlacesToArchive.length;
+        });
+      }),
+    );
+    totalArchived += archivedCounts.reduce((sum, count) => sum + count, 0);
+    if (snap.size < batchSize) break;
+  }
+
+  logger.info("Expired notes archived.", {worldId, totalArchived});
+  return totalArchived;
+}
+
+/**
+ * Creates one regional expired-note schedule.
+ *
+ * @param {string} worldId Trusted catalog world to archive.
+ * @return {ScheduleFunction} Regional scheduled function.
+ */
+function archiveExpiredNotesSchedule(worldId: string) {
+  const world = WORLD_REGISTRY.requireWorld(worldId);
+  return onSchedule(
+    {
+      schedule: "every 24 hours",
+      timeZone: "Etc/UTC",
+      region: world.functionsRegion,
+      retryCount: 3,
+      maxInstances: 1,
+    },
+    async () => {
+      await archiveExpiredNotesForWorld(worldId);
+    },
+  );
+}
+
+export const archiveAsiaExpiredNotes = archiveExpiredNotesSchedule("asia");
+export const archiveNorthAmericaExpiredNotes =
+  archiveExpiredNotesSchedule("northAmerica");
+export const archiveEuropeExpiredNotes =
+  archiveExpiredNotesSchedule("europe");
