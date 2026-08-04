@@ -797,12 +797,14 @@ async function createMessageInTransaction({
 }
 
 async function createModerationNoticeSafely({
+  firestore,
   uid,
   placeId,
   messageId,
   moderationResult,
   moderationNoticePoints,
 }: {
+  firestore: Firestore;
   uid: string;
   placeId: string;
   messageId: string;
@@ -811,7 +813,11 @@ async function createModerationNoticeSafely({
 }): Promise<void> {
   if (moderationNoticePoints <= 0) return;
   try {
+    // The notice and Push intent become atomic after this source-world route
+    // resolves the user's home. The already committed message does not wait
+    // for cross-database notice recovery.
     await createModerationNoticeIfNeeded(
+      firestore,
       uid,
       moderationResult,
       moderationNoticePoints,
@@ -826,6 +832,7 @@ async function createModerationNoticeSafely({
 }
 
 async function runSendMessageSideEffects({
+  firestore,
   bucket,
   uid,
   input,
@@ -833,6 +840,7 @@ async function runSendMessageSideEffects({
   moderationResult,
   result,
 }: {
+  firestore: Firestore;
   bucket: WorldBucket;
   uid: string;
   input: ValidatedSendMessageInput;
@@ -846,6 +854,7 @@ async function runSendMessageSideEffects({
     await deleteStoredImages(bucket, result.imageStoragePathsToDelete);
   }
   await createModerationNoticeSafely({
+    firestore,
     uid,
     placeId: input.placeId,
     messageId,
@@ -951,6 +960,7 @@ export const sendMessage = onCall<SendMessageData>(
         nowMs,
       });
       await runSendMessageSideEffects({
+        firestore: db,
         bucket: world.bucket,
         uid,
         input,

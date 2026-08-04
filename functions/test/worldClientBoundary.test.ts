@@ -20,7 +20,6 @@ const REGIONALIZED_CONTENT_FILES = [
 const ALLOWED_ASIA_FIXED_FILES = new Set([
   "accountBootstrap.ts",
   "adminAccountSafety.ts",
-  "notices.ts",
   "platform/worldContext.ts",
   "platform/worldRegistry.ts",
 ]);

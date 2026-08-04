@@ -850,6 +850,22 @@ best-effort message notification sends have been removed; event creation is
 atomic with publication and the one-minute reconciler repairs missed triggers
 or expired worker leases.
 
+Implementation note (2026-08-04): account, moderation, social, developer, and
+system notices no longer use the fixed Asia database. A trusted source-world
+caller resolves the recipient through its local `userHomes/{uid}` mirror, then
+creates `users/{uid}/notices/{noticeId}` and a deterministic
+`notifyUserNotice` event together in the recipient's home database. The
+home-world handler verifies that local home assignment again, reads only the
+home token collection, and applies the same retry, expiry, permanent-token
+cleanup, and duplicate-suppression policy as message notifications.
+
+The notice plus Push intent is atomic after the home route is resolved. When
+the originating domain mutation belongs to another database, creating that
+notice remains an asynchronous cross-database side effect rather than part of
+the original authority transaction. Safety enforcement never depends on this
+presentation notice; any future workflow that requires guaranteed notice
+creation must first persist a deterministic source-world routing intent.
+
 ### Phase 6 — profiles, social graph, and notification authority
 
 Deliverables:

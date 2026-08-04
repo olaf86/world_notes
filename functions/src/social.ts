@@ -128,7 +128,7 @@ export const setUserFollow = onCall<SetUserFollowData>(
           if (typeof followerName !== "string" || followerName.length === 0) {
             throw new Error("Follower public profile is invalid.");
           }
-          await createUserNotice(targetUserId, {
+          await createUserNotice(db, targetUserId, {
             category: "social",
             severity: "info",
             title: "New follower",

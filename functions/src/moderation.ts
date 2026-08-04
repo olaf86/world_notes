@@ -466,13 +466,14 @@ function userNoticeForPoints(
 }
 
 export async function createModerationNoticeIfNeeded(
+  firestore: Firestore,
   uid: string,
   result: InternalModerationResult,
   nextPoints: number,
 ): Promise<void> {
   const notice = userNoticeForPoints(result, nextPoints);
   if (notice == null) return;
-  await createUserNotice(uid, notice);
+  await createUserNotice(firestore, uid, notice);
 }
 
 export async function assertUserCanCreateContent(
@@ -554,7 +555,7 @@ export async function recordRejectedModeration({
     });
   });
   try {
-    await createModerationNoticeIfNeeded(uid, result, nextPoints);
+    await createModerationNoticeIfNeeded(db, uid, result, nextPoints);
   } catch (error) {
     logger.warn(
       `Could not create moderation notice for rejected ${sourceType}.`,
