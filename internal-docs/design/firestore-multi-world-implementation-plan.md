@@ -817,6 +817,22 @@ deletes tokens only for the two reviewed invalid/unregistered-token results.
 No existing push producer is migrated yet; handlers remain empty until the
 home authority and regional notification workflows are introduced later.
 
+Implementation note (2026-08-04): notification credentials now have one
+authority. Registration, deletion, and preference callables must be routed to
+the caller's immutable home world; the server rejects a valid but non-home
+world route. `users/{uid}/notificationSettings/main` and
+`users/{uid}/fcmTokens/{tokenHash}` are therefore never copied into content
+worlds.
+
+Regional message delivery remains owned by the source world. It rechecks the
+source message visibility and the local block projection, resolves each
+recipient's home from the mirrored `userHomes/{uid}` route, and reads only that
+recipient's settings and tokens from the home database. The FCM payload carries
+the source world so notification navigation selects the correct content
+world. This step establishes the authority boundary first; replacing the
+remaining best-effort send with the existing durable outbox producer and
+delivery handler is the next P19 slice.
+
 ### Phase 6 — profiles, social graph, and notification authority
 
 Deliverables:

@@ -12,8 +12,8 @@ import {
 import {BatchResponse, getMessaging} from "firebase-admin/messaging";
 
 import {REGION} from "./constants";
-import {asiaWorldContext} from "./platform/worldContext";
-import {ASIA_WORLD_ID} from "./platform/worldRegistry";
+import {worldContext} from "./platform/worldContext";
+import {WORLD_REGISTRY} from "./platform/worldRegistry";
 import {maintainerIdsOf} from "./noteMaintenance";
 import {hasUserBlockBetween} from "./userBlocks";
 
@@ -55,6 +55,7 @@ interface MyNotesNotificationGroup {
 }
 
 interface MyNotesSendContext {
+  sourceWorld: string;
   placeId: string;
   messageId: string;
   locale: NotificationLocale;
@@ -243,14 +244,14 @@ async function deleteInvalidFcmTokens(
 }
 
 export const registerFcmToken = onCall<RegisterFcmTokenData>(
-  {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  {enforceAppCheck: true, region: REGION, requireHomeWorld: true},
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
 
     const token = validToken(req.data?.token);
     const platform = platformOf(req.data?.platform);
-    const ref = asiaWorldContext().firestore
+    const ref = world.firestore
       .collection("users")
       .doc(uid)
       .collection("fcmTokens")
@@ -276,13 +277,13 @@ export const registerFcmToken = onCall<RegisterFcmTokenData>(
 );
 
 export const deleteFcmToken = onCall<DeleteFcmTokenData>(
-  {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  {enforceAppCheck: true, region: REGION, requireHomeWorld: true},
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
 
     const token = validToken(req.data?.token);
-    await asiaWorldContext().firestore
+    await world.firestore
       .collection("users")
       .doc(uid)
       .collection("fcmTokens")
@@ -295,15 +296,15 @@ export const deleteFcmToken = onCall<DeleteFcmTokenData>(
 
 export const setMyNotesNotificationEnabled =
   onCall<SetMyNotesNotificationEnabledData>(
-    {enforceAppCheck: true, region: REGION},
-    async (req) => {
+    {enforceAppCheck: true, region: REGION, requireHomeWorld: true},
+    async (req, world) => {
       const uid = req.auth?.uid;
       if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
       if (typeof req.data?.enabled !== "boolean") {
         throw new HttpsError("invalid-argument", "enabled is required.");
       }
 
-      await asiaWorldContext().firestore
+      await world.firestore
         .collection("users")
         .doc(uid)
         .collection("notificationSettings")
@@ -322,15 +323,15 @@ export const setMyNotesNotificationEnabled =
 
 export const setMyNotesNotificationPreviewEnabled =
   onCall<SetMyNotesNotificationPreviewEnabledData>(
-    {enforceAppCheck: true, region: REGION},
-    async (req) => {
+    {enforceAppCheck: true, region: REGION, requireHomeWorld: true},
+    async (req, world) => {
       const uid = req.auth?.uid;
       if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
       if (typeof req.data?.enabled !== "boolean") {
         throw new HttpsError("invalid-argument", "enabled is required.");
       }
 
-      await asiaWorldContext().firestore
+      await world.firestore
         .collection("users")
         .doc(uid)
         .collection("notificationSettings")
@@ -350,17 +351,20 @@ export const setMyNotesNotificationPreviewEnabled =
 /**
  * Sends an actionable push to note maintainers for a public message.
  *
- * @param {Firestore} db Firestore instance.
+ * @param {string} sourceWorld World that owns the content and delivery event.
+ * @param {Firestore} db Source-world Firestore instance.
  * @param {string} placeId Note id.
  * @param {string} messageId Message id.
  * @param {string} senderId User id that posted the message.
  */
 export async function sendMyNotesMessageNotifications(
+  sourceWorld: string,
   db: Firestore,
   placeId: string,
   messageId: string,
   senderId: string,
 ): Promise<void> {
+  WORLD_REGISTRY.requireWorld(sourceWorld);
   const placeRef = db.collection("places").doc(placeId);
   const messageRef = placeRef.collection("messages").doc(messageId);
   const [placeSnap, messageSnap] = await Promise.all([
@@ -390,7 +394,14 @@ export async function sendMyNotesMessageNotifications(
       if (await hasUserBlockBetween(db, uid, senderId)) {
         return {enabled: false, tokens: []};
       }
-      const userRef = db.collection("users").doc(uid);
+      const homeAssignment = await db.collection("userHomes").doc(uid).get();
+      const homeWorld = homeAssignment.get("world");
+      if (typeof homeWorld !== "string") {
+        throw new Error(`Notification recipient home is missing: ${uid}.`);
+      }
+      WORLD_REGISTRY.requireWorld(homeWorld);
+      const homeFirestore = worldContext(homeWorld).firestore;
+      const userRef = homeFirestore.collection("users").doc(uid);
       const settingsRef = userRef
         .collection("notificationSettings")
         .doc("main");
@@ -441,6 +452,7 @@ export async function sendMyNotesMessageNotifications(
       group.locale,
     );
     const context: MyNotesSendContext = {
+      sourceWorld,
       placeId,
       messageId,
       locale: group.locale,
@@ -455,7 +467,7 @@ export async function sendMyNotesMessageNotifications(
           notification,
           data: {
             type: "my_note_message",
-            worldId: ASIA_WORLD_ID,
+            worldId: sourceWorld,
             placeId,
             messageId,
           },
@@ -463,7 +475,7 @@ export async function sendMyNotesMessageNotifications(
             payload: {
               aps: {
                 sound: "default",
-                threadId: `world:${ASIA_WORLD_ID}:place:${placeId}`,
+                threadId: `world:${sourceWorld}:place:${placeId}`,
               },
             },
           },
@@ -471,7 +483,7 @@ export async function sendMyNotesMessageNotifications(
             priority: "high",
             notification: {
               sound: "default",
-              tag: `world:${ASIA_WORLD_ID}:place:${placeId}`,
+              tag: `world:${sourceWorld}:place:${placeId}`,
             },
           },
         });
@@ -499,5 +511,6 @@ export async function sendMyNotesMessageNotifications(
   logger.info(
     `sendMyNotesMessageNotifications: sent ${sent}/${tokenEntries.length}` +
       ` for places/${placeId}/messages/${messageId}.`,
+    {sourceWorld},
   );
 }

@@ -21,7 +21,6 @@ const ALLOWED_ASIA_FIXED_FILES = new Set([
   "accountBootstrap.ts",
   "adminAccountSafety.ts",
   "notices.ts",
-  "notifications.ts",
   "platform/worldContext.ts",
   "platform/worldRegistry.ts",
 ]);

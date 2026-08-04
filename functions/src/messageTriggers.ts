@@ -202,6 +202,7 @@ export async function publishScheduledMessagesForWorld(
       if (!notify) return;
       try {
         await sendMyNotesMessageNotifications(
+          worldId,
           db,
           placeId,
           messageId,

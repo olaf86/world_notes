@@ -21,6 +21,7 @@ type WorldCallableHandler<T> = (
 
 type WorldCallableOptions<T> = CallableOptions<T> & {
   readonly requireAccountReady?: boolean;
+  readonly requireHomeWorld?: boolean;
 };
 
 const routeValidator = new CallableRouteValidator();
@@ -47,6 +48,7 @@ export function onCall<T = unknown>(
 ) {
   const {
     requireAccountReady = true,
+    requireHomeWorld = false,
     ...firebaseOptions
   } = options;
   return firebaseOnCall<T>(
@@ -56,8 +58,16 @@ export function onCall<T = unknown>(
         worldIdFromData(request.data),
       );
       const world = worldContext(route.worldId);
-      if (requireAccountReady && request.auth !== undefined) {
-        await assertAccountReady(request.auth.uid, world);
+      if ((requireAccountReady || requireHomeWorld) &&
+          request.auth !== undefined) {
+        const homeWorld = await requireReadyAccount(request.auth.uid, world);
+        if (requireHomeWorld && homeWorld !== world.worldId) {
+          throw new HttpsError(
+            "failed-precondition",
+            "This operation must use the account's home world.",
+            {reason: "wrong-home-world", homeWorld},
+          );
+        }
       }
       const result = await handler(request, world);
       return {
@@ -74,13 +84,16 @@ export function onCall<T = unknown>(
  * @param {string} uid Authenticated caller UID.
  * @param {WorldContext} world Trusted routed world dependencies.
  */
-async function assertAccountReady(
+async function requireReadyAccount(
   uid: string,
   world: WorldContext,
-): Promise<void> {
-  const marker = await world.firestore.collection("userHomes").doc(uid).get();
-  const homeWorld = marker.get("world");
-  const epoch = marker.get("epoch");
+): Promise<string> {
+  const homeAssignment = await world.firestore
+    .collection("userHomes")
+    .doc(uid)
+    .get();
+  const homeWorld = homeAssignment.get("world");
+  const epoch = homeAssignment.get("epoch");
   let knownHome = false;
   if (typeof homeWorld === "string") {
     try {
@@ -90,7 +103,7 @@ async function assertAccountReady(
       knownHome = false;
     }
   }
-  if (!marker.exists ||
+  if (!homeAssignment.exists ||
       !knownHome ||
       typeof epoch !== "number" ||
       !Number.isInteger(epoch) ||
@@ -101,6 +114,7 @@ async function assertAccountReady(
       {reason: "world-not-ready", worldId: world.worldId},
     );
   }
+  return homeWorld as string;
 }
 
 /**

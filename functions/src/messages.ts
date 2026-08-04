@@ -821,18 +821,26 @@ async function createModerationNoticeSafely({
 }
 
 async function sendMessageNotificationsSafely({
+  worldId,
   db,
   placeId,
   messageId,
   uid,
 }: {
+  worldId: string;
   db: Firestore;
   placeId: string;
   messageId: string;
   uid: string;
 }): Promise<void> {
   try {
-    await sendMyNotesMessageNotifications(db, placeId, messageId, uid);
+    await sendMyNotesMessageNotifications(
+      worldId,
+      db,
+      placeId,
+      messageId,
+      uid,
+    );
   } catch (error) {
     logger.error(
       "sendMessage: failed to send My Notes notification for " +
@@ -843,6 +851,7 @@ async function sendMessageNotificationsSafely({
 }
 
 async function runSendMessageSideEffects({
+  worldId,
   db,
   bucket,
   uid,
@@ -851,6 +860,7 @@ async function runSendMessageSideEffects({
   moderationResult,
   result,
 }: {
+  worldId: string;
   db: Firestore;
   bucket: WorldBucket;
   uid: string;
@@ -873,6 +883,7 @@ async function runSendMessageSideEffects({
   });
   if (result.notifyImmediately) {
     await sendMessageNotificationsSafely({
+      worldId,
       db,
       placeId: input.placeId,
       messageId,
@@ -978,6 +989,7 @@ export const sendMessage = onCall<SendMessageData>(
         nowMs,
       });
       await runSendMessageSideEffects({
+        worldId: world.worldId,
         db,
         bucket: world.bucket,
         uid,
