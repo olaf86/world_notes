@@ -23,6 +23,11 @@ import {
   reconcileEuropeModerationJobs,
   reconcileNorthAmericaModerationJobs,
 } from "../src/moderationJobTriggers";
+import {
+  EVALUATE_MESSAGE_MODERATION_JOB,
+  messageModerationInputHash,
+  messageModerationJobHandler,
+} from "../src/messages";
 
 const CREATED_AT = Timestamp.fromMillis(1_000);
 const TEST_INPUT_HASH = "a".repeat(64);
@@ -97,6 +102,34 @@ test("handler registry requires one owner per moderation job type", () => {
   assert.throws(
     () => new ModerationJobHandlerRegistry([handler, handler]),
     /Duplicate moderation handler/,
+  );
+});
+
+test(
+  "message moderation binds the exact immutable content and image order",
+  () => {
+    const hash = messageModerationInputHash("hello", ["first", "second"]);
+
+    assert.match(hash, /^[0-9a-f]{64}$/);
+    assert.equal(
+      messageModerationInputHash("hello", ["first", "second"]),
+      hash,
+    );
+    assert.notEqual(
+      messageModerationInputHash("hello", ["second", "first"]),
+      hash,
+    );
+    assert.notEqual(
+      messageModerationInputHash("hello!", ["first", "second"]),
+      hash,
+    );
+  },
+);
+
+test("message moderation handler owns its explicit job type", () => {
+  assert.equal(
+    messageModerationJobHandler.jobType,
+    EVALUATE_MESSAGE_MODERATION_JOB,
   );
 });
 

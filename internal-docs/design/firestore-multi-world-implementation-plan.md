@@ -1182,6 +1182,20 @@ terminal finalization transactions are implemented and reviewed together.
 Client reads, lists, and writes are denied by the existing default-deny Rules
 and covered by the Rules Emulator suite.
 
+Implementation note (2026-08-05): the message slice now accepts a message and
+its input-bound moderation job in the same local transaction. Immediate
+messages are public-pending; scheduled messages remain private until both a
+visible terminal verdict and `publishAt`. Provider evaluation, image reads,
+review creation, notification-Outbox creation, and hidden-content account
+safety points run from the retryable regional worker. The terminal transaction
+rechecks the input hash and `pending` state, so an old verdict cannot overwrite
+a changed or administrator-decided message. A hidden immediate message is
+removed from the public aggregate once while its server-only slot remains as
+an abuse-resistant tombstone. Firestore Rules and client queries explicitly
+exclude hidden retained content, including from its sender. Full image
+revocation and 30-day raw-content cleanup still depend on the P17 signed-image
+path and the remaining P20 retention handlers.
+
 ### Phase 12 — staged activation and production cutover
 
 Activation sequence for each new world:

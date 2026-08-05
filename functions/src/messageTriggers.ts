@@ -23,9 +23,10 @@ export interface ScheduledMessagePublicationResult {
  * Publishes a bounded backlog of due messages in one world.
  *
  * The hidden messageSlots counter already reserved capacity at send time. This
- * worker increments the public messageCount when the message or moderation
- * tombstone becomes public. Cursor pagination lets one invocation inspect up
- * to 1,000 due documents without repeatedly selecting the first fixed page.
+ * worker increments the public messageCount only after moderation has reached
+ * a visible terminal state. Hidden tombstones are marked processed without
+ * becoming public. Cursor pagination lets one invocation inspect up to 1,000
+ * due documents without repeatedly selecting the first fixed page.
  *
  * @param {string} worldId Trusted catalog world to process.
  * @return {Promise<ScheduledMessagePublicationResult>} Processing totals.
@@ -50,6 +51,11 @@ export async function publishScheduledMessagesForWorld(
     let query = db
       .collectionGroup("messages")
       .where("placeAggregateAppliedAt", "==", null)
+      .where(
+        "moderationAction",
+        "in",
+        ["allow", "sensitive", "review", "hidden"],
+      )
       .where("publishAt", "<=", now)
       .orderBy("publishAt")
       .orderBy(FieldPath.documentId())

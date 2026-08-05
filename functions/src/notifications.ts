@@ -556,8 +556,12 @@ function isDeliverableMessage(
     return false;
   }
   const expiresAt = place.get("expiresAt");
+  const moderationAction = message.get("moderationAction");
   return expiresAt instanceof Timestamp &&
     expiresAt.toMillis() > Date.now() &&
+    (moderationAction === "allow" ||
+     moderationAction === "sensitive" ||
+     moderationAction === "review") &&
     message.get("isDeleted") !== true &&
     message.get("isVisible") === true &&
     message.get("isPubliclyVisible") === true;

@@ -6,6 +6,7 @@ import {onDocumentCreated} from "firebase-functions/v2/firestore";
 import {onSchedule} from "firebase-functions/v2/scheduler";
 
 import {OPENAI_API_KEY} from "./moderation";
+import {messageModerationJobHandler} from "./messages";
 import {
   deriveModerationJobAttention,
   MODERATION_JOB_RECONCILE_BATCH_SIZE,
@@ -32,13 +33,10 @@ const worldDatabases = WORLD_CATALOG.worlds.map((world) => ({
   databaseId: world.databaseId as WorldFirestoreDatabaseId,
 })) satisfies readonly WorldDatabaseConfig[];
 
-// The durable transport is deployed before message, note, and pin-image
-// producers are switched to optimistic moderation. Handlers are registered as
-// those independently reviewable flows are connected.
 const productionRuntime: ModerationJobRuntime = {
   catalog: WORLD_CATALOG,
   firestore: new WorldFirestoreProvider(worldDatabases),
-  handlers: new ModerationJobHandlerRegistry([]),
+  handlers: new ModerationJobHandlerRegistry([messageModerationJobHandler]),
 };
 
 export interface ModerationJobReconcileResult {

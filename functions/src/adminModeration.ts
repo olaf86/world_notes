@@ -5,15 +5,13 @@ import {
   FieldValue,
   Timestamp,
 } from "firebase-admin/firestore";
-import * as logger from "firebase-functions/logger";
 
-import {REGION} from "./constants";
-import {WorldBucket} from "./platform/worldBucketProvider";
+import {MAX_MESSAGES_PER_THREAD, REGION} from "./constants";
 
 const DEFAULT_REVIEW_LIST_LIMIT = 20;
 const MAX_REVIEW_LIST_LIMIT = 50;
 
-type AdminModerationAction = "allow" | "sensitive" | "hidden";
+export type AdminModerationAction = "allow" | "sensitive" | "hidden";
 type AdminModerationReviewStatus = "open" | "resolved";
 
 interface AdminListModerationReviewsData {
@@ -201,11 +199,6 @@ function validateAdminReviewNoteInput(
   };
 }
 
-function storedImagePaths(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter((path): path is string => typeof path === "string");
-}
-
 function restoredContentFor(
   reviewContent: unknown,
   currentContent: unknown,
@@ -218,10 +211,14 @@ function messageUpdateForAction({
   action,
   reviewContent,
   currentContent,
+  currentIsPubliclyVisible,
+  restorePubliclyVisible,
 }: {
   action: AdminModerationAction;
   reviewContent: unknown;
   currentContent: unknown;
+  currentIsPubliclyVisible: boolean;
+  restorePubliclyVisible: boolean;
 }): Record<string, unknown> {
   const base: Record<string, unknown> = {
     moderationAction: action,
@@ -238,6 +235,9 @@ function messageUpdateForAction({
       deletedAt: null,
       deletedReason: null,
       isSensitive: false,
+      isPubliclyVisible:
+        currentIsPubliclyVisible || restorePubliclyVisible,
+      moderationRestorePubliclyVisible: FieldValue.delete(),
     };
   case "sensitive":
     return {
@@ -247,12 +247,17 @@ function messageUpdateForAction({
       deletedAt: null,
       deletedReason: null,
       isSensitive: true,
+      isPubliclyVisible:
+        currentIsPubliclyVisible || restorePubliclyVisible,
+      moderationRestorePubliclyVisible: FieldValue.delete(),
     };
   case "hidden":
     return {
       ...base,
-      content: "",
-      imageStoragePaths: FieldValue.delete(),
+      isVisible: false,
+      isPubliclyVisible: false,
+      moderationRestorePubliclyVisible:
+        currentIsPubliclyVisible || restorePubliclyVisible,
       isDeleted: true,
       deletedAt: FieldValue.serverTimestamp(),
       deletedReason: "moderation",
@@ -261,8 +266,41 @@ function messageUpdateForAction({
   }
 }
 
+/**
+ * Describes the exact public aggregate transition for an admin decision.
+ *
+ * @param {object} input Current state and requested decision.
+ * @return {object} Before/after visibility and aggregate delta.
+ */
+export function adminMessagePublicTransition(input: Readonly<{
+  action: AdminModerationAction;
+  currentIsPubliclyVisible: boolean;
+  restorePubliclyVisible: boolean;
+  isDeleted: boolean;
+  isVisible: boolean;
+}>): Readonly<{wasPublic: boolean; willBePublic: boolean; delta: -1 | 0 | 1}> {
+  const wasPublic = input.currentIsPubliclyVisible &&
+    !input.isDeleted && input.isVisible;
+  const willBePublic = input.action !== "hidden" &&
+    (input.currentIsPubliclyVisible || input.restorePubliclyVisible);
+  const delta = (willBePublic ? 1 : 0) - (wasPublic ? 1 : 0);
+  return Object.freeze({
+    wasPublic,
+    willBePublic,
+    delta: delta as -1 | 0 | 1,
+  });
+}
+
 function timestampMillis(value: unknown): number | null {
   return value instanceof Timestamp ? value.toMillis() : null;
+}
+
+function messageCount(value: unknown): number {
+  if (value === undefined) return 0;
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
+    throw new Error("Message count is invalid.");
+  }
+  return value;
 }
 
 function reviewListItemFromDoc(
@@ -300,20 +338,6 @@ function reviewListItemFromDoc(
     reviewedAtMillis: timestampMillis(data.reviewedAt),
     reviewedBy: data.reviewedBy ?? null,
   };
-}
-
-async function deleteStoredImages(
-  bucket: WorldBucket,
-  storagePaths: string[],
-): Promise<void> {
-  if (storagePaths.length === 0) return;
-  await Promise.all(storagePaths.map(async (storagePath) => {
-    try {
-      await bucket.file(storagePath).delete({ignoreNotFound: true});
-    } catch (error) {
-      logger.warn(`Could not delete moderated image ${storagePath}.`, error);
-    }
-  }));
 }
 
 /**
@@ -388,7 +412,6 @@ export const adminReviewMessage = onCall<AdminReviewMessageData>(
       .collection("moderationReviews")
       .doc(`${input.placeId}_${input.messageId}`);
     const auditRef = db.collection("moderationAuditLogs").doc();
-    let imageStoragePathsToDelete: string[] = [];
     const reportResolutionStatus =
       input.action === "allow" ? "rejected" : "accepted";
 
@@ -398,11 +421,16 @@ export const adminReviewMessage = onCall<AdminReviewMessageData>(
         .where("targetType", "==", "message")
         .where("targetId", "==", input.messageId)
         .where("status", "==", "open");
-      const [messageSnap, reviewSnap, reportsSnap] = await Promise.all([
-        tx.get(messageRef),
-        tx.get(reviewRef),
-        tx.get(reportsQuery),
-      ]);
+      const [placeSnap, messageSnap, reviewSnap, reportsSnap] =
+        await Promise.all([
+          tx.get(placeRef),
+          tx.get(messageRef),
+          tx.get(reviewRef),
+          tx.get(reportsQuery),
+        ]);
+      if (!placeSnap.exists) {
+        throw new HttpsError("not-found", "Note not found.");
+      }
       if (!messageSnap.exists) {
         throw new HttpsError("not-found", "Message not found.");
       }
@@ -422,21 +450,44 @@ export const adminReviewMessage = onCall<AdminReviewMessageData>(
         );
       }
 
-      if (input.action === "hidden") {
-        imageStoragePathsToDelete = storedImagePaths(
-          messageSnap.get("imageStoragePaths"),
-        );
-      }
+      const currentIsPubliclyVisible =
+        messageSnap.get("isPubliclyVisible") === true;
+      const restorePubliclyVisible =
+        messageSnap.get("moderationRestorePubliclyVisible") === true;
+      const publicTransition = adminMessagePublicTransition({
+        action: input.action,
+        currentIsPubliclyVisible,
+        restorePubliclyVisible,
+        isDeleted: messageSnap.get("isDeleted") === true,
+        isVisible: messageSnap.get("isVisible") === true,
+      });
 
       tx.update(messageRef, {
         ...messageUpdateForAction({
           action: input.action,
           reviewContent: reviewSnap.get("content"),
           currentContent: messageSnap.get("content"),
+          currentIsPubliclyVisible,
+          restorePubliclyVisible,
         }),
         moderationReviewedBy: uid,
         moderationReviewReason: input.reason,
       });
+      if (publicTransition.delta !== 0) {
+        const currentCount = messageCount(placeSnap.get("messageCount"));
+        const nextCount = Math.max(
+          0,
+          currentCount + publicTransition.delta,
+        );
+        const placeUpdate: Record<string, unknown> = {messageCount: nextCount};
+        if (publicTransition.willBePublic &&
+            nextCount >= MAX_MESSAGES_PER_THREAD) {
+          placeUpdate.isOpen = false;
+          placeUpdate.closedReason = "messageLimit";
+          placeUpdate.closedAt = FieldValue.serverTimestamp();
+        }
+        tx.update(placeRef, placeUpdate);
+      }
       tx.update(reviewRef, {
         worldId: world.worldId,
         status: "resolved",
@@ -479,7 +530,6 @@ export const adminReviewMessage = onCall<AdminReviewMessageData>(
       });
     });
 
-    await deleteStoredImages(world.bucket, imageStoragePathsToDelete);
     return {
       ok: true,
       placeId: input.placeId,

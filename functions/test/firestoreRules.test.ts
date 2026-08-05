@@ -802,6 +802,7 @@ describe(
             seedApplicationDocument("places/tokyo", activePublicPlace()),
             seedApplicationDocument("places/tokyo/messages/hello", {
               userId: "alice",
+              moderationAction: "allow",
               isVisible: true,
               isPubliclyVisible: true,
             }),
@@ -821,6 +822,7 @@ describe(
             seedApplicationDocument("places/tokyo", activePublicPlace()),
             seedApplicationDocument("places/tokyo/messages/pending", {
               userId: "alice",
+              moderationAction: "pending",
               isVisible: true,
               isPubliclyVisible: false,
             }),
@@ -835,6 +837,77 @@ describe(
           await assertFails(
             bob.firestore().doc("places/tokyo/messages/pending").get(),
           );
+        },
+      );
+
+      test(
+        "denies a retained hidden message even to its sender",
+        async () => {
+          await Promise.all([
+            seedApplicationDocument("places/tokyo", activePublicPlace()),
+            seedApplicationDocument("places/tokyo/messages/hidden", {
+              userId: "alice",
+              moderationAction: "hidden",
+              isVisible: false,
+              isPubliclyVisible: false,
+              content: "retained for moderation recovery",
+            }),
+          ]);
+          const alice =
+            requireApplicationRules().authenticatedContext("alice");
+          const bob = requireApplicationRules().authenticatedContext("bob");
+
+          await assertFails(
+            alice.firestore().doc("places/tokyo/messages/hidden").get(),
+          );
+          await assertFails(
+            bob.firestore().doc("places/tokyo/messages/hidden").get(),
+          );
+        },
+      );
+
+      test(
+        "requires readable moderation states in message list queries",
+        async () => {
+          const publishAt = firebase.firestore.Timestamp.now();
+          await Promise.all([
+            seedApplicationDocument("places/tokyo", activePublicPlace()),
+            seedApplicationDocument("places/tokyo/messages/allowed", {
+              userId: "alice",
+              moderationAction: "allow",
+              isVisible: true,
+              isPubliclyVisible: true,
+              publishAt,
+            }),
+            seedApplicationDocument("places/tokyo/messages/hidden", {
+              userId: "alice",
+              moderationAction: "hidden",
+              isVisible: false,
+              isPubliclyVisible: false,
+              publishAt,
+            }),
+          ]);
+          const bob = requireApplicationRules().authenticatedContext("bob");
+          const messages = bob.firestore()
+            .collection("places/tokyo/messages");
+
+          await assertFails(
+            messages.where("isPubliclyVisible", "==", true).get(),
+          );
+          const readable = await assertSucceeds(
+            messages
+              .where("isPubliclyVisible", "==", true)
+              .where("isVisible", "==", true)
+              .where("moderationAction", "in", [
+                "pending",
+                "allow",
+                "sensitive",
+                "review",
+              ])
+              .orderBy("publishAt", "desc")
+              .get(),
+          );
+          assert.equal(readable.size, 1);
         },
       );
     });

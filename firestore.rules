@@ -227,8 +227,18 @@ service cloud.firestore {
              && (isPlaceMaintainer(place) || isPubliclyReadablePlace(place));
     }
 
+    function hasReadableMessageModeration(message) {
+      return message.moderationAction in [
+        'pending',
+        'allow',
+        'sensitive',
+        'review'
+      ];
+    }
+
     function isPubliclyVisibleMessage(message) {
-      return message.isVisible == true
+      return hasReadableMessageModeration(message)
+             && message.isVisible == true
              && message.isPubliclyVisible == true;
     }
 
@@ -268,7 +278,8 @@ service cloud.firestore {
     function canReadMessage(placeId, message) {
       return canAccessNote(placeId)
              && (isPubliclyVisibleMessage(message)
-                 || message.userId == request.auth.uid);
+                 || (message.userId == request.auth.uid
+                     && hasReadableMessageModeration(message)));
     }
 
     function isValidClientThreadStateTransition() {

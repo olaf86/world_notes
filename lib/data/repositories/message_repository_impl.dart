@@ -15,6 +15,13 @@ import '../../domain/entities/content_report.dart';
 import '../../domain/repositories/message_repository.dart';
 import '../models/message_model.dart';
 
+const _readableMessageModerationActions = <String>[
+  'pending',
+  'allow',
+  'sensitive',
+  'review',
+];
+
 class MessageRepositoryImpl implements MessageRepository {
   final FirebaseFirestore _firestore;
   final WorldFunctionsClient _functions;
@@ -46,12 +53,14 @@ class MessageRepositoryImpl implements MessageRepository {
     final publishedStream = _messagesOf(placeId)
         .where('isPubliclyVisible', isEqualTo: true)
         .where('isVisible', isEqualTo: true)
+        .where('moderationAction', whereIn: _readableMessageModerationActions)
         .orderBy('publishAt', descending: true)
         .limit(AppConfig.messagesPageSize)
         .snapshots();
     final ownScheduledStream = _messagesOf(placeId)
         .where('userId', isEqualTo: currentUserId)
         .where('isPubliclyVisible', isEqualTo: false)
+        .where('moderationAction', whereIn: _readableMessageModerationActions)
         .orderBy('publishAt')
         .limit(AppConfig.messagesPageSize)
         .snapshots();
@@ -181,6 +190,7 @@ class MessageRepositoryImpl implements MessageRepository {
     final snap = await _messagesOf(placeId)
         .where('isPubliclyVisible', isEqualTo: true)
         .where('isVisible', isEqualTo: true)
+        .where('moderationAction', whereIn: _readableMessageModerationActions)
         .orderBy('publishAt', descending: true)
         .startAfterDocument(pivotDoc)
         .limit(limit)
