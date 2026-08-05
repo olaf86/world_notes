@@ -1171,6 +1171,17 @@ Exit criteria:
 Rollback: switch acceptance back to synchronous moderation while allowing
 already accepted pending jobs to finish. Never abandon pending content.
 
+Implementation note (2026-08-04): the server-only `moderationJobs` transport
+is in place before any acceptance path is switched. It provides deterministic
+input-bound IDs, strict persisted-state validation, five-minute leases,
+attempt fencing, jittered retry without a terminal failure state, 15-minute
+warning and 24-hour critical attention levels, 30-day terminal TTL, regional
+creation triggers, and one-minute regional reconcilers. The three content
+handlers and their producers remain intentionally unregistered until their
+terminal finalization transactions are implemented and reviewed together.
+Client reads, lists, and writes are denied by the existing default-deny Rules
+and covered by the Rules Emulator suite.
+
 ### Phase 12 — staged activation and production cutover
 
 Activation sequence for each new world:

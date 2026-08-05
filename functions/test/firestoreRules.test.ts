@@ -536,6 +536,21 @@ describe(
         await assertFails(alice.firestore().doc(path).delete());
       });
 
+      test("denies every moderation job client access", async () => {
+        const path = "moderationJobs/test-moderation-job";
+        await seedApplicationDocument(path, {status: "pending"});
+        const alice = requireApplicationRules().authenticatedContext("alice");
+
+        await assertFails(alice.firestore().doc(path).get());
+        await assertFails(
+          alice.firestore().collection("moderationJobs").get(),
+        );
+        await assertFails(
+          alice.firestore().doc(path).set({status: "complete"}),
+        );
+        await assertFails(alice.firestore().doc(path).delete());
+      });
+
       test("denies every storage cleanup manifest client access", async () => {
         const path = "storageCleanupObjects/test-storage-cleanup";
         await seedApplicationDocument(path, {objectPath: "messages/test.jpg"});

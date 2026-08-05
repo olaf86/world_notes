@@ -225,6 +225,22 @@
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "leaseUntil", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "moderationJobs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "nextAttemptAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "moderationJobs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "leaseUntil", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [
@@ -250,6 +266,32 @@
       "collectionGroup": "notificationOutbox",
       "fieldPath": "expireAt",
       "ttl": true,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "moderationJobs",
+      "fieldPath": "expireAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "places",
+      "fieldPath": "moderationPolicyVersion",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "places",
+      "fieldPath": "moderationCheckedAt",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "messages",
+      "fieldPath": "moderationPolicyVersion",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "messages",
+      "fieldPath": "moderationCheckedAt",
       "indexes": []
     },
     {

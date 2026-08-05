@@ -24,6 +24,13 @@ import {
   processCleanupJob,
 } from "../src/cleanupJobs";
 import {
+  ModerationJobHandler,
+  ModerationJobHandlerRegistry,
+  moderationJobId,
+  newModerationJobData,
+  processModerationJob,
+} from "../src/moderationJobs";
+import {
   publicProfileReplicationHandler,
   SET_USER_ENTITLEMENT_OPERATION,
   UPDATE_PUBLIC_PROFILE_OPERATION,
@@ -794,6 +801,49 @@ firestoreContractTest(
     assert.equal(replay.processed, false);
     assert.equal(completed.get("attemptCount"), 1);
     assert.equal(completed.get("status"), "complete");
+    assert.notEqual(completed.get("completedAt"), null);
+    assert.notEqual(completed.get("expireAt"), null);
+  },
+);
+
+firestoreContractTest(
+  "leases and completes one moderation job exactly once",
+  async () => {
+    const {runId, asia, provider} = requireContext();
+    const input = {
+      jobType: "evaluateContractMessage",
+      targetPath: `places/test-${runId}/messages/test-message`,
+      inputHash: "c".repeat(64),
+      world: "asia",
+    };
+    const jobId = moderationJobId(input);
+    const jobRef = asia.collection("moderationJobs").doc(jobId);
+    trackForCleanup(jobRef);
+    await jobRef.create(newModerationJobData(input, Timestamp.now()));
+
+    let invocationCount = 0;
+    const handler: ModerationJobHandler = {
+      jobType: input.jobType,
+      process: async () => {
+        invocationCount += 1;
+      },
+    };
+    const runtime = {
+      catalog: WORLD_CATALOG,
+      firestore: provider,
+      handlers: new ModerationJobHandlerRegistry([handler]),
+    };
+
+    const first = await processModerationJob("asia", jobId, runtime);
+    const replay = await processModerationJob("asia", jobId, runtime);
+    const completed = await jobRef.get();
+
+    assert.equal(invocationCount, 1);
+    assert.equal(first.status, "complete");
+    assert.equal(first.processed, true);
+    assert.equal(replay.status, "complete");
+    assert.equal(replay.processed, false);
+    assert.equal(completed.get("attemptCount"), 1);
     assert.notEqual(completed.get("completedAt"), null);
     assert.notEqual(completed.get("expireAt"), null);
   },

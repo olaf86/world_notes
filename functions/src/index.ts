@@ -93,6 +93,14 @@ export {
   reconcileNorthAmericaNotificationOutbox,
   reconcileEuropeNotificationOutbox,
 } from "./notificationOutboxTriggers";
+export {
+  processAsiaModerationJob,
+  processNorthAmericaModerationJob,
+  processEuropeModerationJob,
+  reconcileAsiaModerationJobs,
+  reconcileNorthAmericaModerationJobs,
+  reconcileEuropeModerationJobs,
+} from "./moderationJobTriggers";
 
 // Map exploration pin summaries and detail-entry proximity checks.
 export {listMapPins, validateNoteAccess} from "./mapPins";
