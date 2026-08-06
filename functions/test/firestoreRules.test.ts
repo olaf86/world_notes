@@ -928,6 +928,24 @@ describe(
           }),
         );
       });
+
+      test("denies client access to image upload trackers", async () => {
+        await seedApplicationDocument("imageUploads/test-image", {
+          objectPath: "images/pins/place/alice/image.webp",
+          status: "unreferenced",
+        });
+        const alice = requireApplicationRules().authenticatedContext("alice");
+
+        await assertFails(
+          alice.firestore().doc("imageUploads/test-image").get(),
+        );
+        await assertFails(
+          alice.firestore().doc("imageUploads/new-image").set({
+            objectPath: "images/pins/place/alice/new.webp",
+            status: "referenced",
+          }),
+        );
+      });
     });
 
     describe("provisioning worlds", {concurrency: false}, () => {

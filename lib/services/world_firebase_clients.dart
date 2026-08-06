@@ -22,6 +22,8 @@ final class WorldFunctionsClient {
   final WorldId _worldId;
   final FirebaseFunctions _functions;
 
+  WorldId get worldId => _worldId;
+
   WorldHttpsCallable httpsCallable(String name) {
     return WorldHttpsCallable(
       worldId: _worldId,

@@ -149,12 +149,7 @@ class PlaceRepositoryImpl implements PlaceRepository {
         'pinImageStoragePath': path,
       });
     } catch (_) {
-      try {
-        await ref.delete();
-      } catch (_) {
-        // Best effort cleanup. The callable is still the source of truth for
-        // whether a thumbnail is attached to the note.
-      }
+      // The regional orphan-upload sweeper owns immutable object cleanup.
       rethrow;
     }
   }

@@ -19,6 +19,15 @@ export {
   reportMessage,
   setMessageLike,
 } from "./messages";
+export {getImageAccessUrls} from "./imageAccess";
+export {
+  trackAsiaImageUpload,
+  trackNorthAmericaImageUpload,
+  trackEuropeImageUpload,
+  sweepAsiaOrphanImageUploads,
+  sweepNorthAmericaOrphanImageUploads,
+  sweepEuropeOrphanImageUploads,
+} from "./imageUploadTriggers";
 export {
   publishAsiaScheduledMessages,
   publishNorthAmericaScheduledMessages,

@@ -1115,6 +1115,41 @@ Rollback: keep direct reads enabled only during a short dual-path rollout.
 After signed access is mandatory, rollback restores the previous application
 version and Rules together; never change Rules alone.
 
+Implementation note (2026-08-05): the signed-image path is implemented for
+messages and note pins. The regional callable authorizes at most 50 immutable
+paths against local note, message, membership, block, scheduling, and
+moderation state, then returns 24-hour private-cache signed URLs without
+revealing denial reasons. Flutter coalesces requests into bounded batches,
+caches URLs until one minute before expiry, namespaces downloaded bytes by
+world, and no longer performs direct Storage reads or metadata probes. Storage
+Rules permit only owner creates at canonical immutable paths; direct reads,
+updates, and deletes are denied. Firestore Rules also deny client access to the
+server-only `imageUploads` records.
+
+Each regional object-finalize trigger records the object generation and an
+hourly regional sweeper rechecks due unreferenced uploads after 24 hours before
+creating a generation-guarded deletion job. Content attachment binds the same
+tracker in its Firestore transaction, so finalize-event ordering and sweeper
+races do not create an authorization gap. Emulator attacks cover unauthenticated
+and authenticated reads, metadata reads, cross-owner writes, path reuse,
+oversized or wrong-type uploads, and direct tracker access.
+
+Permanent image removal no longer calls Storage directly from content
+handlers. Message deletion, scheduled-message cancellation, blocked scheduled
+publication, rejected pin candidates, pin replacement, and relationship
+cleanup first write the shared durable Storage job. The worker resolves a
+missing generation from the upload tracker or live object metadata and always
+deletes with `ifGenerationMatch`; an already-missing object is success and a
+stale generation completes without deleting the replacement.
+
+Before production activation, verify the runtime service account can sign V4
+URLs (`iam.serviceAccounts.signBlob`), exercise one real signed download in
+each bucket, and confirm finalize events preserve the expected Storage
+generation. Named-world client Rules remain locked until their staged catalog
+activation. The 30-day removal of moderation-hidden raw images remains part of
+Phase 11's retention finalizers; P17 supplies the authorization stop and the
+durable generation-safe deletion transport they will call.
+
 ### Phase 10 — note-administrator invitations
 
 Deliverables:
@@ -1192,9 +1227,9 @@ rechecks the input hash and `pending` state, so an old verdict cannot overwrite
 a changed or administrator-decided message. A hidden immediate message is
 removed from the public aggregate once while its server-only slot remains as
 an abuse-resistant tombstone. Firestore Rules and client queries explicitly
-exclude hidden retained content, including from its sender. Full image
-revocation and 30-day raw-content cleanup still depend on the P17 signed-image
-path and the remaining P20 retention handlers.
+exclude hidden retained content, including from its sender. New image access is
+now revoked by the P17 signed-image path. The 30-day raw-content and object
+cleanup still depends on the remaining P20 retention handlers.
 
 ### Phase 12 — staged activation and production cutover
 

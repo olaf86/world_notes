@@ -346,7 +346,7 @@ final canRequestAdsProvider = Provider<bool>((ref) {
 
 final messageImageServiceProvider = Provider<MessageImageService>((ref) {
   final service = MessageImageService(
-    storage: ref.watch(selectedWorldStorageProvider),
+    functions: ref.watch(selectedWorldFunctionsProvider),
   );
   ref.onDispose(service.dispose);
   return service;

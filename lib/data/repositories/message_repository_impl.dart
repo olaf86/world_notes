@@ -223,10 +223,9 @@ class MessageRepositoryImpl implements MessageRepository {
       );
     } on FirebaseException catch (error) {
       // A callable retry may reuse an image that was uploaded successfully
-      // before the original response was lost.
+      // before the original response was lost. Direct Storage reads are
+      // intentionally unavailable; the callable verifies the exact object.
       if (error.code != 'unauthorized') rethrow;
-      final metadata = await ref.getMetadata();
-      if (metadata.contentType != 'image/webp') rethrow;
     }
     return path;
   }
@@ -269,10 +268,7 @@ class MessageRepositoryImpl implements MessageRepository {
               'publishAtMillis': publishAt.millisecondsSinceEpoch,
           });
     } catch (_) {
-      await Future.wait([
-        for (final path in imageStoragePaths)
-          _storage.ref(path).delete().catchError((_) {}),
-      ]);
+      // Immutable uploads are server-cleaned when they remain unreferenced.
       rethrow;
     }
     final confirmedMessageId = result.data['messageId'] as String? ?? messageId;

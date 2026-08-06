@@ -786,14 +786,17 @@ class _MessageStorageImage extends ConsumerWidget {
     return imageUrl.when(
       loading: () => placeholder,
       error: (_, _) => errorWidget,
-      data: (url) => CachedNetworkImage(
-        imageUrl: url,
-        cacheKey: storagePath,
-        cacheManager: ref.watch(messageImageServiceProvider).cacheManager,
-        fit: fit,
-        placeholder: (_, _) => placeholder,
-        errorWidget: (_, _, _) => errorWidget,
-      ),
+      data: (url) {
+        final imageService = ref.watch(messageImageServiceProvider);
+        return CachedNetworkImage(
+          imageUrl: url,
+          cacheKey: imageService.cacheKey(storagePath),
+          cacheManager: imageService.cacheManager,
+          fit: fit,
+          placeholder: (_, _) => placeholder,
+          errorWidget: (_, _, _) => errorWidget,
+        );
+      },
     );
   }
 }

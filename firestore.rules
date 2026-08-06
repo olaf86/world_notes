@@ -527,6 +527,12 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Finalize receipts and orphan-cleanup state for immutable image objects.
+    // Clients receive image access only through the signed-URL callable.
+    match /imageUploads/{uploadId} {
+      allow read, write: if false;
+    }
+
     // ── invites ─────────────────────────────────────────────────────────────
     // Invite tokens are secrets (the doc id is the token). Read/write only via
     // the createInviteLink / claimInvite / revokeInvite Cloud Functions

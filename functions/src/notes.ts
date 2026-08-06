@@ -53,6 +53,11 @@ import {
   type ReportReasonCode,
 } from "./reporting";
 import {hasUserBlockBetweenInTransaction} from "./userBlocks";
+import {
+  bindImageUploadsToContent,
+  imageUploadId,
+} from "./imageUploads";
+import {enqueueStorageObjectDeletion} from "./storageObjectCleanup";
 
 interface CreateNoteData {
   latitude?: unknown;
@@ -501,32 +506,25 @@ export const setNotePinImage = onCall<SetNotePinImageData>(
       );
     }
 
-    let moderationResult: InternalModerationResult;
-    try {
-      moderationResult = await moderateContent("", [{
+    // A provider failure may be retried with this immutable candidate. If it
+    // is never attached, the regional orphan sweeper removes it.
+    const moderationResult: InternalModerationResult =
+      await moderateContent("", [{
         bytes: imageBytes,
         contentType: "image/webp",
       }]);
-    } catch (error) {
-      try {
-        await bucket.file(pinImageStoragePath).delete({ignoreNotFound: true});
-      } catch (cleanupError) {
-        logger.warn(
-          `Could not clean up unchecked pin image ${pinImageStoragePath}.`,
-          cleanupError,
-        );
-      }
-      throw error;
-    }
     if (moderationResult.action !== "allow") {
-      try {
-        await bucket.file(pinImageStoragePath).delete({ignoreNotFound: true});
-      } catch (error) {
-        logger.warn(
-          `Could not delete rejected pin image ${pinImageStoragePath}.`,
-          error,
-        );
-      }
+      const rejectedAt = Timestamp.now();
+      await db.runTransaction(async (transaction) => {
+        enqueueStorageObjectDeletion(transaction, db, {
+          sourceOperationId:
+            `rejectedPin:${imageUploadId(pinImageStoragePath)}`,
+          revision: 1,
+          world: world.worldId,
+          objectPath: pinImageStoragePath,
+          createdAt: rejectedAt,
+        });
+      });
       if (moderationResult.action !== "pending") {
         await recordRejectedModeration({
           db,
@@ -551,72 +549,68 @@ export const setNotePinImage = onCall<SetNotePinImageData>(
       );
     }
     const placeRef = db.collection("places").doc(placeId);
-    let previousPath: string | null;
-    try {
-      previousPath = await db.runTransaction(async (tx) => {
-        const placeSnap = await tx.get(placeRef);
-        await assertAccountSafetyAllows(
-          tx,
-          db,
-          uid,
-          "contentWrite",
-          Timestamp.now(),
-        );
-        if (!placeSnap.exists) {
-          throw new HttpsError("not-found", "Note not found.");
-        }
-        const creatorUid =
+    const changedAt = Timestamp.now();
+    // Failed attachments remain inaccessible and are orphan-swept.
+    await db.runTransaction(async (tx) => {
+      const placeSnap = await tx.get(placeRef);
+      await assertAccountSafetyAllows(
+        tx,
+        db,
+        uid,
+        "contentWrite",
+        changedAt,
+      );
+      if (!placeSnap.exists) {
+        throw new HttpsError("not-found", "Note not found.");
+      }
+      const creatorUid =
           placeSnap.get("createdByUserId") as string | undefined;
-        if (
-          creatorUid &&
+      if (
+        creatorUid &&
           await hasUserBlockBetweenInTransaction(tx, db, uid, creatorUid)
-        ) {
-          throw new HttpsError(
-            "permission-denied",
-            "You cannot change this note.",
-            {reason: "user_blocked"},
-          );
-        }
-        if (!canMaintainNote(placeSnap, uid)) {
-          throw new HttpsError(
-            "permission-denied",
-            "You cannot change this note.",
-          );
-        }
-        if (
-          placeSnap.get("isArchived") === true ||
-          placeSnap.get("isModerationHidden") !== false
-        ) {
-          throw new HttpsError(
-            "failed-precondition",
-            "This note cannot change its pin image.",
-          );
-        }
-        const previous = placeSnap.get("pinImageStoragePath");
-        tx.update(placeRef, {pinImageStoragePath});
-        return typeof previous === "string" ? previous : null;
-      });
-    } catch (error) {
-      try {
-        await bucket.file(pinImageStoragePath).delete({ignoreNotFound: true});
-      } catch (cleanupError) {
-        logger.warn(
-          `Could not clean up unattached pin image ${pinImageStoragePath}.`,
-          cleanupError,
+      ) {
+        throw new HttpsError(
+          "permission-denied",
+          "You cannot change this note.",
+          {reason: "user_blocked"},
         );
       }
-      throw error;
-    }
-
-    if (previousPath != null && previousPath !== pinImageStoragePath) {
-      try {
-        await bucket.file(previousPath).delete({
-          ignoreNotFound: true,
-        });
-      } catch (error) {
-        logger.warn(`Could not delete old pin image ${previousPath}.`, error);
+      if (!canMaintainNote(placeSnap, uid)) {
+        throw new HttpsError(
+          "permission-denied",
+          "You cannot change this note.",
+        );
       }
-    }
+      if (
+        placeSnap.get("isArchived") === true ||
+          placeSnap.get("isModerationHidden") !== false
+      ) {
+        throw new HttpsError(
+          "failed-precondition",
+          "This note cannot change its pin image.",
+        );
+      }
+      await bindImageUploadsToContent(
+        tx,
+        db,
+        [pinImageStoragePath],
+        placeRef.path,
+        changedAt,
+      );
+      const previous = placeSnap.get("pinImageStoragePath");
+      if (typeof previous === "string" &&
+            previous !== pinImageStoragePath) {
+        enqueueStorageObjectDeletion(tx, db, {
+          sourceOperationId:
+              `replacedPin:${imageUploadId(pinImageStoragePath)}`,
+          revision: 1,
+          world: world.worldId,
+          objectPath: previous,
+          createdAt: changedAt,
+        });
+      }
+      tx.update(placeRef, {pinImageStoragePath});
+    });
   },
 );
 

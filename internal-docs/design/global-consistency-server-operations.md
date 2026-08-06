@@ -1370,13 +1370,17 @@ bytes directly; Functions do not proxy the object body. The client caches both
 the signed URL and downloaded image, and a batch endpoint may issue URLs for
 the visible image set to avoid one Function round trip per image.
 
-When content becomes hidden, its Firestore visibility changes immediately and
-the same authoritative transition writes a durable, high-priority object
-deletion intent. The regional cleanup worker deletes the object idempotently.
-Signed-URL expiry is a fallback bound if deletion is delayed, not the primary
-revocation mechanism. Object paths are immutable and never reused for a
-replacement image, so a previously issued URL cannot expose replacement
-content.
+When content becomes hidden, its Firestore visibility changes immediately.
+The image-access Function then refuses every new signed-URL request and the app
+stops rendering both its URL and locally cached bytes. A URL issued before the
+transition may remain usable until its 24-hour expiry, which is the accepted
+revocation bound for optimistic moderation. The object and its restorable
+content remain for the 30-day moderation appeal window; a durable cleanup job
+removes them only after that retention period. Ordinary user deletion,
+replacement of an approved image, and abandoned uploads may enqueue earlier
+deletion because they have no moderation-restoration requirement. Object paths
+are immutable and never reused, so a previously issued URL cannot expose a
+replacement image.
 
 **Decided for signed-URL lifetime and caching:** a download URL is valid for 24
 hours. Image responses use a private client-cache policy with a corresponding
@@ -1385,17 +1389,19 @@ must stop rendering cached bytes as soon as authoritative content state becomes
 inaccessible, and may request a fresh URL after expiry only by repeating
 authorization. Signed query strings are redacted from logs, analytics, and
 error reports. The 24-hour limit bounds access through a leaked or previously
-authorized URL if object deletion or an access-state transition is delayed;
-object deletion remains the primary revocation mechanism.
+authorized URL after an access-state transition. For moderation hiding it is
+the deliberate revocation bound while the raw object remains restorable; for
+permanent deletion it is also a fallback if durable cleanup is delayed.
 
 **Decided for upload paths:** clients upload each immutable image directly to
 its final world-relative object path. There is no quarantine-to-final copy or
 move. Before an authoritative Firestore content document references that exact
 path, the image-access Function refuses to issue a signed URL. A public-pending
-message or pin candidate references and serves the same final object; rejection
-detaches or hides the reference and enqueues deletion. Uploads that never
-become referenced remain inaccessible and are removed by the regional orphan
-sweeper after a grace period.
+message or pin candidate references and serves the same final object. Rejection
+hides the reference from application reads and prevents new signed URLs, while
+retaining the object for 30 days. Uploads that never become referenced remain
+inaccessible and are removed by the regional orphan sweeper after a grace
+period.
 
 **Decided for deletion completion:** a Storage deletion job does not transition
 to a terminal failure merely because it exceeds an attempt count. It remains

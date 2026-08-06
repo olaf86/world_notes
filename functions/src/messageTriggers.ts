@@ -9,6 +9,7 @@ import {
   enqueueMyNotesMessageNotification,
 } from "./notifications";
 import {hasUserBlockBetweenInTransaction} from "./userBlocks";
+import {enqueueStorageObjectDeletion} from "./storageObjectCleanup";
 
 const SCHEDULED_MESSAGE_BATCH_SIZE = 100;
 const SCHEDULED_MESSAGE_MAX_BATCHES = 10;
@@ -70,8 +71,6 @@ export async function publishScheduledMessagesForWorld(
       snapshot.docs.map(async (messageDocument) => {
         const placeRef = messageDocument.ref.parent.parent;
         if (placeRef === null) return {processed: false, published: false};
-        const imagePathsToDelete = new Set<string>();
-
         const result = await db.runTransaction(async (transaction) => {
           const message = await transaction.get(messageDocument.ref);
           if (!message.exists ||
@@ -138,7 +137,14 @@ export async function publishScheduledMessagesForWorld(
             if (Array.isArray(storedPaths)) {
               for (const path of storedPaths) {
                 if (typeof path === "string" && path.length > 0) {
-                  imagePathsToDelete.add(path);
+                  enqueueStorageObjectDeletion(transaction, db, {
+                    sourceOperationId:
+                      `blockedScheduledMessage:${messageDocument.id}`,
+                    revision: 1,
+                    world: worldId,
+                    objectPath: path,
+                    createdAt: now,
+                  });
                 }
               }
             }
@@ -180,18 +186,6 @@ export async function publishScheduledMessagesForWorld(
           return {processed: true, published: true};
         });
 
-        if (imagePathsToDelete.size > 0) {
-          await Promise.all([...imagePathsToDelete].map(async (path) => {
-            try {
-              await world.bucket.file(path).delete({ignoreNotFound: true});
-            } catch (error) {
-              logger.warn(
-                `Could not delete blocked scheduled image ${path}.`,
-                error,
-              );
-            }
-          }));
-        }
         return result;
       }),
     );

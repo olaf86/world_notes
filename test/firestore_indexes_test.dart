@@ -240,6 +240,30 @@ void main() {
     );
   });
 
+  test('defines orphan-image sweep index and tracker TTL', () {
+    final config = _loadConfig();
+    final overrides = (config['fieldOverrides'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+
+    expect(
+      _hasIndex(config, 'imageUploads', [
+        ('status', 'ASCENDING'),
+        ('checkAfter', 'ASCENDING'),
+      ]),
+      isTrue,
+    );
+    expect(
+      overrides.any(
+        (override) =>
+            override['collectionGroup'] == 'imageUploads' &&
+            override['fieldPath'] == 'expireAt' &&
+            override['ttl'] == true &&
+            (override['indexes'] as List<dynamic>).isEmpty,
+      ),
+      isTrue,
+    );
+  });
+
   test('enables account safety receipt TTL without indexing its timestamp', () {
     final config =
         jsonDecode(File('firestore.indexes.json').readAsStringSync())

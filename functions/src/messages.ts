@@ -9,7 +9,6 @@ import {
   Timestamp,
   Transaction,
 } from "firebase-admin/firestore";
-import * as logger from "firebase-functions/logger";
 
 import {
   ACCOUNT_SAFETY_HIDDEN_CONTENT_POINTS,
@@ -64,6 +63,8 @@ import {
 } from "./userBlocks";
 import {derivedGlobalOperationId} from "./globalOperations";
 import {worldContext} from "./platform/worldContext";
+import {bindImageUploadsToContent} from "./imageUploads";
+import {enqueueStorageObjectDeletion} from "./storageObjectCleanup";
 
 export const EVALUATE_MESSAGE_MODERATION_JOB =
   "evaluateMessageModeration";
@@ -338,20 +339,6 @@ function isScheduledMessage(messageSnap: DocumentSnapshot): boolean {
     );
   }
   return storedIsScheduled;
-}
-
-async function deleteStoredImages(
-  bucket: WorldBucket,
-  storagePaths: string[],
-): Promise<void> {
-  if (storagePaths.length === 0) return;
-  for (const storagePath of storagePaths) {
-    try {
-      await bucket.file(storagePath).delete({ignoreNotFound: true});
-    } catch (error) {
-      logger.warn(`Could not delete message image ${storagePath}.`, error);
-    }
-  }
 }
 
 async function moderationImagesFor(
@@ -927,6 +914,13 @@ async function createMessageInTransaction({
       );
     }
     const counterSnap = await tx.get(refs.counterRef);
+    await bindImageUploadsToContent(
+      tx,
+      db,
+      input.trimmedImageStoragePaths,
+      refs.messageRef.path,
+      Timestamp.fromMillis(nowMs),
+    );
 
     validatePlaceCanAccept(placeSnap, nowMs);
     const publicCount =
@@ -1044,31 +1038,28 @@ export const sendMessage = onCall<SendMessageData>(
       Timestamp.fromMillis(nowMs),
     );
 
-    try {
-      const riskSignals = detectAppModerationRiskSignals(input.trimmedContent);
-      const profile = await profileForMember(db, uid);
-      const result = await createMessageInTransaction({
-        db,
-        worldId: world.worldId,
-        refs,
-        uid,
-        input,
-        profile,
-        tokenPicture: req.auth?.token.picture,
-        riskSignals,
-        nowMs,
-      });
+    // If acceptance fails, unattached immutable uploads remain inaccessible
+    // and the regional orphan sweeper collects them after its grace period.
+    const riskSignals = detectAppModerationRiskSignals(input.trimmedContent);
+    const profile = await profileForMember(db, uid);
+    const result = await createMessageInTransaction({
+      db,
+      worldId: world.worldId,
+      refs,
+      uid,
+      input,
+      profile,
+      tokenPicture: req.auth?.token.picture,
+      riskSignals,
+      nowMs,
+    });
 
-      return {
-        messageId: refs.messageRef.id,
-        publishAtMillis: result.publishAtMillis,
-        isScheduled: result.isScheduled,
-        moderationAction: "pending",
-      };
-    } catch (error) {
-      await deleteStoredImages(world.bucket, input.trimmedImageStoragePaths);
-      throw error;
-    }
+    return {
+      messageId: refs.messageRef.id,
+      publishAtMillis: result.publishAtMillis,
+      isScheduled: result.isScheduled,
+      moderationAction: "pending",
+    };
   },
 );
 
@@ -1313,7 +1304,7 @@ export const deleteMessage = onCall<DeleteMessageData>(
       .doc(placeId)
       .collection("messages")
       .doc(messageId);
-    let imageStoragePaths: string[] = [];
+    const deletedAt = Timestamp.now();
 
     await db.runTransaction(async (tx) => {
       const messageSnap = await tx.get(messageRef);
@@ -1332,19 +1323,26 @@ export const deleteMessage = onCall<DeleteMessageData>(
           "Scheduled messages must be canceled.",
         );
       }
-      imageStoragePaths = storedImagePaths(messageSnap.get(
-        "imageStoragePaths",
-      ));
       if (messageSnap.get("isDeleted") === true) return;
+      for (const storagePath of storedImagePaths(messageSnap.get(
+        "imageStoragePaths",
+      ))) {
+        enqueueStorageObjectDeletion(tx, db, {
+          sourceOperationId: `deleteMessage:${messageId}`,
+          revision: 1,
+          world: world.worldId,
+          objectPath: storagePath,
+          createdAt: deletedAt,
+        });
+      }
       tx.update(messageRef, {
         isDeleted: true,
-        deletedAt: FieldValue.serverTimestamp(),
+        deletedAt,
         deletedReason: "author",
         imageStoragePaths: FieldValue.delete(),
       });
     });
 
-    await deleteStoredImages(world.bucket, imageStoragePaths);
     return {ok: true};
   },
 );
@@ -1371,7 +1369,7 @@ export const cancelScheduledMessage = onCall<CancelScheduledMessageData>(
     const counterRef = placeRef.collection("counters").doc("messageSlots");
     const messageRef = placeRef.collection("messages").doc(messageId);
     const nowMs = Date.now();
-    let imageStoragePaths: string[] = [];
+    const canceledAt = Timestamp.fromMillis(nowMs);
 
     await db.runTransaction(async (tx) => {
       const [placeSnap, messageSnap, counterSnap] = await Promise.all([
@@ -1406,9 +1404,6 @@ export const cancelScheduledMessage = onCall<CancelScheduledMessageData>(
 
       const publicCount =
         (placeSnap.get("messageCount") as number | undefined) ?? 0;
-      imageStoragePaths = storedImagePaths(messageSnap.get(
-        "imageStoragePaths",
-      ));
       const currentSlots = messageSlotCount(counterSnap, publicCount);
       const nextSlots = Math.max(0, currentSlots - 1);
       tx.set(
@@ -1437,10 +1432,20 @@ export const cancelScheduledMessage = onCall<CancelScheduledMessageData>(
       if (Object.keys(placeUpdate).length > 0) {
         tx.update(placeRef, placeUpdate);
       }
+      for (const storagePath of storedImagePaths(messageSnap.get(
+        "imageStoragePaths",
+      ))) {
+        enqueueStorageObjectDeletion(tx, db, {
+          sourceOperationId: `cancelScheduledMessage:${messageId}`,
+          revision: 1,
+          world: world.worldId,
+          objectPath: storagePath,
+          createdAt: canceledAt,
+        });
+      }
       tx.delete(messageRef);
     });
 
-    await deleteStoredImages(world.bucket, imageStoragePaths);
     return {ok: true};
   },
 );

@@ -244,6 +244,14 @@
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "leaseUntil", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "imageUploads",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "checkAfter", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [
@@ -273,6 +281,12 @@
     },
     {
       "collectionGroup": "moderationJobs",
+      "fieldPath": "expireAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "imageUploads",
       "fieldPath": "expireAt",
       "ttl": true,
       "indexes": []
