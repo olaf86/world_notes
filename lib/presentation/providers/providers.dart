@@ -620,11 +620,21 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
   );
 });
 
-final placeRepositoryProvider = Provider<PlaceRepository>((ref) {
+final worldPlaceRepositoryProvider = Provider.family<PlaceRepository, WorldId>((
+  ref,
+  worldId,
+) {
+  final clients = ref.watch(worldFirebaseClientsProvider(worldId));
   return PlaceRepositoryImpl(
-    firestore: ref.watch(selectedWorldFirestoreProvider),
-    functions: ref.watch(selectedWorldFunctionsProvider),
-    storage: ref.watch(selectedWorldStorageProvider),
+    firestore: clients.firestore,
+    functions: clients.functions,
+    storage: clients.storage,
+  );
+});
+
+final placeRepositoryProvider = Provider<PlaceRepository>((ref) {
+  return ref.watch(
+    worldPlaceRepositoryProvider(ref.watch(selectedWorldProvider)),
   );
 });
 

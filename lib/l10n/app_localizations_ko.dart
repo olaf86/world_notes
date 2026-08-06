@@ -1145,4 +1145,127 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get adminSafetyNoAudits => '관리자 작업이 없습니다.';
+
+  @override
+  String get administratorInvitationTitle => '노트 관리자 초대';
+
+  @override
+  String get inviteLoadFailed => '이 초대를 불러올 수 없습니다.';
+
+  @override
+  String get inviteAcceptFailed => '이 초대를 수락할 수 없습니다.';
+
+  @override
+  String get worldStillPreparing => '이 월드에서 계정을 준비 중입니다.';
+
+  @override
+  String get inviteInvalid => '이 초대는 유효하지 않거나 더 이상 사용할 수 없습니다.';
+
+  @override
+  String get inviteExpired => '이 초대는 만료되었습니다.';
+
+  @override
+  String get networkErrorTryAgain => '네트워크 오류입니다. 연결을 확인하고 다시 시도하세요.';
+
+  @override
+  String get inviteSignInPrompt => '노트 관리자 초대를 확인하려면 로그인하세요.';
+
+  @override
+  String get signIn => '로그인';
+
+  @override
+  String get administratorInvitationAccepted =>
+      '이제 노트 관리자입니다. 홈 월드는 변경되지 않았습니다.';
+
+  @override
+  String get switchWorldAndOpenNote => '월드를 전환하고 노트 열기';
+
+  @override
+  String get goToMap => '지도로 이동';
+
+  @override
+  String get administratorInvitationExplanation =>
+      '수락하면 위치와 관계없이 이 노트를 읽고 관리할 수 있습니다. 게시, 좋아요, 방문에는 일반 위치 규칙이 적용됩니다.';
+
+  @override
+  String get switchWorldAfterAcceptance => '수락 후 이 월드로 전환';
+
+  @override
+  String get acceptAdministratorInvitation => '관리자 초대 수락';
+
+  @override
+  String get administratorManageDescription =>
+      '특정 사용자를 이 노트의 관리자로 초대합니다. 관리자 권한만으로 원격에서 일반 게시를 할 수는 없습니다.';
+
+  @override
+  String get targetUserIdLabel => '대상 사용자 ID';
+
+  @override
+  String get sendAdministratorInvitation => '관리자로 초대';
+
+  @override
+  String get administratorInviteCreated => '관리자 초대를 만들었습니다.';
+
+  @override
+  String get inviteCreateFailed => '초대를 만들 수 없습니다.';
+
+  @override
+  String get administratorInviteRevoked => '관리자 초대를 취소했습니다.';
+
+  @override
+  String get inviteRevokeFailed => '초대를 취소할 수 없습니다.';
+
+  @override
+  String get administratorRemoved => '관리자 권한을 제거했습니다.';
+
+  @override
+  String get administratorRemoveFailed => '관리자 권한을 제거할 수 없습니다.';
+
+  @override
+  String get memberRemoveFailed => '이 멤버를 제거할 수 없습니다.';
+
+  @override
+  String get copyLink => '링크 복사';
+
+  @override
+  String get copied => '복사됨';
+
+  @override
+  String get noteAdministratorsTitle => '노트 관리자';
+
+  @override
+  String get pendingAdministratorInvitationsTitle => '대기 중인 초대';
+
+  @override
+  String get passwordAccessMembersTitle => '비밀번호 접근';
+
+  @override
+  String get passwordAccessDescription => '현재 비밀번호로 비공개 노트를 잠금 해제한 사용자입니다.';
+
+  @override
+  String get unlockedWithPassword => '비밀번호로 잠금 해제';
+
+  @override
+  String get removeAccess => '접근 권한 제거';
+
+  @override
+  String get noteCreatorLabel => '작성자';
+
+  @override
+  String get noteAdministratorLabel => '관리자';
+
+  @override
+  String get resignAdministrator => '관리자 사임';
+
+  @override
+  String get removeAdministrator => '관리자 제거';
+
+  @override
+  String get noPendingInvitations => '대기 중인 초대가 없습니다.';
+
+  @override
+  String get invitationPending => '초대 대기 중';
+
+  @override
+  String get revokeInvitation => '초대 취소';
 }

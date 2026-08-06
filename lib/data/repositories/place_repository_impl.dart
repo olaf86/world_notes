@@ -18,6 +18,7 @@ import '../../domain/entities/place_entity.dart'
         PlaceEntity,
         PlaceVisibility;
 import '../../domain/entities/note_theme.dart';
+import '../../domain/entities/note_administrator_entity.dart';
 import '../../domain/entities/note_visitor_entity.dart';
 import '../../domain/entities/content_report.dart';
 import '../../domain/entities/note_list_sort.dart';
@@ -350,7 +351,6 @@ class PlaceRepositoryImpl implements PlaceRepository {
           if (!doc.exists) return null;
           final data = doc.data()!;
           return NoteMembership(
-            invited: data['invited'] as bool? ?? false,
             viaPasswordVersion: (data['viaPasswordVersion'] as int?) ?? -1,
           );
         });
@@ -382,29 +382,122 @@ class PlaceRepositoryImpl implements PlaceRepository {
     });
   }
 
-  // ── Invitations ───────────────────────────────────────────────────────────
+  // ── Note administrators ──────────────────────────────────────────────────
 
   @override
-  Future<String?> getInviteLink(String placeId) async {
+  Future<NoteAdministratorInvitationResult> createNoteAdministratorInvitation({
+    required String placeId,
+    required String targetUid,
+  }) async {
     final result = await _functions
-        .httpsCallable('getInviteLink')
-        .call<Map<String, dynamic>>({'placeId': placeId});
-    return result.data['token'] as String?;
+        .httpsCallable('createNoteAdministratorInvitation')
+        .call<Map<String, dynamic>>({
+          'placeId': placeId,
+          'targetUid': targetUid,
+        });
+    return NoteAdministratorInvitationResult(
+      token: _requiredString(result.data, 'token'),
+      placeId: _requiredString(result.data, 'placeId'),
+      targetUid: _requiredString(result.data, 'targetUid'),
+      expiresAt: _requiredDate(result.data, 'expiresAtMillis'),
+    );
   }
 
   @override
-  Future<String> createInviteLink(String placeId) async {
+  Future<NoteAdministratorInvitationPreview> previewNoteAdministratorInvitation(
+    String token,
+  ) async {
     final result = await _functions
-        .httpsCallable('createInviteLink')
-        .call<Map<String, dynamic>>({'placeId': placeId});
-    return result.data['token'] as String;
+        .httpsCallable('previewNoteAdministratorInvitation')
+        .call<Map<String, dynamic>>({'token': token});
+    return NoteAdministratorInvitationPreview(
+      worldId: _functions.worldId,
+      placeId: _requiredString(result.data, 'placeId'),
+      title: _requiredString(result.data, 'title'),
+      invitedByUid: _requiredString(result.data, 'invitedByUid'),
+      status: NoteAdministratorInvitationStatus.parse(result.data['status']),
+      expiresAt: _requiredDate(result.data, 'expiresAtMillis'),
+      worldReady: result.data['worldReady'] == true,
+      canAccept: result.data['canAccept'] == true,
+    );
   }
 
   @override
-  Future<void> revokeInvite(String placeId) async {
-    await _functions.httpsCallable('revokeInvite').call<Map<String, dynamic>>({
-      'placeId': placeId,
-    });
+  Future<String> acceptNoteAdministratorInvitation(String token) async {
+    final result = await _functions
+        .httpsCallable('acceptNoteAdministratorInvitation')
+        .call<Map<String, dynamic>>({'token': token});
+    return _requiredString(result.data, 'placeId');
+  }
+
+  @override
+  Future<void> revokeNoteAdministratorInvitation({
+    required String placeId,
+    required String targetUid,
+  }) async {
+    await _functions
+        .httpsCallable('revokeNoteAdministratorInvitation')
+        .call<Map<String, dynamic>>({
+          'placeId': placeId,
+          'targetUid': targetUid,
+        });
+  }
+
+  @override
+  Future<void> removeNoteAdministrator({
+    required String placeId,
+    required String targetUid,
+  }) async {
+    await _functions
+        .httpsCallable('removeNoteAdministrator')
+        .call<Map<String, dynamic>>({
+          'placeId': placeId,
+          'targetUid': targetUid,
+        });
+  }
+
+  @override
+  Future<NoteAdministratorAccess> getNoteAdministratorAccess(
+    String placeId,
+  ) async {
+    final result = await _functions
+        .httpsCallable('getNoteAdministratorAccess')
+        .call<Map<String, dynamic>>({'placeId': placeId});
+    final administrators = result.data['administrators'];
+    final pendingInvitations = result.data['pendingInvitations'];
+    if (administrators is! List || pendingInvitations is! List) {
+      throw const FormatException('Administrator access response is invalid.');
+    }
+    return NoteAdministratorAccess(
+      creatorUid: _requiredString(result.data, 'creatorUid'),
+      administrators: administrators
+          .map((value) {
+            final data = Map<String, dynamic>.from(value as Map);
+            return NoteAdministrator(
+              userId: _requiredString(data, 'userId'),
+              isCreator: data['isCreator'] == true,
+              displayName: data['displayName'] as String?,
+              photoUrl: data['photoUrl'] as String?,
+              invitedByUid: data['invitedByUid'] as String?,
+              grantedAt: _optionalDate(data['grantedAtMillis']),
+            );
+          })
+          .toList(growable: false),
+      pendingInvitations: pendingInvitations
+          .map((value) {
+            final data = Map<String, dynamic>.from(value as Map);
+            return PendingNoteAdministratorInvitation(
+              targetUid: _requiredString(data, 'targetUid'),
+              invitedByUid: _requiredString(data, 'invitedByUid'),
+              displayName: data['displayName'] as String?,
+              photoUrl: data['photoUrl'] as String?,
+              revision: data['revision'] as int,
+              expiresAt: _requiredDate(data, 'expiresAtMillis'),
+              expired: data['expired'] == true,
+            );
+          })
+          .toList(growable: false),
+    );
   }
 
   @override
@@ -415,34 +508,6 @@ class PlaceRepositoryImpl implements PlaceRepository {
     await _functions
         .httpsCallable('revokeNoteAccess')
         .call<Map<String, dynamic>>({'placeId': placeId, 'userId': userId});
-  }
-
-  @override
-  Future<void> grantNoteMaintainer({
-    required String placeId,
-    required String userId,
-  }) async {
-    await _functions
-        .httpsCallable('grantNoteMaintainer')
-        .call<Map<String, dynamic>>({'placeId': placeId, 'userId': userId});
-  }
-
-  @override
-  Future<void> revokeNoteMaintainer({
-    required String placeId,
-    required String userId,
-  }) async {
-    await _functions
-        .httpsCallable('revokeNoteMaintainer')
-        .call<Map<String, dynamic>>({'placeId': placeId, 'userId': userId});
-  }
-
-  @override
-  Future<String> claimInvite(String token) async {
-    final result = await _functions
-        .httpsCallable('claimInvite')
-        .call<Map<String, dynamic>>({'token': token});
-    return result.data['placeId'] as String;
   }
 
   @override
@@ -457,8 +522,6 @@ class PlaceRepositoryImpl implements PlaceRepository {
             return NoteMember(
               userId: doc.id,
               displayName: data['displayName'] as String?,
-              invited: data['invited'] as bool? ?? false,
-              isMaintainer: data['isMaintainer'] as bool? ?? false,
             );
           }).toList(),
         );
@@ -512,6 +575,26 @@ class PlaceRepositoryImpl implements PlaceRepository {
         .map(NoteVisitorModel.fromFirestore)
         .map((model) => model.toEntity())
         .toList();
+  }
+
+  String _requiredString(Map<String, dynamic> data, String field) {
+    final value = data[field];
+    if (value is! String || value.isEmpty) {
+      throw FormatException('$field is invalid.');
+    }
+    return value;
+  }
+
+  DateTime _requiredDate(Map<String, dynamic> data, String field) {
+    final value = data[field];
+    if (value is! int) throw FormatException('$field is invalid.');
+    return DateTime.fromMillisecondsSinceEpoch(value);
+  }
+
+  DateTime? _optionalDate(Object? value) {
+    if (value == null) return null;
+    if (value is! int) throw const FormatException('Date is invalid.');
+    return DateTime.fromMillisecondsSinceEpoch(value);
   }
 
   @override

@@ -9,10 +9,11 @@ const ALLOWED_RAW_CLIENT_FILES = new Set([
 ]);
 const REGIONALIZED_CONTENT_FILES = [
   "adminModeration.ts",
-  "invites.ts",
   "likes.ts",
   "mapPins.ts",
   "messages.ts",
+  "noteAccess.ts",
+  "noteAdministratorInviteCallables.ts",
   "notePassword.ts",
   "notes.ts",
   "visitors.ts",

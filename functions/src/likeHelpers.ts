@@ -54,8 +54,8 @@ export function hasValidMembership(
   memberSnap: DocumentSnapshot | null,
 ): boolean {
   if (!memberSnap?.exists) return false;
-  return memberSnap.get("invited") === true ||
-    memberSnap.get("viaPasswordVersion") === placeSnap.get("passwordVersion");
+  return memberSnap.get("viaPasswordVersion") ===
+    placeSnap.get("passwordVersion");
 }
 
 export function likedStateOf(likeSnap: DocumentSnapshot): boolean {

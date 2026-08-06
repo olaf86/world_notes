@@ -1233,4 +1233,134 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get adminSafetyNoAudits => 'No administrator actions.';
+
+  @override
+  String get administratorInvitationTitle => 'Administrator invitation';
+
+  @override
+  String get inviteLoadFailed => 'Could not load this invitation.';
+
+  @override
+  String get inviteAcceptFailed => 'Could not accept this invitation.';
+
+  @override
+  String get worldStillPreparing =>
+      'This world is still preparing your account.';
+
+  @override
+  String get inviteInvalid =>
+      'This invitation is invalid or no longer available.';
+
+  @override
+  String get inviteExpired => 'This invitation has expired.';
+
+  @override
+  String get networkErrorTryAgain =>
+      'Network error. Check your connection and try again.';
+
+  @override
+  String get inviteSignInPrompt =>
+      'Sign in to review this administrator invitation.';
+
+  @override
+  String get signIn => 'Sign in';
+
+  @override
+  String get administratorInvitationAccepted =>
+      'You are now a note administrator. Your home world has not changed.';
+
+  @override
+  String get switchWorldAndOpenNote => 'Switch world and open note';
+
+  @override
+  String get goToMap => 'Go to map';
+
+  @override
+  String get administratorInvitationExplanation =>
+      'Accepting lets you read and administer this note remotely. Posting, likes, and visits still follow the normal location rules.';
+
+  @override
+  String get switchWorldAfterAcceptance =>
+      'Switch to this world after accepting';
+
+  @override
+  String get acceptAdministratorInvitation => 'Accept administrator invitation';
+
+  @override
+  String get administratorManageDescription =>
+      'Invite a specific user to help administer this note. Administrator access does not grant ordinary remote posting.';
+
+  @override
+  String get targetUserIdLabel => 'Target user ID';
+
+  @override
+  String get sendAdministratorInvitation => 'Invite administrator';
+
+  @override
+  String get administratorInviteCreated => 'Administrator invitation created.';
+
+  @override
+  String get inviteCreateFailed => 'Could not create the invitation.';
+
+  @override
+  String get administratorInviteRevoked => 'Administrator invitation revoked.';
+
+  @override
+  String get inviteRevokeFailed => 'Could not revoke the invitation.';
+
+  @override
+  String get administratorRemoved => 'Administrator access removed.';
+
+  @override
+  String get administratorRemoveFailed =>
+      'Could not remove administrator access.';
+
+  @override
+  String get memberRemoveFailed => 'Could not remove this member.';
+
+  @override
+  String get copyLink => 'Copy link';
+
+  @override
+  String get copied => 'Copied';
+
+  @override
+  String get noteAdministratorsTitle => 'Note administrators';
+
+  @override
+  String get pendingAdministratorInvitationsTitle => 'Pending invitations';
+
+  @override
+  String get passwordAccessMembersTitle => 'Password access';
+
+  @override
+  String get passwordAccessDescription =>
+      'These users unlocked the private note with its current password.';
+
+  @override
+  String get unlockedWithPassword => 'Unlocked with password';
+
+  @override
+  String get removeAccess => 'Remove access';
+
+  @override
+  String get noteCreatorLabel => 'Creator';
+
+  @override
+  String get noteAdministratorLabel => 'Administrator';
+
+  @override
+  String get resignAdministrator => 'Resign as administrator';
+
+  @override
+  String get removeAdministrator => 'Remove administrator';
+
+  @override
+  String get noPendingInvitations => 'No pending invitations.';
+
+  @override
+  String get invitationPending => 'Invitation pending';
+
+  @override
+  String get revokeInvitation => 'Revoke invitation';
 }

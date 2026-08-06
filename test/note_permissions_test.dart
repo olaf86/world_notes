@@ -49,10 +49,7 @@ void main() {
       expect(permissions.canReadContent, isTrue);
       expect(permissions.canPostMessage, isTrue);
       expect(permissions.canLikeNote, isFalse);
-      expect(permissions.canCreateInviteLink, isTrue);
-      expect(permissions.canRevokeInviteLink, isTrue);
-      expect(permissions.canPromoteMaintainers, isTrue);
-      expect(permissions.canDemoteMaintainers, isTrue);
+      expect(permissions.canManageAccess, isTrue);
       expect(permissions.canChangeLock, isTrue);
       expect(permissions.canArchive, isTrue);
     });
@@ -70,11 +67,8 @@ void main() {
       expect(permissions.canPostMessage, isTrue);
       expect(permissions.canLikeNote, isTrue);
       expect(permissions.canCloseThread, isTrue);
-      expect(permissions.canCreateInviteLink, isTrue);
+      expect(permissions.canManageAccess, isTrue);
       expect(permissions.canRemoveMemberAccess, isTrue);
-      expect(permissions.canRevokeInviteLink, isFalse);
-      expect(permissions.canPromoteMaintainers, isFalse);
-      expect(permissions.canDemoteMaintainers, isFalse);
       expect(permissions.canChangeLock, isFalse);
       expect(permissions.canArchive, isFalse);
     });
@@ -82,7 +76,7 @@ void main() {
     test('private-note member can read and post but not manage', () {
       final permissions = place().permissionsFor(
         uid: 'member-1',
-        membership: const NoteMembership(invited: true, viaPasswordVersion: 0),
+        membership: const NoteMembership(viaPasswordVersion: 0),
         readOnly: false,
         now: now,
       );
@@ -92,7 +86,6 @@ void main() {
       expect(permissions.canPostMessage, isTrue);
       expect(permissions.canLikeNote, isTrue);
       expect(permissions.canManageAccess, isFalse);
-      expect(permissions.canCreateInviteLink, isFalse);
       expect(permissions.canCloseThread, isFalse);
     });
 
@@ -123,7 +116,7 @@ void main() {
       expect(permissions.canPostMessage, isFalse);
       expect(permissions.canLikeNote, isTrue);
       expect(permissions.canCloseThread, isTrue);
-      expect(permissions.canCreateInviteLink, isTrue);
+      expect(permissions.canManageAccess, isTrue);
     });
 
     test('expired and archived notes cannot be liked', () {
@@ -166,64 +159,6 @@ void main() {
               now: now,
             )
             .canLikeNote,
-        isFalse,
-      );
-    });
-
-    test('member row actions follow actor permissions and target role', () {
-      final privatePlace = place();
-      final creator = privatePlace.permissionsFor(
-        uid: 'creator-1',
-        membership: null,
-        readOnly: false,
-        now: now,
-      );
-      final maintainer = privatePlace.permissionsFor(
-        uid: 'maintainer-1',
-        membership: null,
-        readOnly: false,
-        now: now,
-      );
-      const regularMember = NoteMember(userId: 'member-1', invited: true);
-      const maintainerMember = NoteMember(
-        userId: 'maintainer-1',
-        invited: true,
-        isMaintainer: true,
-      );
-      const creatorMember = NoteMember(
-        userId: 'creator-1',
-        invited: true,
-        isMaintainer: true,
-      );
-
-      expect(
-        regularMember
-            .permissionsFor(place: privatePlace, actor: creator)
-            .canPromoteToMaintainer,
-        isTrue,
-      );
-      expect(
-        maintainerMember
-            .permissionsFor(place: privatePlace, actor: creator)
-            .canDemoteMaintainer,
-        isTrue,
-      );
-      expect(
-        creatorMember
-            .permissionsFor(place: privatePlace, actor: creator)
-            .canDemoteMaintainer,
-        isFalse,
-      );
-      expect(
-        regularMember
-            .permissionsFor(place: privatePlace, actor: maintainer)
-            .canRemoveAccess,
-        isTrue,
-      );
-      expect(
-        regularMember
-            .permissionsFor(place: privatePlace, actor: maintainer)
-            .canPromoteToMaintainer,
         isFalse,
       );
     });

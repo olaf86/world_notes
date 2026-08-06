@@ -2155,6 +2155,246 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No administrator actions.'**
   String get adminSafetyNoAudits;
+
+  /// No description provided for @administratorInvitationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Administrator invitation'**
+  String get administratorInvitationTitle;
+
+  /// No description provided for @inviteLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load this invitation.'**
+  String get inviteLoadFailed;
+
+  /// No description provided for @inviteAcceptFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not accept this invitation.'**
+  String get inviteAcceptFailed;
+
+  /// No description provided for @worldStillPreparing.
+  ///
+  /// In en, this message translates to:
+  /// **'This world is still preparing your account.'**
+  String get worldStillPreparing;
+
+  /// No description provided for @inviteInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'This invitation is invalid or no longer available.'**
+  String get inviteInvalid;
+
+  /// No description provided for @inviteExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'This invitation has expired.'**
+  String get inviteExpired;
+
+  /// No description provided for @networkErrorTryAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Network error. Check your connection and try again.'**
+  String get networkErrorTryAgain;
+
+  /// No description provided for @inviteSignInPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to review this administrator invitation.'**
+  String get inviteSignInPrompt;
+
+  /// No description provided for @signIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in'**
+  String get signIn;
+
+  /// No description provided for @administratorInvitationAccepted.
+  ///
+  /// In en, this message translates to:
+  /// **'You are now a note administrator. Your home world has not changed.'**
+  String get administratorInvitationAccepted;
+
+  /// No description provided for @switchWorldAndOpenNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch world and open note'**
+  String get switchWorldAndOpenNote;
+
+  /// No description provided for @goToMap.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to map'**
+  String get goToMap;
+
+  /// No description provided for @administratorInvitationExplanation.
+  ///
+  /// In en, this message translates to:
+  /// **'Accepting lets you read and administer this note remotely. Posting, likes, and visits still follow the normal location rules.'**
+  String get administratorInvitationExplanation;
+
+  /// No description provided for @switchWorldAfterAcceptance.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch to this world after accepting'**
+  String get switchWorldAfterAcceptance;
+
+  /// No description provided for @acceptAdministratorInvitation.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept administrator invitation'**
+  String get acceptAdministratorInvitation;
+
+  /// No description provided for @administratorManageDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite a specific user to help administer this note. Administrator access does not grant ordinary remote posting.'**
+  String get administratorManageDescription;
+
+  /// No description provided for @targetUserIdLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Target user ID'**
+  String get targetUserIdLabel;
+
+  /// No description provided for @sendAdministratorInvitation.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite administrator'**
+  String get sendAdministratorInvitation;
+
+  /// No description provided for @administratorInviteCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Administrator invitation created.'**
+  String get administratorInviteCreated;
+
+  /// No description provided for @inviteCreateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not create the invitation.'**
+  String get inviteCreateFailed;
+
+  /// No description provided for @administratorInviteRevoked.
+  ///
+  /// In en, this message translates to:
+  /// **'Administrator invitation revoked.'**
+  String get administratorInviteRevoked;
+
+  /// No description provided for @inviteRevokeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not revoke the invitation.'**
+  String get inviteRevokeFailed;
+
+  /// No description provided for @administratorRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Administrator access removed.'**
+  String get administratorRemoved;
+
+  /// No description provided for @administratorRemoveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not remove administrator access.'**
+  String get administratorRemoveFailed;
+
+  /// No description provided for @memberRemoveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not remove this member.'**
+  String get memberRemoveFailed;
+
+  /// No description provided for @copyLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy link'**
+  String get copyLink;
+
+  /// No description provided for @copied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied'**
+  String get copied;
+
+  /// No description provided for @noteAdministratorsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Note administrators'**
+  String get noteAdministratorsTitle;
+
+  /// No description provided for @pendingAdministratorInvitationsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending invitations'**
+  String get pendingAdministratorInvitationsTitle;
+
+  /// No description provided for @passwordAccessMembersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Password access'**
+  String get passwordAccessMembersTitle;
+
+  /// No description provided for @passwordAccessDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'These users unlocked the private note with its current password.'**
+  String get passwordAccessDescription;
+
+  /// No description provided for @unlockedWithPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlocked with password'**
+  String get unlockedWithPassword;
+
+  /// No description provided for @removeAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove access'**
+  String get removeAccess;
+
+  /// No description provided for @noteCreatorLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Creator'**
+  String get noteCreatorLabel;
+
+  /// No description provided for @noteAdministratorLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Administrator'**
+  String get noteAdministratorLabel;
+
+  /// No description provided for @resignAdministrator.
+  ///
+  /// In en, this message translates to:
+  /// **'Resign as administrator'**
+  String get resignAdministrator;
+
+  /// No description provided for @removeAdministrator.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove administrator'**
+  String get removeAdministrator;
+
+  /// No description provided for @noPendingInvitations.
+  ///
+  /// In en, this message translates to:
+  /// **'No pending invitations.'**
+  String get noPendingInvitations;
+
+  /// No description provided for @invitationPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Invitation pending'**
+  String get invitationPending;
+
+  /// No description provided for @revokeInvitation.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoke invitation'**
+  String get revokeInvitation;
 }
 
 class _AppLocalizationsDelegate

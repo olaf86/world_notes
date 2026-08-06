@@ -1158,7 +1158,7 @@ Deliverables:
 - target-UID-bound, single-use, seven-day administrator invitation;
 - signed versioned world hint and nonce;
 - creator/administrator delegation and flat revocation;
-- 100 pending invitations and 100 non-creator administrators per note;
+- 10 pending invitations and 10 non-creator administrators per note;
 - exact invitation/admin counters;
 - selected-world consent after successful cross-world acceptance;
 - immutable administrator audit events;
@@ -1174,6 +1174,30 @@ Exit criteria:
 
 Rollback: disable new invitation creation; continue serving existing pending
 links until they expire or are revoked.
+
+Implementation note (2026-08-06): P18 replaces the former reusable private-note
+invite completely; password membership remains the only ordinary private-note
+access grant. Administrator invitations are stored in the note world under one
+deterministic `(placeId, targetUid)` identity, use a revisioned 256-bit nonce and
+HMAC-signed world route, expire after seven days, and retain terminal state for
+30 days. Invitation documents distinguish the acceptance deadline
+`expiresAt`, the single lifecycle completion time `terminalAt`, and the
+Firestore TTL purge deadline `purgeAt`. Creation, acceptance, revocation,
+resignation/removal, exact pending and active counters, delegated-administrator
+projection, and one-year audit events are all server transactions. A
+revision-bound cleanup job performs exact deadline expiry, while a durable
+source-world event routes an idempotent notice and Push to the target account's
+home world. Manual and scheduled note archive transactions also enqueue a
+bounded cleanup intent that revokes every remaining pending invitation and
+resets the exact pending counter.
+
+The client previews the link through the target world's Callable endpoint,
+requires the authenticated target account to confirm acceptance, and offers a
+separate explicit world switch only after acceptance. New Firestore paths are
+Admin-SDK-only under explicit deny Rules. No composite index is needed because
+the pending-list query uses equality filters only. Production setup must create
+`NOTE_ADMINISTRATOR_INVITE_SIGNING_KEY` with at least 32 bytes of independent
+random key material before deployment.
 
 ### Phase 11 — optimistic moderation
 

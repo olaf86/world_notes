@@ -37,6 +37,7 @@ export interface NoticeAction {
 }
 
 export interface CreateUserNoticeInput {
+  noticeId?: string;
   category: NoticeCategory;
   severity: NoticeSeverity;
   title: string;
@@ -86,16 +87,21 @@ export async function createUserNotice(
   }
   const homeWorld = WORLD_REGISTRY.requireWorld(homeWorldValue).worldId;
   const homeFirestore = worldContext(homeWorld).firestore;
-  const noticeRef = homeFirestore
+  const noticeCollection = homeFirestore
     .collection("users")
     .doc(uid)
-    .collection("notices")
-    .doc();
+    .collection("notices");
+  const noticeRef = input.noticeId === undefined ?
+    noticeCollection.doc() : noticeCollection.doc(input.noticeId);
   const createdAt = Timestamp.now();
   const title = clippedText(input.title, 120);
   const body = clippedText(input.body, 2000);
 
   await homeFirestore.runTransaction(async (transaction) => {
+    if (input.noticeId !== undefined) {
+      const existing = await transaction.get(noticeRef);
+      if (existing.exists) return;
+    }
     transaction.create(noticeRef, {
       category: input.category,
       severity: input.severity,

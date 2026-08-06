@@ -263,6 +263,8 @@ function placeData(
     creatorPhotoVersion: 1,
     creatorProfileRevision: 1,
     maintainerIds: [user.uid],
+    administratorCount: 0,
+    pendingAdministratorInviteCount: 0,
     createdAt: timestamp(hoursBefore(now, place.createdHoursAgo)),
     publishAt: timestamp(hoursBefore(now, place.publishHoursAgo ?? 1)),
     messageCount: place.messages.length,
@@ -353,8 +355,6 @@ async function seedPlace(
       userId: user.uid,
       displayName: user.displayName,
       profileRevision: 1,
-      invited: true,
-      isMaintainer: true,
       viaPasswordVersion: 1,
     });
   }
@@ -534,11 +534,12 @@ function screenshotPlaces(user: ScreenshotUser): PlaceSeed[] {
         {
           id: "msg_cafe_02",
           content: localized(
-            "Added this as a private note so only the invited group sees it.",
-            "招待したメンバーだけに見える非公開ノートにしました。",
-            "已設為私人筆記，只有受邀成員看得到。",
-            "已设为私密笔记，只有受邀成员看得到。",
-            "초대받은 멤버만 볼 수 있도록 비공개 노트로 만들었어요.",
+            "Added this as a private note so only people with the " +
+              "password see it.",
+            "パスワードを知っている人だけに見える非公開ノートにしました。",
+            "已設為私人筆記，只有知道密碼的人看得到。",
+            "已设为私密笔记，只有知道密码的人看得到。",
+            "비밀번호를 아는 사람만 볼 수 있도록 비공개 노트로 만들었어요.",
           ),
           hoursAgo: 6,
         },

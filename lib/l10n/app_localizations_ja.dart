@@ -1144,4 +1144,127 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get adminSafetyNoAudits => '管理者操作はありません。';
+
+  @override
+  String get administratorInvitationTitle => 'ノート管理者への招待';
+
+  @override
+  String get inviteLoadFailed => 'この招待を読み込めませんでした。';
+
+  @override
+  String get inviteAcceptFailed => 'この招待を承認できませんでした。';
+
+  @override
+  String get worldStillPreparing => 'このワールドではアカウントを準備中です。';
+
+  @override
+  String get inviteInvalid => 'この招待は無効か、すでに利用できません。';
+
+  @override
+  String get inviteExpired => 'この招待は期限切れです。';
+
+  @override
+  String get networkErrorTryAgain => 'ネットワークエラーです。接続を確認してもう一度お試しください。';
+
+  @override
+  String get inviteSignInPrompt => 'ノート管理者への招待を確認するにはサインインしてください。';
+
+  @override
+  String get signIn => 'サインイン';
+
+  @override
+  String get administratorInvitationAccepted =>
+      'ノート管理者になりました。ホームワールドは変更されていません。';
+
+  @override
+  String get switchWorldAndOpenNote => 'ワールドを切り替えてノートを開く';
+
+  @override
+  String get goToMap => 'マップへ移動';
+
+  @override
+  String get administratorInvitationExplanation =>
+      '承認すると、現在地に関係なくこのノートの閲覧と管理ができます。投稿、いいね、訪問には通常の位置情報ルールが適用されます。';
+
+  @override
+  String get switchWorldAfterAcceptance => '承認後にこのワールドへ切り替える';
+
+  @override
+  String get acceptAdministratorInvitation => '管理者への招待を承認';
+
+  @override
+  String get administratorManageDescription =>
+      '特定のユーザーを、このノートの管理者として招待します。管理者権限だけでは遠隔地から通常の投稿はできません。';
+
+  @override
+  String get targetUserIdLabel => '招待するユーザーID';
+
+  @override
+  String get sendAdministratorInvitation => '管理者として招待';
+
+  @override
+  String get administratorInviteCreated => '管理者への招待を作成しました。';
+
+  @override
+  String get inviteCreateFailed => '招待を作成できませんでした。';
+
+  @override
+  String get administratorInviteRevoked => '管理者への招待を取り消しました。';
+
+  @override
+  String get inviteRevokeFailed => '招待を取り消せませんでした。';
+
+  @override
+  String get administratorRemoved => '管理者権限を削除しました。';
+
+  @override
+  String get administratorRemoveFailed => '管理者権限を削除できませんでした。';
+
+  @override
+  String get memberRemoveFailed => 'このメンバーを削除できませんでした。';
+
+  @override
+  String get copyLink => 'リンクをコピー';
+
+  @override
+  String get copied => 'コピーしました';
+
+  @override
+  String get noteAdministratorsTitle => 'ノート管理者';
+
+  @override
+  String get pendingAdministratorInvitationsTitle => '承認待ちの招待';
+
+  @override
+  String get passwordAccessMembersTitle => 'パスワードでのアクセス';
+
+  @override
+  String get passwordAccessDescription => '現在のパスワードで非公開ノートを解除したユーザーです。';
+
+  @override
+  String get unlockedWithPassword => 'パスワードで解除';
+
+  @override
+  String get removeAccess => 'アクセス権を削除';
+
+  @override
+  String get noteCreatorLabel => '作成者';
+
+  @override
+  String get noteAdministratorLabel => '管理者';
+
+  @override
+  String get resignAdministrator => '管理者を辞任';
+
+  @override
+  String get removeAdministrator => '管理者から削除';
+
+  @override
+  String get noPendingInvitations => '承認待ちの招待はありません。';
+
+  @override
+  String get invitationPending => '承認待ち';
+
+  @override
+  String get revokeInvitation => '招待を取り消す';
 }

@@ -39,7 +39,8 @@ rules_version = '2';
 // - places/{placeId}/messages: server-created message content.
 // - place access, visitor, like, counter and secret subcollections are scoped
 //   by the parent note and otherwise server-managed as declared below.
-// - moderation, invite, report and audit collections are server-only.
+// - note administrator invitations, administrator projections, notification
+//   intents, moderation, report and audit collections are server-only.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -176,14 +177,13 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/places/$(placeId)).data;
     }
 
-    // True if the caller holds a still-valid access grant for a private note:
-    // either invited, or unlocked at the note's current passwordVersion
-    // (changing the password bumps the version, revoking old grants).
+    // True if the caller unlocked the private note at its current
+    // passwordVersion. Changing the password bumps the version and revokes
+    // every older access grant.
     function hasNoteMembership(placeId, place) {
       let path = /databases/$(database)/documents/places/$(placeId)/members/$(request.auth.uid);
       return exists(path)
-             && (get(path).data.invited == true
-                 || get(path).data.viaPasswordVersion == place.passwordVersion);
+             && get(path).data.viaPasswordVersion == place.passwordVersion;
     }
 
     // True if the caller may access a note's messages: public notes are open
@@ -437,14 +437,25 @@ service cloud.firestore {
         allow read, write: if false;
       }
 
-      // Access grants. A user may read their OWN membership; a note maintainer may
-      // read the whole list (to manage access). Grants are written exclusively
-      // by the unlockNote / claimInvite / revoke Cloud Functions.
+      // Password access grants. A user may read their OWN membership; a note
+      // maintainer may read the whole list. Grants are written exclusively by
+      // the unlockNote / revokeNoteAccess Cloud Functions.
       match /members/{memberUid} {
         allow read: if isSignedIn()
                     && (request.auth.uid == memberUid
                         || isPlaceMaintainer(getPlace(placeId)));
         allow write: if false;
+      }
+
+      // Active delegated note-administrator projections. The callable layer
+      // is the only authority allowed to create or remove these records.
+      match /administrators/{administratorUid} {
+        allow read, write: if false;
+      }
+
+      // Immutable administrator invitation and membership audit events.
+      match /administratorAudits/{auditId} {
+        allow read, write: if false;
       }
 
       // Server-only counters used by Cloud Functions. In particular,
@@ -473,7 +484,7 @@ service cloud.firestore {
       // ── messages (subcollection) ──────────────────────────────────────
       // Nested under the place so reads can be gated on the parent note's
       // visibility + membership. For private notes, only maintainers and
-      // unlocked/invited members can read or post.
+      // password-unlocked members can read or post.
       match /messages/{messageId} {
         allow read: if canReadMessage(placeId, resource.data);
 
@@ -533,11 +544,15 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // ── invites ─────────────────────────────────────────────────────────────
-    // Invite tokens are secrets (the doc id is the token). Read/write only via
-    // the createInviteLink / claimInvite / revokeInvite Cloud Functions
-    // (Admin SDK); clients can never enumerate or read them.
-    match /invites/{token} {
+    // Target-bound, expiring administrator invitations. Signed tokens and
+    // lifecycle state are accessed only through callable Cloud Functions.
+    match /noteAdministratorInvitations/{inviteId} {
+      allow read, write: if false;
+    }
+
+    // Source-world intents used to route administrator invitation notices to
+    // the target account's home world. Clients must not enumerate recipients.
+    match /noteAdministratorInviteNotifications/{eventId} {
       allow read, write: if false;
     }
 

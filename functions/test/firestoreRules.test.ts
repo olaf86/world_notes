@@ -946,6 +946,57 @@ describe(
           }),
         );
       });
+
+      test(
+        "denies all client access to administrator invitation state",
+        async () => {
+          const paths = [
+            "noteAdministratorInvitations/test-invitation",
+            "noteAdministratorInviteNotifications/test-notification",
+            "places/test-place/administrators/bob",
+            "places/test-place/administratorAudits/test-audit",
+          ];
+          await Promise.all(paths.map((path) =>
+            seedApplicationDocument(path, {status: "pending"})));
+          const alice =
+            requireApplicationRules().authenticatedContext("alice");
+          const guest = requireApplicationRules().unauthenticatedContext();
+
+          for (const path of paths) {
+            await assertFails(alice.firestore().doc(path).get());
+            await assertFails(guest.firestore().doc(path).get());
+            await assertFails(
+              alice.firestore().doc(path).set({status: "accepted"}),
+            );
+            await assertFails(alice.firestore().doc(path).delete());
+          }
+        },
+      );
+
+      test(
+        "denies direct administrator privilege escalation on a note",
+        async () => {
+          await seedApplicationDocument(
+            "places/test-place",
+            activePublicPlace(),
+          );
+          const alice =
+            requireApplicationRules().authenticatedContext("alice");
+
+          await assertFails(
+            alice.firestore().doc("places/test-place").update({
+              maintainerIds: ["alice", "mallory"],
+              administratorCount: 1,
+            }),
+          );
+          await assertFails(
+            alice
+              .firestore()
+              .doc("places/test-place/administrators/mallory")
+              .set({uid: "mallory", status: "active"}),
+          );
+        },
+      );
     });
 
     describe("provisioning worlds", {concurrency: false}, () => {

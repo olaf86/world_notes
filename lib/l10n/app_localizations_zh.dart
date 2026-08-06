@@ -1132,6 +1132,128 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get adminSafetyNoAudits => '暂无管理员操作。';
+
+  @override
+  String get administratorInvitationTitle => '笔记管理员邀请';
+
+  @override
+  String get inviteLoadFailed => '无法加载此邀请。';
+
+  @override
+  String get inviteAcceptFailed => '无法接受此邀请。';
+
+  @override
+  String get worldStillPreparing => '此世界仍在准备您的账户。';
+
+  @override
+  String get inviteInvalid => '此邀请无效或已不可用。';
+
+  @override
+  String get inviteExpired => '此邀请已过期。';
+
+  @override
+  String get networkErrorTryAgain => '网络错误。请检查连接后重试。';
+
+  @override
+  String get inviteSignInPrompt => '请登录以查看此笔记管理员邀请。';
+
+  @override
+  String get signIn => '登录';
+
+  @override
+  String get administratorInvitationAccepted => '您现在是笔记管理员。您的主世界未发生变化。';
+
+  @override
+  String get switchWorldAndOpenNote => '切换世界并打开笔记';
+
+  @override
+  String get goToMap => '前往地图';
+
+  @override
+  String get administratorInvitationExplanation =>
+      '接受后，您可以不受位置限制地阅读和管理此笔记。发帖、点赞和访问仍遵循常规位置规则。';
+
+  @override
+  String get switchWorldAfterAcceptance => '接受后切换到此世界';
+
+  @override
+  String get acceptAdministratorInvitation => '接受管理员邀请';
+
+  @override
+  String get administratorManageDescription =>
+      '邀请指定用户协助管理此笔记。管理员权限本身不允许远程进行普通发帖。';
+
+  @override
+  String get targetUserIdLabel => '目标用户 ID';
+
+  @override
+  String get sendAdministratorInvitation => '邀请管理员';
+
+  @override
+  String get administratorInviteCreated => '已创建管理员邀请。';
+
+  @override
+  String get inviteCreateFailed => '无法创建邀请。';
+
+  @override
+  String get administratorInviteRevoked => '已撤销管理员邀请。';
+
+  @override
+  String get inviteRevokeFailed => '无法撤销邀请。';
+
+  @override
+  String get administratorRemoved => '已移除管理员权限。';
+
+  @override
+  String get administratorRemoveFailed => '无法移除管理员权限。';
+
+  @override
+  String get memberRemoveFailed => '无法移除此成员。';
+
+  @override
+  String get copyLink => '复制链接';
+
+  @override
+  String get copied => '已复制';
+
+  @override
+  String get noteAdministratorsTitle => '笔记管理员';
+
+  @override
+  String get pendingAdministratorInvitationsTitle => '待处理邀请';
+
+  @override
+  String get passwordAccessMembersTitle => '密码访问';
+
+  @override
+  String get passwordAccessDescription => '这些用户已使用当前密码解锁此私密笔记。';
+
+  @override
+  String get unlockedWithPassword => '已使用密码解锁';
+
+  @override
+  String get removeAccess => '移除访问权限';
+
+  @override
+  String get noteCreatorLabel => '创建者';
+
+  @override
+  String get noteAdministratorLabel => '管理员';
+
+  @override
+  String get resignAdministrator => '辞去管理员';
+
+  @override
+  String get removeAdministrator => '移除管理员';
+
+  @override
+  String get noPendingInvitations => '没有待处理邀请。';
+
+  @override
+  String get invitationPending => '邀请待处理';
+
+  @override
+  String get revokeInvitation => '撤销邀请';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -2262,6 +2384,128 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get adminSafetyNoAudits => '暂无管理员操作。';
+
+  @override
+  String get administratorInvitationTitle => '笔记管理员邀请';
+
+  @override
+  String get inviteLoadFailed => '无法加载此邀请。';
+
+  @override
+  String get inviteAcceptFailed => '无法接受此邀请。';
+
+  @override
+  String get worldStillPreparing => '此世界仍在准备您的账户。';
+
+  @override
+  String get inviteInvalid => '此邀请无效或已不可用。';
+
+  @override
+  String get inviteExpired => '此邀请已过期。';
+
+  @override
+  String get networkErrorTryAgain => '网络错误。请检查连接后重试。';
+
+  @override
+  String get inviteSignInPrompt => '请登录以查看此笔记管理员邀请。';
+
+  @override
+  String get signIn => '登录';
+
+  @override
+  String get administratorInvitationAccepted => '您现在是笔记管理员。您的主世界未发生变化。';
+
+  @override
+  String get switchWorldAndOpenNote => '切换世界并打开笔记';
+
+  @override
+  String get goToMap => '前往地图';
+
+  @override
+  String get administratorInvitationExplanation =>
+      '接受后，您可以不受位置限制地阅读和管理此笔记。发帖、点赞和访问仍遵循常规位置规则。';
+
+  @override
+  String get switchWorldAfterAcceptance => '接受后切换到此世界';
+
+  @override
+  String get acceptAdministratorInvitation => '接受管理员邀请';
+
+  @override
+  String get administratorManageDescription =>
+      '邀请指定用户协助管理此笔记。管理员权限本身不允许远程进行普通发帖。';
+
+  @override
+  String get targetUserIdLabel => '目标用户 ID';
+
+  @override
+  String get sendAdministratorInvitation => '邀请管理员';
+
+  @override
+  String get administratorInviteCreated => '已创建管理员邀请。';
+
+  @override
+  String get inviteCreateFailed => '无法创建邀请。';
+
+  @override
+  String get administratorInviteRevoked => '已撤销管理员邀请。';
+
+  @override
+  String get inviteRevokeFailed => '无法撤销邀请。';
+
+  @override
+  String get administratorRemoved => '已移除管理员权限。';
+
+  @override
+  String get administratorRemoveFailed => '无法移除管理员权限。';
+
+  @override
+  String get memberRemoveFailed => '无法移除此成员。';
+
+  @override
+  String get copyLink => '复制链接';
+
+  @override
+  String get copied => '已复制';
+
+  @override
+  String get noteAdministratorsTitle => '笔记管理员';
+
+  @override
+  String get pendingAdministratorInvitationsTitle => '待处理邀请';
+
+  @override
+  String get passwordAccessMembersTitle => '密码访问';
+
+  @override
+  String get passwordAccessDescription => '这些用户已使用当前密码解锁此私密笔记。';
+
+  @override
+  String get unlockedWithPassword => '已使用密码解锁';
+
+  @override
+  String get removeAccess => '移除访问权限';
+
+  @override
+  String get noteCreatorLabel => '创建者';
+
+  @override
+  String get noteAdministratorLabel => '管理员';
+
+  @override
+  String get resignAdministrator => '辞去管理员';
+
+  @override
+  String get removeAdministrator => '移除管理员';
+
+  @override
+  String get noPendingInvitations => '没有待处理邀请。';
+
+  @override
+  String get invitationPending => '邀请待处理';
+
+  @override
+  String get revokeInvitation => '撤销邀请';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -3393,4 +3637,126 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get adminSafetyNoAudits => '目前沒有管理員操作。';
+
+  @override
+  String get administratorInvitationTitle => '筆記管理員邀請';
+
+  @override
+  String get inviteLoadFailed => '無法載入此邀請。';
+
+  @override
+  String get inviteAcceptFailed => '無法接受此邀請。';
+
+  @override
+  String get worldStillPreparing => '此世界仍在準備您的帳戶。';
+
+  @override
+  String get inviteInvalid => '此邀請無效或已無法使用。';
+
+  @override
+  String get inviteExpired => '此邀請已過期。';
+
+  @override
+  String get networkErrorTryAgain => '網路錯誤。請檢查連線後重試。';
+
+  @override
+  String get inviteSignInPrompt => '請登入以查看此筆記管理員邀請。';
+
+  @override
+  String get signIn => '登入';
+
+  @override
+  String get administratorInvitationAccepted => '您現在是筆記管理員。您的主世界沒有變更。';
+
+  @override
+  String get switchWorldAndOpenNote => '切換世界並開啟筆記';
+
+  @override
+  String get goToMap => '前往地圖';
+
+  @override
+  String get administratorInvitationExplanation =>
+      '接受後，您可以不受位置限制地閱讀和管理此筆記。發文、按讚和造訪仍遵循一般位置規則。';
+
+  @override
+  String get switchWorldAfterAcceptance => '接受後切換到此世界';
+
+  @override
+  String get acceptAdministratorInvitation => '接受管理員邀請';
+
+  @override
+  String get administratorManageDescription =>
+      '邀請指定使用者協助管理此筆記。管理員權限本身不允許遠端進行一般發文。';
+
+  @override
+  String get targetUserIdLabel => '目標使用者 ID';
+
+  @override
+  String get sendAdministratorInvitation => '邀請管理員';
+
+  @override
+  String get administratorInviteCreated => '已建立管理員邀請。';
+
+  @override
+  String get inviteCreateFailed => '無法建立邀請。';
+
+  @override
+  String get administratorInviteRevoked => '已撤銷管理員邀請。';
+
+  @override
+  String get inviteRevokeFailed => '無法撤銷邀請。';
+
+  @override
+  String get administratorRemoved => '已移除管理員權限。';
+
+  @override
+  String get administratorRemoveFailed => '無法移除管理員權限。';
+
+  @override
+  String get memberRemoveFailed => '無法移除此成員。';
+
+  @override
+  String get copyLink => '複製連結';
+
+  @override
+  String get copied => '已複製';
+
+  @override
+  String get noteAdministratorsTitle => '筆記管理員';
+
+  @override
+  String get pendingAdministratorInvitationsTitle => '待處理邀請';
+
+  @override
+  String get passwordAccessMembersTitle => '密碼存取';
+
+  @override
+  String get passwordAccessDescription => '這些使用者已使用目前密碼解鎖此私人筆記。';
+
+  @override
+  String get unlockedWithPassword => '已使用密碼解鎖';
+
+  @override
+  String get removeAccess => '移除存取權';
+
+  @override
+  String get noteCreatorLabel => '建立者';
+
+  @override
+  String get noteAdministratorLabel => '管理員';
+
+  @override
+  String get resignAdministrator => '辭去管理員';
+
+  @override
+  String get removeAdministrator => '移除管理員';
+
+  @override
+  String get noPendingInvitations => '沒有待處理邀請。';
+
+  @override
+  String get invitationPending => '邀請待處理';
+
+  @override
+  String get revokeInvitation => '撤銷邀請';
 }

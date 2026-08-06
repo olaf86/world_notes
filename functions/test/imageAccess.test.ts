@@ -80,7 +80,7 @@ test("requires membership or maintenance for private note images", () => {
   assert.equal(
     canAccessPlaceImage(
       place,
-      snapshot({invited: true}),
+      snapshot({viaPasswordVersion: 1}),
       "viewer",
       NOW.toMillis(),
       false,

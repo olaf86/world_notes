@@ -264,6 +264,41 @@ void main() {
     );
   });
 
+  test('enables administrator invitation and audit retention TTLs', () {
+    final config = _loadConfig();
+    final overrides = (config['fieldOverrides'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+
+    expect(
+      overrides.any(
+        (override) =>
+            override['collectionGroup'] == 'noteAdministratorInvitations' &&
+            override['fieldPath'] == 'purgeAt' &&
+            override['ttl'] == true &&
+            (override['indexes'] as List<dynamic>).isEmpty,
+      ),
+      isTrue,
+      reason: 'Administrator invitations must purge terminal records.',
+    );
+
+    for (final collectionGroup in <String>[
+      'noteAdministratorInviteNotifications',
+      'administratorAudits',
+    ]) {
+      expect(
+        overrides.any(
+          (override) =>
+              override['collectionGroup'] == collectionGroup &&
+              override['fieldPath'] == 'expireAt' &&
+              override['ttl'] == true &&
+              (override['indexes'] as List<dynamic>).isEmpty,
+        ),
+        isTrue,
+        reason: '$collectionGroup must expire terminal server records.',
+      );
+    }
+  });
+
   test('enables account safety receipt TTL without indexing its timestamp', () {
     final config =
         jsonDecode(File('firestore.indexes.json').readAsStringSync())

@@ -58,6 +58,9 @@ import {
   imageUploadId,
 } from "./imageUploads";
 import {enqueueStorageObjectDeletion} from "./storageObjectCleanup";
+import {
+  enqueueArchivedNoteAdministratorInvitationRevocation,
+} from "./noteAdministratorInviteCleanup";
 
 interface CreateNoteData {
   latitude?: unknown;
@@ -392,6 +395,8 @@ export const createNote = onCall<CreateNoteData>(
         creatorPhotoVersion,
         creatorProfileRevision,
         maintainerIds: [uid],
+        administratorCount: 0,
+        pendingAdministratorInviteCount: 0,
         createdAt: FieldValue.serverTimestamp(),
         publishAt,
         messageCount: 0,
@@ -843,6 +848,7 @@ export const archiveNote = onCall<ArchiveNoteData>(
 
     const db = world.firestore;
     const placeRef = db.collection("places").doc(placeId);
+    const cleanupCreatedAt = Timestamp.now();
     const archived = await db.runTransaction(async (tx) => {
       const placeSnap = await tx.get(placeRef);
       if (!placeSnap.exists) {
@@ -874,31 +880,15 @@ export const archiveNote = onCall<ArchiveNoteData>(
         },
         {merge: true},
       );
+      enqueueArchivedNoteAdministratorInvitationRevocation(
+        tx,
+        db,
+        world.worldId,
+        placeId,
+        cleanupCreatedAt,
+      );
       return true;
     });
-
-    if (archived) {
-      try {
-        const invites = await db
-          .collection("invites")
-          .where("placeId", "==", placeId)
-          .get();
-        const batch = db.batch();
-        let revoked = 0;
-        for (const invite of invites.docs) {
-          if (invite.get("revoked") !== true) {
-            batch.update(invite.ref, {revoked: true});
-            revoked++;
-          }
-        }
-        if (revoked > 0) await batch.commit();
-      } catch (error) {
-        logger.warn(
-          `archiveNote: could not revoke invites for ${placeId}.`,
-          error,
-        );
-      }
-    }
 
     return {archived};
   },
@@ -974,6 +964,13 @@ export async function archiveExpiredNotesForWorld(
               archivedAt: FieldValue.serverTimestamp(),
               isOpen: false,
             });
+            enqueueArchivedNoteAdministratorInvitationRevocation(
+              tx,
+              db,
+              worldId,
+              placeSnap.id,
+              now,
+            );
           }
           const activeCount =
               (usageSnap.get("activeNoteCount") as number | undefined) ?? 0;

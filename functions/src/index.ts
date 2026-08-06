@@ -43,17 +43,20 @@ export {
   adminUpdateAccountSafety,
 } from "./adminAccountSafety";
 
-// Invite-link functions (share-link access to private notes). Region set in
-// their own options.
+export {revokeNoteAccess} from "./noteAccess";
 export {
-  getInviteLink,
-  createInviteLink,
-  claimInvite,
-  revokeInvite,
-  revokeNoteAccess,
-  grantNoteMaintainer,
-  revokeNoteMaintainer,
-} from "./invites";
+  createNoteAdministratorInvitation,
+  previewNoteAdministratorInvitation,
+  acceptNoteAdministratorInvitation,
+  revokeNoteAdministratorInvitation,
+  removeNoteAdministrator,
+  getNoteAdministratorAccess,
+} from "./noteAdministratorInviteCallables";
+export {
+  routeAsiaNoteAdministratorInviteNotification,
+  routeNorthAmericaNoteAdministratorInviteNotification,
+  routeEuropeNoteAdministratorInviteNotification,
+} from "./noteAdministratorInviteNotifications";
 
 // Push notification preferences and FCM token registration.
 export {

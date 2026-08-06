@@ -292,6 +292,24 @@
       "indexes": []
     },
     {
+      "collectionGroup": "noteAdministratorInvitations",
+      "fieldPath": "purgeAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "noteAdministratorInviteNotifications",
+      "fieldPath": "expireAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "administratorAudits",
+      "fieldPath": "expireAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
       "collectionGroup": "places",
       "fieldPath": "moderationPolicyVersion",
       "indexes": []

@@ -1282,8 +1282,8 @@ measured demand for individually revocable private groups justifies it.
 **Decided for invitation lifetime and limits:** an administrator invitation is
 valid for seven days. Each `(placeId, targetUid)` has at most one pending
 invitation, represented by a deterministic identity and updated revision/token
-when reissued after expiry or revocation. A note may have at most 100 pending
-administrator invitations and 100 active administrators excluding the creator.
+when reissued after expiry or revocation. A note may have at most 10 pending
+administrator invitations and 10 active administrators excluding the creator.
 These are abuse and accident circuit breakers rather than intended product
 limits.
 

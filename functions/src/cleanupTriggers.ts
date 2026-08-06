@@ -16,6 +16,10 @@ import {
   processCleanupJob,
 } from "./cleanupJobs";
 import {blockRelationshipCleanupHandler} from "./blockCleanup";
+import {
+  archivedNoteAdministratorInvitationRevocationHandler,
+  noteAdministratorInvitationExpirationHandler,
+} from "./noteAdministratorInviteCleanup";
 import {storageObjectCleanupHandler} from "./storageObjectCleanup";
 import {WorldBucketProvider} from "./platform/worldBucketProvider";
 import {
@@ -42,6 +46,8 @@ const productionRuntime: CleanupRuntime = {
   buckets: new WorldBucketProvider(),
   handlers: new CleanupJobHandlerRegistry([
     blockRelationshipCleanupHandler,
+    archivedNoteAdministratorInvitationRevocationHandler,
+    noteAdministratorInvitationExpirationHandler,
     storageObjectCleanupHandler,
   ]),
 };
