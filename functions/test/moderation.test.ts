@@ -9,6 +9,7 @@ import {
   moderationFields,
   normalizeOpenAiModeration,
 } from "../src/moderation";
+import {noteModerationActiveCountDelta} from "../src/noteModeration";
 
 function moderationResponse({
   scores = {},
@@ -220,4 +221,27 @@ test("does not emit app moderation risk signals for ordinary text", () => {
   );
 
   assert.deepEqual(signals, []);
+});
+
+test("note moderation updates the active count once", () => {
+  assert.equal(noteModerationActiveCountDelta({
+    isArchived: false,
+    activeNoteSlotReleased: false,
+    hide: true,
+  }), -1);
+  assert.equal(noteModerationActiveCountDelta({
+    isArchived: false,
+    activeNoteSlotReleased: true,
+    hide: true,
+  }), 0);
+  assert.equal(noteModerationActiveCountDelta({
+    isArchived: false,
+    activeNoteSlotReleased: true,
+    hide: false,
+  }), 1);
+  assert.equal(noteModerationActiveCountDelta({
+    isArchived: true,
+    activeNoteSlotReleased: true,
+    hide: false,
+  }), 0);
 });

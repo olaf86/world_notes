@@ -7,6 +7,7 @@ import {
 } from "firebase-admin/firestore";
 
 import {MAX_MESSAGES_PER_THREAD, REGION} from "./constants";
+import {noteModerationActiveCountDelta} from "./noteModeration";
 
 const DEFAULT_REVIEW_LIST_LIMIT = 20;
 const MAX_REVIEW_LIST_LIMIT = 50;
@@ -303,6 +304,13 @@ function messageCount(value: unknown): number {
   return value;
 }
 
+function exactNonNegativeCount(value: unknown, field: string): number {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
+    throw new Error(`Note ${field} is invalid.`);
+  }
+  return value;
+}
+
 function reviewListItemFromDoc(
   doc: FirebaseFirestore.QueryDocumentSnapshot,
   worldId: string,
@@ -556,6 +564,7 @@ export const adminReviewNote = onCall<AdminReviewNoteData>(
       .collection("moderationReviews")
       .doc(`note_${input.placeId}`);
     const auditRef = db.collection("moderationAuditLogs").doc();
+    const reviewedAt = Timestamp.now();
     const reportResolutionStatus =
       input.action === "allow" ? "rejected" : "accepted";
 
@@ -578,11 +587,54 @@ export const adminReviewNote = onCall<AdminReviewNoteData>(
       }
 
       const hidden = input.action !== "allow";
+      const creatorUid = placeSnap.get("createdByUserId");
+      if (typeof creatorUid !== "string" || creatorUid.length === 0) {
+        throw new Error("Note moderation creator is invalid.");
+      }
+      const activeNoteSlotReleased =
+        placeSnap.get("activeNoteSlotReleasedAt") instanceof Timestamp;
+      const activeNoteCountDelta = noteModerationActiveCountDelta({
+        isArchived: placeSnap.get("isArchived") === true,
+        activeNoteSlotReleased,
+        hide: hidden,
+      });
+      if (activeNoteCountDelta !== 0) {
+        const usageRef = db.collection("userUsage").doc(creatorUid);
+        const usage = await tx.get(usageRef);
+        const activeCount = exactNonNegativeCount(
+          usage.get("activeNoteCount"),
+          "activeNoteCount",
+        );
+        if (activeCount + activeNoteCountDelta < 0) {
+          throw new Error("Note moderation active-slot state is invalid.");
+        }
+        tx.set(usageRef, {
+          activeNoteCount: activeCount + activeNoteCountDelta,
+          updatedAt: reviewedAt,
+        }, {merge: true});
+      }
+      const releasingActiveNoteSlot = activeNoteCountDelta === -1;
+      const restoringActiveNoteSlot = !hidden && activeNoteSlotReleased;
       tx.update(placeRef, {
         moderationAction: hidden ? "hidden" : "allow",
         isModerationHidden: hidden,
+        isSensitive: false,
+        ...(hidden ? {
+          isOpen: false,
+          ...(releasingActiveNoteSlot ? {
+            wasOpenBeforeModeration: placeSnap.get("isOpen") === true,
+            activeNoteSlotReleasedAt: reviewedAt,
+          } : {}),
+        } : {
+          ...(restoringActiveNoteSlot ? {
+            isOpen: placeSnap.get("isArchived") === true ? false :
+              placeSnap.get("wasOpenBeforeModeration") === true,
+            wasOpenBeforeModeration: FieldValue.delete(),
+            activeNoteSlotReleasedAt: null,
+          } : {}),
+        }),
         reviewRequired: false,
-        moderationReviewedAt: FieldValue.serverTimestamp(),
+        moderationReviewedAt: reviewedAt,
         moderationReviewedBy: uid,
         moderationReviewReason: input.reason,
       });
@@ -591,7 +643,7 @@ export const adminReviewNote = onCall<AdminReviewNoteData>(
         status: "resolved",
         humanDecision: hidden ? "hidden" : "allow",
         decisionReason: input.reason,
-        reviewedAt: FieldValue.serverTimestamp(),
+        reviewedAt,
         reviewedBy: uid,
         targetType: "note",
         targetId: input.placeId,
@@ -614,7 +666,7 @@ export const adminReviewNote = onCall<AdminReviewNoteData>(
           placeSnap.get("moderationAction") ?? null,
         previousIsModerationHidden:
           placeSnap.get("isModerationHidden") ?? null,
-        createdAt: FieldValue.serverTimestamp(),
+        createdAt: reviewedAt,
       });
       reportsSnap.docs.forEach((reportDoc) => {
         tx.update(reportDoc.ref, {
@@ -632,7 +684,7 @@ export const adminReviewNote = onCall<AdminReviewNoteData>(
       ok: true,
       placeId: input.placeId,
       action: input.action === "allow" ? "allow" : "hidden",
-      reviewedAtMillis: Timestamp.now().toMillis(),
+      reviewedAtMillis: reviewedAt.toMillis(),
     };
   },
 );

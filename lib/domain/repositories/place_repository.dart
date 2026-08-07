@@ -24,7 +24,8 @@ abstract class PlaceRepository {
   /// Creates a note via the `createNote` Cloud Function (the only path that
   /// may create a place — direct client writes are denied by rules). The
   /// function enforces the per-user note cap in a transaction and computes
-  /// the geohash server-side. Returns the new place id.
+  /// the geohash server-side. Its implementation supplies a retry-stable UUID
+  /// v7 and returns the accepted place id.
   ///
   /// Throws [FirebaseFunctionsException] — callers should surface a clear
   /// message for `unavailable`/`deadline-exceeded` (offline) and

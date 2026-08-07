@@ -6,7 +6,8 @@ import {onDocumentCreated} from "firebase-functions/v2/firestore";
 import {onSchedule} from "firebase-functions/v2/scheduler";
 
 import {OPENAI_API_KEY} from "./moderation";
-import {messageModerationJobHandler} from "./messages";
+import {messageModerationJobHandler} from "./messageModeration";
+import {noteModerationJobHandler} from "./noteModeration";
 import {
   deriveModerationJobAttention,
   MODERATION_JOB_RECONCILE_BATCH_SIZE,
@@ -36,7 +37,10 @@ const worldDatabases = WORLD_CATALOG.worlds.map((world) => ({
 const productionRuntime: ModerationJobRuntime = {
   catalog: WORLD_CATALOG,
   firestore: new WorldFirestoreProvider(worldDatabases),
-  handlers: new ModerationJobHandlerRegistry([messageModerationJobHandler]),
+  handlers: new ModerationJobHandlerRegistry([
+    messageModerationJobHandler,
+    noteModerationJobHandler,
+  ]),
 };
 
 export interface ModerationJobReconcileResult {

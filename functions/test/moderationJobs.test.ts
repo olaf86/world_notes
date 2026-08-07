@@ -27,7 +27,12 @@ import {
   EVALUATE_MESSAGE_MODERATION_JOB,
   messageModerationInputHash,
   messageModerationJobHandler,
-} from "../src/messages";
+} from "../src/messageModeration";
+import {
+  EVALUATE_NOTE_MODERATION_JOB,
+  noteModerationInputHash,
+  noteModerationJobHandler,
+} from "../src/noteModeration";
 
 const CREATED_AT = Timestamp.fromMillis(1_000);
 const TEST_INPUT_HASH = "a".repeat(64);
@@ -130,6 +135,22 @@ test("message moderation handler owns its explicit job type", () => {
   assert.equal(
     messageModerationJobHandler.jobType,
     EVALUATE_MESSAGE_MODERATION_JOB,
+  );
+});
+
+test("note moderation binds the exact immutable title and subtitle", () => {
+  const hash = noteModerationInputHash("Title", "Description");
+
+  assert.match(hash, /^[0-9a-f]{64}$/);
+  assert.equal(noteModerationInputHash("Title", "Description"), hash);
+  assert.notEqual(noteModerationInputHash("Title!", "Description"), hash);
+  assert.notEqual(noteModerationInputHash("Title", null), hash);
+});
+
+test("note moderation handler owns its explicit job type", () => {
+  assert.equal(
+    noteModerationJobHandler.jobType,
+    EVALUATE_NOTE_MODERATION_JOB,
   );
 });
 

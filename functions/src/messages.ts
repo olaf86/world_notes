@@ -1,5 +1,4 @@
 /* eslint-disable require-jsdoc */
-import {createHash} from "node:crypto";
 import {onCall, HttpsError} from "./platform/worldCallable";
 import {
   DocumentReference,
@@ -11,10 +10,8 @@ import {
 } from "firebase-admin/firestore";
 
 import {
-  ACCOUNT_SAFETY_HIDDEN_CONTENT_POINTS,
   assertAccountSafetyAllows,
   assertAccountSafetyPreflight,
-  executeAccountSafetyEvent,
 } from "./accountSafety";
 import {
   MAX_MESSAGE_IMAGES,
@@ -22,22 +19,16 @@ import {
   MAX_MESSAGES_PER_THREAD,
   REGION,
 } from "./constants";
-import {WorldBucket} from "./platform/worldBucketProvider";
 import {
   type AppModerationRiskSignal,
-  type InternalModerationResult,
-  type ModerationImageInput,
   assertUserCanCreateContent,
   detectAppModerationRiskSignals,
-  hasReviewRecommendedRiskSignal,
-  moderationAuditFields,
-  moderateContent,
 } from "./moderation";
+import {enqueueModerationJob} from "./moderationJobs";
 import {
-  enqueueModerationJob,
-  type ModerationJobContext,
-  type ModerationJobHandler,
-} from "./moderationJobs";
+  EVALUATE_MESSAGE_MODERATION_JOB,
+  messageModerationInputHash,
+} from "./messageModeration";
 import {
   assertReportCooldown,
   reportReasonCodeOf,
@@ -45,9 +36,6 @@ import {
   type ReportReasonCode,
 } from "./reporting";
 import {profileForMember} from "./userProfile";
-import {
-  enqueueMyNotesMessageNotification,
-} from "./notifications";
 import {
   assertLiked,
   hasValidMembership,
@@ -61,13 +49,8 @@ import {canMaintainNote} from "./noteMaintenance";
 import {
   hasUserBlockBetweenInTransaction,
 } from "./userBlocks";
-import {derivedGlobalOperationId} from "./globalOperations";
-import {worldContext} from "./platform/worldContext";
 import {bindImageUploadsToContent} from "./imageUploads";
 import {enqueueStorageObjectDeletion} from "./storageObjectCleanup";
-
-export const EVALUATE_MESSAGE_MODERATION_JOB =
-  "evaluateMessageModeration";
 
 interface SendMessageData {
   messageId?: unknown;
@@ -130,8 +113,6 @@ interface MessageLikeRefs {
 interface SendMessageProfile {
   displayName: string | null;
 }
-
-type ModerationReviewSource = "provider" | "riskSignal" | "userReport";
 
 interface CreateMessageParams {
   db: Firestore;
@@ -341,103 +322,6 @@ function isScheduledMessage(messageSnap: DocumentSnapshot): boolean {
   return storedIsScheduled;
 }
 
-async function moderationImagesFor(
-  bucket: WorldBucket,
-  storagePaths: string[],
-): Promise<ModerationImageInput[]> {
-  if (storagePaths.length === 0) return [];
-  return Promise.all(storagePaths.map(async (storagePath) => {
-    const file = bucket.file(storagePath);
-    try {
-      const [[metadata], [bytes]] = await Promise.all([
-        file.getMetadata(),
-        file.download(),
-      ]);
-      if (
-        metadata.contentType !== "image/webp" ||
-        Number(metadata.size ?? bytes.length) > 2 * 1024 * 1024
-      ) {
-        throw new HttpsError(
-          "invalid-argument",
-          "Invalid message image metadata.",
-          {reason: "invalid_image"},
-        );
-      }
-      return {
-        bytes,
-        contentType: "image/webp" as const,
-      };
-    } catch (error) {
-      if (error instanceof HttpsError) throw error;
-      throw new HttpsError(
-        "failed-precondition",
-        "Message image upload was not found.",
-        {reason: "image_upload_missing"},
-      );
-    }
-  }));
-}
-
-/**
- * Hashes the immutable content evaluated by a message moderation job.
- *
- * @param {string} content Stored message text.
- * @param {string[]} imageStoragePaths Ordered stored image paths.
- * @return {string} Lowercase SHA-256 input hash.
- */
-export function messageModerationInputHash(
-  content: string,
-  imageStoragePaths: readonly string[],
-): string {
-  return createHash("sha256")
-    .update(JSON.stringify([content, imageStoragePaths]), "utf8")
-    .digest("hex");
-}
-
-function messageModerationTarget(
-  targetPath: string,
-): {placeId: string; messageId: string} {
-  const segments = targetPath.split("/");
-  if (segments.length !== 4 || segments[0] !== "places" ||
-      segments[2] !== "messages") {
-    throw new Error("Message moderation target path is invalid.");
-  }
-  return {
-    placeId: requiredReportDocumentId(segments[1], "placeId"),
-    messageId: messageIdOf(segments[3]),
-  };
-}
-
-function moderationInputFromMessage(message: DocumentSnapshot): {
-  content: string;
-  imageStoragePaths: string[];
-} {
-  const content = message.get("content");
-  if (typeof content !== "string") {
-    throw new Error("Message moderation content is invalid.");
-  }
-  return {
-    content,
-    imageStoragePaths: storedImagePaths(message.get("imageStoragePaths")),
-  };
-}
-
-function requireMatchingModerationInput(
-  message: DocumentSnapshot,
-  expectedHash: string,
-): {content: string; imageStoragePaths: string[]} {
-  const input = moderationInputFromMessage(message);
-  if (messageModerationInputHash(
-    input.content,
-    input.imageStoragePaths,
-  ) !== expectedHash) {
-    const error = new Error("Message moderation input changed.");
-    Object.assign(error, {code: "moderation/input-changed"});
-    throw error;
-  }
-  return input;
-}
-
 function photoUrlFor(tokenPicture: unknown): string | null {
   return stringOrNull(tokenPicture);
 }
@@ -490,245 +374,6 @@ function messageDocumentData({
     likeCount: 0,
   };
 }
-
-function moderationReviewDocumentData({
-  uid,
-  worldId,
-  placeId,
-  messageId,
-  moderationResult,
-  riskSignals,
-  submittedContent,
-  submittedImageStoragePaths,
-  reviewExists,
-}: {
-  uid: string;
-  worldId: string;
-  placeId: string;
-  messageId: string;
-  moderationResult: InternalModerationResult;
-  riskSignals: AppModerationRiskSignal[];
-  submittedContent: string;
-  submittedImageStoragePaths: string[];
-  reviewExists: boolean;
-}): Record<string, unknown> {
-  const reviewSources: ModerationReviewSource[] = [
-    ...(moderationResult.action !== "allow" &&
-      moderationResult.action !== "pending" ?
-      ["provider" as const] :
-      []),
-    ...(hasReviewRecommendedRiskSignal(riskSignals) ?
-      ["riskSignal" as const] :
-      []),
-  ];
-  return {
-    worldId,
-    userId: uid,
-    targetType: "message",
-    targetId: messageId,
-    targetPath: `places/${placeId}/messages/${messageId}`,
-    placeId,
-    content: submittedContent,
-    imageStoragePaths: submittedImageStoragePaths,
-    reviewSources: FieldValue.arrayUnion(...reviewSources),
-    ...(riskSignals.length > 0 ? {riskSignals} : {}),
-    status: "open",
-    ...(!reviewExists ? {createdAt: FieldValue.serverTimestamp()} : {}),
-    ...moderationAuditFields(moderationResult),
-  };
-}
-
-function shouldCreateModerationReview(
-  moderationResult: InternalModerationResult,
-  riskSignals: AppModerationRiskSignal[],
-): boolean {
-  return (
-    moderationResult.action !== "allow" &&
-      moderationResult.action !== "pending"
-  ) || hasReviewRecommendedRiskSignal(riskSignals);
-}
-
-async function applyHiddenMessageSafety(
-  context: ModerationJobContext,
-  uid: string,
-  messageId: string,
-): Promise<void> {
-  const home = await context.firestore.collection("userHomes").doc(uid).get();
-  const homeWorld = home.get("world");
-  if (!home.exists || typeof homeWorld !== "string") {
-    const error = new Error("Message sender home assignment is missing.");
-    Object.assign(error, {code: "moderation/home-missing"});
-    throw error;
-  }
-  await executeAccountSafetyEvent({
-    firestore: worldContext(homeWorld).firestore,
-    authorityWorld: homeWorld,
-    uid,
-    operationId: derivedGlobalOperationId(
-      messageId,
-      `hidden-message-account-safety:${context.jobId}`,
-    ),
-    eventId: `messageModeration:${context.jobId}`,
-    points: ACCOUNT_SAFETY_HIDDEN_CONTENT_POINTS,
-    sourceWorld: context.job.world,
-    sourceType: "messageModerationHidden",
-    sourceEntityId: messageId,
-  });
-}
-
-async function finalizeMessageModeration(
-  context: ModerationJobContext,
-  moderationResult: InternalModerationResult,
-): Promise<{action: string; uid: string | null; messageId: string}> {
-  const target = messageModerationTarget(context.job.targetPath);
-  const messageRef = context.firestore.doc(context.job.targetPath);
-  const placeRef = context.firestore.collection("places").doc(target.placeId);
-  const reviewRef = context.firestore
-    .collection("moderationReviews")
-    .doc(`${target.placeId}_${target.messageId}`);
-
-  return context.firestore.runTransaction(async (transaction) => {
-    const [message, place] = await Promise.all([
-      transaction.get(messageRef),
-      transaction.get(placeRef),
-    ]);
-    if (!message.exists) {
-      return {action: "missing", uid: null, messageId: target.messageId};
-    }
-    const uid = message.get("userId");
-    if (typeof uid !== "string") {
-      throw new Error("Message moderation user is invalid.");
-    }
-    const currentAction = message.get("moderationAction");
-    if (currentAction !== "pending" || message.get("isDeleted") === true) {
-      return {action: String(currentAction), uid, messageId: target.messageId};
-    }
-    const input = requireMatchingModerationInput(
-      message,
-      context.job.inputHash,
-    );
-    if (!place.exists) {
-      throw new Error("Message moderation parent note is missing.");
-    }
-
-    const checkedAt = Timestamp.now();
-    const hidden = moderationResult.action === "hidden";
-    const riskSignals = detectAppModerationRiskSignals(input.content);
-    const reviewRequired = moderationResult.action === "review" || hidden ||
-      hasReviewRecommendedRiskSignal(riskSignals);
-    const createReview = shouldCreateModerationReview(
-      moderationResult,
-      riskSignals,
-    );
-    const review = createReview ? await transaction.get(reviewRef) : null;
-    const update: Record<string, unknown> = {
-      moderationAction: moderationResult.action,
-      moderationPolicyVersion: moderationResult.policyVersion,
-      moderationCheckedAt: checkedAt,
-      isSensitive: moderationResult.action === "sensitive" ||
-        moderationResult.action === "review",
-      isVisible: !hidden,
-      reviewRequired,
-    };
-
-    if (hidden) {
-      update.isDeleted = true;
-      update.deletedAt = checkedAt;
-      update.deletedReason = "moderation";
-      update.moderationRestorePubliclyVisible =
-        message.get("isPubliclyVisible") === true;
-      update.isPubliclyVisible = false;
-      if (message.get("placeAggregateAppliedAt") != null) {
-        const currentCount = messageCountOf(place.get("messageCount"));
-        const nextCount = Math.max(0, currentCount - 1);
-        // Keep the server-only message-slot reservation as a moderation
-        // tombstone. Reopening a full note here would let repeated rejected
-        // submissions bypass the per-world cap.
-        transaction.update(placeRef, {messageCount: nextCount});
-      }
-    } else if (message.get("isPubliclyVisible") === true) {
-      enqueueMyNotesMessageNotification(transaction, context.firestore, {
-        sourceWorld: context.job.world,
-        place,
-        messageId: target.messageId,
-        senderId: uid,
-        createdAt: checkedAt,
-      });
-    }
-
-    transaction.update(messageRef, update);
-    if (createReview) {
-      transaction.set(reviewRef, moderationReviewDocumentData({
-        uid,
-        worldId: context.job.world,
-        placeId: target.placeId,
-        messageId: target.messageId,
-        moderationResult,
-        riskSignals,
-        submittedContent: input.content,
-        submittedImageStoragePaths: input.imageStoragePaths,
-        reviewExists: review?.exists === true,
-      }), {merge: true});
-    }
-    return {action: moderationResult.action, uid, messageId: target.messageId};
-  });
-}
-
-function messageCountOf(value: unknown): number {
-  if (value === undefined) return 0;
-  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
-    throw new Error("Message count is invalid.");
-  }
-  return value;
-}
-
-/** Evaluates and finalizes one optimistic message without stale overwrite. */
-export const messageModerationJobHandler: ModerationJobHandler = {
-  jobType: EVALUATE_MESSAGE_MODERATION_JOB,
-  async process(context): Promise<void> {
-    const target = messageModerationTarget(context.job.targetPath);
-    const message = await context.firestore.doc(context.job.targetPath).get();
-    if (!message.exists) return;
-    const uid = message.get("userId");
-    if (typeof uid !== "string") {
-      throw new Error("Message moderation user is invalid.");
-    }
-    const currentAction = message.get("moderationAction");
-    if (currentAction === "hidden") {
-      await applyHiddenMessageSafety(context, uid, target.messageId);
-      return;
-    }
-    if (currentAction !== "pending" || message.get("isDeleted") === true) {
-      return;
-    }
-
-    const input = requireMatchingModerationInput(
-      message,
-      context.job.inputHash,
-    );
-    const images = await moderationImagesFor(
-      worldContext(context.job.world).bucket,
-      input.imageStoragePaths,
-    );
-    const result = await moderateContent(input.content, images);
-    if (result.action === "pending") {
-      const error = new Error(
-        "Moderation provider is temporarily unavailable.",
-      );
-      Object.assign(error, {code: "moderation/provider-unavailable"});
-      throw error;
-    }
-
-    const finalized = await finalizeMessageModeration(context, result);
-    if (finalized.action === "hidden" && finalized.uid !== null) {
-      await applyHiddenMessageSafety(
-        context,
-        finalized.uid,
-        finalized.messageId,
-      );
-    }
-  },
-};
 
 function canAccessNote(
   placeSnap: DocumentSnapshot,

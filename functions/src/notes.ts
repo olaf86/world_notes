@@ -38,9 +38,13 @@ import {
   OPENAI_API_KEY,
   assertUserCanCreateContent,
   moderateContent,
-  moderateTextContent,
   recordRejectedModeration,
 } from "./moderation";
+import {enqueueModerationJob} from "./moderationJobs";
+import {
+  EVALUATE_NOTE_MODERATION_JOB,
+  noteModerationInputHash,
+} from "./noteModeration";
 import {canMaintainNote} from "./noteMaintenance";
 import {
   hasValidMembership,
@@ -63,6 +67,7 @@ import {
 } from "./noteAdministratorInviteCleanup";
 
 interface CreateNoteData {
+  placeId?: unknown;
   latitude?: unknown;
   longitude?: unknown;
   title?: unknown;
@@ -147,7 +152,7 @@ export const createNote = onCall<CreateNoteData>(
   {
     enforceAppCheck: true,
     region: REGION,
-    secrets: [NOTE_PW_PEPPER, OPENAI_API_KEY],
+    secrets: [NOTE_PW_PEPPER],
   },
   async (req, world) => {
     const uid = req.auth?.uid;
@@ -156,6 +161,7 @@ export const createNote = onCall<CreateNoteData>(
     }
 
     const {
+      placeId,
       latitude,
       longitude,
       title,
@@ -167,6 +173,10 @@ export const createNote = onCall<CreateNoteData>(
       publishAtMillis,
     } = req.data ?? {};
 
+    if (typeof placeId !== "string" ||
+        !new RegExp(`^${UUID_V7_PATTERN}$`).test(placeId)) {
+      throw new HttpsError("invalid-argument", "Invalid placeId.");
+    }
     if (
       typeof latitude !== "number" ||
       typeof longitude !== "number" ||
@@ -269,33 +279,6 @@ export const createNote = onCall<CreateNoteData>(
       "contentWrite",
       Timestamp.now(),
     );
-    const moderationResult = await moderateTextContent([
-      `Title: ${trimmedTitle}`,
-      ...(trimmedSubtitle == null ?
-        [] :
-        [`Description: ${trimmedSubtitle}`]),
-    ].join("\n"));
-    if (moderationResult.action === "pending") {
-      throw new HttpsError(
-        "unavailable",
-        "Could not check note safety. Please try again.",
-        {reason: "moderation_unavailable"},
-      );
-    }
-    if (moderationResult.action !== "allow") {
-      await recordRejectedModeration({
-        db,
-        userRef,
-        uid,
-        result: moderationResult,
-        sourceType: "noteDraft",
-      });
-      throw new HttpsError(
-        "failed-precondition",
-        "This note could not be published because of its content.",
-        {reason: "content_not_allowed"},
-      );
-    }
     const nowMillis = Date.now();
     let publishAtMs = nowMillis;
     if (publishAtMillis != null) {
@@ -332,16 +315,34 @@ export const createNote = onCall<CreateNoteData>(
     const publicProfileRef = db.collection("publicProfiles").doc(uid);
     const entitlementRef = db.collection("userEntitlements").doc(uid);
     const usageRef = db.collection("userUsage").doc(uid);
-    const placeRef = db.collection("places").doc();
+    const placeRef = db.collection("places").doc(placeId);
     const noteStateRef = userRef.collection("noteStates").doc(placeRef.id);
+    const moderationInputHash = noteModerationInputHash(
+      trimmedTitle,
+      trimmedSubtitle,
+    );
 
-    await db.runTransaction(async (tx) => {
-      const [publicProfileSnap, entitlementSnap, usageSnap] =
+    const creationResult = await db.runTransaction(async (tx) => {
+      const [placeSnap, publicProfileSnap, entitlementSnap, usageSnap] =
         await Promise.all([
+          tx.get(placeRef),
           tx.get(publicProfileRef),
           tx.get(entitlementRef),
           tx.get(usageRef),
         ]);
+      if (placeSnap.exists) {
+        if (placeSnap.get("createdByUserId") !== uid ||
+            placeSnap.get("moderationInputHash") !== moderationInputHash) {
+          throw new HttpsError(
+            "already-exists",
+            "This note identifier is already in use.",
+          );
+        }
+        return {
+          created: false,
+          moderationAction: String(placeSnap.get("moderationAction")),
+        };
+      }
       await assertAccountSafetyAllows(
         tx,
         db,
@@ -409,11 +410,17 @@ export const createNote = onCall<CreateNoteData>(
         isArchived: false,
         expiresAt,
         footprintEnabled: true,
-        moderationAction: "allow",
-        moderationProvider: moderationResult.provider,
-        moderationPolicyVersion: moderationResult.policyVersion,
+        moderationAction: "pending",
+        moderationInputHash,
+        moderationProvider: null,
+        moderationPolicyVersion: null,
+        moderationCheckedAt: null,
         isModerationHidden: false,
+        isSensitive: false,
         reviewRequired: false,
+        activeNoteSlotReleasedAt: null,
+        moderationHiddenJobId: null,
+        moderationSafetyAppliedAt: null,
       };
       if (lock != null) {
         placeData.lockType = lock.lockType;
@@ -444,9 +451,24 @@ export const createNote = onCall<CreateNoteData>(
         },
         {merge: true},
       );
+      enqueueModerationJob(
+        tx,
+        db,
+        {
+          jobType: EVALUATE_NOTE_MODERATION_JOB,
+          targetPath: placeRef.path,
+          inputHash: moderationInputHash,
+          world: world.worldId,
+        },
+        Timestamp.fromMillis(nowMillis),
+      );
+      return {created: true, moderationAction: "pending"};
     });
 
-    return {placeId: placeRef.id};
+    return {
+      placeId: placeRef.id,
+      ...creationResult,
+    };
   },
 );
 
@@ -866,6 +888,8 @@ export const archiveNote = onCall<ArchiveNoteData>(
       const usageSnap = await tx.get(usageRef);
       const activeCount =
         (usageSnap.get("activeNoteCount") as number | undefined) ?? 0;
+      const activeNoteSlotAlreadyReleased =
+        placeSnap.get("activeNoteSlotReleasedAt") instanceof Timestamp;
 
       tx.update(placeRef, {
         isArchived: true,
@@ -875,7 +899,10 @@ export const archiveNote = onCall<ArchiveNoteData>(
       tx.set(
         usageRef,
         {
-          activeNoteCount: Math.max(0, activeCount - 1),
+          activeNoteCount: Math.max(
+            0,
+            activeCount - (activeNoteSlotAlreadyReleased ? 0 : 1),
+          ),
           updatedAt: FieldValue.serverTimestamp(),
         },
         {merge: true},
@@ -957,6 +984,11 @@ export async function archiveExpiredNotesForWorld(
                 expiresAt.toMillis() <= now.toMillis();
           });
           if (expiredPlacesToArchive.length === 0) return 0;
+          const activeSlotHoldingPlaceCount = expiredPlacesToArchive.filter(
+            (placeSnap) =>
+              !(placeSnap.get("activeNoteSlotReleasedAt") instanceof
+                Timestamp),
+          ).length;
 
           for (const placeSnap of expiredPlacesToArchive) {
             tx.update(placeSnap.ref, {
@@ -979,7 +1011,7 @@ export async function archiveExpiredNotesForWorld(
             {
               activeNoteCount: Math.max(
                 0,
-                activeCount - expiredPlacesToArchive.length,
+                activeCount - activeSlotHoldingPlaceCount,
               ),
               updatedAt: FieldValue.serverTimestamp(),
             },

@@ -327,6 +327,30 @@ void main() {
       isTrue,
     );
   });
+
+  test('exempts note moderation coordination fields from indexing', () {
+    final config = _loadConfig();
+    final overrides = (config['fieldOverrides'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+
+    for (final fieldPath in <String>[
+      'moderationInputHash',
+      'activeNoteSlotReleasedAt',
+      'moderationHiddenJobId',
+      'moderationSafetyAppliedAt',
+    ]) {
+      expect(
+        overrides.any(
+          (override) =>
+              override['collectionGroup'] == 'places' &&
+              override['fieldPath'] == fieldPath &&
+              (override['indexes'] as List<dynamic>).isEmpty,
+        ),
+        isTrue,
+        reason: '$fieldPath is server coordination state, not query data.',
+      );
+    }
+  });
 }
 
 bool _isArchivedNotesIndex(Map<String, dynamic> index) {

@@ -102,11 +102,13 @@ class PlaceRepositoryImpl implements PlaceRepository {
     PlaceVisibility visibility = PlaceVisibility.public,
     NoteLockDraft? lock,
   }) async {
-    // All creation goes through the Cloud Function: it enforces the per-user
-    // note cap in a transaction and computes the geohash server-side. Direct
-    // client writes to `places` are denied by security rules.
+    // The client-generated UUID v7 makes a timed-out Callable retry resolve to
+    // the same server document. The Function still owns quota enforcement and
+    // every Firestore write; direct client creation remains denied by Rules.
+    final placeId = _uuid.v7();
     final callable = _functions.httpsCallable('createNote');
     final result = await callable.call<Map<String, dynamic>>({
+      'placeId': placeId,
       'latitude': latitude,
       'longitude': longitude,
       'title': title,

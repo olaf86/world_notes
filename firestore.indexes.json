@@ -320,6 +320,26 @@
       "indexes": []
     },
     {
+      "collectionGroup": "places",
+      "fieldPath": "moderationInputHash",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "places",
+      "fieldPath": "activeNoteSlotReleasedAt",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "places",
+      "fieldPath": "moderationHiddenJobId",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "places",
+      "fieldPath": "moderationSafetyAppliedAt",
+      "indexes": []
+    },
+    {
       "collectionGroup": "messages",
       "fieldPath": "moderationPolicyVersion",
       "indexes": []

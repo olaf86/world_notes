@@ -81,18 +81,21 @@ test("hiding and restoring a public message changes the aggregate once", () => {
   );
 });
 
-test("changing a visible verdict does not change the public aggregate", () => {
-  assert.deepEqual(
-    adminMessagePublicTransition({
-      action: "sensitive",
-      currentIsPubliclyVisible: true,
-      restorePubliclyVisible: false,
-      isDeleted: false,
-      isVisible: true,
-    }),
-    {wasPublic: true, willBePublic: true, delta: 0},
-  );
-});
+test(
+  "changing a visible moderation result preserves the public aggregate",
+  () => {
+    assert.deepEqual(
+      adminMessagePublicTransition({
+        action: "sensitive",
+        currentIsPubliclyVisible: true,
+        restorePubliclyVisible: false,
+        isDeleted: false,
+        isVisible: true,
+      }),
+      {wasPublic: true, willBePublic: true, delta: 0},
+    );
+  },
+);
 
 test(
   "restoring a scheduled message keeps it out of the public aggregate",

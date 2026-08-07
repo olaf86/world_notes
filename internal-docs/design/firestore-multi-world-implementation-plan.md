@@ -1209,11 +1209,12 @@ Deliverables:
 - independent pending pin-image candidates;
 - regional moderation jobs and workers;
 - retry/backoff without worker-control fields on content documents;
-- terminal guards against late or duplicate verdicts;
+- terminal guards against late or duplicate moderation results;
 - notification intent created only during visible terminal finalization;
 - high-confidence hidden event forwarded durably to account safety;
 - hidden note slot released exactly once;
-- administrator restoration, including trusted temporary quota overage;
+- administrator restoration, including a trusted temporary active-note limit
+  overage;
 - 30-day hidden content/image retention;
 - one-year metadata-only audit retention with keyed HMAC fingerprint;
 - cleanup of dormant subtrees and image objects after retention.
@@ -1221,7 +1222,7 @@ Deliverables:
 Exit criteria:
 
 - provider unavailability does not delay note/message acceptance;
-- an old verdict cannot overwrite a newer or administrator decision;
+- an old moderation result cannot overwrite a newer or administrator decision;
 - a hidden parent immediately gates every child read/write path;
 - restoration within 30 days restores all retained data and images;
 - restoration after cleanup is impossible and clearly reported;
@@ -1244,16 +1245,32 @@ and covered by the Rules Emulator suite.
 Implementation note (2026-08-05): the message slice now accepts a message and
 its input-bound moderation job in the same local transaction. Immediate
 messages are public-pending; scheduled messages remain private until both a
-visible terminal verdict and `publishAt`. Provider evaluation, image reads,
+visible terminal moderation result and `publishAt`. Provider evaluation, image reads,
 review creation, notification-Outbox creation, and hidden-content account
 safety points run from the retryable regional worker. The terminal transaction
-rechecks the input hash and `pending` state, so an old verdict cannot overwrite
+rechecks the input hash and `pending` state, so an old moderation result cannot overwrite
 a changed or administrator-decided message. A hidden immediate message is
 removed from the public aggregate once while its server-only slot remains as
 an abuse-resistant tombstone. Firestore Rules and client queries explicitly
 exclude hidden retained content, including from its sender. New image access is
 now revoked by the P17 signed-image path. The 30-day raw-content and object
 cleanup still depends on the remaining P20 retention handlers.
+
+Implementation note (2026-08-06): the note-text slice now uses a
+client-generated UUID v7 as its retry-stable document identity and accepts the
+note plus its immutable-input-bound moderation job in the same active-note
+transaction. Public and private notes become readable immediately with
+`moderationAction: pending`; provider outages are handled by the regional job
+retry path instead of delaying creation. Terminal processing rechecks the
+title/subtitle hash, records provider or application-risk reviews, hides a
+rejected parent atomically, and releases its active-note slot exactly once.
+A human allow decision restores that slot without enforcing the ordinary
+limit, so trusted restoration may temporarily exceed the current plan limit.
+The hidden-content account-safety event remains attached to the moderation job
+until both the home authority and local note record it, including a crash or a
+human restoration between those writes. Manual and scheduled archive paths
+skip an active-note slot already released by moderation. Pending pin-image candidates and
+the 30-day raw-content/image retention finalizers remain the next P20 slices.
 
 ### Phase 12 — staged activation and production cutover
 
