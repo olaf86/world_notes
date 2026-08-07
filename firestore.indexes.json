@@ -340,6 +340,31 @@
       "indexes": []
     },
     {
+      "collectionGroup": "places",
+      "fieldPath": "pinImageCandidate",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "places",
+      "fieldPath": "pinImageModerationAction",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "places",
+      "fieldPath": "pinImageModerationProvider",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "places",
+      "fieldPath": "pinImageModerationPolicyVersion",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "places",
+      "fieldPath": "pinImageModerationCheckedAt",
+      "indexes": []
+    },
+    {
       "collectionGroup": "messages",
       "fieldPath": "moderationPolicyVersion",
       "indexes": []
@@ -347,6 +372,12 @@
     {
       "collectionGroup": "messages",
       "fieldPath": "moderationCheckedAt",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "moderationAuditLogs",
+      "fieldPath": "expireAt",
+      "ttl": true,
       "indexes": []
     },
     {

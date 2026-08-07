@@ -338,6 +338,11 @@ void main() {
       'activeNoteSlotReleasedAt',
       'moderationHiddenJobId',
       'moderationSafetyAppliedAt',
+      'pinImageCandidate',
+      'pinImageModerationAction',
+      'pinImageModerationProvider',
+      'pinImageModerationPolicyVersion',
+      'pinImageModerationCheckedAt',
     ]) {
       expect(
         overrides.any(
@@ -350,6 +355,18 @@ void main() {
         reason: '$fieldPath is server coordination state, not query data.',
       );
     }
+
+    expect(
+      overrides.any(
+        (override) =>
+            override['collectionGroup'] == 'moderationAuditLogs' &&
+            override['fieldPath'] == 'expireAt' &&
+            override['ttl'] == true &&
+            (override['indexes'] as List<dynamic>).isEmpty,
+      ),
+      isTrue,
+      reason: 'Metadata-only moderation audits must expire after retention.',
+    );
   });
 }
 

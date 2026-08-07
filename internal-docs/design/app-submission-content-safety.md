@@ -8,9 +8,9 @@ Implemented on `codex/app-submission-content-safety`:
 - Japanese and all release-locale report UI copy;
 - note reporting from the note detail screen;
 - note and message targets in the administrator review queue;
-- fail-closed title/subtitle moderation in `createNote`;
-- message-image and pin-thumbnail moderation before Firestore publication;
-- candidate image cleanup on rejection and callable failure;
+- optimistic title/subtitle and message moderation through regional jobs;
+- public-pending message images and pin-image candidates;
+- durable candidate cleanup on rejection, replacement, and orphan expiry;
 - moderation-hidden note enforcement across discovery, reads, posting, likes,
   visits, unlocks, and invite claims;
 - unit/widget coverage for reason codes, multimodal result aggregation,
@@ -195,12 +195,15 @@ gives stronger guarantees but requires an upload-session design.
 
 ### Map-pin images
 
-- Bind `OPENAI_API_KEY` to `setNotePinImage`.
-- After metadata validation, download and moderate the thumbnail before
-  attaching its path to the note.
-- On any non-allow result, delete the candidate object, retain the previous pin
-  image, and return a localized-safe error.
-- On provider unavailability, fail closed and delete the candidate object.
+- After metadata validation, attach a separate pending candidate and enqueue
+  the regional moderation job in the same Firestore transaction.
+- Keep the last accepted `pinImageStoragePath` until the candidate receives an
+  `allow` result; application reads may display the pending candidate during
+  this accepted public-pending interval.
+- On any completed non-allow result, detach and durably delete only the
+  candidate. Provider unavailability leaves it pending for retry.
+- When a newer candidate supersedes a pending one, identity guards prevent the
+  older job from changing the note and durable cleanup removes the older file.
 - If an administrator later hides an attached image, detach it before deleting
   the Storage object.
 

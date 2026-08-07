@@ -87,6 +87,10 @@ class PlaceModel {
 
   factory PlaceModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    final candidate = data['pinImageCandidate'];
+    final pendingPinImageStoragePath = candidate is Map<String, dynamic>
+        ? candidate['storagePath'] as String?
+        : null;
     return PlaceModel(
       id: doc.id,
       latitude: (data['latitude'] as num).toDouble(),
@@ -97,7 +101,8 @@ class PlaceModel {
       colorHex: data['colorHex'] as String,
       themeId: NoteThemeId.fromJson(data['themeId']),
       icon: data['icon'] as String,
-      pinImageStoragePath: data['pinImageStoragePath'] as String?,
+      pinImageStoragePath:
+          pendingPinImageStoragePath ?? data['pinImageStoragePath'] as String?,
       createdByUserId: data['createdByUserId'] as String,
       creatorName: data['creatorName'] as String,
       creatorPhotoUrl: data['creatorPhotoUrl'] as String?,

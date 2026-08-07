@@ -33,18 +33,18 @@ import {
   parseLockType,
   validateLockSecret,
 } from "./noteLock";
-import {
-  type InternalModerationResult,
-  OPENAI_API_KEY,
-  assertUserCanCreateContent,
-  moderateContent,
-  recordRejectedModeration,
-} from "./moderation";
+import {assertUserCanCreateContent} from "./moderation";
 import {enqueueModerationJob} from "./moderationJobs";
 import {
   EVALUATE_NOTE_MODERATION_JOB,
   noteModerationInputHash,
 } from "./noteModeration";
+import {
+  newPinImageCandidate,
+  parsePinImageCandidate,
+  pinImageCandidateStoragePath,
+} from "./pinImageCandidate";
+import {EVALUATE_PIN_IMAGE_MODERATION_JOB} from "./pinImageModeration";
 import {canMaintainNote} from "./noteMaintenance";
 import {
   hasValidMembership,
@@ -472,12 +472,9 @@ export const createNote = onCall<CreateNoteData>(
   },
 );
 
+/** Attaches a public-pending pin candidate and queues regional evaluation. */
 export const setNotePinImage = onCall<SetNotePinImageData>(
-  {
-    enforceAppCheck: true,
-    region: REGION,
-    secrets: [OPENAI_API_KEY],
-  },
+  {enforceAppCheck: true, region: REGION},
   async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) {
@@ -490,10 +487,8 @@ export const setNotePinImage = onCall<SetNotePinImageData>(
     const expectedPathPattern = new RegExp(
       `^images/pins/${placeId}/${uid}/${UUID_V7_PATTERN}[.]webp$`,
     );
-    if (
-      typeof pinImageStoragePath !== "string" ||
-      !expectedPathPattern.test(pinImageStoragePath)
-    ) {
+    if (typeof pinImageStoragePath !== "string" ||
+        !expectedPathPattern.test(pinImageStoragePath)) {
       throw new HttpsError(
         "invalid-argument",
         "Invalid pin image storage path.",
@@ -501,30 +496,30 @@ export const setNotePinImage = onCall<SetNotePinImageData>(
     }
 
     const db = world.firestore;
+    const placeRef = db.collection("places").doc(placeId);
+    const changedAt = Timestamp.now();
+    const nextCandidate = newPinImageCandidate({
+      storagePath: pinImageStoragePath,
+      placeId,
+      requestedByUid: uid,
+    }, changedAt);
     await assertAccountSafetyPreflight(
       db,
       uid,
       "contentWrite",
-      Timestamp.now(),
+      changedAt,
     );
-    const bucket = world.bucket;
-    let imageBytes: Uint8Array;
     try {
-      const file = bucket.file(pinImageStoragePath);
-      const [[metadata], [bytes]] = await Promise.all([
-        file.getMetadata(),
-        file.download(),
-      ]);
-      if (
-        metadata.contentType !== "image/webp" ||
-        Number(metadata.size ?? bytes.length) > 256 * 1024
-      ) {
+      const [metadata] = await world.bucket
+        .file(pinImageStoragePath)
+        .getMetadata();
+      if (metadata.contentType !== "image/webp" ||
+          Number(metadata.size ?? 0) > 256 * 1024) {
         throw new HttpsError(
           "invalid-argument",
           "Invalid pin image metadata.",
         );
       }
-      imageBytes = bytes;
     } catch (error) {
       if (error instanceof HttpsError) throw error;
       throw new HttpsError(
@@ -532,54 +527,8 @@ export const setNotePinImage = onCall<SetNotePinImageData>(
         "Pin image upload was not found.",
       );
     }
-
-    // A provider failure may be retried with this immutable candidate. If it
-    // is never attached, the regional orphan sweeper removes it.
-    const moderationResult: InternalModerationResult =
-      await moderateContent("", [{
-        bytes: imageBytes,
-        contentType: "image/webp",
-      }]);
-    if (moderationResult.action !== "allow") {
-      const rejectedAt = Timestamp.now();
-      await db.runTransaction(async (transaction) => {
-        enqueueStorageObjectDeletion(transaction, db, {
-          sourceOperationId:
-            `rejectedPin:${imageUploadId(pinImageStoragePath)}`,
-          revision: 1,
-          world: world.worldId,
-          objectPath: pinImageStoragePath,
-          createdAt: rejectedAt,
-        });
-      });
-      if (moderationResult.action !== "pending") {
-        await recordRejectedModeration({
-          db,
-          userRef: db.collection("users").doc(uid),
-          uid,
-          result: moderationResult,
-          sourceType: "pinImage",
-        });
-      }
-      throw new HttpsError(
-        moderationResult.action === "pending" ?
-          "unavailable" :
-          "failed-precondition",
-        moderationResult.action === "pending" ?
-          "Could not check image safety. Please try again." :
-          "This image could not be used because of its content.",
-        {
-          reason: moderationResult.action === "pending" ?
-            "moderation_unavailable" :
-            "image_not_allowed",
-        },
-      );
-    }
-    const placeRef = db.collection("places").doc(placeId);
-    const changedAt = Timestamp.now();
-    // Failed attachments remain inaccessible and are orphan-swept.
-    await db.runTransaction(async (tx) => {
-      const placeSnap = await tx.get(placeRef);
+    const accepted = await db.runTransaction(async (tx) => {
+      const place = await tx.get(placeRef);
       await assertAccountSafetyAllows(
         tx,
         db,
@@ -587,31 +536,31 @@ export const setNotePinImage = onCall<SetNotePinImageData>(
         "contentWrite",
         changedAt,
       );
-      if (!placeSnap.exists) {
+      if (!place.exists) {
         throw new HttpsError("not-found", "Note not found.");
       }
-      const creatorUid =
-          placeSnap.get("createdByUserId") as string | undefined;
-      if (
-        creatorUid &&
-          await hasUserBlockBetweenInTransaction(tx, db, uid, creatorUid)
-      ) {
+      const creatorUid = place.get("createdByUserId");
+      if (typeof creatorUid === "string" &&
+          await hasUserBlockBetweenInTransaction(
+            tx,
+            db,
+            uid,
+            creatorUid,
+          )) {
         throw new HttpsError(
           "permission-denied",
           "You cannot change this note.",
           {reason: "user_blocked"},
         );
       }
-      if (!canMaintainNote(placeSnap, uid)) {
+      if (!canMaintainNote(place, uid)) {
         throw new HttpsError(
           "permission-denied",
           "You cannot change this note.",
         );
       }
-      if (
-        placeSnap.get("isArchived") === true ||
-          placeSnap.get("isModerationHidden") !== false
-      ) {
+      if (place.get("isArchived") === true ||
+          place.get("isModerationHidden") !== false) {
         throw new HttpsError(
           "failed-precondition",
           "This note cannot change its pin image.",
@@ -624,20 +573,49 @@ export const setNotePinImage = onCall<SetNotePinImageData>(
         placeRef.path,
         changedAt,
       );
-      const previous = placeSnap.get("pinImageStoragePath");
-      if (typeof previous === "string" &&
-            previous !== pinImageStoragePath) {
+
+      const currentValue = place.get("pinImageCandidate");
+      let currentCandidate = null;
+      if (currentValue !== undefined && currentValue !== null) {
+        currentCandidate = parsePinImageCandidate(currentValue, placeId);
+      }
+      if (currentCandidate?.inputHash === nextCandidate.inputHash ||
+          (currentCandidate === null &&
+           place.get("pinImageStoragePath") === pinImageStoragePath)) {
+        return false;
+      }
+      if (currentCandidate !== null) {
         enqueueStorageObjectDeletion(tx, db, {
           sourceOperationId:
-              `replacedPin:${imageUploadId(pinImageStoragePath)}`,
+            `replacedPendingPin:${imageUploadId(
+              currentCandidate.storagePath,
+            )}`,
           revision: 1,
           world: world.worldId,
-          objectPath: previous,
+          objectPath: currentCandidate.storagePath,
           createdAt: changedAt,
         });
       }
-      tx.update(placeRef, {pinImageStoragePath});
+      tx.update(placeRef, {
+        pinImageCandidate: {...nextCandidate},
+      });
+      enqueueModerationJob(
+        tx,
+        db,
+        {
+          jobType: EVALUATE_PIN_IMAGE_MODERATION_JOB,
+          targetPath: placeRef.path,
+          inputHash: nextCandidate.inputHash,
+          world: world.worldId,
+        },
+        changedAt,
+      );
+      return true;
     });
+    return {
+      accepted,
+      moderationAction: "pending",
+    };
   },
 );
 
@@ -739,10 +717,13 @@ export const reportNote = onCall<ReportNoteData>(
         typeof placeSnap.get("subtitle") === "string" ?
           placeSnap.get("subtitle") as string :
           null;
-      const pinImageStoragePath =
+      const acceptedPinImageStoragePath =
         typeof placeSnap.get("pinImageStoragePath") === "string" ?
           placeSnap.get("pinImageStoragePath") as string :
           null;
+      const pinImageStoragePath = pinImageCandidateStoragePath(
+        placeSnap.get("pinImageCandidate"),
+      ) ?? acceptedPinImageStoragePath;
       const targetPath = `places/${input.placeId}`;
 
       tx.set(reportRef, {

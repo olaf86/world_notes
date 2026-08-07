@@ -8,6 +8,7 @@ import {onSchedule} from "firebase-functions/v2/scheduler";
 import {OPENAI_API_KEY} from "./moderation";
 import {messageModerationJobHandler} from "./messageModeration";
 import {noteModerationJobHandler} from "./noteModeration";
+import {pinImageModerationJobHandler} from "./pinImageModeration";
 import {
   deriveModerationJobAttention,
   MODERATION_JOB_RECONCILE_BATCH_SIZE,
@@ -40,6 +41,7 @@ const productionRuntime: ModerationJobRuntime = {
   handlers: new ModerationJobHandlerRegistry([
     messageModerationJobHandler,
     noteModerationJobHandler,
+    pinImageModerationJobHandler,
   ]),
 };
 

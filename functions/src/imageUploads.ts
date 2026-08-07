@@ -11,7 +11,11 @@ import {
 import {HttpsError} from "firebase-functions/v2/https";
 
 import {GLOBAL_OPERATION_TERMINAL_RETENTION_MILLIS} from "./globalOperations";
-import {ImageStorageRoute, parseImageStorageRoute} from "./imageAccess";
+import {
+  ImageStorageRoute,
+  parseImageStorageRoute,
+  placeReferencesPinImage,
+} from "./imageAccess";
 import {enqueueStorageObjectDeletion} from "./storageObjectCleanup";
 
 export const IMAGE_UPLOAD_ORPHAN_GRACE_MILLIS = 24 * 60 * 60 * 1000;
@@ -292,7 +296,7 @@ function contentReferencesImage(
 ): boolean {
   if (!content.exists) return false;
   if (route.kind === "pin") {
-    return content.get("pinImageStoragePath") === route.storagePath;
+    return placeReferencesPinImage(content, route.storagePath);
   }
   const paths = content.get("imageStoragePaths");
   return content.get("userId") === route.ownerUid &&

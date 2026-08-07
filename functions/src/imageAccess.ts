@@ -9,6 +9,7 @@ import {
 import {REGION} from "./constants";
 import {hasValidMembership, isPublishedReadablePlace} from "./likeHelpers";
 import {canMaintainNote} from "./noteMaintenance";
+import {pinImageCandidateStoragePath} from "./pinImageCandidate";
 import {HttpsError, onCall} from "./platform/worldCallable";
 import {WorldBucket} from "./platform/worldBucketProvider";
 import {hasUserBlockBetween} from "./userBlocks";
@@ -114,6 +115,16 @@ export function canAccessPlaceImage(
   return canMaintainNote(place, uid) || hasValidMembership(place, member);
 }
 
+/** Returns whether a note currently exposes an accepted or pending pin. */
+export function placeReferencesPinImage(
+  place: DocumentSnapshot,
+  storagePath: string,
+): boolean {
+  return place.get("pinImageStoragePath") === storagePath ||
+    pinImageCandidateStoragePath(place.get("pinImageCandidate")) ===
+      storagePath;
+}
+
 /** Mirrors message visibility and exact-reference checks for image delivery. */
 export function canAccessMessageImage(
   place: DocumentSnapshot,
@@ -183,7 +194,7 @@ export async function authorizeImageStoragePaths(
     if (route.kind === "pin") {
       result.set(
         route.storagePath,
-        place.get("pinImageStoragePath") === route.storagePath &&
+        placeReferencesPinImage(place, route.storagePath) &&
           canAccessPlaceImage(
             place,
             member,

@@ -31,6 +31,7 @@ import {
   findUserIdsWithBlockRelationshipToViewer,
   hasUserBlockBetween,
 } from "./userBlocks";
+import {pinImageCandidateStoragePath} from "./pinImageCandidate";
 
 interface Coordinates {
   latitude: number;
@@ -282,6 +283,9 @@ function pinFromDoc(
   const creatorPhotoUrl = doc.get("creatorPhotoUrl") as string | null;
   const creatorPhotoVersion = doc.get("creatorPhotoVersion") as number;
   const storedPinImageStoragePath = doc.get("pinImageStoragePath");
+  const pendingPinImageStoragePath = pinImageCandidateStoragePath(
+    doc.get("pinImageCandidate"),
+  );
   return {
     placeId: doc.id,
     latitude: coords.latitude,
@@ -291,11 +295,12 @@ function pinFromDoc(
     colorHex: doc.get("colorHex") as string,
     themeId: doc.get("themeId") as string,
     icon: doc.get("icon") as string,
-    pinImageStoragePath:
+    pinImageStoragePath: pendingPinImageStoragePath ?? (
       typeof storedPinImageStoragePath === "string" &&
         storedPinImageStoragePath.trim().length > 0 ?
         storedPinImageStoragePath.trim() :
-        null,
+        null
+    ),
     creatorName,
     creatorPhotoUrl,
     creatorPhotoVersion,

@@ -33,6 +33,16 @@ import {
   noteModerationInputHash,
   noteModerationJobHandler,
 } from "../src/noteModeration";
+import {
+  newPinImageCandidate,
+  parsePinImageCandidate,
+  pinImageCandidateId,
+  pinImageModerationInputHash,
+} from "../src/pinImageCandidate";
+import {
+  EVALUATE_PIN_IMAGE_MODERATION_JOB,
+  pinImageModerationJobHandler,
+} from "../src/pinImageModeration";
 
 const CREATED_AT = Timestamp.fromMillis(1_000);
 const TEST_INPUT_HASH = "a".repeat(64);
@@ -151,6 +161,37 @@ test("note moderation handler owns its explicit job type", () => {
   assert.equal(
     noteModerationJobHandler.jobType,
     EVALUATE_NOTE_MODERATION_JOB,
+  );
+});
+
+test("pin image moderation binds one immutable candidate path", () => {
+  const path = "images/pins/place-1/alice/" +
+    "00000000-0000-700a-800b-000000000002.webp";
+  const candidate = newPinImageCandidate({
+    storagePath: path,
+    placeId: "place-1",
+    requestedByUid: "alice",
+  }, CREATED_AT);
+
+  assert.match(candidate.inputHash, /^[0-9a-f]{64}$/);
+  assert.equal(candidate.inputHash, pinImageModerationInputHash(path));
+  assert.equal(
+    pinImageCandidateId(path),
+    "00000000-0000-700a-800b-000000000002",
+  );
+  assert.deepEqual(parsePinImageCandidate({...candidate}, "place-1"), {
+    ...candidate,
+  });
+  assert.throws(
+    () => parsePinImageCandidate({...candidate, requestedByUid: "mallory"}),
+    /values are invalid/,
+  );
+});
+
+test("pin image moderation handler owns its explicit job type", () => {
+  assert.equal(
+    pinImageModerationJobHandler.jobType,
+    EVALUATE_PIN_IMAGE_MODERATION_JOB,
   );
 });
 

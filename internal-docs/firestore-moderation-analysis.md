@@ -210,15 +210,14 @@ validation, message posting, likes, visits, unlocks, and invite claims.
 
 ## Publication-time checks
 
-- `createNote` moderates the trimmed title and optional subtitle before its
-  creation transaction. Only `allow` publishes; all other actions are rejected,
-  and provider unavailability asks the client to retry.
-- `sendMessage` downloads every submitted Storage object and sends message text
-  plus image data to moderation before the message transaction. An image-bearing
-  submission must receive `allow`.
-- `setNotePinImage` downloads and moderates the candidate thumbnail before
-  attaching it. Rejected or unchecked candidates are deleted and the previous
-  pin remains unchanged.
-- Both Flutter repositories perform best-effort cleanup for failed image
-  callables. Unreferenced objects are not discoverable through Firestore; an
-  operational orphan cleanup may still be added for defense in depth.
+- `createNote` and `sendMessage` atomically attach immutable-input-bound
+  moderation jobs and return while their content is `pending`.
+- `setNotePinImage` verifies immutable Storage object metadata, attaches a
+  separate `pinImageCandidate`, and queues regional image evaluation without
+  waiting for the provider.
+- Map/detail reads prefer the pending pin candidate, while
+  `pinImageStoragePath` retains the last accepted image. An `allow` result
+  promotes the candidate and durably deletes the previous image. Any other
+  completed result removes and durably deletes only the candidate.
+- Regional upload tracking and generation-guarded cleanup own failed,
+  superseded, rejected, and orphaned image removal.

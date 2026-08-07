@@ -1269,8 +1269,19 @@ limit, so trusted restoration may temporarily exceed the current plan limit.
 The hidden-content account-safety event remains attached to the moderation job
 until both the home authority and local note record it, including a crash or a
 human restoration between those writes. Manual and scheduled archive paths
-skip an active-note slot already released by moderation. Pending pin-image candidates and
-the 30-day raw-content/image retention finalizers remain the next P20 slices.
+skip an active-note slot already released by moderation.
+
+Implementation note (2026-08-08): pin-image replacement now attaches a typed,
+immutable-path-bound `pinImageCandidate` and its regional moderation job in one
+transaction after a metadata-only Storage check. The last accepted
+`pinImageStoragePath` remains available for rollback, while map/detail image
+selection may display the public-pending candidate. Finalization promotes only
+a still-current candidate on `allow`; every other completed moderation result
+removes only that candidate. Rejected, superseded, and replaced objects use the
+generation-guarded durable Storage cleanup queue. A high-confidence hidden
+result records a retry-stable account-safety event without hiding the parent
+note. The 30-day raw-content/image retention finalizers remain the next P20
+slice.
 
 ### Phase 12 — staged activation and production cutover
 

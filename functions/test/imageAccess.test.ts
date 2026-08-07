@@ -11,9 +11,11 @@ import {
   getImageAccessUrls,
   IMAGE_ACCESS_STATUS,
   parseImageStorageRoute,
+  placeReferencesPinImage,
   SIGNED_IMAGE_URL_LIFETIME_MILLIS,
   SIGNED_IMAGE_URL_MAX_PATHS,
 } from "../src/imageAccess";
+import {pinImageModerationInputHash} from "../src/pinImageCandidate";
 
 const PLACE_ID = "test-place";
 const MESSAGE_ID = "00000000-0000-700a-800b-000000000001";
@@ -69,6 +71,22 @@ test("allows an active public pin only when the note references it", () => {
     ),
     false,
   );
+});
+
+test("treats a valid pending pin candidate as the current image", () => {
+  const pending = snapshot(activePlace({
+    pinImageStoragePath: "images/pins/test-place/alice/" +
+      "00000000-0000-700a-800b-000000000003.webp",
+    pinImageCandidate: {
+      storagePath: PIN_PATH,
+      inputHash: pinImageModerationInputHash(PIN_PATH),
+      requestedByUid: "alice",
+      moderationAction: "pending",
+      createdAt: NOW,
+    },
+  }));
+
+  assert.equal(placeReferencesPinImage(pending, PIN_PATH), true);
 });
 
 test("requires membership or maintenance for private note images", () => {
