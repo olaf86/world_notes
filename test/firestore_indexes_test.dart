@@ -54,15 +54,26 @@ void main() {
     );
   });
 
-  test('does not index message likes for collection-group listing', () {
+  test('uses only automatic indexing for liked messages', () {
     final config = _loadConfig();
     final indexes = (config['indexes'] as List<dynamic>)
         .cast<Map<String, dynamic>>();
+    final overrides = (config['fieldOverrides'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
 
     expect(
-      indexes.where((index) => index['collectionGroup'] == 'messageLikes'),
+      indexes.where((index) => index['collectionGroup'] == 'likedMessages'),
       isEmpty,
-      reason: 'Like state is read by exact owner-scoped document paths.',
+      reason: 'Exact reads and one array-contains cleanup need no composite.',
+    );
+    expect(
+      overrides.where(
+        (override) =>
+            override['collectionGroup'] == 'likedMessages' &&
+            override['fieldPath'] == 'messageIds',
+      ),
+      isEmpty,
+      reason: 'Cleanup requires the automatic array-contains index.',
     );
   });
 

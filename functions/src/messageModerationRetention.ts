@@ -4,7 +4,7 @@ import {createHash} from "node:crypto";
 
 import {
   DocumentSnapshot,
-  FieldPath,
+  FieldValue,
   Firestore,
   Timestamp,
   Transaction,
@@ -21,12 +21,13 @@ import {
   HIDDEN_CONTENT_RETENTION_MILLIS,
   MODERATION_EVIDENCE_RETENTION_MILLIS,
 } from "./moderationRetention";
+import {parseLikedMessages} from "./likedMessages";
 import {enqueueStorageObjectDeletion} from "./storageObjectCleanup";
 
 export const PURGE_HIDDEN_MESSAGE_JOB = "purgeHiddenMessage";
 
-const MESSAGE_LIKE_PURGE_BATCH_SIZE = 50;
-const PURGING_STAGE = "purgingMessageLikes" as const;
+const LIKED_MESSAGES_PURGE_BATCH_SIZE = 50;
+const PURGING_STAGE = "purgingLikedMessages" as const;
 const TARGET_FIELDS = new Set([
   "targetPath",
   "placeId",
@@ -192,15 +193,32 @@ async function purgeHiddenMessageBatch(
     const reviewRef = firestore
       .collection("moderationReviews")
       .doc(`${target.placeId}_${target.messageId}`);
-    const likesQuery = messageRef.collection("messageLikes")
-      .orderBy(FieldPath.documentId())
-      .limit(MESSAGE_LIKE_PURGE_BATCH_SIZE);
-    const [message, review, likes] = await Promise.all([
+    const likedMessagesQuery = firestore.collection("places")
+      .doc(target.placeId)
+      .collection("likedMessages")
+      .where("messageIds", "array-contains", target.messageId)
+      .limit(LIKED_MESSAGES_PURGE_BATCH_SIZE);
+    const [message, review, likedMessages] = await Promise.all([
       tx.get(messageRef),
       tx.get(reviewRef),
-      tx.get(likesQuery),
+      tx.get(likedMessagesQuery),
     ]);
+    const purgedAt = Timestamp.now();
+    for (const likedByUser of likedMessages.docs) {
+      parseLikedMessages(likedByUser.data(), {
+        userId: likedByUser.id,
+        placeId: target.placeId,
+      });
+      tx.update(likedByUser.ref, {
+        messageIds: FieldValue.arrayRemove(target.messageId),
+        updatedAt: purgedAt,
+      });
+    }
+    const hasMoreLikedMessages =
+      likedMessages.size === LIKED_MESSAGES_PURGE_BATCH_SIZE;
     if (!message.exists) {
+      if (hasMoreLikedMessages) return false;
+      if (review.exists) tx.delete(reviewRef);
       tx.delete(targetRef);
       return true;
     }
@@ -208,10 +226,10 @@ async function purgeHiddenMessageBatch(
         !(message.get("moderationPurgeStartedAt") instanceof Timestamp)) {
       throw new Error("Hidden message changed after cleanup started.");
     }
-    for (const like of likes.docs) tx.delete(like.ref);
-    if (likes.size === MESSAGE_LIKE_PURGE_BATCH_SIZE) return false;
+    if (hasMoreLikedMessages) {
+      return false;
+    }
 
-    const purgedAt = Timestamp.now();
     const imageStoragePaths = requireImageStoragePaths(
       message.get("imageStoragePaths"),
     );

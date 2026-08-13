@@ -92,9 +92,9 @@ FIRESTORE_CONTRACT_CONFIRM_PROJECT_ID=world-notes-prod \
 npm --prefix functions run test:firestore-contract:cloud
 ```
 
-The cloud contract intentionally queries the production `messageLikes`
-collection-group index rather than creating a test-only index. This verifies
-that the same checked-in index definition is usable in a named database.
+The cloud contract intentionally queries the production `jobs` composite
+index (`status`, `nextAttemptAt`) rather than creating a test-only index. This
+verifies that a checked-in production index is usable in a named database.
 
 The Firestore emulator currently warns that multiple configured databases are
 not fully supported and does not enforce composite-index readiness. The cloud
@@ -108,7 +108,7 @@ Verification on 2026-07-30:
 - the cloud contract passed against `world-notes-prod` after the named
   databases' composite indexes reached `READY`;
 - cloud coverage included isolated reads/writes, a transaction, a batch, the
-  production `messageLikes` collection-group index, and an explicit
+  production `jobs` composite index, and an explicit
   Asia-to-Europe copy;
 - all contract documents use unique IDs and are deleted in `finally`.
 

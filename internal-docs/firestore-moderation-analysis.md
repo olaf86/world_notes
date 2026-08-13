@@ -223,12 +223,14 @@ validation, message posting, likes, visits, unlocks, and invite claims.
   superseded, rejected, and orphaned image removal.
 - A message that remains moderation-hidden for 30 days enters a durable purge
   workflow. The worker first closes administrator restoration, deletes its
-  like edges in bounded batches, queues every referenced image for guarded
+  note-scoped message Like states in bounded batches, queues every referenced
+  image for guarded
   Storage deletion, deletes the raw-content review record, and deletes the
   message.
 - A note that remains moderation-hidden for 30 days enters a staged subtree
-  purge. Restoration closes before the first child deletion; messages and
-  their like edges, known note subcollections, reports, reviews, invitations,
+  purge. Restoration closes before the first child deletion; messages,
+  note-scoped message Like states, known note subcollections, reports,
+  reviews, invitations,
   and pin images are then removed through bounded Firestore batches and the
   generation-guarded Storage queue.
 - Post-purge evidence contains moderation and lifecycle metadata only. It does

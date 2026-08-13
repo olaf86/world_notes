@@ -154,6 +154,9 @@ class AppConfig {
   /// Firestore rules enforce this server-side.
   static const int maxMessagesPerThread = 1000;
 
+  /// Includes temporarily retained Likes for moderation-hidden messages.
+  static const int maxLikedMessageIds = 10000;
+
   /// Maximum distance from a note at which its detail can be opened for
   /// non-PRO users.
   /// Must match NOTE_DETAIL_ACCESS_RADIUS_KM in functions/src/constants.ts.

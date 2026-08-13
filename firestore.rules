@@ -37,6 +37,8 @@ rules_version = '2';
 // - users/{uid}/notices: server-created inbox; owner may only set readAt.
 // - places/{placeId}: server-created note metadata and aggregates.
 // - places/{placeId}/messages: server-created message content.
+// - places/{placeId}/likedMessages/{uid}: owner-readable, server-managed
+//   note-scoped set of message IDs liked by that user.
 // - place access, visitor, like, counter and secret subcollections are scoped
 //   by the parent note and otherwise server-managed as declared below.
 // - note administrator invitations, administrator projections, notification
@@ -282,15 +284,6 @@ service cloud.firestore {
                      && hasReadableMessageModeration(message)));
     }
 
-    function canGetOwnMessageLike(placeId, messageId, likeId) {
-      let messagePath =
-        /databases/$(database)/documents/places/$(placeId)/messages/$(messageId);
-      return isSignedIn()
-             && likeId == request.auth.uid
-             && exists(messagePath)
-             && canReadMessage(placeId, get(messagePath).data);
-    }
-
     function isValidClientThreadStateTransition() {
       let changed = request.resource.data.diff(resource.data).affectedKeys();
       let closesThread = request.resource.data.isOpen == false
@@ -508,15 +501,14 @@ service cloud.firestore {
 
         allow delete: if false;
 
-        // The app requests only the caller's exact like edge after its bounded
-        // message queries have returned readable parents. Path ownership lets
-        // a missing edge return a normal not-found snapshot without trusting
-        // edge fields. Lists and all writes remain server-only.
-        match /messageLikes/{likeId} {
-          allow get: if canGetOwnMessageLike(placeId, messageId, likeId);
-          allow list, create, update, delete: if false;
-        }
+      }
 
+      // One exact owner-scoped document replaces a listener per visible
+      // message. Cloud Functions own every mutation and keep the message
+      // aggregate count in the same transaction.
+      match /likedMessages/{userId} {
+        allow get: if isCurrentUser(userId) && canAccessNote(placeId);
+        allow list, create, update, delete: if false;
       }
 
     }

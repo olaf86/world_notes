@@ -202,37 +202,34 @@ firestoreContractTest(
 );
 
 firestoreContractTest(
-  "queries a batch through a production collection-group index",
+  "queries a batch through a production composite index",
   async () => {
     const {runId, northAmerica} = requireContext();
-    const firstLikeRef = northAmerica.doc(
-      `__firestore_contract_parents/${runId}/messageLikes/first`,
+    const firstJobRef = northAmerica.doc(
+      `__firestore_contract_parents/${runId}/jobs/first`,
     );
-    const secondLikeRef = northAmerica.doc(
-      `__firestore_contract_others/${runId}/messageLikes/second`,
+    const secondJobRef = northAmerica.doc(
+      `__firestore_contract_parents/${runId}/jobs/second`,
     );
-    trackForCleanup(firstLikeRef, secondLikeRef);
+    trackForCleanup(firstJobRef, secondJobRef);
 
     const batch = northAmerica.batch();
-    batch.set(firstLikeRef, {
-      placeId: runId,
-      userId: "firestore-contract",
-      liked: true,
+    batch.set(firstJobRef, {
+      status: "pending",
+      nextAttemptAt: Timestamp.fromMillis(1),
       order: 1,
     });
-    batch.set(secondLikeRef, {
-      placeId: runId,
-      userId: "firestore-contract",
-      liked: true,
+    batch.set(secondJobRef, {
+      status: "pending",
+      nextAttemptAt: Timestamp.fromMillis(2),
       order: 2,
     });
     await batch.commit();
 
     const snapshots = await northAmerica
-      .collectionGroup("messageLikes")
-      .where("placeId", "==", runId)
-      .where("userId", "==", "firestore-contract")
-      .where("liked", "==", true)
+      .collection(`__firestore_contract_parents/${runId}/jobs`)
+      .where("status", "==", "pending")
+      .orderBy("nextAttemptAt")
       .get();
 
     assert.deepEqual(

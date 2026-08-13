@@ -886,160 +886,85 @@ describe(
       );
 
       test(
-        "denies like-edge metadata for a retained hidden message",
+        "allows only the owner to get one note-level like state",
         async () => {
           await Promise.all([
             seedApplicationDocument("places/tokyo", activePublicPlace()),
-            seedApplicationDocument("places/tokyo/messages/hidden", {
+            seedApplicationDocument("places/tokyo/likedMessages/alice", {
               userId: "alice",
-              moderationAction: "hidden",
-              isVisible: false,
-              isPubliclyVisible: false,
+              placeId: "tokyo",
+              messageIds: ["visible"],
+              updatedAt: firebase.firestore.Timestamp.now(),
             }),
-            seedApplicationDocument(
-              "places/tokyo/messages/hidden/messageLikes/alice",
-              {
-                userId: "alice",
-                placeId: "tokyo",
-                messageId: "hidden",
-                liked: true,
-              },
-            ),
           ]);
           const alice =
-            requireApplicationRules().authenticatedContext("alice");
+          requireApplicationRules().authenticatedContext("alice");
+          const bob = requireApplicationRules().authenticatedContext("bob");
+          const guest = requireApplicationRules().unauthenticatedContext();
+          const path = "places/tokyo/likedMessages/alice";
 
-          await assertFails(
-            alice.firestore().doc(
-              "places/tokyo/messages/hidden/messageLikes/alice",
-            ).get(),
-          );
-        },
-      );
-
-      test(
-        "allows only the owner to get a readable message like edge",
-        async () => {
-          await Promise.all([
-            seedApplicationDocument("places/tokyo", activePublicPlace()),
-            seedApplicationDocument("places/tokyo/messages/visible", {
-              userId: "bob",
-              moderationAction: "allow",
-              isVisible: true,
-              isPubliclyVisible: true,
-            }),
-            seedApplicationDocument(
-              "places/tokyo/messages/visible/messageLikes/alice",
-              {
-                userId: "alice",
-                placeId: "tokyo",
-                messageId: "visible",
-                liked: true,
-              },
-            ),
-          ]);
-          const alice =
-            requireApplicationRules().authenticatedContext("alice");
-          const bob =
-            requireApplicationRules().authenticatedContext("bob");
-          const unauthenticated =
-            requireApplicationRules().unauthenticatedContext();
-          const path =
-            "places/tokyo/messages/visible/messageLikes/alice";
-
-          await assertSucceeds(
-            alice.firestore().doc(path).get(),
-          );
+          await assertSucceeds(alice.firestore().doc(path).get());
           await assertFails(bob.firestore().doc(path).get());
-          await assertFails(unauthenticated.firestore().doc(path).get());
+          await assertFails(guest.firestore().doc(path).get());
         },
       );
 
       test(
-        "allows an owner to observe a missing like edge as not found",
+        "allows an owner to observe missing note-level like state",
+        async () => {
+          await seedApplicationDocument("places/tokyo", activePublicPlace());
+          const alice =
+          requireApplicationRules().authenticatedContext("alice");
+
+          const state = await assertSucceeds(
+            alice.firestore().doc("places/tokyo/likedMessages/alice").get(),
+          );
+          assert.equal(state.exists, false);
+        },
+      );
+
+      test("denies like state when its parent note is unreadable", async () => {
+        await Promise.all([
+          seedApplicationDocument("places/tokyo", {
+            ...activePublicPlace(),
+            isModerationHidden: true,
+          }),
+          seedApplicationDocument("places/tokyo/likedMessages/bob", {
+            userId: "bob",
+            placeId: "tokyo",
+            messageIds: ["hidden"],
+            updatedAt: firebase.firestore.Timestamp.now(),
+          }),
+        ]);
+        const bob =
+          requireApplicationRules().authenticatedContext("bob");
+
+        await assertFails(
+          bob.firestore().doc("places/tokyo/likedMessages/bob").get(),
+        );
+      });
+
+      test(
+        "denies like-state lists and every direct client write",
         async () => {
           await Promise.all([
             seedApplicationDocument("places/tokyo", activePublicPlace()),
-            seedApplicationDocument("places/tokyo/messages/visible", {
-              userId: "bob",
-              moderationAction: "allow",
-              isVisible: true,
-              isPubliclyVisible: true,
+            seedApplicationDocument("places/tokyo/likedMessages/alice", {
+              userId: "alice",
+              placeId: "tokyo",
+              messageIds: ["visible"],
+              updatedAt: firebase.firestore.Timestamp.now(),
             }),
           ]);
           const alice =
-            requireApplicationRules().authenticatedContext("alice");
-
-          const edge = await assertSucceeds(
-            alice.firestore().doc(
-              "places/tokyo/messages/visible/messageLikes/alice",
-            ).get(),
-          );
-          assert.equal(edge.exists, false);
-        },
-      );
-
-      test(
-        "denies a message-like edge without its parent message",
-        async () => {
-          await Promise.all([
-            seedApplicationDocument("places/tokyo", activePublicPlace()),
-            seedApplicationDocument(
-              "places/tokyo/messages/missing/messageLikes/alice",
-              {
-                userId: "alice",
-                placeId: "tokyo",
-                messageId: "missing",
-                liked: true,
-              },
-            ),
-          ]);
-          const alice =
-            requireApplicationRules().authenticatedContext("alice");
-
-          await assertFails(
-            alice.firestore().doc(
-              "places/tokyo/messages/missing/messageLikes/alice",
-            ).get(),
-          );
-        },
-      );
-
-      test(
-        "denies message-like lists and every direct client write",
-        async () => {
-          await Promise.all([
-            seedApplicationDocument("places/tokyo", activePublicPlace()),
-            seedApplicationDocument("places/tokyo/messages/visible", {
-              userId: "bob",
-              moderationAction: "allow",
-              isVisible: true,
-              isPubliclyVisible: true,
-            }),
-            seedApplicationDocument(
-              "places/tokyo/messages/visible/messageLikes/alice",
-              {
-                userId: "alice",
-                placeId: "tokyo",
-                messageId: "visible",
-                liked: true,
-              },
-            ),
-          ]);
-          const alice =
-            requireApplicationRules().authenticatedContext("alice");
-          const edge = alice.firestore().doc(
-            "places/tokyo/messages/visible/messageLikes/alice",
+          requireApplicationRules().authenticatedContext("alice");
+          const state = alice.firestore().doc(
+            "places/tokyo/likedMessages/alice",
           );
 
-          await assertFails(edge.parent.get());
-          await assertFails(
-            alice.firestore().collectionGroup("messageLikes")
-              .where("userId", "==", "alice")
-              .get(),
-          );
-          await assertFails(edge.set({liked: false}, {merge: true}));
-          await assertFails(edge.delete());
+          await assertFails(state.parent.get());
+          await assertFails(state.set({messageIds: []}, {merge: true}));
+          await assertFails(state.delete());
         },
       );
 

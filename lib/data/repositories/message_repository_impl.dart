@@ -64,106 +64,64 @@ class MessageRepositoryImpl implements MessageRepository {
         .orderBy('publishAt')
         .limit(AppConfig.messagesPageSize)
         .snapshots();
+    final ownLikedMessagesStream = _firestore
+        .collection('places')
+        .doc(placeId)
+        .collection('likedMessages')
+        .doc(currentUserId)
+        .snapshots();
     late final StreamController<List<MessageThreadItem>> controller;
     QuerySnapshot? publishedSnap;
     QuerySnapshot? ownScheduledSnap;
+    DocumentSnapshot? ownLikedMessagesSnap;
     StreamSubscription<QuerySnapshot>? publishedSubscription;
     StreamSubscription<QuerySnapshot>? ownScheduledSubscription;
-    final ownLikeSnapshots = <String, DocumentSnapshot>{};
-    final ownLikeSubscriptions =
-        <String, StreamSubscription<DocumentSnapshot>>{};
-
-    Set<String> currentMessageIds() {
-      return {
-        ...?publishedSnap?.docs.map((doc) => doc.id),
-        ...?ownScheduledSnap?.docs.map((doc) => doc.id),
-      };
-    }
+    StreamSubscription<DocumentSnapshot>? ownLikedMessagesSubscription;
 
     void emitIfReady() {
       final published = publishedSnap;
       final ownScheduled = ownScheduledSnap;
-      if (published == null || ownScheduled == null) {
+      final ownLikedMessages = ownLikedMessagesSnap;
+      if (published == null ||
+          ownScheduled == null ||
+          ownLikedMessages == null) {
         return;
       }
-      final messageIds = currentMessageIds();
-      if (!messageIds.every(ownLikeSnapshots.containsKey)) return;
-      final likedMessageIds = messageIds.where((messageId) {
-        final snapshot = ownLikeSnapshots[messageId];
-        final data = snapshot?.data();
-        return snapshot?.exists == true &&
-            data is Map<String, dynamic> &&
-            data['liked'] == true;
-      }).toSet();
+      final likedIds = _likedIds(ownLikedMessages);
 
       controller.add(
         _threadItemsFromSnapshots(
           published: published,
           ownScheduled: ownScheduled,
-          likedMessageIds: likedMessageIds,
+          likedIds: likedIds,
           currentUserId: currentUserId,
           blockedUserIds: blockedUserIds,
         ),
       );
     }
 
-    void synchronizeOwnLikeSubscriptions() {
-      if (publishedSnap == null || ownScheduledSnap == null) return;
-      final messageIds = currentMessageIds();
-      final staleMessageIds = ownLikeSubscriptions.keys
-          .where((messageId) => !messageIds.contains(messageId))
-          .toList();
-      for (final messageId in staleMessageIds) {
-        final subscription = ownLikeSubscriptions.remove(messageId);
-        ownLikeSnapshots.remove(messageId);
-        if (subscription != null) unawaited(subscription.cancel());
-      }
-      for (final messageId in messageIds) {
-        if (ownLikeSubscriptions.containsKey(messageId)) continue;
-        late final StreamSubscription<DocumentSnapshot> subscription;
-        subscription = _messagesOf(placeId)
-            .doc(messageId)
-            .collection('messageLikes')
-            .doc(currentUserId)
-            .snapshots()
-            .listen(
-              (snapshot) {
-                if (ownLikeSubscriptions[messageId] != subscription) return;
-                ownLikeSnapshots[messageId] = snapshot;
-                emitIfReady();
-              },
-              onError: (Object error, StackTrace stackTrace) {
-                if (ownLikeSubscriptions[messageId] == subscription) {
-                  controller.addError(error, stackTrace);
-                }
-              },
-            );
-        ownLikeSubscriptions[messageId] = subscription;
-      }
-    }
-
     controller = StreamController<List<MessageThreadItem>>(
       onListen: () {
         publishedSubscription = publishedStream.listen((snap) {
           publishedSnap = snap;
-          synchronizeOwnLikeSubscriptions();
           emitIfReady();
         }, onError: controller.addError);
         ownScheduledSubscription = ownScheduledStream.listen((snap) {
           ownScheduledSnap = snap;
-          synchronizeOwnLikeSubscriptions();
+          emitIfReady();
+        }, onError: controller.addError);
+        ownLikedMessagesSubscription = ownLikedMessagesStream.listen((snap) {
+          ownLikedMessagesSnap = snap;
           emitIfReady();
         }, onError: controller.addError);
       },
       onCancel: () async {
-        final likeSubscriptions = ownLikeSubscriptions.values.toList();
-        ownLikeSubscriptions.clear();
-        ownLikeSnapshots.clear();
         await Future.wait([
           if (publishedSubscription != null) publishedSubscription!.cancel(),
           if (ownScheduledSubscription != null)
             ownScheduledSubscription!.cancel(),
-          ...likeSubscriptions.map((subscription) => subscription.cancel()),
+          if (ownLikedMessagesSubscription != null)
+            ownLikedMessagesSubscription!.cancel(),
         ]);
       },
     );
@@ -174,7 +132,7 @@ class MessageRepositoryImpl implements MessageRepository {
   List<MessageThreadItem> _threadItemsFromSnapshots({
     required QuerySnapshot published,
     required QuerySnapshot ownScheduled,
-    required Set<String> likedMessageIds,
+    required Set<String> likedIds,
     required String currentUserId,
     required Set<String> blockedUserIds,
   }) {
@@ -182,7 +140,7 @@ class MessageRepositoryImpl implements MessageRepository {
     for (final doc in [...published.docs, ...ownScheduled.docs]) {
       final item = _threadItemFromDoc(
         doc,
-        likedByCurrentUser: likedMessageIds.contains(doc.id),
+        likedByCurrentUser: likedIds.contains(doc.id),
       );
       final message = item.message;
       if (blockedUserIds.contains(message.author.id)) continue;
@@ -218,11 +176,18 @@ class MessageRepositoryImpl implements MessageRepository {
     required String placeId,
     required String beforeMessageId,
     required int limit,
+    required String currentUserId,
     Set<String> blockedUserIds = const {},
   }) async {
     final pivotDoc = await _messagesOf(placeId).doc(beforeMessageId).get();
     if (!pivotDoc.exists) return [];
 
+    final ownLikedMessagesFuture = _firestore
+        .collection('places')
+        .doc(placeId)
+        .collection('likedMessages')
+        .doc(currentUserId)
+        .get();
     final snap = await _messagesOf(placeId)
         .where('isPubliclyVisible', isEqualTo: true)
         .where('isVisible', isEqualTo: true)
@@ -231,11 +196,38 @@ class MessageRepositoryImpl implements MessageRepository {
         .startAfterDocument(pivotDoc)
         .limit(limit)
         .get();
+    final likedIds = _likedIds(await ownLikedMessagesFuture);
 
     return snap.docs
-        .map((doc) => _threadItemFromDoc(doc, likedByCurrentUser: false))
+        .map(
+          (doc) => _threadItemFromDoc(
+            doc,
+            likedByCurrentUser: likedIds.contains(doc.id),
+          ),
+        )
         .where((item) => !blockedUserIds.contains(item.message.author.id))
         .toList();
+  }
+
+  Set<String> _likedIds(DocumentSnapshot snapshot) {
+    if (!snapshot.exists) return const {};
+    final data = snapshot.data();
+    if (data is! Map<String, dynamic> ||
+        data['userId'] != snapshot.id ||
+        data['placeId'] != snapshot.reference.parent.parent?.id ||
+        data['messageIds'] is! List) {
+      throw StateError('Liked messages document is invalid.');
+    }
+    final values = data['messageIds'] as List<dynamic>;
+    if (values.length > AppConfig.maxLikedMessageIds ||
+        values.any((value) => value is! String || value.isEmpty)) {
+      throw StateError('Liked messages document is invalid.');
+    }
+    final ids = values.cast<String>().toSet();
+    if (ids.length != values.length) {
+      throw StateError('Liked messages document is invalid.');
+    }
+    return ids;
   }
 
   Future<String> _uploadImage({

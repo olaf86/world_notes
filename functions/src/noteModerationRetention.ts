@@ -48,6 +48,11 @@ const NOTE_PURGE_PLAN = [
   {stage: "purgingMessages", kind: "messages"},
   {stage: "purgingLikes", kind: "subcollection", collection: "likes"},
   {
+    stage: "purgingLikedMessages",
+    kind: "subcollection",
+    collection: "likedMessages",
+  },
+  {
     stage: "purgingVisitors",
     kind: "subcollection",
     collection: "visitors",
@@ -281,14 +286,6 @@ async function purgeMessageBatch(
     if (messages.empty) return true;
 
     const message = messages.docs[0];
-    const likes = await tx.get(message.ref.collection("messageLikes")
-      .orderBy(FieldPath.documentId())
-      .limit(DELETE_BATCH_SIZE));
-    for (const like of likes.docs) tx.delete(like.ref);
-    if (likes.size === DELETE_BATCH_SIZE) {
-      return false;
-    }
-
     const purgedAt = Timestamp.now();
     for (const objectPath of requireMessageImagePaths(
       message.get("imageStoragePaths"),

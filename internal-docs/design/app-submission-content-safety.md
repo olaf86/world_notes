@@ -223,11 +223,11 @@ before submission. The script should:
 - Each transition to `hidden` records an exact server timestamp and enqueues
   one cleanup job due 30 days later.
 - Until cleanup starts, an administrator may restore the message together with
-  its retained image references and like edges. Starting cleanup permanently
+  its retained image references and Like state. Starting cleanup permanently
   closes restoration so a partial deletion cannot later become visible.
-- Cleanup removes like edges in bounded batches, queues generation-guarded
-  image deletion, deletes the raw-content review record, and deletes the
-  message.
+- Cleanup removes the message ID from note-scoped user Like-state documents
+  in bounded batches. It then queues generation-guarded image deletion,
+  deletes the raw-content review record, and deletes the message.
 - The remaining audit contains moderation and lifecycle metadata only. It does
   not retain raw content, image paths, or content-derived fingerprints, and it
   expires through Firestore TTL after one year.
@@ -237,7 +237,8 @@ before submission. The script should:
 - Each transition to `hidden` records an exact server timestamp and enqueues
   one cleanup job due 30 days later.
 - Cleanup first closes administrator restoration in the note document, then
-  removes message-like edges, messages, every known note subcollection,
+  removes note-scoped message Like states, messages, every other known note
+  subcollection,
   note-scoped reports, moderation reviews, and administrator invitations in
   bounded batches.
 - Message and pin-image objects are handed to the generation-guarded Storage

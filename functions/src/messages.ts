@@ -30,6 +30,11 @@ import {
   messageModerationInputHash,
 } from "./messageModeration";
 import {
+  likedMessagesData,
+  parseLikedMessages,
+  updatedMessageIds,
+} from "./likedMessages";
+import {
   assertReportCooldown,
   reportReasonCodeOf,
   requiredReportDocumentId,
@@ -41,8 +46,6 @@ import {
   hasValidMembership,
   isPublishedReadablePlace,
   type LikeMutationResult,
-  likeEdgeData,
-  likedStateOf,
   nextLikeCount,
 } from "./likeHelpers";
 import {canMaintainNote} from "./noteMaintenance";
@@ -107,7 +110,7 @@ interface MessageLikeRefs {
   placeRef: DocumentReference;
   memberRef: DocumentReference;
   messageRef: DocumentReference;
-  likeRef: DocumentReference;
+  likedMessagesRef: DocumentReference;
 }
 
 interface SendMessageProfile {
@@ -279,7 +282,7 @@ function messageLikeRefs(
     placeRef,
     memberRef: placeRef.collection("members").doc(uid),
     messageRef,
-    likeRef: messageRef.collection("messageLikes").doc(uid),
+    likedMessagesRef: placeRef.collection("likedMessages").doc(uid),
   };
 }
 
@@ -828,7 +831,7 @@ export const reportMessage = onCall<ReportMessageData>(
   },
 );
 
-async function applyMessageLikeState(
+async function applyMessageLike(
   tx: Transaction,
   db: Firestore,
   refs: MessageLikeRefs,
@@ -881,28 +884,34 @@ async function applyMessageLikeState(
       }
     }
   }
-  const likeSnap = await tx.get(refs.likeRef);
+  const likedMessagesSnapshot = await tx.get(refs.likedMessagesRef);
+  const route = {userId: uid, placeId: input.placeId};
+  const currentMessageIds = likedMessagesSnapshot.exists ?
+    parseLikedMessages(
+      likedMessagesSnapshot.data(),
+      route,
+    ).messageIds : [];
   const result = nextLikeCount({
     currentCount: (messageSnap.get("likeCount") as number | undefined) ?? 0,
-    currentlyLiked: likedStateOf(likeSnap),
+    currentlyLiked: currentMessageIds.includes(input.messageId),
     desiredLiked: input.liked,
   });
   if (!result.changed) {
     return {liked: input.liked, likeCount: result.likeCount};
   }
 
-  tx.set(
-    refs.likeRef,
-    likeEdgeData({
-      uid,
-      liked: input.liked,
-      extra: {
-        placeId: input.placeId,
-        messageId: input.messageId,
-      },
-    }),
-    {merge: true},
+  const nextMessageIds = updatedMessageIds(
+    currentMessageIds,
+    input.messageId,
+    input.liked,
   );
+  const updatedAt = Timestamp.fromMillis(nowMs);
+  tx.set(refs.likedMessagesRef, {...likedMessagesData({
+    userId: uid,
+    placeId: input.placeId,
+    messageIds: nextMessageIds,
+    updatedAt,
+  })});
   tx.update(refs.messageRef, {likeCount: result.likeCount});
   return {liked: input.liked, likeCount: result.likeCount};
 }
@@ -922,7 +931,7 @@ export const setMessageLike = onCall<SetMessageLikeData>(
     const nowMs = Date.now();
 
     return db.runTransaction((tx) =>
-      applyMessageLikeState(tx, db, refs, input, uid, nowMs),
+      applyMessageLike(tx, db, refs, input, uid, nowMs),
     );
   },
 );

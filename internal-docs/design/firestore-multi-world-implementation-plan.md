@@ -1286,21 +1286,22 @@ slice.
 Implementation note (2026-08-08): hidden messages now enqueue a deterministic
 Firestore cleanup job for exactly 30 days after their latest transition to
 `hidden`. At the deadline the worker atomically closes restoration, removes
-bounded `messageLikes` batches, deletes referenced image objects through the
-generation-guarded Storage queue, and deletes both the raw-content review
-record and message. A one-year TTL audit retains only moderation and lifecycle
-metadata, without raw content, image paths, or a content-derived digest.
-Restoration clears a not-yet-started retention generation; once cleanup has
-started, the administrator callable returns `moderation_retention_expired`.
+the message ID from bounded `likedMessages` batches, deletes referenced
+image objects through the generation-guarded Storage queue, and deletes both
+the raw-content review record and message. A one-year TTL audit retains only
+moderation and lifecycle metadata, without raw content, image paths, or a
+content-derived digest. Restoration clears a not-yet-started retention
+generation; once cleanup has started, the administrator callable returns
+`moderation_retention_expired`.
 
 Implementation note (2026-08-13): hidden notes now use the same exact 30-day
 retention contract. The worker atomically closes restoration, removes nested
-message likes before their messages, drains every known note subcollection and
-note-scoped report/review/invitation collection in bounded batches, queues
-message and pin-image objects for generation-guarded deletion, and deletes the
-parent last. A deterministic one-year TTL audit retains only moderation and
-lifecycle metadata. This completes the P20 raw-content/image retention
-finalizers.
+messages, drains note-scoped `likedMessages`, every other known note
+subcollection, and note-scoped report/review/invitation collections in bounded
+batches, queues message and pin-image objects for generation-guarded deletion,
+and deletes the parent last. A deterministic one-year TTL audit retains only
+moderation and lifecycle metadata. This completes the P20 raw-content/image
+retention finalizers.
 
 ### Phase 12 — staged activation and production cutover
 

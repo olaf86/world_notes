@@ -12,6 +12,7 @@ import {
 import {
   DocumentReference,
   Firestore,
+  Timestamp,
   getFirestore,
 } from "firebase-admin/firestore";
 import {
@@ -369,6 +370,76 @@ describe(
         [false, true],
       );
     });
+
+    test(
+      "keeps aggregate message-like state and count consistent",
+      async () => {
+        const credential = await signInAnonymously(requireAuth());
+        const uid = credential.user.uid;
+        const idToken = await credential.user.getIdToken();
+        const db = requireFirestore();
+        const placeRef = db.collection("places").doc(`like-${randomUUID()}`);
+        const messageRef = placeRef.collection("messages").doc("message-1");
+        const stateRef = placeRef.collection("likedMessages").doc(uid);
+        cleanupReferences.push(
+          db.collection("userHomes").doc(uid),
+          db.collection("users").doc(uid),
+          db.collection("publicProfiles").doc(uid),
+          db.collection("userEntitlements").doc(uid),
+          db.collection("userUsage").doc(uid),
+          db.collection("accountSafety").doc(uid),
+          stateRef,
+          messageRef,
+          placeRef,
+        );
+        const bootstrap = await callFunction(
+          "assignHomeWorld",
+          {worldId: "asia", homeWorld: "asia"},
+          idToken,
+        );
+        assert.equal(bootstrap.status, 200);
+        const now = Date.now();
+        await placeRef.set({
+          createdByUserId: "creator",
+          maintainerIds: ["creator"],
+          visibility: "public",
+          isArchived: false,
+          isModerationHidden: false,
+          publishAt: Timestamp.fromMillis(now - 60_000),
+          expiresAt: Timestamp.fromMillis(now + 60_000),
+        });
+        await messageRef.set({
+          userId: "author",
+          isVisible: true,
+          isPubliclyVisible: true,
+          isDeleted: false,
+          likeCount: 0,
+        });
+
+        for (const liked of [true, true, false]) {
+          const response = await callFunction(
+            "setMessageLike",
+            {
+              worldId: "asia",
+              placeId: placeRef.id,
+              messageId: messageRef.id,
+              liked,
+            },
+            idToken,
+          );
+          assert.equal(response.status, 200);
+        }
+
+        const [state, message] = await Promise.all([
+          stateRef.get(),
+          messageRef.get(),
+        ]);
+        assert.deepEqual(state.get("messageIds"), []);
+        assert.equal(state.get("userId"), uid);
+        assert.equal(state.get("placeId"), placeRef.id);
+        assert.equal(message.get("likeCount"), 0);
+      },
+    );
 
     test("commits and replays a language preference operation", async () => {
       const credential = await signInAnonymously(requireAuth());

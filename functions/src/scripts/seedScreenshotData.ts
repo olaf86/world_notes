@@ -220,6 +220,7 @@ async function resetSeedData(user: ScreenshotUser): Promise<void> {
     await deleteCollectionDocs(placeRef.collection("messages"));
     await deleteCollectionDocs(placeRef.collection("visitors"));
     await deleteCollectionDocs(placeRef.collection("members"));
+    await deleteCollectionDocs(placeRef.collection("likedMessages"));
     await placeRef.delete();
   }
 
