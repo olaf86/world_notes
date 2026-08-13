@@ -22,32 +22,31 @@ const PIN_PATH =
   "images/pins/test-place/alice/" +
   "00000000-0000-700a-800b-000000000002.webp";
 
-let rules: RulesTestEnvironment | undefined;
+let applicationRules: RulesTestEnvironment | undefined;
 
 describe(
   "Storage Security Rules",
   {skip: !hasStorageEmulator, concurrency: false},
   () => {
     before(async () => {
-      rules = await initializeTestEnvironment({
+      const applicationRulesSource = await readFile(
+        resolve(process.cwd(), "../storage.rules"),
+        "utf8",
+      );
+      applicationRules = await initializeTestEnvironment({
         projectId: "demo-world-notes-storage-rules",
-        storage: {
-          rules: await readFile(
-            resolve(process.cwd(), "../storage.rules"),
-            "utf8",
-          ),
-        },
+        storage: {rules: applicationRulesSource},
       });
     });
 
-    beforeEach(async () => requireRules().clearStorage());
-    after(async () => rules?.cleanup());
+    beforeEach(async () => requireApplicationRules().clearStorage());
+    after(async () => applicationRules?.cleanup());
 
     test(
       "allows only owner-scoped immutable message image creation",
       async () => {
-        const alice = requireRules().authenticatedContext("alice");
-        const bob = requireRules().authenticatedContext("bob");
+        const alice = requireApplicationRules().authenticatedContext("alice");
+        const bob = requireApplicationRules().authenticatedContext("bob");
         const bytes = new Uint8Array([1, 2, 3]);
 
         await assertFails(
@@ -69,7 +68,7 @@ describe(
     );
 
     test("denies direct reads and deletes after a valid upload", async () => {
-      const alice = requireRules().authenticatedContext("alice");
+      const alice = requireApplicationRules().authenticatedContext("alice");
       const ref = alice.storage().ref(
         MESSAGE_PATH.replace(
           MESSAGE_ID,
@@ -86,7 +85,7 @@ describe(
     });
 
     test("enforces content type, size, and canonical file names", async () => {
-      const alice = requireRules().authenticatedContext("alice");
+      const alice = requireApplicationRules().authenticatedContext("alice");
       await assertFails(
         upload(alice.storage().ref(MESSAGE_PATH), new Uint8Array([1]), {
           contentType: "image/png",
@@ -109,7 +108,7 @@ describe(
     });
 
     test("allows bounded owner pin creation but no direct read", async () => {
-      const alice = requireRules().authenticatedContext("alice");
+      const alice = requireApplicationRules().authenticatedContext("alice");
       const ref = alice.storage().ref(PIN_PATH);
       await assertSucceeds(
         upload(ref, new Uint8Array([1]), {contentType: "image/webp"}),
@@ -119,21 +118,44 @@ describe(
     });
 
     test("denies every unauthenticated image operation", async () => {
-      const guest = requireRules().unauthenticatedContext();
+      const guest = requireApplicationRules().unauthenticatedContext();
       const ref = guest.storage().ref(MESSAGE_PATH);
       await assertFails(
         upload(ref, new Uint8Array([1]), {contentType: "image/webp"}),
       );
       await assertFails(ref.getDownloadURL());
     });
+
+    test("denies every operation while a world bucket is locked", async () => {
+      const lockedRules = await initializeTestEnvironment({
+        projectId: "demo-world-notes-locked-storage-rules",
+        storage: {
+          rules: await readFile(
+            resolve(process.cwd(), "../storage.named.locked.rules"),
+            "utf8",
+          ),
+        },
+      });
+      try {
+        const alice = lockedRules.authenticatedContext("alice");
+        const ref = alice.storage().ref(MESSAGE_PATH);
+
+        await assertFails(
+          upload(ref, new Uint8Array([1]), {contentType: "image/webp"}),
+        );
+        await assertFails(ref.getDownloadURL());
+      } finally {
+        await lockedRules.cleanup();
+      }
+    });
   },
 );
 
-function requireRules(): RulesTestEnvironment {
-  if (rules === undefined) {
-    throw new Error("Storage Rules are not initialized.");
+function requireApplicationRules(): RulesTestEnvironment {
+  if (applicationRules === undefined) {
+    throw new Error("Application Storage Rules are not initialized.");
   }
-  return rules;
+  return applicationRules;
 }
 
 function upload(

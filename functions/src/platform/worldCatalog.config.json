@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "catalogVersion": 1,
+  "catalogVersion": 2,
   "worlds": [
     {
       "worldId": "asia",
@@ -20,9 +20,9 @@
       "functionsRegion": "us-central1",
       "bucketName": "world-notes-prod-north-america",
       "displayNameKey": "world.northAmerica",
-      "catalogState": "mirrorOnly",
+      "catalogState": "contentEnabled",
       "homeAssignmentEnabled": false,
-      "contentAccessEnabled": false
+      "contentAccessEnabled": true
     },
     {
       "worldId": "europe",

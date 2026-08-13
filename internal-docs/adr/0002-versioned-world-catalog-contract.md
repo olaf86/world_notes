@@ -94,11 +94,11 @@ corresponding client routes and authorization tests are ready.
 Asia is not marked `homeEnabled` until the home-directory authority and legacy
 assignment migration exist.
 
-The current checked-in contract remains `schemaVersion: 1` and
-`catalogVersion: 1`. The contract has not been released to external clients or
-persisted in global operations, so the development-time bucket nullability
-change is folded into the initial version. Every version 1 entry requires a
-bucket route.
+The initial checked-in contract used `schemaVersion: 1` and
+`catalogVersion: 1`. Every schema-version-1 entry requires a bucket route.
+After the North America mirror-only production gate passed, catalog version 2
+advanced North America to `contentEnabled` without changing the wire schema or
+enabling home assignment. Europe remains `mirrorOnly`.
 
 All three buckets use the same physical settings, differing only by immutable
 regional location:

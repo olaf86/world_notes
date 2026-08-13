@@ -45,3 +45,38 @@ Do not change `catalogState` or `contentAccessEnabled` unless the report has
 `pass: true`, no temporary document remains, and the P21 inventory is still
 passing. Catalog changes, deployment, observation, minimum-version enforcement,
 and home assignment are separate reviewed steps.
+
+Production result (2026-08-13): the North America smoke report passed all 23
+checks. The production composite index was available, the Admin transaction
+round trip succeeded, and the reserved transient document was confirmed
+deleted. The report was collected at `2026-08-13T10:33:14.906Z`.
+
+## North America content access
+
+Catalog version 2 advances only North America to `contentEnabled`. It keeps
+`homeAssignmentEnabled: false`, so Asia remains the authority world for all
+existing accounts and no new account can acquire North America as an immutable
+home. Europe remains `mirrorOnly` with deny-all client Rules.
+
+The North America Firestore database and Storage bucket use the same reviewed
+Rules files as Asia. Deploy the Rules before Functions and before distributing
+the catalog-version-2 client. From the repository root:
+
+```bash
+npx -y firebase-tools@latest deploy \
+  --project world-notes-prod \
+  --only firestore:north-america,storage:north-america
+
+npx -y firebase-tools@latest deploy \
+  --project world-notes-prod \
+  --only functions
+```
+
+After those deployments, run the production preflight again. Distribute the
+catalog-version-2 client only after preflight passes. Observe internal-user
+North America traffic before any minimum-version or home-assignment change.
+
+Before `homeEnabled`, rollback is still reversible: restore North America to
+`mirrorOnly`, set `contentAccessEnabled: false`, remap its Firestore and Storage
+targets to the locked Rules, deploy those gates, and let regional workers drain
+already accepted work. Do not delete regional data as part of rollback.

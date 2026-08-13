@@ -9,9 +9,9 @@ import {
   WORLD_FIRESTORE_DATABASE_IDS,
 } from "../src/platform/worldFirestoreProvider";
 
-test("loads the versioned initial world catalog", () => {
+test("loads the current versioned world catalog", () => {
   assert.equal(WORLD_CATALOG.schemaVersion, 1);
-  assert.equal(WORLD_CATALOG.catalogVersion, 1);
+  assert.equal(WORLD_CATALOG.catalogVersion, 2);
   assert.deepEqual(
     WORLD_CATALOG.worlds.map((world) => ({
       worldId: world.worldId,
@@ -27,7 +27,7 @@ test("loads the versioned initial world catalog", () => {
       {
         worldId: "northAmerica",
         databaseId: "north-america",
-        state: "mirrorOnly",
+        state: "contentEnabled",
       },
       {
         worldId: "europe",
@@ -88,7 +88,7 @@ test("rejects missing buckets and premature lifecycle flags", () => {
   );
 
   const earlyContent = mutableCatalog();
-  earlyContent.worlds[1].contentAccessEnabled = true;
+  earlyContent.worlds[2].contentAccessEnabled = true;
   assert.throws(
     () => parseWorldCatalog(earlyContent),
     /contentAccessEnabled requires an enabled state/,
@@ -108,6 +108,7 @@ test("exposes only explicitly home-enabled worlds for assignment", () => {
 
   assert.equal(asia.homeAssignmentEnabled, true);
   assert.equal(northAmerica.homeAssignmentEnabled, false);
+  assert.equal(northAmerica.contentAccessEnabled, true);
 });
 
 test("rejects unsupported schema versions", () => {

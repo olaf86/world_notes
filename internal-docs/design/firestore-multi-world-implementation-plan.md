@@ -1359,6 +1359,13 @@ database. It verifies cleanup before reporting success and exposes no account
 or content identity. This gate does not itself enable content or home
 assignment.
 
+Production result (2026-08-13): the North America mirror-only smoke passed all
+23 checks, including the composite index, Admin transaction round trip, and
+transient-document cleanup. Catalog version 2 therefore advances only North
+America to `contentEnabled`; home assignment stays disabled and Europe stays
+`mirrorOnly`. North America is mapped to the already reviewed Asia Firestore
+and Storage Rules rather than introducing a second authorization policy.
+
 Activation sequence for each new world:
 
 1. provision protected empty resources;

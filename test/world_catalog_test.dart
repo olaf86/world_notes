@@ -22,14 +22,14 @@ void main() {
     final catalog = WorldCatalog.fromJson(sourceCatalog);
 
     expect(catalog.schemaVersion, 1);
-    expect(catalog.catalogVersion, 1);
+    expect(catalog.catalogVersion, 2);
     expect(
       catalog.worlds
           .map((world) => (world.worldId, world.databaseId, world.catalogState))
           .toList(),
       [
         ('asia', '(default)', WorldCatalogState.homeEnabled),
-        ('northAmerica', 'north-america', WorldCatalogState.mirrorOnly),
+        ('northAmerica', 'north-america', WorldCatalogState.contentEnabled),
         ('europe', 'europe', WorldCatalogState.mirrorOnly),
       ],
     );
@@ -51,9 +51,18 @@ void main() {
       '(default)',
     );
     expect(
-      () => bootstrapWorldCatalog.requireContentWorld(
-        const WorldId('northAmerica'),
-      ),
+      bootstrapWorldCatalog
+          .requireContentWorld(const WorldId('northAmerica'))
+          .databaseId,
+      'north-america',
+    );
+    expect(
+      () =>
+          bootstrapWorldCatalog.requireHomeWorld(const WorldId('northAmerica')),
+      throwsStateError,
+    );
+    expect(
+      () => bootstrapWorldCatalog.requireContentWorld(const WorldId('europe')),
       throwsStateError,
     );
     expect(
@@ -102,7 +111,7 @@ void main() {
     );
 
     final earlyContent = _mutableClone(sourceCatalog);
-    _worldAt(earlyContent, 1)['contentAccessEnabled'] = true;
+    _worldAt(earlyContent, 2)['contentAccessEnabled'] = true;
     expect(
       () => WorldCatalog.fromJson(earlyContent),
       throwsA(isA<FormatException>()),

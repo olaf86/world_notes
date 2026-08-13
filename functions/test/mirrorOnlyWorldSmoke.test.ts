@@ -10,8 +10,8 @@ import {
 
 const BASE = [
   "--project", "world-notes-prod",
-  "--world", "northAmerica",
-  "--report", "/tmp/north-america-smoke.json",
+  "--world", "europe",
+  "--report", "/tmp/europe-smoke.json",
 ];
 
 test("mirror-only smoke requires exact project and world confirmation", () => {
@@ -19,25 +19,22 @@ test("mirror-only smoke requires exact project and world confirmation", () => {
   assert.throws(() => parseMirrorOnlySmokeArgs([
     ...BASE,
     "--confirm-project", "world-notes-prod",
-    "--confirm-world", "europe",
+    "--confirm-world", "northAmerica",
   ]));
   assert.deepEqual(parseMirrorOnlySmokeArgs([
     ...BASE,
     "--confirm-project", "world-notes-prod",
-    "--confirm-world", "northAmerica",
+    "--confirm-world", "europe",
   ]), {
     projectId: "world-notes-prod",
-    worldId: "northAmerica",
-    reportPath: "/tmp/north-america-smoke.json",
+    worldId: "europe",
+    reportPath: "/tmp/europe-smoke.json",
   });
 });
 
 test("mirror-only smoke accepts only closed non-Asia catalog worlds", () => {
-  assert.equal(
-    requireMirrorOnlyTarget("northAmerica").databaseId,
-    "north-america",
-  );
   assert.equal(requireMirrorOnlyTarget("europe").databaseId, "europe");
+  assert.throws(() => requireMirrorOnlyTarget("northAmerica"));
   assert.throws(() => requireMirrorOnlyTarget("asia"));
   assert.throws(() => requireMirrorOnlyTarget("missing"));
 });
