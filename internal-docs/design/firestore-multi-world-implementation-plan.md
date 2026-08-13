@@ -1304,6 +1304,18 @@ finalizers.
 
 ### Phase 12 — staged activation and production cutover
 
+Implementation note (2026-08-13): P21 now begins with an explicit-project,
+read-only production preflight. It compares the three live databases, Rules,
+composite indexes, TTL policies, backup schedules, regional buckets, exported
+Functions, and runtime IAM permissions with the checked-in world catalog and
+Firebase configuration. The first `world-notes-prod` run confirmed database
+placement/protection/PITR/backups and currently deployed Function health, but
+keeps the activation gate closed for the outdated Asia Rules, index and TTL
+rollout, bucket uniform-access/public-access-prevention enforcement, complete
+regional Function deployment, stale Function removal, and missing runtime
+Storage-read and service-account signing permissions. Backfill must not begin
+until the preflight passes.
+
 Activation sequence for each new world:
 
 1. provision protected empty resources;
