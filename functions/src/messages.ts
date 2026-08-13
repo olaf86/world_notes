@@ -21,7 +21,6 @@ import {
 } from "./constants";
 import {
   type AppModerationRiskSignal,
-  assertUserCanCreateContent,
   detectAppModerationRiskSignals,
 } from "./moderation";
 import {enqueueModerationJob} from "./moderationJobs";
@@ -98,7 +97,6 @@ interface ValidatedSetMessageLikeInput {
 
 interface SendMessageRefs {
   placeRef: DocumentReference;
-  userRef: DocumentReference;
   noteStateRef: DocumentReference;
   memberRef: DocumentReference;
   counterRef: DocumentReference;
@@ -256,7 +254,6 @@ function sendMessageRefs(
   const placeRef = db.collection("places").doc(input.placeId);
   return {
     placeRef,
-    userRef: db.collection("users").doc(uid),
     noteStateRef: db
       .collection("users")
       .doc(uid)
@@ -550,7 +547,6 @@ async function createMessageInTransaction({
       "contentWrite",
       Timestamp.fromMillis(nowMs),
     );
-    await assertUserCanCreateContent(tx, refs.userRef, nowMs);
     const memberSnap =
       placeSnap.get("visibility") === "private" &&
         !canMaintainNote(placeSnap, uid) ?

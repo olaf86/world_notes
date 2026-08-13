@@ -33,7 +33,6 @@ import {
   parseLockType,
   validateLockSecret,
 } from "./noteLock";
-import {assertUserCanCreateContent} from "./moderation";
 import {enqueueModerationJob} from "./moderationJobs";
 import {
   EVALUATE_NOTE_MODERATION_JOB,
@@ -350,7 +349,6 @@ export const createNote = onCall<CreateNoteData>(
         "contentWrite",
         Timestamp.fromMillis(nowMillis),
       );
-      await assertUserCanCreateContent(tx, userRef, nowMillis);
       const isPremium = entitlementSnap.get("isPremium") === true;
       const limit = isPremium ? PREMIUM_NOTE_LIMIT : FREE_NOTE_LIMIT;
       const activeCount = (usageSnap.get("activeNoteCount") as number) ?? 0;

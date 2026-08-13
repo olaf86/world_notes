@@ -10,7 +10,6 @@ import {
   DocumentReference,
   FieldValue,
   Firestore,
-  Timestamp,
   Transaction,
 } from "firebase-admin/firestore";
 
@@ -121,9 +120,6 @@ const CRITICAL_CATEGORIES = new Set<InternalCategory>([
   "violence",
   "illicit",
 ]);
-
-const USER_CONTENT_BLOCKED_MESSAGE =
-  "Your account is temporarily restricted from posting.";
 
 const DEFAULT_PHONE_NUMBER_COUNTRY: CountryCode = "JP";
 const EMAIL_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
@@ -474,26 +470,6 @@ export async function createModerationNoticeIfNeeded(
   const notice = userNoticeForPoints(result, nextPoints);
   if (notice == null) return;
   await createUserNotice(firestore, uid, notice);
-}
-
-export async function assertUserCanCreateContent(
-  tx: Transaction,
-  userRef: DocumentReference,
-  nowMs: number,
-): Promise<void> {
-  const userSnap = await tx.get(userRef);
-  const bannedUntil = userSnap.get("bannedUntil") as Timestamp | null;
-  if (bannedUntil !== null && bannedUntil.toMillis() > nowMs) {
-    throw new HttpsError(
-      "permission-denied",
-      "Your account is temporarily banned.",
-    );
-  }
-  const restrictedUntil =
-    userSnap.get("restrictedUntil") as Timestamp | null;
-  if (restrictedUntil !== null && restrictedUntil.toMillis() > nowMs) {
-    throw new HttpsError("permission-denied", USER_CONTENT_BLOCKED_MESSAGE);
-  }
 }
 
 export async function applyModerationToUser(

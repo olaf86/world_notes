@@ -80,6 +80,16 @@ test("regionalized content handlers use only the injected world", () => {
   assert.deepEqual(violations, []);
 });
 
+test("regional content writes use replicated account safety", () => {
+  const sourceRoot = join(process.cwd(), "src");
+  for (const sourcePath of ["notes.ts", "messages.ts"]) {
+    const source = readFileSync(join(sourceRoot, sourcePath), "utf8");
+    assert.match(source, /\bassertAccountSafetyPreflight\b/);
+    assert.match(source, /\bassertAccountSafetyAllows\b/);
+    assert.doesNotMatch(source, /\bassertUserCanCreateContent\b/);
+  }
+});
+
 test("Asia-fixed dependencies remain only in reviewed transition code", () => {
   const sourceRoot = join(process.cwd(), "src");
   const violations: string[] = [];
