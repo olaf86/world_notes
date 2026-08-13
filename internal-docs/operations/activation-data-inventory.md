@@ -26,3 +26,20 @@ The output contains counts and stable check codes only. It contains no UID or
 document content. A non-passing inventory exits with status 2. A count match is
 an inventory gate, not proof of per-document revision equality; any nonzero
 social/block count requires a revision-aware reconciliation before activation.
+
+## Production result (2026-08-13)
+
+The final `world-notes-prod` inventory passed every check after account and
+social-edge reconciliation:
+
+- all three worlds contain 2 home markers, profiles, entitlements, and safety
+  projections;
+- Asia retains the 2 private account authorities, 2 usage authorities, and 46
+  existing places;
+- North America and Europe contain no private accounts, usage authorities, or
+  places before content activation;
+- the single Asia social edge is present in both mirror worlds;
+- every world has zero pending and zero failed global operations.
+
+The P21 data gate is complete. World activation remains a separately reviewed
+P22 change and must proceed one world at a time.

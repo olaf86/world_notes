@@ -1343,8 +1343,12 @@ final document ID as its high-water boundary, uses deterministic operation
 IDs, upgrades the exact legacy active-edge shape atomically with its first
 global operation, and performs a second reconciliation pass with content-free
 output.
-Catalog activation remains closed until its
-production dry-run, apply, worker convergence, and final inventory pass.
+Production dry-run and apply then normalized the one legacy authority edge and
+replicated it to both destinations through one global operation. The apply
+reconciliation found zero residual writes. The final inventory passed all
+checks with one edge in every world and zero pending or failed global
+operations. P21 is complete; P22 catalog activation remains a separately
+reviewed, one-world-at-a-time change.
 
 Activation sequence for each new world:
 
