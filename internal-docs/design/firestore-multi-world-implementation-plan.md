@@ -1332,6 +1332,17 @@ two-pass post-apply dry-run both reported zero residual writes, with no
 revision conflict, invalid bundle, high-water skip, content move, or delete.
 The account portion of P21 is complete; catalog activation remains closed.
 
+Implementation note (2026-08-13): the activation inventory found one Asia
+social edge absent from both mirror-only worlds and no other global-data or
+operation-backlog drift. Missing destination profile social counters were
+initialized to zero and independently reconciled. A dedicated social-edge
+backfill now republishes the bounded Asia authority set through the normal
+global-operation handler so each destination edge and both derived profile
+counters remain transactionally coupled. It uses an initial document-ID
+high-water boundary, deterministic operation IDs, a second reconciliation
+pass, and content-free output. Catalog activation remains closed until its
+production dry-run, apply, worker convergence, and final inventory pass.
+
 Activation sequence for each new world:
 
 1. provision protected empty resources;
