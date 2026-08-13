@@ -170,9 +170,23 @@ export function parseAccountSafetyProjection(
   if (!snapshot.exists) {
     throw new Error("Account safety projection is missing.");
   }
-  const data = snapshot.data();
-  if (data === undefined ||
-      Object.keys(data).length !== SAFETY_FIELDS.size ||
+  return parseAccountSafetyData(
+    snapshot.data(),
+    expectedAuthorityWorld,
+  );
+}
+
+/** Parses raw account-safety data for migration and replication boundaries. */
+export function parseAccountSafetyData(
+  value: unknown,
+  expectedAuthorityWorld?: string,
+): AccountSafetyProjection {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("Account safety projection fields are invalid.");
+  }
+  const data = value as Record<string, unknown>;
+  if (
+    Object.keys(data).length !== SAFETY_FIELDS.size ||
       [...SAFETY_FIELDS].some((field) => !(field in data))) {
     throw new Error("Account safety projection fields are invalid.");
   }

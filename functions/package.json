@@ -18,6 +18,7 @@
     "admin:unset": "npm run build && node lib/scripts/setAdminClaim.js --unset",
     "moderation:test-data": "npm run build && node lib/scripts/moderationTestData.js",
     "preflight:production": "npm run build && node lib/scripts/runProductionPreflight.js",
+    "backfill:accounts": "npm run build && node lib/scripts/backfillAccounts.js",
     "seed:screenshot": "npm run build && node lib/scripts/seedScreenshotData.js",
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",

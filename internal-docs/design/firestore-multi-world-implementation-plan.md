@@ -1315,6 +1315,16 @@ preflight passes every required check in `world-notes-prod`. This opens the
 infrastructure gate for backfill work; it does not change any world's catalog
 activation state.
 
+Implementation note (2026-08-13): the first P21 account migration tool now
+normalizes the Asia account authority bundle, mirrors routing/profile/
+entitlement/safety projections to North America and Europe, and repairs the
+immutable-home Auth cache. It defaults to dry-run, uses a bounded Auth page and
+durable local checkpoint, derives deterministic bootstrap operation IDs,
+guards projection revisions, preserves regional social counters, performs a
+second pass to the initial high-water time, emits content-free counts, and
+never deletes or relocates content. Production execution remains gated on the
+reviewed dry-run procedure in `internal-docs/operations/account-backfill.md`.
+
 Activation sequence for each new world:
 
 1. provision protected empty resources;
