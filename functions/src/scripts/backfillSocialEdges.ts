@@ -19,6 +19,7 @@ import {
 import {WORLD_CATALOG} from "../platform/worldCatalog";
 import {safeAccountBackfillError} from "./backfillAccounts";
 import {
+  parseSocialEdgeBackfillSource,
   shouldWriteSocialEdge,
   socialEdgeBackfillOperationId,
 } from "../socialEdgeBackfill";
@@ -48,6 +49,7 @@ interface ParsedArgs {
 
 interface SocialBackfillCounts {
   readonly listed: number;
+  readonly authorityWrites: number;
   readonly destinationWrites: number;
   readonly operationCommands: number;
   readonly operationReplays: number;
@@ -148,6 +150,7 @@ function requireBoundedInteger(
 function emptyCounts(): SocialBackfillCounts {
   return Object.freeze({
     listed: 0,
+    authorityWrites: 0,
     destinationWrites: 0,
     operationCommands: 0,
     operationReplays: 0,
@@ -160,6 +163,7 @@ function addCounts(
 ): SocialBackfillCounts {
   return Object.freeze({
     listed: left.listed + right.listed,
+    authorityWrites: left.authorityWrites + right.authorityWrites,
     destinationWrites: left.destinationWrites + right.destinationWrites,
     operationCommands: left.operationCommands + right.operationCommands,
     operationReplays: left.operationReplays + right.operationReplays,
@@ -190,7 +194,6 @@ function isCheckpointEdgeId(value: unknown): value is string | null {
 
 async function readCheckpoint(
   args: ParsedArgs,
-  initialHighWaterEdgeId: string | null,
 ): Promise<SocialBackfillCheckpoint> {
   let value: unknown;
   try {
@@ -202,7 +205,7 @@ async function readCheckpoint(
         sourceProject: args.sourceProject,
         targetProject: args.targetProject,
         mode: args.mode,
-        highWaterEdgeId: initialHighWaterEdgeId,
+        highWaterEdgeId: null,
         phase: "scan",
         cursor: null,
         completedPages: 0,
@@ -283,7 +286,8 @@ async function processEdge(
   snapshot: DocumentSnapshot,
   mode: BackfillMode,
 ): Promise<SocialBackfillCounts> {
-  const source = parseSocialEdgeProjection(snapshot, snapshot.id);
+  const parsedSource = parseSocialEdgeBackfillSource(snapshot, snapshot.id);
+  const source = parsedSource.projection;
   await requireProfileCounters(mirrorFirestores, source);
   const plan = await destinationPlan(
     mirrorFirestores,
@@ -294,6 +298,7 @@ async function processEdge(
     return Object.freeze({
       ...emptyCounts(),
       listed: 1,
+      authorityWrites: plan.writes === 0 ? 0 : 1,
       destinationWrites: plan.writes === 0 ? 0 : mirrorFirestores.length,
     });
   }
@@ -308,6 +313,8 @@ async function processEdge(
     following: source.following,
     operationId: socialEdgeBackfillOperationId(snapshot.id),
     sourceEventId: "p21SocialEdgeBackfill",
+    existingProjectionParser: (current, expectedEdgeId) =>
+      parseSocialEdgeBackfillSource(current, expectedEdgeId).projection,
   });
   if (!result.accepted) {
     throw new Error("Social edge backfill operation failed.");
@@ -315,6 +322,7 @@ async function processEdge(
   return Object.freeze({
     ...emptyCounts(),
     listed: 1,
+    authorityWrites: Number(!result.replayed),
     destinationWrites: result.replayed ?
       plan.writes : mirrorFirestores.length,
     operationCommands: Number(!result.replayed),
@@ -329,9 +337,12 @@ function nextCheckpoint(
   pageCounts: SocialBackfillCounts,
 ): SocialBackfillCheckpoint {
   const totals = addCounts(current.totals, pageCounts);
+  const highWaterEdgeId = current.phase === "scan" && lastId !== null ?
+    lastId : current.highWaterEdgeId;
   if (hasNextPage) {
     return Object.freeze({
       ...current,
+      highWaterEdgeId,
       cursor: lastId,
       completedPages: current.completedPages + 1,
       totals,
@@ -340,6 +351,7 @@ function nextCheckpoint(
   if (current.phase === "scan") {
     return Object.freeze({
       ...current,
+      highWaterEdgeId,
       phase: "reconcile",
       cursor: null,
       completedPages: current.completedPages + 1,
@@ -348,6 +360,7 @@ function nextCheckpoint(
   }
   return Object.freeze({
     ...current,
+    highWaterEdgeId,
     phase: "complete",
     cursor: null,
     completedPages: current.completedPages + 1,
@@ -389,14 +402,7 @@ async function main(): Promise<void> {
   let pagesThisRun = 0;
   let checkpoint: SocialBackfillCheckpoint | null = null;
   try {
-    const highWater = await authorityFirestore.collection("socialEdges")
-      .orderBy(FieldPath.documentId(), "desc")
-      .limit(1)
-      .get();
-    checkpoint = await readCheckpoint(
-      args,
-      highWater.docs[0]?.id ?? null,
-    );
+    checkpoint = await readCheckpoint(args);
     if (checkpoint.phase === "complete") {
       await writeProgress(args, checkpoint);
       console.log("Social edge backfill checkpoint is already complete.");
@@ -405,11 +411,15 @@ async function main(): Promise<void> {
     while (checkpoint.phase !== "complete" &&
         (args.maxPages === null || pagesThisRun < args.maxPages)) {
       let documents: QueryDocumentSnapshot[] = [];
-      if (checkpoint.highWaterEdgeId !== null) {
+      if (checkpoint.phase === "scan" ||
+          checkpoint.highWaterEdgeId !== null) {
         let query = authorityFirestore.collection("socialEdges")
           .orderBy(FieldPath.documentId())
-          .endAt(checkpoint.highWaterEdgeId)
           .limit(args.pageSize);
+        if (checkpoint.phase === "reconcile" &&
+            checkpoint.highWaterEdgeId !== null) {
+          query = query.endAt(checkpoint.highWaterEdgeId);
+        }
         if (checkpoint.cursor !== null) {
           query = query.startAfter(checkpoint.cursor);
         }

@@ -3,15 +3,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {Timestamp} from "firebase-admin/firestore";
+import {
+  type DocumentSnapshot,
+  Timestamp,
+} from "firebase-admin/firestore";
 
 import {
+  parseSocialEdgeBackfillSource,
   shouldWriteSocialEdge,
   socialEdgeBackfillOperationId,
 } from "../src/socialEdgeBackfill";
 import {
   parseSocialEdgeBackfillArgs,
 } from "../src/scripts/backfillSocialEdges";
+import {socialEdgeId} from "../src/socialEdgeReplication";
 
 const NOW = Timestamp.fromMillis(1_800_000_000_000);
 const EDGE = Object.freeze({
@@ -22,6 +27,17 @@ const EDGE = Object.freeze({
   createdAt: NOW,
   updatedAt: NOW,
 });
+
+function snapshot(
+  id: string,
+  data: Record<string, unknown>,
+): DocumentSnapshot {
+  return {
+    exists: true,
+    id,
+    data: () => data,
+  } as unknown as DocumentSnapshot;
+}
 
 test("social edge backfill operation IDs are stable and edge-bound", () => {
   assert.equal(
@@ -46,6 +62,26 @@ test("social edge backfill accepts only missing or older destinations", () => {
     EDGE,
     {...EDGE, following: false},
   ));
+});
+
+test("social edge backfill upgrades the exact legacy active shape", () => {
+  const edgeId = socialEdgeId(EDGE.followerUid, EDGE.followeeUid);
+  const parsed = parseSocialEdgeBackfillSource(snapshot(edgeId, {
+    followerUid: EDGE.followerUid,
+    followeeUid: EDGE.followeeUid,
+    createdAt: NOW,
+  }), edgeId);
+  assert.equal(parsed.legacy, true);
+  assert.deepEqual(parsed.projection, {
+    ...EDGE,
+    revision: 1,
+  });
+  assert.throws(() => parseSocialEdgeBackfillSource(snapshot(edgeId, {
+    followerUid: EDGE.followerUid,
+    followeeUid: EDGE.followeeUid,
+    createdAt: NOW,
+    unknown: true,
+  }), edgeId));
 });
 
 test("social edge apply requires an exact target confirmation", () => {

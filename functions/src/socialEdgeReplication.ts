@@ -65,6 +65,10 @@ export interface ExecuteSocialEdgeCommandInput {
   readonly following: boolean;
   readonly operationId: unknown;
   readonly sourceEventId: string;
+  readonly existingProjectionParser?: (
+    snapshot: DocumentSnapshot,
+    expectedEdgeId: string,
+  ) => SocialEdgeProjection;
 }
 
 /** Replicates one follower-owned directed edge and its derived counts. */
@@ -147,8 +151,10 @@ export async function executeSocialEdgeCommand(
       }
 
       const previous = entity.exists ?
-        parseSocialEdgeProjection(entity, edgeId) :
-        undefined;
+        (input.existingProjectionParser ?? parseSocialEdgeProjection)(
+          entity,
+          edgeId,
+        ) : undefined;
       applySocialCounterTransition({
         transaction,
         followerProfileRef,
