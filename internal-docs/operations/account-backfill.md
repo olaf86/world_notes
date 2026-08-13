@@ -113,3 +113,21 @@ the convergence signals and should all be zero after a successful apply.
 Do not activate a new content or home world from this command. Catalog
 activation remains a separate reviewed P22 change after the post-apply report,
 synthetic traffic, and operational checks pass.
+
+## Production execution record — 2026-08-13
+
+The migration completed against `world-notes-prod`:
+
+- the initial dry-run examined two eligible Auth accounts over two passes;
+- no account was created after the fixed high-water time;
+- the apply pass wrote 12 Asia authority documents, four copies of each
+  regional mirror type, and two Auth home-claim caches;
+- the apply reconciliation pass planned and performed zero further writes;
+- a separate two-pass post-apply dry-run reported zero authority, mirror, and
+  Auth-claim writes in both passes;
+- no revision conflict or invalid account bundle was observed;
+- no regional content was moved or deleted.
+
+The account authority and mirror migration is therefore converged at the
+recorded high-water mark. Keep North America and Europe out of content/home
+activation until the remaining P21 inventory and activation gates pass.

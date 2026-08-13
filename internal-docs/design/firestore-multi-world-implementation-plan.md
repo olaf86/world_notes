@@ -1325,6 +1325,13 @@ second pass to the initial high-water time, emits content-free counts, and
 never deletes or relocates content. Production execution remains gated on the
 reviewed dry-run procedure in `internal-docs/operations/account-backfill.md`.
 
+Production result (2026-08-13): both existing Auth accounts were assigned to
+Asia and received complete Asia authorities, North America/Europe account
+mirrors, and Auth home caches. The apply reconciliation and a separate
+two-pass post-apply dry-run both reported zero residual writes, with no
+revision conflict, invalid bundle, high-water skip, content move, or delete.
+The account portion of P21 is complete; catalog activation remains closed.
+
 Activation sequence for each new world:
 
 1. provision protected empty resources;
