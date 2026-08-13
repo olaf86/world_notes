@@ -3,15 +3,11 @@
 import {writeFile} from "node:fs/promises";
 
 import {deleteApp, initializeApp} from "firebase-admin/app";
-import {
-  type Firestore,
-  type Query,
-} from "firebase-admin/firestore";
 
 import {
   evaluateActivationDataInventory,
-  type WorldActivationDataCounts,
 } from "../activationDataInventory";
+import {collectWorldActivationData} from "../activationDataInventoryFirestore";
 import {
   createAdminWorldFirestoreClient,
   type WorldFirestoreDatabaseId,
@@ -48,63 +44,12 @@ export function parseActivationInventoryArgs(
   return Object.freeze({projectId, reportPath});
 }
 
-async function count(query: Query): Promise<number> {
-  return (await query.count().get()).data().count;
-}
-
-async function collectWorld(
-  worldId: string,
-  firestore: Firestore,
-): Promise<WorldActivationDataCounts> {
-  const [
-    userHomes,
-    privateUsers,
-    publicProfiles,
-    userEntitlements,
-    userUsage,
-    accountSafety,
-    socialEdges,
-    blockedUsers,
-    places,
-    pendingGlobalOperations,
-    failedGlobalOperations,
-  ] = await Promise.all([
-    count(firestore.collection("userHomes")),
-    count(firestore.collection("users")),
-    count(firestore.collection("publicProfiles")),
-    count(firestore.collection("userEntitlements")),
-    count(firestore.collection("userUsage")),
-    count(firestore.collection("accountSafety")),
-    count(firestore.collection("socialEdges")),
-    count(firestore.collectionGroup("blockedUsers")),
-    count(firestore.collection("places")),
-    count(firestore.collection("globalOperations")
-      .where("status", "==", "pending")),
-    count(firestore.collection("globalOperations")
-      .where("status", "==", "failed")),
-  ]);
-  return Object.freeze({
-    worldId,
-    userHomes,
-    privateUsers,
-    publicProfiles,
-    userEntitlements,
-    userUsage,
-    accountSafety,
-    socialEdges,
-    blockedUsers,
-    places,
-    pendingGlobalOperations,
-    failedGlobalOperations,
-  });
-}
-
 async function main(): Promise<void> {
   const args = parseActivationInventoryArgs(process.argv.slice(2));
   const app = initializeApp({projectId: args.projectId});
   try {
     const worlds = await Promise.all(WORLD_CATALOG.worlds.map((world) =>
-      collectWorld(
+      collectWorldActivationData(
         world.worldId,
         createAdminWorldFirestoreClient(
           app,

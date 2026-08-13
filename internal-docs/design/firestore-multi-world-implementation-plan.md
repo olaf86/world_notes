@@ -1350,6 +1350,15 @@ checks with one edge in every world and zero pending or failed global
 operations. P21 is complete; P22 catalog activation remains a separately
 reviewed, one-world-at-a-time change.
 
+Implementation note (2026-08-13): P22 starts with North America while Europe
+remains unchanged. A target-bound mirror-only smoke gate requires exact
+project/world confirmation, rechecks the P21 count and operation-backlog
+invariants, exercises a deployed composite index, and performs one transient
+Admin SDK create/transaction/read/delete round trip in only the target
+database. It verifies cleanup before reporting success and exposes no account
+or content identity. This gate does not itself enable content or home
+assignment.
+
 Activation sequence for each new world:
 
 1. provision protected empty resources;

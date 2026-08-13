@@ -21,6 +21,7 @@
     "backfill:accounts": "npm run build && node lib/scripts/backfillAccounts.js",
     "backfill:social-edges": "npm run build && node lib/scripts/backfillSocialEdges.js",
     "inventory:activation-data": "npm run build && node lib/scripts/inventoryActivationData.js",
+    "smoke:mirror-only-world": "npm run build && node lib/scripts/smokeMirrorOnlyWorld.js",
     "seed:screenshot": "npm run build && node lib/scripts/seedScreenshotData.js",
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
