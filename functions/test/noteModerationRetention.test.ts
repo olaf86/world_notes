@@ -14,7 +14,7 @@ import {HIDDEN_CONTENT_RETENTION_MILLIS} from "../src/moderationRetention";
 import {
   enqueueHiddenNoteRetention,
   hiddenNoteRetentionHandler,
-  noteRetentionAuditId,
+  noteRetentionEvidenceId,
   PURGE_HIDDEN_NOTE_JOB,
 } from "../src/noteModerationRetention";
 
@@ -35,7 +35,7 @@ test("hidden note retention starts at one exact 30-day deadline", () => {
   enqueueHiddenNoteRetention(transaction, firestore, {
     world: "asia",
     placeId: "place-1",
-    hiddenAt: HIDDEN_AT,
+    retentionStartedAt: HIDDEN_AT,
   });
 
   assert.equal(writes.length, 2);
@@ -53,14 +53,15 @@ test("hidden note retention starts at one exact 30-day deadline", () => {
     HIDDEN_AT.toMillis() + HIDDEN_CONTENT_RETENTION_MILLIS,
   );
   assert.equal(targetWrite.data.targetPath, "places/place-1");
+  assert.equal(targetWrite.data.retentionStartedAt, HIDDEN_AT);
 });
 
 test("note retention evidence has one path-safe target identity", () => {
-  const first = noteRetentionAuditId("place-1");
+  const first = noteRetentionEvidenceId("place-1");
 
   assert.match(first, /^noteRetention_[0-9a-f]{64}$/);
-  assert.equal(noteRetentionAuditId("place-1"), first);
-  assert.notEqual(noteRetentionAuditId("place-2"), first);
+  assert.equal(noteRetentionEvidenceId("place-1"), first);
+  assert.notEqual(noteRetentionEvidenceId("place-2"), first);
 });
 
 test("hidden note retention owns its cleanup job type", () => {

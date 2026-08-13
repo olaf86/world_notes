@@ -336,8 +336,8 @@ void main() {
     for (final fieldPath in <String>[
       'moderationInputHash',
       'activeNoteSlotReleasedAt',
-      'moderationHiddenAt',
-      'moderationPurgeStartedAt',
+      'moderationRetentionStartedAt',
+      'moderationRetentionPurgeStartedAt',
       'moderationHiddenJobId',
       'moderationSafetyAppliedAt',
       'pinImageCandidate',

@@ -331,12 +331,12 @@
     },
     {
       "collectionGroup": "places",
-      "fieldPath": "moderationHiddenAt",
+      "fieldPath": "moderationRetentionStartedAt",
       "indexes": []
     },
     {
       "collectionGroup": "places",
-      "fieldPath": "moderationPurgeStartedAt",
+      "fieldPath": "moderationRetentionPurgeStartedAt",
       "indexes": []
     },
     {

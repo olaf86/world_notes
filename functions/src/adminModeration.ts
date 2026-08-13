@@ -9,12 +9,12 @@ import {
 import {MAX_MESSAGES_PER_THREAD, REGION} from "./constants";
 import {
   enqueueHiddenMessageRetention,
-  messageRetentionAuditId,
+  messageRetentionEvidenceId,
 } from "./messageModerationRetention";
 import {noteModerationActiveCountDelta} from "./noteModeration";
 import {
   enqueueHiddenNoteRetention,
-  noteRetentionAuditId,
+  noteRetentionEvidenceId,
 } from "./noteModerationRetention";
 
 const DEFAULT_REVIEW_LIST_LIMIT = 20;
@@ -431,9 +431,9 @@ export const adminReviewMessage = onCall<AdminReviewMessageData>(
     const reviewRef = db
       .collection("moderationReviews")
       .doc(`${input.placeId}_${input.messageId}`);
-    const auditRef = db.collection("moderationAuditLogs").doc();
-    const retentionAuditRef = db.collection("moderationAuditLogs").doc(
-      messageRetentionAuditId(input.placeId, input.messageId),
+    const adminDecisionAuditRef = db.collection("moderationAuditLogs").doc();
+    const retentionEvidenceRef = db.collection("moderationAuditLogs").doc(
+      messageRetentionEvidenceId(input.placeId, input.messageId),
     );
     const reviewedAt = Timestamp.now();
     const reportResolutionStatus =
@@ -450,20 +450,20 @@ export const adminReviewMessage = onCall<AdminReviewMessageData>(
         messageSnap,
         reviewSnap,
         reportsSnap,
-        retentionAuditSnap,
+        retentionEvidence,
       ] =
         await Promise.all([
           tx.get(placeRef),
           tx.get(messageRef),
           tx.get(reviewRef),
           tx.get(reportsQuery),
-          tx.get(retentionAuditRef),
+          tx.get(retentionEvidenceRef),
         ]);
       if (!placeSnap.exists) {
         throw new HttpsError("not-found", "Note not found.");
       }
       if (!messageSnap.exists) {
-        if (retentionAuditSnap.exists) {
+        if (retentionEvidence.exists) {
           throw new HttpsError(
             "failed-precondition",
             "This message can no longer be restored after retention cleanup.",
@@ -566,7 +566,7 @@ export const adminReviewMessage = onCall<AdminReviewMessageData>(
         targetId: input.messageId,
         targetPath: `places/${input.placeId}/messages/${input.messageId}`,
       });
-      tx.set(auditRef, {
+      tx.set(adminDecisionAuditRef, {
         worldId: world.worldId,
         eventType: "adminDecision",
         actorType: "admin",
@@ -622,9 +622,9 @@ export const adminReviewNote = onCall<AdminReviewNoteData>(
     const reviewRef = db
       .collection("moderationReviews")
       .doc(`note_${input.placeId}`);
-    const auditRef = db.collection("moderationAuditLogs").doc();
-    const retentionAuditRef = db.collection("moderationAuditLogs")
-      .doc(noteRetentionAuditId(input.placeId));
+    const adminDecisionAuditRef = db.collection("moderationAuditLogs").doc();
+    const retentionEvidenceRef = db.collection("moderationAuditLogs")
+      .doc(noteRetentionEvidenceId(input.placeId));
     const reviewedAt = Timestamp.now();
     const reportResolutionStatus =
       input.action === "allow" ? "rejected" : "accepted";
@@ -635,15 +635,15 @@ export const adminReviewNote = onCall<AdminReviewNoteData>(
         .where("targetType", "==", "note")
         .where("targetId", "==", input.placeId)
         .where("status", "==", "open");
-      const [placeSnap, reviewSnap, reportsSnap, retentionAuditSnap] =
+      const [placeSnap, reviewSnap, reportsSnap, retentionEvidence] =
         await Promise.all([
           tx.get(placeRef),
           tx.get(reviewRef),
           tx.get(reportsQuery),
-          tx.get(retentionAuditRef),
+          tx.get(retentionEvidenceRef),
         ]);
       if (!placeSnap.exists) {
-        if (retentionAuditSnap.exists) {
+        if (retentionEvidence.exists) {
           throw new HttpsError(
             "failed-precondition",
             "This note can no longer be restored after retention cleanup.",
@@ -654,7 +654,8 @@ export const adminReviewNote = onCall<AdminReviewNoteData>(
       }
       const hidden = input.action !== "allow";
       if (!hidden &&
-          placeSnap.get("moderationPurgeStartedAt") instanceof Timestamp) {
+          placeSnap.get("moderationRetentionPurgeStartedAt") instanceof
+            Timestamp) {
         throw new HttpsError(
           "failed-precondition",
           "This note can no longer be restored after retention cleanup.",
@@ -692,13 +693,16 @@ export const adminReviewNote = onCall<AdminReviewNoteData>(
       }
       const releasingActiveNoteSlot = activeNoteCountDelta === -1;
       const restoringActiveNoteSlot = !hidden && activeNoteSlotReleased;
-      const currentHiddenAt = placeSnap.get("moderationHiddenAt");
-      const existingHiddenAt =
+      const currentRetentionStartedAt = placeSnap.get(
+        "moderationRetentionStartedAt",
+      );
+      const existingRetentionStartedAt =
         placeSnap.get("moderationAction") === "hidden" &&
         placeSnap.get("isModerationHidden") === true &&
-        currentHiddenAt instanceof Timestamp ? currentHiddenAt : null;
-      const startsRetention = hidden && existingHiddenAt === null;
-      const hiddenAt = existingHiddenAt ?? reviewedAt;
+        currentRetentionStartedAt instanceof Timestamp ?
+          currentRetentionStartedAt : null;
+      const startsRetention = hidden && existingRetentionStartedAt === null;
+      const retentionStartedAt = existingRetentionStartedAt ?? reviewedAt;
       tx.update(placeRef, {
         moderationAction: hidden ? "hidden" : "allow",
         isModerationHidden: hidden,
@@ -717,9 +721,9 @@ export const adminReviewNote = onCall<AdminReviewNoteData>(
             activeNoteSlotReleasedAt: null,
           } : {}),
         }),
-        moderationHiddenAt: hidden ? hiddenAt : null,
-        moderationPurgeStartedAt: hidden ?
-          placeSnap.get("moderationPurgeStartedAt") ?? null : null,
+        moderationRetentionStartedAt: hidden ? retentionStartedAt : null,
+        moderationRetentionPurgeStartedAt: hidden ?
+          placeSnap.get("moderationRetentionPurgeStartedAt") ?? null : null,
         reviewRequired: false,
         moderationReviewedAt: reviewedAt,
         moderationReviewedBy: uid,
@@ -729,7 +733,7 @@ export const adminReviewNote = onCall<AdminReviewNoteData>(
         enqueueHiddenNoteRetention(tx, db, {
           world: world.worldId,
           placeId: input.placeId,
-          hiddenAt,
+          retentionStartedAt,
         });
       }
       tx.update(reviewRef, {
@@ -743,7 +747,7 @@ export const adminReviewNote = onCall<AdminReviewNoteData>(
         targetId: input.placeId,
         targetPath: `places/${input.placeId}`,
       });
-      tx.set(auditRef, {
+      tx.set(adminDecisionAuditRef, {
         worldId: world.worldId,
         eventType: "adminDecision",
         actorType: "admin",

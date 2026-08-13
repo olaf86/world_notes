@@ -13,7 +13,7 @@ import {parseCleanupJob} from "../src/cleanupJobs";
 import {
   enqueueHiddenMessageRetention,
   hiddenMessageRetentionHandler,
-  messageRetentionAuditId,
+  messageRetentionEvidenceId,
   PURGE_HIDDEN_MESSAGE_JOB,
 } from "../src/messageModerationRetention";
 import {HIDDEN_CONTENT_RETENTION_MILLIS} from "../src/moderationRetention";
@@ -60,11 +60,11 @@ test("hidden message retention starts at one exact 30-day deadline", () => {
 });
 
 test("message retention evidence has one path-safe target identity", () => {
-  const first = messageRetentionAuditId("place-1", "message-1");
+  const first = messageRetentionEvidenceId("place-1", "message-1");
 
   assert.match(first, /^messageRetention_[0-9a-f]{64}$/);
-  assert.equal(messageRetentionAuditId("place-1", "message-1"), first);
-  assert.notEqual(messageRetentionAuditId("place-2", "message-1"), first);
+  assert.equal(messageRetentionEvidenceId("place-1", "message-1"), first);
+  assert.notEqual(messageRetentionEvidenceId("place-2", "message-1"), first);
 });
 
 test("hidden message retention owns its cleanup job type", () => {

@@ -265,8 +265,8 @@ async function finalizeNoteModeration(
       update.isOpen = false;
       update.wasOpenBeforeModeration = place.get("isOpen") === true;
       update.activeNoteSlotReleasedAt = checkedAt;
-      update.moderationHiddenAt = checkedAt;
-      update.moderationPurgeStartedAt = null;
+      update.moderationRetentionStartedAt = checkedAt;
+      update.moderationRetentionPurgeStartedAt = null;
       update.moderationHiddenJobId = context.jobId;
       update.moderationSafetyAppliedAt = null;
       transaction.set(usageRef, {
@@ -276,7 +276,7 @@ async function finalizeNoteModeration(
       enqueueHiddenNoteRetention(transaction, context.firestore, {
         world: context.job.world,
         placeId: target.placeId,
-        hiddenAt: checkedAt,
+        retentionStartedAt: checkedAt,
       });
     }
     transaction.update(placeRef, update);

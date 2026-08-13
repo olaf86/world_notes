@@ -51,12 +51,12 @@ interface HiddenMessageRetentionCursor {
 }
 
 /** Returns the sole post-purge evidence ID for one message identity. */
-export function messageRetentionAuditId(
+export function messageRetentionEvidenceId(
   placeId: string,
   messageId: string,
 ): string {
   if (placeId.length === 0 || messageId.length === 0) {
-    throw new Error("Message retention audit identity is invalid.");
+    throw new Error("Message retention evidence identity is invalid.");
   }
   const identity = createHash("sha256")
     .update(JSON.stringify([placeId, messageId]), "utf8")
@@ -226,7 +226,7 @@ async function purgeHiddenMessageBatch(
     }
     tx.set(
       firestore.collection("moderationAuditLogs")
-        .doc(messageRetentionAuditId(target.placeId, target.messageId)),
+        .doc(messageRetentionEvidenceId(target.placeId, target.messageId)),
       moderationEvidenceData({
         target,
         message,

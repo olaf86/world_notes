@@ -33,59 +33,76 @@ const NOTE_RETENTION_TARGET_FIELDS = new Set([
   "targetPath",
   "placeId",
   "world",
-  "hiddenAt",
+  "retentionStartedAt",
   "createdAt",
 ]);
-const NOTE_PURGE_STAGE = Object.freeze({
-  messages: "purgingMessages",
-  likes: "purgingLikes",
-  visitors: "purgingVisitors",
-  members: "purgingMembers",
-  attempts: "purgingAttempts",
-  administrators: "purgingAdministrators",
-  administratorAudits: "purgingAdministratorAudits",
-  counters: "purgingCounters",
-  secret: "purgingSecret",
-  reports: "purgingReports",
-  reviews: "purgingModerationReviews",
-  invitations: "purgingAdministratorInvitations",
-  place: "purgingPlace",
-} as const);
+type NotePurgeStepDefinition =
+  | Readonly<{stage: string; kind: "messages"}>
+  | Readonly<{stage: string; kind: "subcollection"; collection: string}>
+  | Readonly<{stage: string; kind: "topLevel"; collection: string}>
+  | Readonly<{stage: string; kind: "place"}>;
 
-type NotePurgeStage = typeof NOTE_PURGE_STAGE[keyof typeof NOTE_PURGE_STAGE];
+// This is the single ownership catalog for note-scoped Firestore data.
+// Specialized message cleanup runs first because it also owns Storage files.
+const NOTE_PURGE_PLAN = [
+  {stage: "purgingMessages", kind: "messages"},
+  {stage: "purgingLikes", kind: "subcollection", collection: "likes"},
+  {
+    stage: "purgingVisitors",
+    kind: "subcollection",
+    collection: "visitors",
+  },
+  {stage: "purgingMembers", kind: "subcollection", collection: "members"},
+  {
+    stage: "purgingAttempts",
+    kind: "subcollection",
+    collection: "attempts",
+  },
+  {
+    stage: "purgingAdministrators",
+    kind: "subcollection",
+    collection: "administrators",
+  },
+  {
+    stage: "purgingAdministratorAudits",
+    kind: "subcollection",
+    collection: "administratorAudits",
+  },
+  {
+    stage: "purgingCounters",
+    kind: "subcollection",
+    collection: "counters",
+  },
+  {stage: "purgingSecret", kind: "subcollection", collection: "secret"},
+  {stage: "purgingReports", kind: "topLevel", collection: "reports"},
+  {
+    stage: "purgingModerationReviews",
+    kind: "topLevel",
+    collection: "moderationReviews",
+  },
+  {
+    stage: "purgingAdministratorInvitations",
+    kind: "topLevel",
+    collection: "noteAdministratorInvitations",
+  },
+  {stage: "purgingPlace", kind: "place"},
+] as const satisfies readonly NotePurgeStepDefinition[];
 
-const NOTE_PURGE_STAGES: readonly NotePurgeStage[] = [
-  NOTE_PURGE_STAGE.messages,
-  NOTE_PURGE_STAGE.likes,
-  NOTE_PURGE_STAGE.visitors,
-  NOTE_PURGE_STAGE.members,
-  NOTE_PURGE_STAGE.attempts,
-  NOTE_PURGE_STAGE.administrators,
-  NOTE_PURGE_STAGE.administratorAudits,
-  NOTE_PURGE_STAGE.counters,
-  NOTE_PURGE_STAGE.secret,
-  NOTE_PURGE_STAGE.reports,
-  NOTE_PURGE_STAGE.reviews,
-  NOTE_PURGE_STAGE.invitations,
-  NOTE_PURGE_STAGE.place,
-];
+type NotePurgeStep = typeof NOTE_PURGE_PLAN[number];
+type NotePurgeStage = NotePurgeStep["stage"];
 
-const NOTE_SUBCOLLECTION_BY_STAGE = new Map<NotePurgeStage, string>([
-  [NOTE_PURGE_STAGE.likes, "likes"],
-  [NOTE_PURGE_STAGE.visitors, "visitors"],
-  [NOTE_PURGE_STAGE.members, "members"],
-  [NOTE_PURGE_STAGE.attempts, "attempts"],
-  [NOTE_PURGE_STAGE.administrators, "administrators"],
-  [NOTE_PURGE_STAGE.administratorAudits, "administratorAudits"],
-  [NOTE_PURGE_STAGE.counters, "counters"],
-  [NOTE_PURGE_STAGE.secret, "secret"],
-]);
+const NOTE_PURGE_STEP_BY_STAGE = new Map(
+  NOTE_PURGE_PLAN.map((step) => [step.stage, step] as const),
+);
+if (NOTE_PURGE_STEP_BY_STAGE.size !== NOTE_PURGE_PLAN.length) {
+  throw new Error("Hidden note purge stages must be unique.");
+}
 
 interface HiddenNoteRetentionTarget {
   readonly targetPath: string;
   readonly placeId: string;
   readonly world: string;
-  readonly hiddenAt: Timestamp;
+  readonly retentionStartedAt: Timestamp;
   readonly createdAt: Timestamp;
 }
 
@@ -95,9 +112,9 @@ interface HiddenNoteRetentionCursor {
 }
 
 /** Returns the sole post-purge evidence ID for one note identity. */
-export function noteRetentionAuditId(placeId: string): string {
+export function noteRetentionEvidenceId(placeId: string): string {
   if (placeId.length === 0) {
-    throw new Error("Note retention audit identity is invalid.");
+    throw new Error("Note retention evidence identity is invalid.");
   }
   const identity = createHash("sha256")
     .update(JSON.stringify([placeId]), "utf8")
@@ -112,11 +129,11 @@ export function enqueueHiddenNoteRetention(
   input: Readonly<{
     world: string;
     placeId: string;
-    hiddenAt: Timestamp;
+    retentionStartedAt: Timestamp;
   }>,
 ): void {
   const targetPath = `places/${input.placeId}`;
-  const revision = input.hiddenAt.toMillis();
+  const revision = input.retentionStartedAt.toMillis();
   const operationIdentity = createHash("sha256")
     .update(JSON.stringify([input.placeId, revision]), "utf8")
     .digest("hex");
@@ -134,7 +151,7 @@ export function enqueueHiddenNoteRetention(
   transaction.create(
     firestore.doc(cleanupJobPath("firestore", jobId)),
     {
-      ...newCleanupJobData(jobInput, input.hiddenAt),
+      ...newCleanupJobData(jobInput, input.retentionStartedAt),
       nextAttemptAt: Timestamp.fromMillis(
         revision + HIDDEN_CONTENT_RETENTION_MILLIS,
       ),
@@ -146,8 +163,8 @@ export function enqueueHiddenNoteRetention(
       targetPath,
       placeId: input.placeId,
       world: input.world,
-      hiddenAt: input.hiddenAt,
-      createdAt: input.hiddenAt,
+      retentionStartedAt: input.retentionStartedAt,
+      createdAt: input.retentionStartedAt,
     },
   );
 }
@@ -171,7 +188,7 @@ export const hiddenNoteRetentionHandler: CleanupJobHandler = {
         targetRef,
         target,
       );
-      return claimed ? incompleteCursor(NOTE_PURGE_STAGE.messages, 0) :
+      return claimed ? incompleteCursor(NOTE_PURGE_PLAN[0].stage, 0) :
         {complete: true};
     }
 
@@ -199,12 +216,15 @@ async function claimHiddenNotePurge(
   return firestore.runTransaction(async (tx) => {
     const placeRef = firestore.doc(target.targetPath);
     const place = await tx.get(placeRef);
-    if (!isCurrentHiddenNote(place, target.hiddenAt)) {
+    if (!isCurrentHiddenNote(place, target.retentionStartedAt)) {
       tx.delete(targetRef);
       return false;
     }
-    if (!(place.get("moderationPurgeStartedAt") instanceof Timestamp)) {
-      tx.update(placeRef, {moderationPurgeStartedAt: Timestamp.now()});
+    if (!(place.get("moderationRetentionPurgeStartedAt") instanceof
+        Timestamp)) {
+      tx.update(placeRef, {
+        moderationRetentionPurgeStartedAt: Timestamp.now(),
+      });
     }
     return true;
   });
@@ -214,33 +234,30 @@ async function processPurgeStage(
   context: CleanupBatchContext,
   targetRef: FirebaseFirestore.DocumentReference,
   target: HiddenNoteRetentionTarget,
-  stage: NotePurgeStage,
+  stageName: NotePurgeStage,
 ): Promise<boolean> {
-  if (stage === NOTE_PURGE_STAGE.messages) {
+  const step = NOTE_PURGE_STEP_BY_STAGE.get(stageName);
+  if (step === undefined) {
+    throw new Error("Hidden note purge stage is unsupported.");
+  }
+  if (step.kind === "messages") {
     return purgeMessageBatch(context, target);
   }
-  const subcollection = NOTE_SUBCOLLECTION_BY_STAGE.get(stage);
-  if (subcollection !== undefined) {
-    return purgeSubcollectionBatch(context.firestore, target, subcollection);
+  if (step.kind === "subcollection") {
+    return purgeSubcollectionBatch(
+      context.firestore,
+      target,
+      step.collection,
+    );
   }
-  if (stage === NOTE_PURGE_STAGE.reports) {
-    return purgeTopLevelBatch(context.firestore, target, "reports");
-  }
-  if (stage === NOTE_PURGE_STAGE.reviews) {
+  if (step.kind === "topLevel") {
     return purgeTopLevelBatch(
       context.firestore,
       target,
-      "moderationReviews",
+      step.collection,
     );
   }
-  if (stage === NOTE_PURGE_STAGE.invitations) {
-    return purgeTopLevelBatch(
-      context.firestore,
-      target,
-      "noteAdministratorInvitations",
-    );
-  }
-  if (stage === NOTE_PURGE_STAGE.place) {
+  if (step.kind === "place") {
     await purgePlace(context, targetRef, target);
     return true;
   }
@@ -260,15 +277,15 @@ async function purgeMessageBatch(
       tx.get(placeRef),
       tx.get(messagesQuery),
     ]);
-    requirePurgeBarrier(place, target.hiddenAt);
+    requirePurgeBarrier(place, target.retentionStartedAt);
     if (messages.empty) return true;
 
     const message = messages.docs[0];
     const likes = await tx.get(message.ref.collection("messageLikes")
       .orderBy(FieldPath.documentId())
       .limit(DELETE_BATCH_SIZE));
-    if (!likes.empty) {
-      for (const like of likes.docs) tx.delete(like.ref);
+    for (const like of likes.docs) tx.delete(like.ref);
+    if (likes.size === DELETE_BATCH_SIZE) {
       return false;
     }
 
@@ -305,9 +322,9 @@ async function purgeSubcollectionBatch(
       tx.get(placeRef),
       tx.get(query),
     ]);
-    requirePurgeBarrier(place, target.hiddenAt);
+    requirePurgeBarrier(place, target.retentionStartedAt);
     for (const document of documents.docs) tx.delete(document.ref);
-    return documents.empty;
+    return documents.size < DELETE_BATCH_SIZE;
   });
 }
 
@@ -325,9 +342,9 @@ async function purgeTopLevelBatch(
       tx.get(placeRef),
       tx.get(query),
     ]);
-    requirePurgeBarrier(place, target.hiddenAt);
+    requirePurgeBarrier(place, target.retentionStartedAt);
     for (const document of documents.docs) tx.delete(document.ref);
-    return documents.empty;
+    return documents.size < DELETE_BATCH_SIZE;
   });
 }
 
@@ -337,9 +354,16 @@ async function purgePlace(
   target: HiddenNoteRetentionTarget,
 ): Promise<void> {
   const placeRef = context.firestore.doc(target.targetPath);
+  const remainingSubcollections = await placeRef.listCollections();
+  if (remainingSubcollections.length !== 0) {
+    throw new Error(
+      "Hidden note has unregistered or incompletely purged subcollections: " +
+      remainingSubcollections.map((collection) => collection.id).join(","),
+    );
+  }
   await context.firestore.runTransaction(async (tx) => {
     const place = await tx.get(placeRef);
-    requirePurgeBarrier(place, target.hiddenAt);
+    requirePurgeBarrier(place, target.retentionStartedAt);
     const purgedAt = Timestamp.now();
     for (const objectPath of noteImagePaths(place, target.placeId)) {
       enqueueStorageObjectDeletion(tx, context.firestore, {
@@ -352,7 +376,7 @@ async function purgePlace(
     }
     tx.set(
       context.firestore.collection("moderationAuditLogs")
-        .doc(noteRetentionAuditId(target.placeId)),
+        .doc(noteRetentionEvidenceId(target.placeId)),
       noteModerationEvidenceData(target, place, purgedAt),
     );
     tx.delete(placeRef);
@@ -384,7 +408,7 @@ function noteModerationEvidenceData(
     administratorUid: place.get("moderationReviewedBy") ?? null,
     administratorReason: place.get("moderationReviewReason") ?? null,
     decisionAt: reviewedAt ?? null,
-    hiddenAt: target.hiddenAt,
+    hiddenAt: target.retentionStartedAt,
     purgedAt,
     createdAt: purgedAt,
     expireAt: Timestamp.fromMillis(
@@ -436,9 +460,9 @@ function parseRetentionTarget(
       typeof data.targetPath !== "string" ||
       typeof data.placeId !== "string" || data.placeId.length === 0 ||
       data.world !== expectedWorld ||
-      !(data.hiddenAt instanceof Timestamp) ||
+      !(data.retentionStartedAt instanceof Timestamp) ||
       !(data.createdAt instanceof Timestamp) ||
-      data.createdAt.toMillis() !== data.hiddenAt.toMillis() ||
+      data.createdAt.toMillis() !== data.retentionStartedAt.toMillis() ||
       data.targetPath !== `places/${data.placeId}`) {
     throw new Error("Hidden note retention target is invalid.");
   }
@@ -446,7 +470,7 @@ function parseRetentionTarget(
     targetPath: data.targetPath,
     placeId: data.placeId,
     world: data.world,
-    hiddenAt: data.hiddenAt,
+    retentionStartedAt: data.retentionStartedAt,
     createdAt: data.createdAt,
   });
 }
@@ -457,36 +481,38 @@ function requireTargetMatchesJob(
   revision: number,
 ): void {
   if (target.placeId !== entityId ||
-      target.hiddenAt.toMillis() !== revision) {
+      target.retentionStartedAt.toMillis() !== revision) {
     throw new Error("Hidden note retention job is invalid.");
   }
 }
 
 function isCurrentHiddenNote(
   place: DocumentSnapshot,
-  hiddenAt: Timestamp,
+  retentionStartedAt: Timestamp,
 ): boolean {
-  const currentHiddenAt = place.get("moderationHiddenAt");
+  const currentRetentionStartedAt = place.get(
+    "moderationRetentionStartedAt",
+  );
   return place.exists && place.get("moderationAction") === "hidden" &&
     place.get("isModerationHidden") === true &&
-    currentHiddenAt instanceof Timestamp &&
-    currentHiddenAt.toMillis() === hiddenAt.toMillis();
+    currentRetentionStartedAt instanceof Timestamp &&
+    currentRetentionStartedAt.toMillis() === retentionStartedAt.toMillis();
 }
 
 function requirePurgeBarrier(
   place: DocumentSnapshot,
-  hiddenAt: Timestamp,
+  retentionStartedAt: Timestamp,
 ): void {
-  if (!isCurrentHiddenNote(place, hiddenAt) ||
-      !(place.get("moderationPurgeStartedAt") instanceof Timestamp)) {
+  if (!isCurrentHiddenNote(place, retentionStartedAt) ||
+      !(place.get("moderationRetentionPurgeStartedAt") instanceof Timestamp)) {
     throw new Error("Hidden note changed after cleanup started.");
   }
 }
 
 function stageAfter(stage: NotePurgeStage): NotePurgeStage | null {
-  const index = NOTE_PURGE_STAGES.indexOf(stage);
+  const index = NOTE_PURGE_PLAN.findIndex((step) => step.stage === stage);
   if (index < 0) throw new Error("Hidden note purge stage is invalid.");
-  return NOTE_PURGE_STAGES[index + 1] ?? null;
+  return NOTE_PURGE_PLAN[index + 1]?.stage ?? null;
 }
 
 function incompleteCursor(stage: NotePurgeStage, pass: number) {
@@ -504,7 +530,7 @@ function parseCursor(value: string): HiddenNoteRetentionCursor {
   }
   const cursor = parsed as Record<string, unknown>;
   if (Object.keys(cursor).length !== 2 ||
-      !NOTE_PURGE_STAGES.includes(cursor.stage as NotePurgeStage) ||
+      !NOTE_PURGE_STEP_BY_STAGE.has(cursor.stage as NotePurgeStage) ||
       typeof cursor.pass !== "number" ||
       !Number.isSafeInteger(cursor.pass) || cursor.pass < 0) {
     throw new Error("Hidden note cleanup cursor is invalid.");
