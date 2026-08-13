@@ -73,24 +73,20 @@ nonzero exit status.
 
 ## Current P21 result (2026-08-13)
 
-The read-only run against `world-notes-prod` confirmed all three database
-locations, Standard/Native configuration, delete protection, PITR, one backup
-schedule per database, all three bucket locations, no public bucket IAM member,
-and active state for every currently deployed expected Function. Deployed
-Firestore and Storage Rules match the checked-in source in the North America
-and Europe worlds.
+The production preflight now passes every required check for
+`world-notes-prod`:
 
-The activation gate remains closed because:
+- all three Standard/Native databases have the expected location, delete
+  protection, PITR, and one backup schedule;
+- Firestore and Storage Rules, composite indexes, and TTL policies match the
+  checked-in contract in every world;
+- all three buckets use uniform bucket-level access, enforce public access
+  prevention, and have no public IAM principal;
+- the deployed Function inventory matches the current exports and every
+  expected Function is active;
+- the runtime service account can read objects from all three regional buckets
+  and can sign V4 URLs through `iam.serviceAccounts.signBlob`.
 
-- the Asia Firestore and Storage Rules differ from the checked-in source;
-- the checked-in composite indexes are not deployed to all databases;
-- the checked-in TTL policies are not active;
-- all three buckets still use object ACLs and inherited public access
-  prevention;
-- the regional Function deployment does not yet match the current exports and
-  unexpected older Asia deployments remain;
-- the runtime service account lacks `storage.objects.get` on the three regional
-  buckets and `iam.serviceAccounts.signBlob` on itself.
-
-Do not start backfill until the preflight is rerun with every required check
-passing.
+The infrastructure preflight gate is open. P21 may proceed to dry-run backfill,
+high-water reconciliation, and activation tooling. Passing preflight does not
+itself enable North America or Europe for content or home assignment.
