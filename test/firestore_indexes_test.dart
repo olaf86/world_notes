@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('defines revisioned profile snapshot propagation indexes', () {
+  test('defines only required profile snapshot propagation indexes', () {
     final config = _loadConfig();
 
     expect(
@@ -20,7 +20,8 @@ void main() {
         ('userId', 'ASCENDING'),
         ('__name__', 'ASCENDING'),
       ], queryScope: 'COLLECTION_GROUP'),
-      isTrue,
+      isFalse,
+      reason: 'The members query is covered by single-field indexing.',
     );
   });
 
