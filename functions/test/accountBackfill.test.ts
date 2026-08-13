@@ -125,13 +125,31 @@ test("replicates public identity without replacing social counters", () => {
     followingCount: 10,
   };
   assert.equal(shouldWritePublicProfile(source, destination), false);
-  assert.deepEqual(publicProfileMirrorData(source), {
+  assert.deepEqual(publicProfileMirrorData(source, destination), {
     displayName: "Name",
     photoUrl: null,
     photoVersion: 1,
     revision: 2,
     createdAt: CREATED_AT,
     updatedAt: NOW,
+  });
+  assert.equal(shouldWritePublicProfile(source, {
+    displayName: "Name",
+    photoUrl: null,
+    photoVersion: 1,
+    revision: 2,
+    createdAt: CREATED_AT,
+    updatedAt: NOW,
+  }), true);
+  assert.deepEqual(publicProfileMirrorData(source, null), {
+    displayName: "Name",
+    photoUrl: null,
+    photoVersion: 1,
+    revision: 2,
+    createdAt: CREATED_AT,
+    updatedAt: NOW,
+    followerCount: 0,
+    followingCount: 0,
   });
   assert.throws(() => shouldWritePublicProfile(source, {
     ...destination,

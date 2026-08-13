@@ -258,16 +258,24 @@ export function shouldWritePublicProfile(
   )) {
     throw new Error("Equal-revision public profiles diverge.");
   }
-  return false;
+  return !hasValidSocialCounters(destination);
 }
 
 /** Builds a mirror update without replacing destination social counters. */
 export function publicProfileMirrorData(
   source: Readonly<Record<string, unknown>>,
+  destination: Readonly<Record<string, unknown>> | null,
 ): Readonly<Record<string, unknown>> {
-  return Object.freeze(Object.fromEntries(
+  const identity = Object.fromEntries(
     PUBLIC_PROFILE_REPLICATED_FIELDS.map((field) => [field, source[field]]),
-  ));
+  );
+  return Object.freeze({
+    ...identity,
+    ...(!hasValidSocialCounters(destination) ? {
+      followerCount: 0,
+      followingCount: 0,
+    } : {}),
+  });
 }
 
 /** Returns whether a destination home marker needs to be copied. */
@@ -390,6 +398,19 @@ function hasMatchingFields(
   return fields.every((field) =>
     field in destination && sameValue(source[field], destination[field]),
   );
+}
+
+function hasValidSocialCounters(
+  value: Readonly<Record<string, unknown>> | null,
+): boolean {
+  return value !== null &&
+    isNonNegativeInteger(value.followerCount) &&
+    isNonNegativeInteger(value.followingCount);
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) &&
+    value >= 0;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -516,9 +516,10 @@ async function applyMirrorPlan(
       transaction.set(refs[0], {...authority.home}, {merge: true});
     }
     if (plan.profile) {
+      const destination = snapshotData(snapshots[1]);
       transaction.set(
         refs[1],
-        {...publicProfileMirrorData(authority.profile)},
+        {...publicProfileMirrorData(authority.profile, destination)},
         {merge: true},
       );
     }
