@@ -567,20 +567,22 @@ describe(
       });
 
       test("denies every moderation retention target access", async () => {
-        const path = "moderationRetentionTargets/test-retention-target";
-        await seedApplicationDocument(path, {
-          targetPath: "places/place/messages/message",
-        });
         const alice = requireApplicationRules().authenticatedContext("alice");
-
-        await assertFails(alice.firestore().doc(path).get());
-        await assertFails(
-          alice.firestore().collection("moderationRetentionTargets").get(),
-        );
-        await assertFails(
-          alice.firestore().doc(path).set({targetPath: "places/other"}),
-        );
-        await assertFails(alice.firestore().doc(path).delete());
+        for (const collection of [
+          "moderationRetentionTargets",
+          "noteModerationRetentionTargets",
+        ]) {
+          const path = `${collection}/test-retention-target`;
+          await seedApplicationDocument(path, {
+            targetPath: "places/place/messages/message",
+          });
+          await assertFails(alice.firestore().doc(path).get());
+          await assertFails(alice.firestore().collection(collection).get());
+          await assertFails(
+            alice.firestore().doc(path).set({targetPath: "places/other"}),
+          );
+          await assertFails(alice.firestore().doc(path).delete());
+        }
       });
     });
 

@@ -11,7 +11,7 @@ Implemented on `codex/app-submission-content-safety`:
 - optimistic title/subtitle and message moderation through regional jobs;
 - public-pending message images and pin-image candidates;
 - durable candidate cleanup on rejection, replacement, and orphan expiry;
-- 30-day hidden-message retention and metadata-only evidence cleanup;
+- 30-day hidden-message and hidden-note retention with metadata-only evidence;
 - moderation-hidden note enforcement across discovery, reads, posting, likes,
   visits, unlocks, and invite claims;
 - unit/widget coverage for reason codes, multimodal result aggregation,
@@ -230,6 +230,19 @@ before submission. The script should:
   message.
 - The remaining audit contains moderation and lifecycle metadata only. It does
   not retain raw content, image paths, or content-derived fingerprints, and it
+  expires through Firestore TTL after one year.
+
+### Hidden-note retention
+
+- Each transition to `hidden` records an exact server timestamp and enqueues
+  one cleanup job due 30 days later.
+- Cleanup first closes administrator restoration in the note document, then
+  removes message-like edges, messages, every known note subcollection,
+  note-scoped reports, moderation reviews, and administrator invitations in
+  bounded batches.
+- Message and pin-image objects are handed to the generation-guarded Storage
+  cleanup queue before their Firestore owners are deleted.
+- The final note audit retains moderation and lifecycle metadata only and
   expires through Firestore TTL after one year.
 
 ### Tests

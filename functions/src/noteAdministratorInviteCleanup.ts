@@ -159,7 +159,11 @@ CleanupJobHandler = {
         transaction.get(placeRef),
         transaction.get(pendingQuery),
       ]);
-      if (!place.exists || place.get("isArchived") !== true) {
+      if (!place.exists) {
+        if (pending.empty) return;
+        throw new Error("Archived note invitations survived note cleanup.");
+      }
+      if (place.get("isArchived") !== true) {
         throw new Error("Invitation revocation requires an archived note.");
       }
       if (pending.size > NOTE_ADMINISTRATOR_MAX_PENDING_INVITES) {

@@ -25,6 +25,7 @@ import {
   type ModerationJobContext,
   type ModerationJobHandler,
 } from "./moderationJobs";
+import {enqueueHiddenNoteRetention} from "./noteModerationRetention";
 import {worldContext} from "./platform/worldContext";
 
 export const EVALUATE_NOTE_MODERATION_JOB = "evaluateNoteModeration";
@@ -264,12 +265,19 @@ async function finalizeNoteModeration(
       update.isOpen = false;
       update.wasOpenBeforeModeration = place.get("isOpen") === true;
       update.activeNoteSlotReleasedAt = checkedAt;
+      update.moderationHiddenAt = checkedAt;
+      update.moderationPurgeStartedAt = null;
       update.moderationHiddenJobId = context.jobId;
       update.moderationSafetyAppliedAt = null;
       transaction.set(usageRef, {
         activeNoteCount: activeCount - 1,
         updatedAt: checkedAt,
       }, {merge: true});
+      enqueueHiddenNoteRetention(transaction, context.firestore, {
+        world: context.job.world,
+        placeId: target.placeId,
+        hiddenAt: checkedAt,
+      });
     }
     transaction.update(placeRef, update);
     if (createReview) {

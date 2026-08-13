@@ -17,14 +17,13 @@ import {
   newCleanupJobData,
   NewCleanupJobInput,
 } from "./cleanupJobs";
-import {GLOBAL_OPERATION_TERMINAL_RETENTION_MILLIS} from "./globalOperations";
+import {
+  HIDDEN_CONTENT_RETENTION_MILLIS,
+  MODERATION_EVIDENCE_RETENTION_MILLIS,
+} from "./moderationRetention";
 import {enqueueStorageObjectDeletion} from "./storageObjectCleanup";
 
 export const PURGE_HIDDEN_MESSAGE_JOB = "purgeHiddenMessage";
-export const HIDDEN_MESSAGE_RETENTION_MILLIS =
-  GLOBAL_OPERATION_TERMINAL_RETENTION_MILLIS;
-export const MODERATION_EVIDENCE_RETENTION_MILLIS =
-  365 * 24 * 60 * 60 * 1000;
 
 const MESSAGE_LIKE_PURGE_BATCH_SIZE = 50;
 const PURGING_STAGE = "purgingMessageLikes" as const;
@@ -97,7 +96,7 @@ export function enqueueHiddenMessageRetention(
   };
   const jobId = cleanupJobId(jobInput);
   const purgeAt = Timestamp.fromMillis(
-    revision + HIDDEN_MESSAGE_RETENTION_MILLIS,
+    revision + HIDDEN_CONTENT_RETENTION_MILLIS,
   );
   transaction.create(
     firestore.doc(cleanupJobPath("firestore", jobId)),

@@ -331,6 +331,16 @@
     },
     {
       "collectionGroup": "places",
+      "fieldPath": "moderationHiddenAt",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "places",
+      "fieldPath": "moderationPurgeStartedAt",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "places",
       "fieldPath": "moderationHiddenJobId",
       "indexes": []
     },
@@ -391,6 +401,21 @@
     },
     {
       "collectionGroup": "moderationRetentionTargets",
+      "fieldPath": "createdAt",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "noteModerationRetentionTargets",
+      "fieldPath": "targetPath",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "noteModerationRetentionTargets",
+      "fieldPath": "hiddenAt",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "noteModerationRetentionTargets",
       "fieldPath": "createdAt",
       "indexes": []
     },

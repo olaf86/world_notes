@@ -553,6 +553,12 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Exact hidden-note subtree targets used by retention workers are
+    // server-only.
+    match /noteModerationRetentionTargets/{jobId} {
+      allow read, write: if false;
+    }
+
     // Finalize receipts and orphan-cleanup state for immutable image objects.
     // Clients receive image access only through the signed-URL callable.
     match /imageUploads/{uploadId} {

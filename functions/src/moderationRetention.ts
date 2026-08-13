@@ -1,0 +1,8 @@
+/* eslint-disable require-jsdoc */
+
+import {GLOBAL_OPERATION_TERMINAL_RETENTION_MILLIS} from "./globalOperations";
+
+export const HIDDEN_CONTENT_RETENTION_MILLIS =
+  GLOBAL_OPERATION_TERMINAL_RETENTION_MILLIS;
+export const MODERATION_EVIDENCE_RETENTION_MILLIS =
+  365 * 24 * 60 * 60 * 1000;

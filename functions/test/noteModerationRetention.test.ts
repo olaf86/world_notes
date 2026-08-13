@@ -10,17 +10,17 @@ import {
 } from "firebase-admin/firestore";
 
 import {parseCleanupJob} from "../src/cleanupJobs";
-import {
-  enqueueHiddenMessageRetention,
-  hiddenMessageRetentionHandler,
-  messageRetentionAuditId,
-  PURGE_HIDDEN_MESSAGE_JOB,
-} from "../src/messageModerationRetention";
 import {HIDDEN_CONTENT_RETENTION_MILLIS} from "../src/moderationRetention";
+import {
+  enqueueHiddenNoteRetention,
+  hiddenNoteRetentionHandler,
+  noteRetentionAuditId,
+  PURGE_HIDDEN_NOTE_JOB,
+} from "../src/noteModerationRetention";
 
 const HIDDEN_AT = Timestamp.fromMillis(1_753_000_000_000);
 
-test("hidden message retention starts at one exact 30-day deadline", () => {
+test("hidden note retention starts at one exact 30-day deadline", () => {
   const writes: Array<{
     path: string;
     data: Record<string, unknown>;
@@ -32,47 +32,40 @@ test("hidden message retention starts at one exact 30-day deadline", () => {
     },
   } as unknown as Transaction;
 
-  enqueueHiddenMessageRetention(transaction, firestore, {
+  enqueueHiddenNoteRetention(transaction, firestore, {
     world: "asia",
     placeId: "place-1",
-    messageId: "message-1",
     hiddenAt: HIDDEN_AT,
   });
 
   assert.equal(writes.length, 2);
   const jobWrite = writes.find(({path}) => path.includes("cleanupQueues/"));
   const targetWrite = writes.find(({path}) =>
-    path.startsWith("moderationRetentionTargets/"));
+    path.startsWith("noteModerationRetentionTargets/"));
   assert.ok(jobWrite);
   assert.ok(targetWrite);
   const job = parseCleanupJob(jobWrite.data, "asia");
-  assert.equal(job.jobType, PURGE_HIDDEN_MESSAGE_JOB);
-  assert.equal(job.entityId, "message-1");
+  assert.equal(job.jobType, PURGE_HIDDEN_NOTE_JOB);
+  assert.equal(job.entityId, "place-1");
   assert.equal(job.revision, HIDDEN_AT.toMillis());
   assert.equal(
     job.nextAttemptAt?.toMillis(),
     HIDDEN_AT.toMillis() + HIDDEN_CONTENT_RETENTION_MILLIS,
   );
-  assert.equal(
-    targetWrite.data.targetPath,
-    "places/place-1/messages/message-1",
-  );
+  assert.equal(targetWrite.data.targetPath, "places/place-1");
 });
 
-test("message retention evidence has one path-safe target identity", () => {
-  const first = messageRetentionAuditId("place-1", "message-1");
+test("note retention evidence has one path-safe target identity", () => {
+  const first = noteRetentionAuditId("place-1");
 
-  assert.match(first, /^messageRetention_[0-9a-f]{64}$/);
-  assert.equal(messageRetentionAuditId("place-1", "message-1"), first);
-  assert.notEqual(messageRetentionAuditId("place-2", "message-1"), first);
+  assert.match(first, /^noteRetention_[0-9a-f]{64}$/);
+  assert.equal(noteRetentionAuditId("place-1"), first);
+  assert.notEqual(noteRetentionAuditId("place-2"), first);
 });
 
-test("hidden message retention owns its cleanup job type", () => {
-  assert.equal(hiddenMessageRetentionHandler.queue, "firestore");
-  assert.equal(
-    hiddenMessageRetentionHandler.jobType,
-    PURGE_HIDDEN_MESSAGE_JOB,
-  );
+test("hidden note retention owns its cleanup job type", () => {
+  assert.equal(hiddenNoteRetentionHandler.queue, "firestore");
+  assert.equal(hiddenNoteRetentionHandler.jobType, PURGE_HIDDEN_NOTE_JOB);
 });
 
 function fakeFirestore(): Firestore {

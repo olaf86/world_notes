@@ -1582,9 +1582,10 @@ that interval and accessible only to the administrator moderation workflow.
 After the deadline, durable cleanup jobs permanently delete the content tree
 and regional Storage objects; restoration is no longer available. This aligns
 the review window with the existing 30-day terminal retention used for
-notification events and cleanup jobs. The current immediate deletion of
-message images after an administrator hides a message must move to this
-retention cleanup path so a restoration within the window is complete.
+notification events and cleanup jobs. Message cleanup removes nested likes
+before deleting the message. Note cleanup drains the known child collections
+and note-scoped server records in bounded batches, then deletes the parent
+last. Both paths queue image removal through generation-guarded Storage jobs.
 
 **Decided for post-deletion evidence:** after content cleanup, retain only
 moderation and lifecycle metadata in `moderationAuditLogs`; do not retain the

@@ -12,6 +12,10 @@ import {
   messageRetentionAuditId,
 } from "./messageModerationRetention";
 import {noteModerationActiveCountDelta} from "./noteModeration";
+import {
+  enqueueHiddenNoteRetention,
+  noteRetentionAuditId,
+} from "./noteModerationRetention";
 
 const DEFAULT_REVIEW_LIST_LIMIT = 20;
 const MAX_REVIEW_LIST_LIMIT = 50;
@@ -619,6 +623,8 @@ export const adminReviewNote = onCall<AdminReviewNoteData>(
       .collection("moderationReviews")
       .doc(`note_${input.placeId}`);
     const auditRef = db.collection("moderationAuditLogs").doc();
+    const retentionAuditRef = db.collection("moderationAuditLogs")
+      .doc(noteRetentionAuditId(input.placeId));
     const reviewedAt = Timestamp.now();
     const reportResolutionStatus =
       input.action === "allow" ? "rejected" : "accepted";
@@ -629,19 +635,35 @@ export const adminReviewNote = onCall<AdminReviewNoteData>(
         .where("targetType", "==", "note")
         .where("targetId", "==", input.placeId)
         .where("status", "==", "open");
-      const [placeSnap, reviewSnap, reportsSnap] = await Promise.all([
-        tx.get(placeRef),
-        tx.get(reviewRef),
-        tx.get(reportsQuery),
-      ]);
+      const [placeSnap, reviewSnap, reportsSnap, retentionAuditSnap] =
+        await Promise.all([
+          tx.get(placeRef),
+          tx.get(reviewRef),
+          tx.get(reportsQuery),
+          tx.get(retentionAuditRef),
+        ]);
       if (!placeSnap.exists) {
+        if (retentionAuditSnap.exists) {
+          throw new HttpsError(
+            "failed-precondition",
+            "This note can no longer be restored after retention cleanup.",
+            {reason: "moderation_retention_expired"},
+          );
+        }
         throw new HttpsError("not-found", "Note not found.");
+      }
+      const hidden = input.action !== "allow";
+      if (!hidden &&
+          placeSnap.get("moderationPurgeStartedAt") instanceof Timestamp) {
+        throw new HttpsError(
+          "failed-precondition",
+          "This note can no longer be restored after retention cleanup.",
+          {reason: "moderation_retention_expired"},
+        );
       }
       if (!reviewSnap.exists) {
         throw new HttpsError("not-found", "Moderation review not found.");
       }
-
-      const hidden = input.action !== "allow";
       const creatorUid = placeSnap.get("createdByUserId");
       if (typeof creatorUid !== "string" || creatorUid.length === 0) {
         throw new Error("Note moderation creator is invalid.");
@@ -670,6 +692,13 @@ export const adminReviewNote = onCall<AdminReviewNoteData>(
       }
       const releasingActiveNoteSlot = activeNoteCountDelta === -1;
       const restoringActiveNoteSlot = !hidden && activeNoteSlotReleased;
+      const currentHiddenAt = placeSnap.get("moderationHiddenAt");
+      const existingHiddenAt =
+        placeSnap.get("moderationAction") === "hidden" &&
+        placeSnap.get("isModerationHidden") === true &&
+        currentHiddenAt instanceof Timestamp ? currentHiddenAt : null;
+      const startsRetention = hidden && existingHiddenAt === null;
+      const hiddenAt = existingHiddenAt ?? reviewedAt;
       tx.update(placeRef, {
         moderationAction: hidden ? "hidden" : "allow",
         isModerationHidden: hidden,
@@ -688,11 +717,21 @@ export const adminReviewNote = onCall<AdminReviewNoteData>(
             activeNoteSlotReleasedAt: null,
           } : {}),
         }),
+        moderationHiddenAt: hidden ? hiddenAt : null,
+        moderationPurgeStartedAt: hidden ?
+          placeSnap.get("moderationPurgeStartedAt") ?? null : null,
         reviewRequired: false,
         moderationReviewedAt: reviewedAt,
         moderationReviewedBy: uid,
         moderationReviewReason: input.reason,
       });
+      if (startsRetention) {
+        enqueueHiddenNoteRetention(tx, db, {
+          world: world.worldId,
+          placeId: input.placeId,
+          hiddenAt,
+        });
+      }
       tx.update(reviewRef, {
         worldId: world.worldId,
         status: "resolved",

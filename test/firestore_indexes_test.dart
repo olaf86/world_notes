@@ -336,6 +336,8 @@ void main() {
     for (final fieldPath in <String>[
       'moderationInputHash',
       'activeNoteSlotReleasedAt',
+      'moderationHiddenAt',
+      'moderationPurgeStartedAt',
       'moderationHiddenJobId',
       'moderationSafetyAppliedAt',
       'pinImageCandidate',
@@ -385,17 +387,22 @@ void main() {
       reason: 'The purge barrier is cleanup state, not query data.',
     );
 
-    for (final fieldPath in <String>['targetPath', 'hiddenAt', 'createdAt']) {
-      expect(
-        overrides.any(
-          (override) =>
-              override['collectionGroup'] == 'moderationRetentionTargets' &&
-              override['fieldPath'] == fieldPath &&
-              (override['indexes'] as List<dynamic>).isEmpty,
-        ),
-        isTrue,
-        reason: '$fieldPath is addressed by cleanup job id, not queried.',
-      );
+    for (final collectionGroup in <String>[
+      'moderationRetentionTargets',
+      'noteModerationRetentionTargets',
+    ]) {
+      for (final fieldPath in <String>['targetPath', 'hiddenAt', 'createdAt']) {
+        expect(
+          overrides.any(
+            (override) =>
+                override['collectionGroup'] == collectionGroup &&
+                override['fieldPath'] == fieldPath &&
+                (override['indexes'] as List<dynamic>).isEmpty,
+          ),
+          isTrue,
+          reason: '$fieldPath is addressed by cleanup job id, not queried.',
+        );
+      }
     }
   });
 }

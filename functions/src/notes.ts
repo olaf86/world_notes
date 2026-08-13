@@ -419,6 +419,8 @@ export const createNote = onCall<CreateNoteData>(
         isSensitive: false,
         reviewRequired: false,
         activeNoteSlotReleasedAt: null,
+        moderationHiddenAt: null,
+        moderationPurgeStartedAt: null,
         moderationHiddenJobId: null,
         moderationSafetyAppliedAt: null,
       };

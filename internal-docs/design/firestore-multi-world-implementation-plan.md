@@ -1292,8 +1292,15 @@ record and message. A one-year TTL audit retains only moderation and lifecycle
 metadata, without raw content, image paths, or a content-derived digest.
 Restoration clears a not-yet-started retention generation; once cleanup has
 started, the administrator callable returns `moderation_retention_expired`.
-The remaining P20 retention work is the parent-note subtree finalizer, which
-will reuse this cleanup contract.
+
+Implementation note (2026-08-13): hidden notes now use the same exact 30-day
+retention contract. The worker atomically closes restoration, removes nested
+message likes before their messages, drains every known note subcollection and
+note-scoped report/review/invitation collection in bounded batches, queues
+message and pin-image objects for generation-guarded deletion, and deletes the
+parent last. A deterministic one-year TTL audit retains only moderation and
+lifecycle metadata. This completes the P20 raw-content/image retention
+finalizers.
 
 ### Phase 12 — staged activation and production cutover
 
