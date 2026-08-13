@@ -16,6 +16,7 @@ import {
 } from "../src/accountBackfill";
 import {
   parseAccountBackfillArgs,
+  safeAccountBackfillError,
 } from "../src/scripts/backfillAccounts";
 
 const CREATED_AT = Timestamp.fromMillis(1_700_000_000_000);
@@ -200,4 +201,16 @@ test("account backfill refuses cross-project and unbounded pages", () => {
     ...base.slice(4),
     "--page-size", "201",
   ]));
+});
+
+test("account backfill diagnostics redact identity-bearing values", () => {
+  const error = Object.assign(new Error(
+    "User abcdefghijklmnopqrstuvwxyz12 user@example.com " +
+      "at https://example.com/private?token=secret",
+  ), {code: 7});
+  assert.deepEqual(safeAccountBackfillError(error), {
+    errorType: "Error",
+    errorCode: 7,
+    message: "User [identifier] [email] at [url]",
+  });
 });

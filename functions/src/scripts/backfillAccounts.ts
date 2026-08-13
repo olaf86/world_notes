@@ -282,6 +282,36 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/**
+ * Returns actionable diagnostics without account identifiers or content.
+ *
+ * @param {unknown} error Raw operational failure.
+ * @return {object} Redacted diagnostic fields.
+ */
+export function safeAccountBackfillError(
+  error: unknown,
+): Readonly<Record<string, string | number | null>> {
+  const rawCode = isRecord(error) ? error.code : null;
+  const errorCode = typeof rawCode === "string" ||
+      typeof rawCode === "number" ? rawCode : null;
+  const rawMessage = error instanceof Error ? error.message :
+    "Unknown account backfill failure.";
+  const message = rawMessage
+    .replace(/https?:\/\/\S+/gu, "[url]")
+    .replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/gu, "[email]")
+    .replace(
+      /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/giu,
+      "[uuid]",
+    )
+    .replace(/\b[A-Za-z0-9_-]{18,}\b/gu, "[identifier]")
+    .slice(0, 600);
+  return Object.freeze({
+    errorType: error instanceof Error ? error.name : "UnknownError",
+    errorCode,
+    message,
+  });
+}
+
 function snapshotData(
   snapshot: DocumentSnapshot,
 ): Readonly<Record<string, unknown>> | null {
@@ -692,7 +722,7 @@ if (require.main === module) {
   main().catch((error) => {
     console.error(JSON.stringify({
       status: "failed",
-      errorType: error instanceof Error ? error.name : "UnknownError",
+      ...safeAccountBackfillError(error),
     }));
     process.exitCode = 1;
   });
