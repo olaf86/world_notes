@@ -282,6 +282,17 @@ service cloud.firestore {
                      && hasReadableMessageModeration(message)));
     }
 
+    function canReadOwnMessageLike(like) {
+      let messagePath =
+        /databases/$(database)/documents/places/$(like.placeId)/messages/$(like.messageId);
+      return isSignedIn()
+             && like.userId == request.auth.uid
+             && like.placeId is string
+             && like.messageId is string
+             && exists(messagePath)
+             && canReadMessage(like.placeId, get(messagePath).data);
+    }
+
     function isValidClientThreadStateTransition() {
       let changed = request.resource.data.diff(resource.data).affectedKeys();
       let closesThread = request.resource.data.isOpen == false
@@ -511,8 +522,7 @@ service cloud.firestore {
     // collection must use a different name to avoid matching this rule.
     // Individual document gets and all client writes remain denied by default.
     match /{path=**}/messageLikes/{likeId} {
-      allow list: if isSignedIn()
-                  && resource.data.userId == request.auth.uid;
+      allow list: if canReadOwnMessageLike(resource.data);
     }
 
     // Flat administrator review queue for non-allow moderation decisions.
@@ -535,6 +545,11 @@ service cloud.firestore {
 
     // Exact Storage object paths used by cleanup workers are server-only.
     match /storageCleanupObjects/{jobId} {
+      allow read, write: if false;
+    }
+
+    // Exact hidden-content targets used by retention workers are server-only.
+    match /moderationRetentionTargets/{jobId} {
       allow read, write: if false;
     }
 

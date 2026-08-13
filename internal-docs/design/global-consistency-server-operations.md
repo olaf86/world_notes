@@ -1587,15 +1587,15 @@ message images after an administrator hides a message must move to this
 retention cleanup path so a restoration within the window is complete.
 
 **Decided for post-deletion evidence:** after content cleanup, retain only
-moderation metadata in `moderationAuditLogs`; do not retain the raw text, text
-excerpt, image bytes, or image path. The evidence record contains the world,
-target type and ID, subject UID, automated and administrator actions,
-`moderationPolicyVersion`, evaluation and decision timestamps, administrator
-UID and reason when applicable, `hiddenAt`, `purgedAt`, and a keyed
-`contentFingerprint`. The fingerprint is an HMAC produced with a
-server-controlled secret rather than a plain hash, so short candidate text
-cannot be cheaply guessed from a Firestore leak. It supports equality
-verification only and is not exposed to clients.
+moderation and lifecycle metadata in `moderationAuditLogs`; do not retain the
+raw text, text excerpt, image bytes, image path, or any content-derived digest.
+The evidence record contains the world, target type and ID, subject UID,
+automated and administrator actions, `moderationPolicyVersion`, evaluation and
+decision timestamps, administrator UID and reason when applicable, `hiddenAt`,
+and `purgedAt`. A content fingerprint is intentionally omitted until a
+concrete equality-verification requirement exists. If one is introduced, use
+a server-keyed HMAC rather than a plain hash so short candidate text cannot be
+cheaply guessed from a Firestore leak.
 
 **Decided for audit retention:** retain each metadata-only
 `moderationAuditLogs` record for one year, then delete it through Firestore

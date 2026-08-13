@@ -365,6 +365,7 @@ function messageDocumentData({
     deletedAt: null,
     deletedReason: null,
     moderationAction: "pending",
+    moderationPurgeStartedAt: null,
     isSensitive: false,
     isVisible: true,
     reviewRequired: false,

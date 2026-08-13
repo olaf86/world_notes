@@ -375,6 +375,26 @@
       "indexes": []
     },
     {
+      "collectionGroup": "messages",
+      "fieldPath": "moderationPurgeStartedAt",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "moderationRetentionTargets",
+      "fieldPath": "targetPath",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "moderationRetentionTargets",
+      "fieldPath": "hiddenAt",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "moderationRetentionTargets",
+      "fieldPath": "createdAt",
+      "indexes": []
+    },
+    {
       "collectionGroup": "moderationAuditLogs",
       "fieldPath": "expireAt",
       "ttl": true,

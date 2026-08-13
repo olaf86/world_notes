@@ -1216,7 +1216,7 @@ Deliverables:
 - administrator restoration, including a trusted temporary active-note limit
   overage;
 - 30-day hidden content/image retention;
-- one-year metadata-only audit retention with keyed HMAC fingerprint;
+- one-year metadata-only audit retention without content-derived data;
 - cleanup of dormant subtrees and image objects after retention.
 
 Exit criteria:
@@ -1282,6 +1282,18 @@ generation-guarded durable Storage cleanup queue. A high-confidence hidden
 result records a retry-stable account-safety event without hiding the parent
 note. The 30-day raw-content/image retention finalizers remain the next P20
 slice.
+
+Implementation note (2026-08-08): hidden messages now enqueue a deterministic
+Firestore cleanup job for exactly 30 days after their latest transition to
+`hidden`. At the deadline the worker atomically closes restoration, removes
+bounded `messageLikes` batches, deletes referenced image objects through the
+generation-guarded Storage queue, and deletes both the raw-content review
+record and message. A one-year TTL audit retains only moderation and lifecycle
+metadata, without raw content, image paths, or a content-derived digest.
+Restoration clears a not-yet-started retention generation; once cleanup has
+started, the administrator callable returns `moderation_retention_expired`.
+The remaining P20 retention work is the parent-note subtree finalizer, which
+will reuse this cleanup contract.
 
 ### Phase 12 — staged activation and production cutover
 

@@ -11,14 +11,14 @@ Implemented on `codex/app-submission-content-safety`:
 - optimistic title/subtitle and message moderation through regional jobs;
 - public-pending message images and pin-image candidates;
 - durable candidate cleanup on rejection, replacement, and orphan expiry;
+- 30-day hidden-message retention and metadata-only evidence cleanup;
 - moderation-hidden note enforcement across discovery, reads, posting, likes,
   visits, unlocks, and invite claims;
 - unit/widget coverage for reason codes, multimodal result aggregation,
   localization, note visibility, review parsing, and the report UI.
 
-Deployment still requires the existing `OPENAI_API_KEY` secret, the updated
-Functions, Firestore rules, and the new reports composite index to be deployed
-together.
+Deployment still requires the existing `OPENAI_API_KEY`, the updated
+Functions, Firestore rules, and indexes to be deployed together.
 
 ## Decision
 
@@ -217,6 +217,20 @@ before submission. The script should:
 - skip missing and already-reviewed objects;
 - queue or hide non-allow content with the same production policy;
 - write audit metadata without logging image bytes or signed URLs.
+
+### Hidden-message retention
+
+- Each transition to `hidden` records an exact server timestamp and enqueues
+  one cleanup job due 30 days later.
+- Until cleanup starts, an administrator may restore the message together with
+  its retained image references and like edges. Starting cleanup permanently
+  closes restoration so a partial deletion cannot later become visible.
+- Cleanup removes like edges in bounded batches, queues generation-guarded
+  image deletion, deletes the raw-content review record, and deletes the
+  message.
+- The remaining audit contains moderation and lifecycle metadata only. It does
+  not retain raw content, image paths, or content-derived fingerprints, and it
+  expires through Firestore TTL after one year.
 
 ### Tests
 

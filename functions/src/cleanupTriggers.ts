@@ -20,6 +20,7 @@ import {
   archivedNoteAdministratorInvitationRevocationHandler,
   noteAdministratorInvitationExpirationHandler,
 } from "./noteAdministratorInviteCleanup";
+import {hiddenMessageRetentionHandler} from "./messageModerationRetention";
 import {storageObjectCleanupHandler} from "./storageObjectCleanup";
 import {WorldBucketProvider} from "./platform/worldBucketProvider";
 import {
@@ -48,6 +49,7 @@ const productionRuntime: CleanupRuntime = {
     blockRelationshipCleanupHandler,
     archivedNoteAdministratorInvitationRevocationHandler,
     noteAdministratorInvitationExpirationHandler,
+    hiddenMessageRetentionHandler,
     storageObjectCleanupHandler,
   ]),
 };

@@ -565,6 +565,23 @@ describe(
         );
         await assertFails(alice.firestore().doc(path).delete());
       });
+
+      test("denies every moderation retention target access", async () => {
+        const path = "moderationRetentionTargets/test-retention-target";
+        await seedApplicationDocument(path, {
+          targetPath: "places/place/messages/message",
+        });
+        const alice = requireApplicationRules().authenticatedContext("alice");
+
+        await assertFails(alice.firestore().doc(path).get());
+        await assertFails(
+          alice.firestore().collection("moderationRetentionTargets").get(),
+        );
+        await assertFails(
+          alice.firestore().doc(path).set({targetPath: "places/other"}),
+        );
+        await assertFails(alice.firestore().doc(path).delete());
+      });
     });
 
     describe("bootstrap write guard", {concurrency: false}, () => {
@@ -862,6 +879,74 @@ describe(
           );
           await assertFails(
             bob.firestore().doc("places/tokyo/messages/hidden").get(),
+          );
+        },
+      );
+
+      test(
+        "denies like-edge metadata for a retained hidden message",
+        async () => {
+          await Promise.all([
+            seedApplicationDocument("places/tokyo", activePublicPlace()),
+            seedApplicationDocument("places/tokyo/messages/hidden", {
+              userId: "alice",
+              moderationAction: "hidden",
+              isVisible: false,
+              isPubliclyVisible: false,
+            }),
+            seedApplicationDocument(
+              "places/tokyo/messages/hidden/messageLikes/alice",
+              {
+                userId: "alice",
+                placeId: "tokyo",
+                messageId: "hidden",
+                liked: true,
+              },
+            ),
+          ]);
+          const alice =
+            requireApplicationRules().authenticatedContext("alice");
+
+          await assertFails(
+            alice.firestore().collectionGroup("messageLikes")
+              .where("placeId", "==", "tokyo")
+              .where("userId", "==", "alice")
+              .where("liked", "==", true)
+              .get(),
+          );
+        },
+      );
+
+      test(
+        "allows an owner to list like edges for readable messages",
+        async () => {
+          await Promise.all([
+            seedApplicationDocument("places/tokyo", activePublicPlace()),
+            seedApplicationDocument("places/tokyo/messages/visible", {
+              userId: "bob",
+              moderationAction: "allow",
+              isVisible: true,
+              isPubliclyVisible: true,
+            }),
+            seedApplicationDocument(
+              "places/tokyo/messages/visible/messageLikes/alice",
+              {
+                userId: "alice",
+                placeId: "tokyo",
+                messageId: "visible",
+                liked: true,
+              },
+            ),
+          ]);
+          const alice =
+            requireApplicationRules().authenticatedContext("alice");
+
+          await assertSucceeds(
+            alice.firestore().collectionGroup("messageLikes")
+              .where("placeId", "==", "tokyo")
+              .where("userId", "==", "alice")
+              .where("liked", "==", true)
+              .get(),
           );
         },
       );

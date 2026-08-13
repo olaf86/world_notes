@@ -221,3 +221,12 @@ validation, message posting, likes, visits, unlocks, and invite claims.
   completed result removes and durably deletes only the candidate.
 - Regional upload tracking and generation-guarded cleanup own failed,
   superseded, rejected, and orphaned image removal.
+- A message that remains moderation-hidden for 30 days enters a durable purge
+  workflow. The worker first closes administrator restoration, deletes its
+  like edges in bounded batches, queues every referenced image for guarded
+  Storage deletion, deletes the raw-content review record, and deletes the
+  message.
+- Post-purge evidence contains moderation and lifecycle metadata only. It does
+  not retain raw content, image paths, or a content-derived digest. The
+  evidence expires after one year through the existing
+  `moderationAuditLogs.expireAt` TTL policy.

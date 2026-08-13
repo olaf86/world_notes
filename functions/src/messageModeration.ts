@@ -26,6 +26,7 @@ import {
   type ModerationJobContext,
   type ModerationJobHandler,
 } from "./moderationJobs";
+import {enqueueHiddenMessageRetention} from "./messageModerationRetention";
 import {enqueueMyNotesMessageNotification} from "./notifications";
 import {HttpsError} from "./platform/worldCallable";
 import {WorldBucket} from "./platform/worldBucketProvider";
@@ -278,9 +279,16 @@ async function finalizeMessageModeration(
       update.isDeleted = true;
       update.deletedAt = checkedAt;
       update.deletedReason = "moderation";
+      update.moderationPurgeStartedAt = null;
       update.moderationRestorePubliclyVisible =
         message.get("isPubliclyVisible") === true;
       update.isPubliclyVisible = false;
+      enqueueHiddenMessageRetention(transaction, context.firestore, {
+        world: context.job.world,
+        placeId: target.placeId,
+        messageId: target.messageId,
+        hiddenAt: checkedAt,
+      });
       if (message.get("placeAggregateAppliedAt") != null) {
         const currentCount = messageCountOf(place.get("messageCount"));
         transaction.update(placeRef, {

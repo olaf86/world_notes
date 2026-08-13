@@ -7,6 +7,10 @@ import {
 } from "firebase-admin/firestore";
 
 import {MAX_MESSAGES_PER_THREAD, REGION} from "./constants";
+import {
+  enqueueHiddenMessageRetention,
+  messageRetentionAuditId,
+} from "./messageModerationRetention";
 import {noteModerationActiveCountDelta} from "./noteModeration";
 
 const DEFAULT_REVIEW_LIST_LIMIT = 20;
@@ -214,16 +218,20 @@ function messageUpdateForAction({
   currentContent,
   currentIsPubliclyVisible,
   restorePubliclyVisible,
+  hiddenAt,
+  reviewedAt,
 }: {
   action: AdminModerationAction;
   reviewContent: unknown;
   currentContent: unknown;
   currentIsPubliclyVisible: boolean;
   restorePubliclyVisible: boolean;
+  hiddenAt: Timestamp;
+  reviewedAt: Timestamp;
 }): Record<string, unknown> {
   const base: Record<string, unknown> = {
     moderationAction: action,
-    moderationReviewedAt: FieldValue.serverTimestamp(),
+    moderationReviewedAt: reviewedAt,
     reviewRequired: false,
     isVisible: true,
   };
@@ -260,7 +268,7 @@ function messageUpdateForAction({
       moderationRestorePubliclyVisible:
         currentIsPubliclyVisible || restorePubliclyVisible,
       isDeleted: true,
-      deletedAt: FieldValue.serverTimestamp(),
+      deletedAt: hiddenAt,
       deletedReason: "moderation",
       isSensitive: false,
     };
@@ -420,6 +428,10 @@ export const adminReviewMessage = onCall<AdminReviewMessageData>(
       .collection("moderationReviews")
       .doc(`${input.placeId}_${input.messageId}`);
     const auditRef = db.collection("moderationAuditLogs").doc();
+    const retentionAuditRef = db.collection("moderationAuditLogs").doc(
+      messageRetentionAuditId(input.placeId, input.messageId),
+    );
+    const reviewedAt = Timestamp.now();
     const reportResolutionStatus =
       input.action === "allow" ? "rejected" : "accepted";
 
@@ -429,21 +441,43 @@ export const adminReviewMessage = onCall<AdminReviewMessageData>(
         .where("targetType", "==", "message")
         .where("targetId", "==", input.messageId)
         .where("status", "==", "open");
-      const [placeSnap, messageSnap, reviewSnap, reportsSnap] =
+      const [
+        placeSnap,
+        messageSnap,
+        reviewSnap,
+        reportsSnap,
+        retentionAuditSnap,
+      ] =
         await Promise.all([
           tx.get(placeRef),
           tx.get(messageRef),
           tx.get(reviewRef),
           tx.get(reportsQuery),
+          tx.get(retentionAuditRef),
         ]);
       if (!placeSnap.exists) {
         throw new HttpsError("not-found", "Note not found.");
       }
       if (!messageSnap.exists) {
+        if (retentionAuditSnap.exists) {
+          throw new HttpsError(
+            "failed-precondition",
+            "This message can no longer be restored after retention cleanup.",
+            {reason: "moderation_retention_expired"},
+          );
+        }
         throw new HttpsError("not-found", "Message not found.");
       }
       if (!reviewSnap.exists) {
         throw new HttpsError("not-found", "Moderation review not found.");
+      }
+      if (input.action !== "hidden" &&
+          messageSnap.get("moderationPurgeStartedAt") instanceof Timestamp) {
+        throw new HttpsError(
+          "failed-precondition",
+          "This message can no longer be restored after retention cleanup.",
+          {reason: "moderation_retention_expired"},
+        );
       }
       const deletedReason = messageSnap.get("deletedReason") as
         string | null | undefined;
@@ -462,6 +496,15 @@ export const adminReviewMessage = onCall<AdminReviewMessageData>(
         messageSnap.get("isPubliclyVisible") === true;
       const restorePubliclyVisible =
         messageSnap.get("moderationRestorePubliclyVisible") === true;
+      const deletedAt = messageSnap.get("deletedAt");
+      const existingHiddenAt =
+        messageSnap.get("moderationAction") === "hidden" &&
+        messageSnap.get("isDeleted") === true &&
+        deletedReason === "moderation" &&
+        deletedAt instanceof Timestamp ? deletedAt : null;
+      const startsRetention = input.action === "hidden" &&
+        existingHiddenAt === null;
+      const hiddenAt = existingHiddenAt ?? reviewedAt;
       const publicTransition = adminMessagePublicTransition({
         action: input.action,
         currentIsPubliclyVisible,
@@ -477,10 +520,22 @@ export const adminReviewMessage = onCall<AdminReviewMessageData>(
           currentContent: messageSnap.get("content"),
           currentIsPubliclyVisible,
           restorePubliclyVisible,
+          hiddenAt,
+          reviewedAt,
         }),
+        moderationPurgeStartedAt: input.action === "hidden" ?
+          messageSnap.get("moderationPurgeStartedAt") ?? null : null,
         moderationReviewedBy: uid,
         moderationReviewReason: input.reason,
       });
+      if (startsRetention) {
+        enqueueHiddenMessageRetention(tx, db, {
+          world: world.worldId,
+          placeId: input.placeId,
+          messageId: input.messageId,
+          hiddenAt: reviewedAt,
+        });
+      }
       if (publicTransition.delta !== 0) {
         const currentCount = messageCount(placeSnap.get("messageCount"));
         const nextCount = Math.max(
@@ -543,7 +598,7 @@ export const adminReviewMessage = onCall<AdminReviewMessageData>(
       placeId: input.placeId,
       messageId: input.messageId,
       action: input.action,
-      reviewedAtMillis: Timestamp.now().toMillis(),
+      reviewedAtMillis: reviewedAt.toMillis(),
     };
   },
 );

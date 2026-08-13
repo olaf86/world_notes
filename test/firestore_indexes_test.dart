@@ -368,6 +368,36 @@ void main() {
       reason: 'Metadata-only moderation audits must expire after retention.',
     );
   });
+
+  test('exempts message-retention coordination fields from indexing', () {
+    final config = _loadConfig();
+    final overrides = (config['fieldOverrides'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+
+    expect(
+      overrides.any(
+        (override) =>
+            override['collectionGroup'] == 'messages' &&
+            override['fieldPath'] == 'moderationPurgeStartedAt' &&
+            (override['indexes'] as List<dynamic>).isEmpty,
+      ),
+      isTrue,
+      reason: 'The purge barrier is cleanup state, not query data.',
+    );
+
+    for (final fieldPath in <String>['targetPath', 'hiddenAt', 'createdAt']) {
+      expect(
+        overrides.any(
+          (override) =>
+              override['collectionGroup'] == 'moderationRetentionTargets' &&
+              override['fieldPath'] == fieldPath &&
+              (override['indexes'] as List<dynamic>).isEmpty,
+        ),
+        isTrue,
+        reason: '$fieldPath is addressed by cleanup job id, not queried.',
+      );
+    }
+  });
 }
 
 bool _isArchivedNotesIndex(Map<String, dynamic> index) {
