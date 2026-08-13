@@ -880,6 +880,16 @@ class AppLocalizationsKo extends AppLocalizations {
       '이 기기의 표시 언어는 변경되었지만 계정에 저장하지 못했습니다.';
 
   @override
+  String get settingsContentWorldTitle => '콘텐츠 월드';
+
+  @override
+  String get settingsContentWorldDescription =>
+      '둘러보고 게시할 월드를 선택합니다. 변경할 수 없는 홈 월드는 그대로 유지됩니다.';
+
+  @override
+  String get settingsContentWorldSwitchFailed => '월드를 전환하지 못했습니다. 다시 시도해 주세요.';
+
+  @override
   String get settingsMapStyleTitle => '지도 스타일';
 
   @override

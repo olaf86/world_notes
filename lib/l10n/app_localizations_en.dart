@@ -954,6 +954,17 @@ class AppLocalizationsEn extends AppLocalizations {
       'The language changed on this device, but could not be saved to your account.';
 
   @override
+  String get settingsContentWorldTitle => 'Content world';
+
+  @override
+  String get settingsContentWorldDescription =>
+      'Choose where you browse and post. Your permanent home world will not change.';
+
+  @override
+  String get settingsContentWorldSwitchFailed =>
+      'Could not switch worlds. Please try again.';
+
+  @override
   String get settingsMapStyleTitle => 'Map Style';
 
   @override

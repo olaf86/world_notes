@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../config/world_catalog.dart';
 import '../../../l10n/l10n.dart';
 import '../../providers/providers.dart';
+import '../../world_labels.dart';
 
 /// One-time selection of the account's immutable authority world.
 class HomeWorldSelectionScreen extends ConsumerStatefulWidget {
@@ -82,8 +83,8 @@ class _HomeWorldSelectionScreenState
                   for (final world in worlds)
                     RadioListTile<WorldId>(
                       value: WorldId(world.worldId),
-                      title: Text(_worldName(l10n, world)),
-                      subtitle: Text(_worldLocation(l10n, world)),
+                      title: Text(localizedWorldName(l10n, world)),
+                      subtitle: Text(localizedWorldLocation(l10n, world)),
                       enabled: !_submitting,
                     ),
                 ],
@@ -116,22 +117,4 @@ class _HomeWorldSelectionScreenState
       ),
     );
   }
-}
-
-String _worldName(AppLocalizations l10n, WorldCatalogEntry world) {
-  return switch (world.displayNameKey) {
-    'world.asia' => l10n.worldAsia,
-    'world.northAmerica' => l10n.worldNorthAmerica,
-    'world.europe' => l10n.worldEurope,
-    _ => world.worldId,
-  };
-}
-
-String _worldLocation(AppLocalizations l10n, WorldCatalogEntry world) {
-  return switch (world.displayNameKey) {
-    'world.asia' => l10n.worldAsiaLocation,
-    'world.northAmerica' => l10n.worldNorthAmericaLocation,
-    'world.europe' => l10n.worldEuropeLocation,
-    _ => world.firestoreLocation,
-  };
 }

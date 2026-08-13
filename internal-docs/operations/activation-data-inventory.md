@@ -18,8 +18,10 @@ The command checks:
 - every mirror world has the same count of `userHomes`, public profiles,
   entitlements, safety projections, social edges, and directional blocks as
   Asia;
-- private `users`, `userUsage`, and regional `places` remain absent from
-  mirror-only worlds;
+- private `users` remain absent from worlds that are closed to home assignment;
+- `userUsage` and regional `places` remain absent from worlds that are closed
+  to content access; content-enabled worlds may create both as local content is
+  added;
 - no world has a pending or failed global operation.
 
 The output contains counts and stable check codes only. It contains no UID or
@@ -29,8 +31,8 @@ social/block count requires a revision-aware reconciliation before activation.
 
 ## Production result (2026-08-13)
 
-The final `world-notes-prod` inventory passed every check after account and
-social-edge reconciliation:
+The pre-content `world-notes-prod` inventory passed every check after account
+and social-edge reconciliation:
 
 - all three worlds contain 2 home markers, profiles, entitlements, and safety
   projections;
@@ -41,5 +43,8 @@ social-edge reconciliation:
 - the single Asia social edge is present in both mirror worlds;
 - every world has zero pending and zero failed global operations.
 
-The P21 data gate is complete. World activation remains a separately reviewed
-P22 change and must proceed one world at a time.
+The report was collected at `2026-08-13T11:00:33.738Z`. The P21 data gate is
+complete. Later inventory runs derive the private-authority gate from home
+assignment and the usage/place gates from content access. North America content
+and its local usage counter therefore do not create a false failure during P22,
+while Europe remains required to stay empty.

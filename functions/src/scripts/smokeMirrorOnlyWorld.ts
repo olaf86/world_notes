@@ -182,7 +182,10 @@ async function main(): Promise<void> {
     const inventory = evaluateActivationDataInventory([
       asiaCounts,
       targetCounts,
-    ]);
+    ], {
+      contentAccessWorldIds: new Set(["asia"]),
+      homeAssignmentWorldIds: new Set(["asia"]),
+    });
     if (!inventory.pass) {
       throw new Error("Mirror-only activation data gate failed.");
     }

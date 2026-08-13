@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/map_style.dart';
+import '../../../config/world_catalog.dart';
 import '../../../l10n/app_locale.dart';
 import '../../../l10n/l10n.dart';
 import '../../../l10n/presentation_labels.dart';
 import '../../providers/providers.dart';
+import '../../world_labels.dart';
 import '../../widgets/my_notes_notification_controls.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -27,6 +29,8 @@ class SettingsScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         children: [
           const _LanguageSection(),
+          const SizedBox(height: 24),
+          const _ContentWorldSection(),
           const SizedBox(height: 24),
           Text(
             l10n.settingsMapStyleTitle,
@@ -57,6 +61,118 @@ class SettingsScreen extends ConsumerWidget {
           const _AdPrivacySection(),
         ],
       ),
+    );
+  }
+}
+
+class _ContentWorldSection extends ConsumerStatefulWidget {
+  const _ContentWorldSection();
+
+  @override
+  ConsumerState<_ContentWorldSection> createState() =>
+      _ContentWorldSectionState();
+}
+
+class _ContentWorldSectionState extends ConsumerState<_ContentWorldSection> {
+  bool _switching = false;
+
+  Future<void> _showWorldPicker() async {
+    if (_switching) return;
+    final catalog = ref.read(worldCatalogProvider);
+    final selectedWorld = ref.read(selectedWorldProvider);
+    final worlds = catalog.worlds
+        .where((world) => world.contentAccessEnabled)
+        .toList(growable: false);
+    final nextWorld = await showModalBottomSheet<WorldId>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        final l10n = sheetContext.l10n;
+        return SafeArea(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+                  child: Text(
+                    l10n.settingsContentWorldTitle,
+                    style: Theme.of(sheetContext).textTheme.titleLarge,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+                  child: Text(l10n.settingsContentWorldDescription),
+                ),
+                RadioGroup<WorldId>(
+                  groupValue: selectedWorld,
+                  onChanged: (value) {
+                    if (value != null) Navigator.pop(sheetContext, value);
+                  },
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (final world in worlds)
+                        RadioListTile<WorldId>(
+                          value: WorldId(world.worldId),
+                          title: Text(localizedWorldName(l10n, world)),
+                          subtitle: Text(localizedWorldLocation(l10n, world)),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    if (nextWorld == null || nextWorld == selectedWorld) return;
+
+    setState(() => _switching = true);
+    try {
+      await ref.read(selectedWorldProvider.notifier).selectWorld(nextWorld);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.settingsContentWorldSwitchFailed)),
+      );
+    } finally {
+      if (mounted) setState(() => _switching = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final selectedWorld = ref.watch(selectedWorldProvider);
+    final world = ref
+        .watch(worldCatalogProvider)
+        .requireContentWorld(selectedWorld);
+
+    return ListTile(
+      key: const ValueKey('content-world-setting-tile'),
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.public_outlined),
+      title: Text(
+        l10n.settingsContentWorldTitle,
+        style: Theme.of(
+          context,
+        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+      ),
+      subtitle: Text(
+        '${localizedWorldName(l10n, world)} · '
+        '${localizedWorldLocation(l10n, world)}',
+      ),
+      trailing: _switching
+          ? const SizedBox.square(
+              dimension: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.chevron_right),
+      onTap: _switching ? null : _showWorldPicker,
     );
   }
 }

@@ -1366,6 +1366,17 @@ America to `contentEnabled`; home assignment stays disabled and Europe stays
 `mirrorOnly`. North America is mapped to the already reviewed Asia Firestore
 and Storage Rules rather than introducing a second authorization policy.
 
+Production result (2026-08-13): the North America Firestore/Storage Rules and
+all Functions were deployed. The post-deploy production preflight passed with
+zero failures and zero warnings, and the subsequent three-world activation
+inventory passed every count/backlog check at
+`2026-08-13T11:00:33.738Z`. Settings now provides a catalog-validated content
+world selector, so internal users can exercise the same North America route as
+ordinary product traffic without changing their permanent Asia home. The
+inventory keeps private-user emptiness tied to home assignment and keeps local
+usage/place emptiness tied to content access. It therefore continues to protect
+Europe while allowing the intended North America test content and quota state.
+
 Activation sequence for each new world:
 
 1. provision protected empty resources;

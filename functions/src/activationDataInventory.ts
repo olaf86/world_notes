@@ -27,6 +27,11 @@ export interface ActivationDataInventoryResult {
   readonly checks: readonly ActivationDataCheck[];
 }
 
+export interface ActivationDataInventoryPolicy {
+  readonly contentAccessWorldIds: ReadonlySet<string>;
+  readonly homeAssignmentWorldIds: ReadonlySet<string>;
+}
+
 type CountField = Exclude<keyof WorldActivationDataCounts, "worldId">;
 
 const GLOBAL_ACCOUNT_FIELDS: readonly CountField[] = [
@@ -39,6 +44,7 @@ const GLOBAL_ACCOUNT_FIELDS: readonly CountField[] = [
 /** Evaluates count-level P21 gates without exposing document identities. */
 export function evaluateActivationDataInventory(
   worlds: readonly WorldActivationDataCounts[],
+  policy: ActivationDataInventoryPolicy,
 ): ActivationDataInventoryResult {
   const byWorld = new Map(worlds.map((world) => [world.worldId, world]));
   if (byWorld.size !== worlds.length) {
@@ -91,21 +97,25 @@ export function evaluateActivationDataInventory(
       asia.blockedUsers,
       world.blockedUsers,
     ));
-    checks.push(check(
-      `${world.worldId}.privateUsers.empty`,
-      0,
-      world.privateUsers,
-    ));
-    checks.push(check(
-      `${world.worldId}.userUsage.empty`,
-      0,
-      world.userUsage,
-    ));
-    checks.push(check(
-      `${world.worldId}.places.emptyBeforeActivation`,
-      0,
-      world.places,
-    ));
+    if (!policy.homeAssignmentWorldIds.has(world.worldId)) {
+      checks.push(check(
+        `${world.worldId}.privateUsers.empty`,
+        0,
+        world.privateUsers,
+      ));
+    }
+    if (!policy.contentAccessWorldIds.has(world.worldId)) {
+      checks.push(check(
+        `${world.worldId}.userUsage.empty`,
+        0,
+        world.userUsage,
+      ));
+      checks.push(check(
+        `${world.worldId}.places.emptyBeforeContentAccess`,
+        0,
+        world.places,
+      ));
+    }
   }
   return Object.freeze({
     pass: checks.every((item) => item.pass),

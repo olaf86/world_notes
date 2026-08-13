@@ -37,7 +37,10 @@ test("activation data inventory accepts converged mirror-only worlds", () => {
     world("asia"),
     world("northAmerica"),
     world("europe"),
-  ]);
+  ], {
+    contentAccessWorldIds: new Set(["asia"]),
+    homeAssignmentWorldIds: new Set(["asia"]),
+  });
   assert.equal(result.pass, true);
   assert.equal(result.checks.every((check) => check.pass), true);
 });
@@ -47,15 +50,60 @@ test("activation data inventory reports mirror and backlog drift", () => {
     world("asia"),
     world("northAmerica", {socialEdges: 0, places: 1}),
     world("europe", {pendingGlobalOperations: 1}),
-  ]);
+  ], {
+    contentAccessWorldIds: new Set(["asia"]),
+    homeAssignmentWorldIds: new Set(["asia"]),
+  });
   assert.equal(result.pass, false);
   assert.deepEqual(
     result.checks.filter((check) => !check.pass).map((check) => check.code),
     [
       "northAmerica.socialEdges.matchesAsia",
-      "northAmerica.places.emptyBeforeActivation",
+      "northAmerica.places.emptyBeforeContentAccess",
       "europe.pendingGlobalOperations.empty",
     ],
+  );
+});
+
+test("activation data inventory permits content in an enabled world", () => {
+  const result = evaluateActivationDataInventory([
+    world("asia"),
+    world("northAmerica", {userUsage: 1, places: 1}),
+    world("europe"),
+  ], {
+    contentAccessWorldIds: new Set(["asia", "northAmerica"]),
+    homeAssignmentWorldIds: new Set(["asia"]),
+  });
+
+  assert.equal(result.pass, true);
+  assert.equal(
+    result.checks.some((check) => check.code.startsWith(
+      "northAmerica.places.empty",
+    )),
+    false,
+  );
+  assert.equal(
+    result.checks.some((check) =>
+      check.code === "europe.places.emptyBeforeContentAccess"),
+    true,
+  );
+});
+
+test("activation data inventory permits authority in a home world", () => {
+  const result = evaluateActivationDataInventory([
+    world("asia"),
+    world("northAmerica", {privateUsers: 1, userUsage: 1, places: 1}),
+    world("europe"),
+  ], {
+    contentAccessWorldIds: new Set(["asia", "northAmerica"]),
+    homeAssignmentWorldIds: new Set(["asia", "northAmerica"]),
+  });
+
+  assert.equal(result.pass, true);
+  assert.equal(
+    result.checks.some((check) =>
+      check.code === "northAmerica.privateUsers.empty"),
+    false,
   );
 });
 

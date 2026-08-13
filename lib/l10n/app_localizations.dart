@@ -1664,6 +1664,24 @@ abstract class AppLocalizations {
   /// **'The language changed on this device, but could not be saved to your account.'**
   String get settingsLanguageUpdateFailed;
 
+  /// No description provided for @settingsContentWorldTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Content world'**
+  String get settingsContentWorldTitle;
+
+  /// No description provided for @settingsContentWorldDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose where you browse and post. Your permanent home world will not change.'**
+  String get settingsContentWorldDescription;
+
+  /// No description provided for @settingsContentWorldSwitchFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not switch worlds. Please try again.'**
+  String get settingsContentWorldSwitchFailed;
+
   /// No description provided for @settingsMapStyleTitle.
   ///
   /// In en, this message translates to:

@@ -878,6 +878,17 @@ class AppLocalizationsJa extends AppLocalizations {
       'この端末の表示言語は変更されましたが、アカウントに保存できませんでした。';
 
   @override
+  String get settingsContentWorldTitle => 'コンテンツワールド';
+
+  @override
+  String get settingsContentWorldDescription =>
+      '閲覧・投稿するワールドを選びます。変更できないホームワールドはそのままです。';
+
+  @override
+  String get settingsContentWorldSwitchFailed =>
+      'ワールドを切り替えられませんでした。もう一度お試しください。';
+
+  @override
   String get settingsMapStyleTitle => 'マップスタイル';
 
   @override

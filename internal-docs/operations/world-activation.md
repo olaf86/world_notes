@@ -76,6 +76,39 @@ After those deployments, run the production preflight again. Distribute the
 catalog-version-2 client only after preflight passes. Observe internal-user
 North America traffic before any minimum-version or home-assignment change.
 
+Production result (2026-08-13): the North America Rules and all Functions were
+deployed successfully. The post-deploy preflight collected at
+`2026-08-13T10:58:57.308Z` passed with zero failures and zero warnings. The
+follow-up activation inventory collected at `2026-08-13T11:00:33.738Z` passed
+all checks with zero pending/failed global operations. North America remained
+free of private account and usage authorities, and Europe remained empty and
+closed to content.
+
+### Internal content observation
+
+Start the app normally with an internal account, open Settings, select
+**Content world**, and choose **North America**. The selector lists only worlds
+whose catalog has `contentAccessEnabled: true`. Switching uses the ordinary
+`selectedWorldProvider`, which still requires an authenticated, bootstrapped
+account and ready account mirrors in the destination. It does not change the
+account's permanent home world. Register the device's App Check debug token
+when testing with a debug build.
+
+Use one internal account to:
+
+1. create a clearly labelled disposable note in North America;
+2. confirm the created note opens and appears on the map/list;
+3. post a message and exercise its like state;
+4. upload a pin or message image to cover the regional Storage route;
+5. archive the disposable note after the checks.
+
+Then rerun production preflight and activation inventory with new report paths.
+The inventory permits places and local usage counters in a catalogued
+content-access world, but still requires Europe to have neither and requires
+North America and Europe to have zero private account authorities while home
+assignment is closed. Require every world to have zero pending and failed
+global operations before advancing to minimum-version enforcement.
+
 Before `homeEnabled`, rollback is still reversible: restore North America to
 `mirrorOnly`, set `contentAccessEnabled: false`, remap its Firestore and Storage
 targets to the locked Rules, deploy those gates, and let regional workers drain

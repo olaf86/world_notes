@@ -56,7 +56,18 @@ async function main(): Promise<void> {
           world.databaseId as WorldFirestoreDatabaseId,
         ),
       )));
-    const evaluation = evaluateActivationDataInventory(worlds);
+    const evaluation = evaluateActivationDataInventory(worlds, {
+      contentAccessWorldIds: new Set(
+        WORLD_CATALOG.worlds
+          .filter((world) => world.contentAccessEnabled)
+          .map((world) => world.worldId),
+      ),
+      homeAssignmentWorldIds: new Set(
+        WORLD_CATALOG.worlds
+          .filter((world) => world.homeAssignmentEnabled)
+          .map((world) => world.worldId),
+      ),
+    });
     const report = Object.freeze({
       projectId: args.projectId,
       collectedAt: new Date().toISOString(),
