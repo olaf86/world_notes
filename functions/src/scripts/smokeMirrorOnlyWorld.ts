@@ -8,7 +8,9 @@ import {
   Timestamp,
 } from "firebase-admin/firestore";
 
-import {evaluateActivationDataInventory} from "../activationDataInventory";
+import {
+  evaluateWorldActivationDataReadiness,
+} from "../activationDataInventory";
 import {collectWorldActivationData} from "../activationDataInventoryFirestore";
 import {
   type WorldCatalogEntry,
@@ -179,14 +181,14 @@ async function main(): Promise<void> {
       collectWorldActivationData("asia", asia),
       collectWorldActivationData(world.worldId, target),
     ]);
-    const inventory = evaluateActivationDataInventory([
+    const dataReadiness = evaluateWorldActivationDataReadiness([
       asiaCounts,
       targetCounts,
     ], {
       contentAccessWorldIds: new Set(["asia"]),
       homeAssignmentWorldIds: new Set(["asia"]),
     });
-    if (!inventory.pass) {
+    if (!dataReadiness.pass) {
       throw new Error("Mirror-only activation data gate failed.");
     }
     await assertProductionCompositeIndex(target);
@@ -194,7 +196,7 @@ async function main(): Promise<void> {
     const checks: readonly SmokeCheck[] = Object.freeze([
       smokeCheck("catalog.mirrorOnly.closed"),
       smokeCheck("database.route.matchesCatalog"),
-      ...inventory.checks.map((check) => smokeCheck(check.code)),
+      ...dataReadiness.checks.map((check) => smokeCheck(check.code)),
       smokeCheck("database.productionCompositeIndex.available"),
       smokeCheck("database.adminTransaction.roundTrip"),
       smokeCheck("database.transientDocument.cleaned"),

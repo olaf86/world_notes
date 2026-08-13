@@ -3,6 +3,13 @@
 This P21 read-only check compares count-level global data and activation gates
 across all catalogued Firestore databases. It does not write cloud state.
 
+It is not part of the app startup path, a deployed Cloud Function, or a
+scheduled job. An operator runs it explicitly before and after a world
+activation step. The mirror-only smoke command also applies the same readiness
+evaluation to Asia and its target world before performing the transient smoke
+write. Unit tests exercise the evaluator with synthetic counts during local or
+CI test runs.
+
 Run from `functions/`:
 
 ```bash

@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  evaluateActivationDataInventory,
+  evaluateWorldActivationDataReadiness,
   type WorldActivationDataCounts,
 } from "../src/activationDataInventory";
 import {
@@ -32,8 +32,8 @@ function world(
   };
 }
 
-test("activation data inventory accepts converged mirror-only worlds", () => {
-  const result = evaluateActivationDataInventory([
+test("world activation data is ready for converged mirror-only worlds", () => {
+  const result = evaluateWorldActivationDataReadiness([
     world("asia"),
     world("northAmerica"),
     world("europe"),
@@ -45,8 +45,8 @@ test("activation data inventory accepts converged mirror-only worlds", () => {
   assert.equal(result.checks.every((check) => check.pass), true);
 });
 
-test("activation data inventory reports mirror and backlog drift", () => {
-  const result = evaluateActivationDataInventory([
+test("world activation data reports mirror and backlog drift", () => {
+  const result = evaluateWorldActivationDataReadiness([
     world("asia"),
     world("northAmerica", {socialEdges: 0, places: 1}),
     world("europe", {pendingGlobalOperations: 1}),
@@ -65,8 +65,8 @@ test("activation data inventory reports mirror and backlog drift", () => {
   );
 });
 
-test("activation data inventory permits content in an enabled world", () => {
-  const result = evaluateActivationDataInventory([
+test("world activation data permits content in an enabled world", () => {
+  const result = evaluateWorldActivationDataReadiness([
     world("asia"),
     world("northAmerica", {userUsage: 1, places: 1}),
     world("europe"),
@@ -89,8 +89,8 @@ test("activation data inventory permits content in an enabled world", () => {
   );
 });
 
-test("activation data inventory permits authority in a home world", () => {
-  const result = evaluateActivationDataInventory([
+test("world activation data permits authority in a home world", () => {
+  const result = evaluateWorldActivationDataReadiness([
     world("asia"),
     world("northAmerica", {privateUsers: 1, userUsage: 1, places: 1}),
     world("europe"),

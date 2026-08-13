@@ -41,8 +41,8 @@ const GLOBAL_ACCOUNT_FIELDS: readonly CountField[] = [
   "accountSafety",
 ];
 
-/** Evaluates count-level P21 gates without exposing document identities. */
-export function evaluateActivationDataInventory(
+/** Evaluates count-level data readiness for world activation. */
+export function evaluateWorldActivationDataReadiness(
   worlds: readonly WorldActivationDataCounts[],
   policy: ActivationDataInventoryPolicy,
 ): ActivationDataInventoryResult {

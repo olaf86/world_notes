@@ -5,7 +5,7 @@ import {writeFile} from "node:fs/promises";
 import {deleteApp, initializeApp} from "firebase-admin/app";
 
 import {
-  evaluateActivationDataInventory,
+  evaluateWorldActivationDataReadiness,
 } from "../activationDataInventory";
 import {collectWorldActivationData} from "../activationDataInventoryFirestore";
 import {
@@ -56,7 +56,7 @@ async function main(): Promise<void> {
           world.databaseId as WorldFirestoreDatabaseId,
         ),
       )));
-    const evaluation = evaluateActivationDataInventory(worlds, {
+    const evaluation = evaluateWorldActivationDataReadiness(worlds, {
       contentAccessWorldIds: new Set(
         WORLD_CATALOG.worlds
           .filter((world) => world.contentAccessEnabled)
