@@ -53,6 +53,18 @@ void main() {
     );
   });
 
+  test('does not index message likes for collection-group listing', () {
+    final config = _loadConfig();
+    final indexes = (config['indexes'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+
+    expect(
+      indexes.where((index) => index['collectionGroup'] == 'messageLikes'),
+      isEmpty,
+      reason: 'Like state is read by exact owner-scoped document paths.',
+    );
+  });
+
   test('defines active block queries, cleanup lookup, and tombstone TTL', () {
     final config = _loadConfig();
 

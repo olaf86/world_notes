@@ -282,15 +282,13 @@ service cloud.firestore {
                      && hasReadableMessageModeration(message)));
     }
 
-    function canReadOwnMessageLike(like) {
+    function canGetOwnMessageLike(placeId, messageId, likeId) {
       let messagePath =
-        /databases/$(database)/documents/places/$(like.placeId)/messages/$(like.messageId);
+        /databases/$(database)/documents/places/$(placeId)/messages/$(messageId);
       return isSignedIn()
-             && like.userId == request.auth.uid
-             && like.placeId is string
-             && like.messageId is string
+             && likeId == request.auth.uid
              && exists(messagePath)
-             && canReadMessage(like.placeId, get(messagePath).data);
+             && canReadMessage(placeId, get(messagePath).data);
     }
 
     function isValidClientThreadStateTransition() {
@@ -510,19 +508,17 @@ service cloud.firestore {
 
         allow delete: if false;
 
+        // The app requests only the caller's exact like edge after its bounded
+        // message queries have returned readable parents. Path ownership lets
+        // a missing edge return a normal not-found snapshot without trusting
+        // edge fields. Lists and all writes remain server-only.
+        match /messageLikes/{likeId} {
+          allow get: if canGetOwnMessageLike(placeId, messageId, likeId);
+          allow list, create, update, delete: if false;
+        }
+
       }
 
-    }
-
-    // Collection-group query support for the thread's own-like state. A
-    // collection-group query requires this root-level recursive match. A
-    // caller can list only edges whose stored owner is that caller; Cloud
-    // Functions are the only writer, so clients cannot forge `userId`.
-    // Keep `messageLikes` exclusive to this edge schema; a future unrelated
-    // collection must use a different name to avoid matching this rule.
-    // Individual document gets and all client writes remain denied by default.
-    match /{path=**}/messageLikes/{likeId} {
-      allow list: if canReadOwnMessageLike(resource.data);
     }
 
     // Flat administrator review queue for non-allow moderation decisions.

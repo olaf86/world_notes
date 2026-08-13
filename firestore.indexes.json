@@ -121,15 +121,6 @@
       ]
     },
     {
-      "collectionGroup": "messageLikes",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        { "fieldPath": "placeId", "order": "ASCENDING" },
-        { "fieldPath": "userId", "order": "ASCENDING" },
-        { "fieldPath": "liked", "order": "ASCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "reports",
       "queryScope": "COLLECTION",
       "fields": [

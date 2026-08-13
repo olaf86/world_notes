@@ -910,17 +910,15 @@ describe(
             requireApplicationRules().authenticatedContext("alice");
 
           await assertFails(
-            alice.firestore().collectionGroup("messageLikes")
-              .where("placeId", "==", "tokyo")
-              .where("userId", "==", "alice")
-              .where("liked", "==", true)
-              .get(),
+            alice.firestore().doc(
+              "places/tokyo/messages/hidden/messageLikes/alice",
+            ).get(),
           );
         },
       );
 
       test(
-        "allows an owner to list like edges for readable messages",
+        "allows only the owner to get a readable message like edge",
         async () => {
           await Promise.all([
             seedApplicationDocument("places/tokyo", activePublicPlace()),
@@ -942,14 +940,106 @@ describe(
           ]);
           const alice =
             requireApplicationRules().authenticatedContext("alice");
+          const bob =
+            requireApplicationRules().authenticatedContext("bob");
+          const unauthenticated =
+            requireApplicationRules().unauthenticatedContext();
+          const path =
+            "places/tokyo/messages/visible/messageLikes/alice";
 
           await assertSucceeds(
+            alice.firestore().doc(path).get(),
+          );
+          await assertFails(bob.firestore().doc(path).get());
+          await assertFails(unauthenticated.firestore().doc(path).get());
+        },
+      );
+
+      test(
+        "allows an owner to observe a missing like edge as not found",
+        async () => {
+          await Promise.all([
+            seedApplicationDocument("places/tokyo", activePublicPlace()),
+            seedApplicationDocument("places/tokyo/messages/visible", {
+              userId: "bob",
+              moderationAction: "allow",
+              isVisible: true,
+              isPubliclyVisible: true,
+            }),
+          ]);
+          const alice =
+            requireApplicationRules().authenticatedContext("alice");
+
+          const edge = await assertSucceeds(
+            alice.firestore().doc(
+              "places/tokyo/messages/visible/messageLikes/alice",
+            ).get(),
+          );
+          assert.equal(edge.exists, false);
+        },
+      );
+
+      test(
+        "denies a message-like edge without its parent message",
+        async () => {
+          await Promise.all([
+            seedApplicationDocument("places/tokyo", activePublicPlace()),
+            seedApplicationDocument(
+              "places/tokyo/messages/missing/messageLikes/alice",
+              {
+                userId: "alice",
+                placeId: "tokyo",
+                messageId: "missing",
+                liked: true,
+              },
+            ),
+          ]);
+          const alice =
+            requireApplicationRules().authenticatedContext("alice");
+
+          await assertFails(
+            alice.firestore().doc(
+              "places/tokyo/messages/missing/messageLikes/alice",
+            ).get(),
+          );
+        },
+      );
+
+      test(
+        "denies message-like lists and every direct client write",
+        async () => {
+          await Promise.all([
+            seedApplicationDocument("places/tokyo", activePublicPlace()),
+            seedApplicationDocument("places/tokyo/messages/visible", {
+              userId: "bob",
+              moderationAction: "allow",
+              isVisible: true,
+              isPubliclyVisible: true,
+            }),
+            seedApplicationDocument(
+              "places/tokyo/messages/visible/messageLikes/alice",
+              {
+                userId: "alice",
+                placeId: "tokyo",
+                messageId: "visible",
+                liked: true,
+              },
+            ),
+          ]);
+          const alice =
+            requireApplicationRules().authenticatedContext("alice");
+          const edge = alice.firestore().doc(
+            "places/tokyo/messages/visible/messageLikes/alice",
+          );
+
+          await assertFails(edge.parent.get());
+          await assertFails(
             alice.firestore().collectionGroup("messageLikes")
-              .where("placeId", "==", "tokyo")
               .where("userId", "==", "alice")
-              .where("liked", "==", true)
               .get(),
           );
+          await assertFails(edge.set({liked: false}, {merge: true}));
+          await assertFails(edge.delete());
         },
       );
 
