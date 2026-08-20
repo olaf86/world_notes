@@ -1,16 +1,18 @@
-import {onCall, HttpsError} from "firebase-functions/v2/https";
+import {onCall, HttpsError} from "./platform/worldCallable";
 import {onSchedule} from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
 import {
   DocumentReference,
   DocumentSnapshot,
-  getFirestore,
   FieldValue,
   Timestamp,
 } from "firebase-admin/firestore";
-import {getStorage} from "firebase-admin/storage";
 
 import {encodeGeohash} from "./geohash";
+import {
+  assertAccountSafetyAllows,
+  assertAccountSafetyPreflight,
+} from "./accountSafety";
 import {
   DISCOVERY_GEOHASH_PRECISION,
   FREE_NOTE_LIMIT,
@@ -22,6 +24,8 @@ import {
   MAX_SUBTITLE_LENGTH,
   REGION,
 } from "./constants";
+import {worldContext} from "./platform/worldContext";
+import {WORLD_REGISTRY} from "./platform/worldRegistry";
 import {
   hashLockSecret,
   MAX_LOCK_HINT_LENGTH,
@@ -29,14 +33,17 @@ import {
   parseLockType,
   validateLockSecret,
 } from "./noteLock";
+import {enqueueModerationJob} from "./moderationJobs";
 import {
-  type InternalModerationResult,
-  OPENAI_API_KEY,
-  assertUserCanCreateContent,
-  moderateContent,
-  moderateTextContent,
-  recordRejectedModeration,
-} from "./moderation";
+  EVALUATE_NOTE_MODERATION_JOB,
+  noteModerationInputHash,
+} from "./noteModeration";
+import {
+  newPinImageCandidate,
+  parsePinImageCandidate,
+  pinImageCandidateStoragePath,
+} from "./pinImageCandidate";
+import {EVALUATE_PIN_IMAGE_MODERATION_JOB} from "./pinImageModeration";
 import {canMaintainNote} from "./noteMaintenance";
 import {
   hasValidMembership,
@@ -49,8 +56,17 @@ import {
   type ReportReasonCode,
 } from "./reporting";
 import {hasUserBlockBetweenInTransaction} from "./userBlocks";
+import {
+  bindImageUploadsToContent,
+  imageUploadId,
+} from "./imageUploads";
+import {enqueueStorageObjectDeletion} from "./storageObjectCleanup";
+import {
+  enqueueArchivedNoteAdministratorInvitationRevocation,
+} from "./noteAdministratorInviteCleanup";
 
 interface CreateNoteData {
+  placeId?: unknown;
   latitude?: unknown;
   longitude?: unknown;
   title?: unknown;
@@ -124,26 +140,27 @@ const UUID_V7_PATTERN =
  * This is the ONLY way a `places` document may be created — Firestore rules
  * deny direct client creation. Enforcing the per-user note cap requires
  * counting the user's notes, which security rules cannot do; doing it here in
- * a transaction (reading + writing the same users/{uid} doc) makes the check
- * race-free: two concurrent creates serialize on that document.
+ * a transaction (reading + writing the same userUsage/{uid} doc) makes the
+ * check race-free: two concurrent creates serialize on that document.
  *
- * The active-note counter (users/{uid}.activeNoteCount) is the source of
- * truth for the cap. It is incremented here and decremented by the
- * auto-archive function.
+ * The world-local userUsage/{uid}.activeNoteCount is the source of truth for
+ * that world's cap. Entitlement is read from the local userEntitlements
+ * mirror, so neither read needs to leave the selected world.
  */
 export const createNote = onCall<CreateNoteData>(
   {
     enforceAppCheck: true,
     region: REGION,
-    secrets: [NOTE_PW_PEPPER, OPENAI_API_KEY],
+    secrets: [NOTE_PW_PEPPER],
   },
-  async (req) => {
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) {
       throw new HttpsError("unauthenticated", "You must be signed in.");
     }
 
     const {
+      placeId,
       latitude,
       longitude,
       title,
@@ -155,6 +172,10 @@ export const createNote = onCall<CreateNoteData>(
       publishAtMillis,
     } = req.data ?? {};
 
+    if (typeof placeId !== "string" ||
+        !new RegExp(`^${UUID_V7_PATTERN}$`).test(placeId)) {
+      throw new HttpsError("invalid-argument", "Invalid placeId.");
+    }
     if (
       typeof latitude !== "number" ||
       typeof longitude !== "number" ||
@@ -249,35 +270,14 @@ export const createNote = onCall<CreateNoteData>(
         subtitle.trim() :
         null;
     const trimmedTitle = (title as string).trim();
-    const db = getFirestore();
+    const db = world.firestore;
     const userRef = db.collection("users").doc(uid);
-    const moderationResult = await moderateTextContent([
-      `Title: ${trimmedTitle}`,
-      ...(trimmedSubtitle == null ?
-        [] :
-        [`Description: ${trimmedSubtitle}`]),
-    ].join("\n"));
-    if (moderationResult.action === "pending") {
-      throw new HttpsError(
-        "unavailable",
-        "Could not check note safety. Please try again.",
-        {reason: "moderation_unavailable"},
-      );
-    }
-    if (moderationResult.action !== "allow") {
-      await recordRejectedModeration({
-        db,
-        userRef,
-        uid,
-        result: moderationResult,
-        sourceType: "noteDraft",
-      });
-      throw new HttpsError(
-        "failed-precondition",
-        "This note could not be published because of its content.",
-        {reason: "content_not_allowed"},
-      );
-    }
+    await assertAccountSafetyPreflight(
+      db,
+      uid,
+      "contentWrite",
+      Timestamp.now(),
+    );
     const nowMillis = Date.now();
     let publishAtMs = nowMillis;
     if (publishAtMillis != null) {
@@ -312,18 +312,46 @@ export const createNote = onCall<CreateNoteData>(
     );
 
     const publicProfileRef = db.collection("publicProfiles").doc(uid);
-    const placeRef = db.collection("places").doc();
+    const entitlementRef = db.collection("userEntitlements").doc(uid);
+    const usageRef = db.collection("userUsage").doc(uid);
+    const placeRef = db.collection("places").doc(placeId);
     const noteStateRef = userRef.collection("noteStates").doc(placeRef.id);
+    const moderationInputHash = noteModerationInputHash(
+      trimmedTitle,
+      trimmedSubtitle,
+    );
 
-    await db.runTransaction(async (tx) => {
-      const [userSnap, publicProfileSnap] = await Promise.all([
-        tx.get(userRef),
-        tx.get(publicProfileRef),
-      ]);
-      await assertUserCanCreateContent(tx, userRef, nowMillis);
-      const isPremium = userSnap.get("isPremium") === true;
+    const creationResult = await db.runTransaction(async (tx) => {
+      const [placeSnap, publicProfileSnap, entitlementSnap, usageSnap] =
+        await Promise.all([
+          tx.get(placeRef),
+          tx.get(publicProfileRef),
+          tx.get(entitlementRef),
+          tx.get(usageRef),
+        ]);
+      if (placeSnap.exists) {
+        if (placeSnap.get("createdByUserId") !== uid ||
+            placeSnap.get("moderationInputHash") !== moderationInputHash) {
+          throw new HttpsError(
+            "already-exists",
+            "This note identifier is already in use.",
+          );
+        }
+        return {
+          created: false,
+          moderationAction: String(placeSnap.get("moderationAction")),
+        };
+      }
+      await assertAccountSafetyAllows(
+        tx,
+        db,
+        uid,
+        "contentWrite",
+        Timestamp.fromMillis(nowMillis),
+      );
+      const isPremium = entitlementSnap.get("isPremium") === true;
       const limit = isPremium ? PREMIUM_NOTE_LIMIT : FREE_NOTE_LIMIT;
-      const activeCount = (userSnap.get("activeNoteCount") as number) ?? 0;
+      const activeCount = (usageSnap.get("activeNoteCount") as number) ?? 0;
       if (!publicProfileSnap.exists) {
         throw new HttpsError(
           "failed-precondition",
@@ -335,6 +363,8 @@ export const createNote = onCall<CreateNoteData>(
         publicProfileSnap.get("photoUrl") as string | null;
       const creatorPhotoVersion =
         publicProfileSnap.get("photoVersion") as number;
+      const creatorProfileRevision =
+        publicProfileSnap.get("revision") as number;
 
       if (activeCount >= limit) {
         throw new HttpsError(
@@ -362,7 +392,10 @@ export const createNote = onCall<CreateNoteData>(
         creatorName,
         creatorPhotoUrl,
         creatorPhotoVersion,
+        creatorProfileRevision,
         maintainerIds: [uid],
+        administratorCount: 0,
+        pendingAdministratorInviteCount: 0,
         createdAt: FieldValue.serverTimestamp(),
         publishAt,
         messageCount: 0,
@@ -375,11 +408,19 @@ export const createNote = onCall<CreateNoteData>(
         isArchived: false,
         expiresAt,
         footprintEnabled: true,
-        moderationAction: "allow",
-        moderationProvider: moderationResult.provider,
-        moderationPolicyVersion: moderationResult.policyVersion,
+        moderationAction: "pending",
+        moderationInputHash,
+        moderationProvider: null,
+        moderationPolicyVersion: null,
+        moderationCheckedAt: null,
         isModerationHidden: false,
+        isSensitive: false,
         reviewRequired: false,
+        activeNoteSlotReleasedAt: null,
+        moderationRetentionStartedAt: null,
+        moderationRetentionPurgeStartedAt: null,
+        moderationHiddenJobId: null,
+        moderationSafetyAppliedAt: null,
       };
       if (lock != null) {
         placeData.lockType = lock.lockType;
@@ -403,23 +444,38 @@ export const createNote = onCall<CreateNoteData>(
       }
 
       tx.set(
-        userRef,
-        {activeNoteCount: FieldValue.increment(1)},
+        usageRef,
+        {
+          activeNoteCount: FieldValue.increment(1),
+          updatedAt: FieldValue.serverTimestamp(),
+        },
         {merge: true},
       );
+      enqueueModerationJob(
+        tx,
+        db,
+        {
+          jobType: EVALUATE_NOTE_MODERATION_JOB,
+          targetPath: placeRef.path,
+          inputHash: moderationInputHash,
+          world: world.worldId,
+        },
+        Timestamp.fromMillis(nowMillis),
+      );
+      return {created: true, moderationAction: "pending"};
     });
 
-    return {placeId: placeRef.id};
+    return {
+      placeId: placeRef.id,
+      ...creationResult,
+    };
   },
 );
 
+/** Attaches a public-pending pin candidate and queues regional evaluation. */
 export const setNotePinImage = onCall<SetNotePinImageData>(
-  {
-    enforceAppCheck: true,
-    region: REGION,
-    secrets: [OPENAI_API_KEY],
-  },
-  async (req) => {
+  {enforceAppCheck: true, region: REGION},
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) {
       throw new HttpsError("unauthenticated", "You must be signed in.");
@@ -431,34 +487,39 @@ export const setNotePinImage = onCall<SetNotePinImageData>(
     const expectedPathPattern = new RegExp(
       `^images/pins/${placeId}/${uid}/${UUID_V7_PATTERN}[.]webp$`,
     );
-    if (
-      typeof pinImageStoragePath !== "string" ||
-      !expectedPathPattern.test(pinImageStoragePath)
-    ) {
+    if (typeof pinImageStoragePath !== "string" ||
+        !expectedPathPattern.test(pinImageStoragePath)) {
       throw new HttpsError(
         "invalid-argument",
         "Invalid pin image storage path.",
       );
     }
 
-    const bucket = getStorage().bucket();
-    let imageBytes: Uint8Array;
+    const db = world.firestore;
+    const placeRef = db.collection("places").doc(placeId);
+    const changedAt = Timestamp.now();
+    const nextCandidate = newPinImageCandidate({
+      storagePath: pinImageStoragePath,
+      placeId,
+      requestedByUid: uid,
+    }, changedAt);
+    await assertAccountSafetyPreflight(
+      db,
+      uid,
+      "contentWrite",
+      changedAt,
+    );
     try {
-      const file = bucket.file(pinImageStoragePath);
-      const [[metadata], [bytes]] = await Promise.all([
-        file.getMetadata(),
-        file.download(),
-      ]);
-      if (
-        metadata.contentType !== "image/webp" ||
-        Number(metadata.size ?? bytes.length) > 256 * 1024
-      ) {
+      const [metadata] = await world.bucket
+        .file(pinImageStoragePath)
+        .getMetadata();
+      if (metadata.contentType !== "image/webp" ||
+          Number(metadata.size ?? 0) > 256 * 1024) {
         throw new HttpsError(
           "invalid-argument",
           "Invalid pin image metadata.",
         );
       }
-      imageBytes = bytes;
     } catch (error) {
       if (error instanceof HttpsError) throw error;
       throw new HttpsError(
@@ -466,117 +527,95 @@ export const setNotePinImage = onCall<SetNotePinImageData>(
         "Pin image upload was not found.",
       );
     }
-
-    const db = getFirestore();
-    let moderationResult: InternalModerationResult;
-    try {
-      moderationResult = await moderateContent("", [{
-        bytes: imageBytes,
-        contentType: "image/webp",
-      }]);
-    } catch (error) {
-      try {
-        await bucket.file(pinImageStoragePath).delete({ignoreNotFound: true});
-      } catch (cleanupError) {
-        logger.warn(
-          `Could not clean up unchecked pin image ${pinImageStoragePath}.`,
-          cleanupError,
-        );
-      }
-      throw error;
-    }
-    if (moderationResult.action !== "allow") {
-      try {
-        await bucket.file(pinImageStoragePath).delete({ignoreNotFound: true});
-      } catch (error) {
-        logger.warn(
-          `Could not delete rejected pin image ${pinImageStoragePath}.`,
-          error,
-        );
-      }
-      if (moderationResult.action !== "pending") {
-        await recordRejectedModeration({
-          db,
-          userRef: db.collection("users").doc(uid),
-          uid,
-          result: moderationResult,
-          sourceType: "pinImage",
-        });
-      }
-      throw new HttpsError(
-        moderationResult.action === "pending" ?
-          "unavailable" :
-          "failed-precondition",
-        moderationResult.action === "pending" ?
-          "Could not check image safety. Please try again." :
-          "This image could not be used because of its content.",
-        {
-          reason: moderationResult.action === "pending" ?
-            "moderation_unavailable" :
-            "image_not_allowed",
-        },
+    const accepted = await db.runTransaction(async (tx) => {
+      const place = await tx.get(placeRef);
+      await assertAccountSafetyAllows(
+        tx,
+        db,
+        uid,
+        "contentWrite",
+        changedAt,
       );
-    }
-    const placeRef = db.collection("places").doc(placeId);
-    let previousPath: string | null;
-    try {
-      previousPath = await db.runTransaction(async (tx) => {
-        const placeSnap = await tx.get(placeRef);
-        if (!placeSnap.exists) {
-          throw new HttpsError("not-found", "Note not found.");
-        }
-        const creatorUid =
-          placeSnap.get("createdByUserId") as string | undefined;
-        if (
-          creatorUid &&
-          await hasUserBlockBetweenInTransaction(tx, db, uid, creatorUid)
-        ) {
-          throw new HttpsError(
-            "permission-denied",
-            "You cannot change this note.",
-            {reason: "user_blocked"},
-          );
-        }
-        if (!canMaintainNote(placeSnap, uid)) {
-          throw new HttpsError(
-            "permission-denied",
-            "You cannot change this note.",
-          );
-        }
-        if (
-          placeSnap.get("isArchived") === true ||
-          placeSnap.get("isModerationHidden") !== false
-        ) {
-          throw new HttpsError(
-            "failed-precondition",
-            "This note cannot change its pin image.",
-          );
-        }
-        const previous = placeSnap.get("pinImageStoragePath");
-        tx.update(placeRef, {pinImageStoragePath});
-        return typeof previous === "string" ? previous : null;
-      });
-    } catch (error) {
-      try {
-        await bucket.file(pinImageStoragePath).delete({ignoreNotFound: true});
-      } catch (cleanupError) {
-        logger.warn(
-          `Could not clean up unattached pin image ${pinImageStoragePath}.`,
-          cleanupError,
+      if (!place.exists) {
+        throw new HttpsError("not-found", "Note not found.");
+      }
+      const creatorUid = place.get("createdByUserId");
+      if (typeof creatorUid === "string" &&
+          await hasUserBlockBetweenInTransaction(
+            tx,
+            db,
+            uid,
+            creatorUid,
+          )) {
+        throw new HttpsError(
+          "permission-denied",
+          "You cannot change this note.",
+          {reason: "user_blocked"},
         );
       }
-      throw error;
-    }
-
-    if (previousPath != null && previousPath !== pinImageStoragePath) {
-      try {
-        await bucket.file(previousPath).delete({
-          ignoreNotFound: true,
-        });
-      } catch (error) {
-        logger.warn(`Could not delete old pin image ${previousPath}.`, error);
+      if (!canMaintainNote(place, uid)) {
+        throw new HttpsError(
+          "permission-denied",
+          "You cannot change this note.",
+        );
       }
-    }
+      if (place.get("isArchived") === true ||
+          place.get("isModerationHidden") !== false) {
+        throw new HttpsError(
+          "failed-precondition",
+          "This note cannot change its pin image.",
+        );
+      }
+      await bindImageUploadsToContent(
+        tx,
+        db,
+        [pinImageStoragePath],
+        placeRef.path,
+        changedAt,
+      );
+
+      const currentValue = place.get("pinImageCandidate");
+      let currentCandidate = null;
+      if (currentValue !== undefined && currentValue !== null) {
+        currentCandidate = parsePinImageCandidate(currentValue, placeId);
+      }
+      if (currentCandidate?.inputHash === nextCandidate.inputHash ||
+          (currentCandidate === null &&
+           place.get("pinImageStoragePath") === pinImageStoragePath)) {
+        return false;
+      }
+      if (currentCandidate !== null) {
+        enqueueStorageObjectDeletion(tx, db, {
+          sourceOperationId:
+            `replacedPendingPin:${imageUploadId(
+              currentCandidate.storagePath,
+            )}`,
+          revision: 1,
+          world: world.worldId,
+          objectPath: currentCandidate.storagePath,
+          createdAt: changedAt,
+        });
+      }
+      tx.update(placeRef, {
+        pinImageCandidate: {...nextCandidate},
+      });
+      enqueueModerationJob(
+        tx,
+        db,
+        {
+          jobType: EVALUATE_PIN_IMAGE_MODERATION_JOB,
+          targetPath: placeRef.path,
+          inputHash: nextCandidate.inputHash,
+          world: world.worldId,
+        },
+        changedAt,
+      );
+      return true;
+    });
+    return {
+      accepted,
+      moderationAction: "pending",
+    };
   },
 );
 
@@ -619,13 +658,13 @@ function canReportNote(
 /** Records a user report and queues the note for administrator review. */
 export const reportNote = onCall<ReportNoteData>(
   {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) {
       throw new HttpsError("unauthenticated", "Sign in required.");
     }
     const input = validateReportNoteInput(req.data);
-    const db = getFirestore();
+    const db = world.firestore;
     const placeRef = db.collection("places").doc(input.placeId);
     const memberRef = placeRef.collection("members").doc(uid);
     const reportRef = db.collection("reports").doc();
@@ -678,13 +717,17 @@ export const reportNote = onCall<ReportNoteData>(
         typeof placeSnap.get("subtitle") === "string" ?
           placeSnap.get("subtitle") as string :
           null;
-      const pinImageStoragePath =
+      const acceptedPinImageStoragePath =
         typeof placeSnap.get("pinImageStoragePath") === "string" ?
           placeSnap.get("pinImageStoragePath") as string :
           null;
+      const pinImageStoragePath = pinImageCandidateStoragePath(
+        placeSnap.get("pinImageCandidate"),
+      ) ?? acceptedPinImageStoragePath;
       const targetPath = `places/${input.placeId}`;
 
       tx.set(reportRef, {
+        worldId: world.worldId,
         targetType: "note",
         targetId: input.placeId,
         targetPath,
@@ -696,6 +739,7 @@ export const reportNote = onCall<ReportNoteData>(
         createdAt: reportCreatedAt,
       });
       tx.set(rateLimitRef, {
+        lastWorldId: world.worldId,
         lastCreatedAt: reportCreatedAt,
         lastTargetType: "note",
         lastTargetId: input.placeId,
@@ -703,6 +747,7 @@ export const reportNote = onCall<ReportNoteData>(
         lastMessageId: FieldValue.delete(),
       }, {merge: true});
       tx.set(reviewRef, {
+        worldId: world.worldId,
         userId: placeSnap.get("createdByUserId") ?? null,
         targetType: "note",
         targetId: input.placeId,
@@ -730,7 +775,7 @@ export const reportNote = onCall<ReportNoteData>(
 /** Updates the built-in appearance theme of an active note. */
 export const setNoteTheme = onCall<SetNoteThemeData>(
   {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) {
       throw new HttpsError("unauthenticated", "You must be signed in.");
@@ -743,10 +788,17 @@ export const setNoteTheme = onCall<SetNoteThemeData>(
       throw new HttpsError("invalid-argument", "Invalid note theme.");
     }
 
-    const db = getFirestore();
+    const db = world.firestore;
     const placeRef = db.collection("places").doc(placeId);
     await db.runTransaction(async (tx) => {
       const placeSnap = await tx.get(placeRef);
+      await assertAccountSafetyAllows(
+        tx,
+        db,
+        uid,
+        "contentWrite",
+        Timestamp.now(),
+      );
       if (!placeSnap.exists) {
         throw new HttpsError("not-found", "Note not found.");
       }
@@ -787,7 +839,7 @@ export const setNoteTheme = onCall<SetNoteThemeData>(
  */
 export const archiveNote = onCall<ArchiveNoteData>(
   {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) {
       throw new HttpsError("unauthenticated", "You must be signed in.");
@@ -797,8 +849,9 @@ export const archiveNote = onCall<ArchiveNoteData>(
       throw new HttpsError("invalid-argument", "placeId is required.");
     }
 
-    const db = getFirestore();
+    const db = world.firestore;
     const placeRef = db.collection("places").doc(placeId);
+    const cleanupCreatedAt = Timestamp.now();
     const archived = await db.runTransaction(async (tx) => {
       const placeSnap = await tx.get(placeRef);
       if (!placeSnap.exists) {
@@ -812,10 +865,12 @@ export const archiveNote = onCall<ArchiveNoteData>(
       }
       if (placeSnap.get("isArchived") === true) return false;
 
-      const userRef = db.collection("users").doc(uid);
-      const userSnap = await tx.get(userRef);
+      const usageRef = db.collection("userUsage").doc(uid);
+      const usageSnap = await tx.get(usageRef);
       const activeCount =
-        (userSnap.get("activeNoteCount") as number | undefined) ?? 0;
+        (usageSnap.get("activeNoteCount") as number | undefined) ?? 0;
+      const activeNoteSlotAlreadyReleased =
+        placeSnap.get("activeNoteSlotReleasedAt") instanceof Timestamp;
 
       tx.update(placeRef, {
         isArchived: true,
@@ -823,35 +878,25 @@ export const archiveNote = onCall<ArchiveNoteData>(
         isOpen: false,
       });
       tx.set(
-        userRef,
-        {activeNoteCount: Math.max(0, activeCount - 1)},
+        usageRef,
+        {
+          activeNoteCount: Math.max(
+            0,
+            activeCount - (activeNoteSlotAlreadyReleased ? 0 : 1),
+          ),
+          updatedAt: FieldValue.serverTimestamp(),
+        },
         {merge: true},
+      );
+      enqueueArchivedNoteAdministratorInvitationRevocation(
+        tx,
+        db,
+        world.worldId,
+        placeId,
+        cleanupCreatedAt,
       );
       return true;
     });
-
-    if (archived) {
-      try {
-        const invites = await db
-          .collection("invites")
-          .where("placeId", "==", placeId)
-          .get();
-        const batch = db.batch();
-        let revoked = 0;
-        for (const invite of invites.docs) {
-          if (invite.get("revoked") !== true) {
-            batch.update(invite.ref, {revoked: true});
-            revoked++;
-          }
-        }
-        if (revoked > 0) await batch.commit();
-      } catch (error) {
-        logger.warn(
-          `archiveNote: could not revoke invites for ${placeId}.`,
-          error,
-        );
-      }
-    }
 
     return {archived};
   },
@@ -864,87 +909,131 @@ export const archiveNote = onCall<ArchiveNoteData>(
  *   • isArchived = true (so it drops out of proximity search and can no longer
  *     accept messages — both already enforced client-side / by rules),
  *   • archivedAt timestamp,
- *   • decrements the creator's activeNoteCount so the slot frees up against the
- *     creation cap (the counter is the source of truth used by createNote).
+ *   • decrements the creator's world-local activeNoteCount so the slot frees
+ *     up against that world's creation cap.
  *
  * Archival is terminal — there is no return to active. Notes are processed in
  * batches; because each batch flips isArchived to true, the same query no
  * longer returns them, so re-querying until empty drains the backlog.
  *
  * Requires composite index (isArchived ASC, expiresAt ASC).
+ *
+ * @param {string} worldId Trusted catalog world to archive.
+ * @return {Promise<number>} Number of notes archived during this run.
  */
-export const archiveExpiredNotes = onSchedule(
-  {schedule: "every 24 hours", timeZone: "Asia/Tokyo", region: REGION},
-  async () => {
-    const db = getFirestore();
-    const now = Timestamp.now();
-    const batchSize = 200;
-    let totalArchived = 0;
+export async function archiveExpiredNotesForWorld(
+  worldId: string,
+): Promise<number> {
+  const db = worldContext(worldId).firestore;
+  const now = Timestamp.now();
+  const batchSize = 200;
+  let totalArchived = 0;
 
-    for (;;) {
-      const snap = await db
-        .collection("places")
-        .where("isArchived", "==", false)
-        .where("expiresAt", "<=", now)
-        .limit(batchSize)
-        .get();
+  for (;;) {
+    const snap = await db
+      .collection("places")
+      .where("isArchived", "==", false)
+      .where("expiresAt", "<=", now)
+      .limit(batchSize)
+      .get();
 
-      if (snap.empty) break;
+    if (snap.empty) break;
 
-      const placesByCreator = new Map<string, DocumentReference[]>();
-      for (const doc of snap.docs) {
-        const creatorId = doc.get("createdByUserId") as string;
-        const refs = placesByCreator.get(creatorId) ?? [];
-        refs.push(doc.ref);
-        placesByCreator.set(creatorId, refs);
-      }
+    const placesByCreator = new Map<string, DocumentReference[]>();
+    for (const doc of snap.docs) {
+      const creatorId = doc.get("createdByUserId") as string;
+      const refs = placesByCreator.get(creatorId) ?? [];
+      refs.push(doc.ref);
+      placesByCreator.set(creatorId, refs);
+    }
 
-      const archivedCounts = await Promise.all(
-        [...placesByCreator.entries()].map(async ([creatorId, placeRefs]) => {
-          return db.runTransaction(async (tx) => {
-            const userRef = db.collection("users").doc(creatorId);
-            const [userSnap, ...placeSnaps] = await Promise.all([
-              tx.get(userRef),
-              ...placeRefs.map((ref) => tx.get(ref)),
-            ]);
-            const expiredPlacesToArchive = placeSnaps.filter((placeSnap) => {
-              const expiresAt =
+    const archivedCounts = await Promise.all(
+      [...placesByCreator.entries()].map(async ([creatorId, placeRefs]) => {
+        return db.runTransaction(async (tx) => {
+          const usageRef = db.collection("userUsage").doc(creatorId);
+          const [usageSnap, ...placeSnaps] = await Promise.all([
+            tx.get(usageRef),
+            ...placeRefs.map((ref) => tx.get(ref)),
+          ]);
+          const expiredPlacesToArchive = placeSnaps.filter((placeSnap) => {
+            const expiresAt =
                 placeSnap.get("expiresAt") as Timestamp | undefined;
-              return placeSnap.exists &&
+            return placeSnap.exists &&
                 placeSnap.get("isArchived") !== true &&
                 placeSnap.get("createdByUserId") === creatorId &&
                 expiresAt != null &&
                 expiresAt.toMillis() <= now.toMillis();
-            });
-            if (expiredPlacesToArchive.length === 0) return 0;
-
-            for (const placeSnap of expiredPlacesToArchive) {
-              tx.update(placeSnap.ref, {
-                isArchived: true,
-                archivedAt: FieldValue.serverTimestamp(),
-                isOpen: false,
-              });
-            }
-            const activeCount =
-              (userSnap.get("activeNoteCount") as number | undefined) ?? 0;
-            tx.set(
-              userRef,
-              {
-                activeNoteCount: Math.max(
-                  0,
-                  activeCount - expiredPlacesToArchive.length,
-                ),
-              },
-              {merge: true},
-            );
-            return expiredPlacesToArchive.length;
           });
-        }),
-      );
-      totalArchived += archivedCounts.reduce((sum, count) => sum + count, 0);
-      if (snap.size < batchSize) break;
-    }
+          if (expiredPlacesToArchive.length === 0) return 0;
+          const activeSlotHoldingPlaceCount = expiredPlacesToArchive.filter(
+            (placeSnap) =>
+              !(placeSnap.get("activeNoteSlotReleasedAt") instanceof
+                Timestamp),
+          ).length;
 
-    logger.info(`archiveExpiredNotes: archived ${totalArchived} notes.`);
-  },
-);
+          for (const placeSnap of expiredPlacesToArchive) {
+            tx.update(placeSnap.ref, {
+              isArchived: true,
+              archivedAt: FieldValue.serverTimestamp(),
+              isOpen: false,
+            });
+            enqueueArchivedNoteAdministratorInvitationRevocation(
+              tx,
+              db,
+              worldId,
+              placeSnap.id,
+              now,
+            );
+          }
+          const activeCount =
+              (usageSnap.get("activeNoteCount") as number | undefined) ?? 0;
+          tx.set(
+            usageRef,
+            {
+              activeNoteCount: Math.max(
+                0,
+                activeCount - activeSlotHoldingPlaceCount,
+              ),
+              updatedAt: FieldValue.serverTimestamp(),
+            },
+            {merge: true},
+          );
+          return expiredPlacesToArchive.length;
+        });
+      }),
+    );
+    totalArchived += archivedCounts.reduce((sum, count) => sum + count, 0);
+    if (snap.size < batchSize) break;
+  }
+
+  logger.info("Expired notes archived.", {worldId, totalArchived});
+  return totalArchived;
+}
+
+/**
+ * Creates one regional expired-note schedule.
+ *
+ * @param {string} worldId Trusted catalog world to archive.
+ * @return {ScheduleFunction} Regional scheduled function.
+ */
+function archiveExpiredNotesSchedule(worldId: string) {
+  const world = WORLD_REGISTRY.requireWorld(worldId);
+  return onSchedule(
+    {
+      schedule: "every 24 hours",
+      timeZone: "Etc/UTC",
+      region: world.functionsRegion,
+      retryCount: 3,
+      maxInstances: 1,
+    },
+    async () => {
+      await archiveExpiredNotesForWorld(worldId);
+    },
+  );
+}
+
+export const archiveAsiaExpiredNotes = archiveExpiredNotesSchedule("asia");
+export const archiveNorthAmericaExpiredNotes =
+  archiveExpiredNotesSchedule("northAmerica");
+export const archiveEuropeExpiredNotes =
+  archiveExpiredNotesSchedule("europe");

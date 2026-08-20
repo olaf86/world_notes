@@ -1,11 +1,35 @@
 {
-  "firestore": {
-    "rules": "firestore.rules",
-    "indexes": "firestore.indexes.json"
-  },
-  "storage": {
-    "rules": "storage.rules"
-  },
+  "firestore": [
+    {
+      "database": "(default)",
+      "rules": "firestore.rules",
+      "indexes": "firestore.indexes.json"
+    },
+    {
+      "database": "north-america",
+      "rules": "firestore.rules",
+      "indexes": "firestore.indexes.json"
+    },
+    {
+      "database": "europe",
+      "rules": "firestore.named.locked.rules",
+      "indexes": "firestore.indexes.json"
+    }
+  ],
+  "storage": [
+    {
+      "target": "asia",
+      "rules": "storage.rules"
+    },
+    {
+      "target": "north-america",
+      "rules": "storage.rules"
+    },
+    {
+      "target": "europe",
+      "rules": "storage.named.locked.rules"
+    }
+  ],
   "hosting": {
     "public": "public",
     "ignore": ["firebase.json", "**/node_modules/**"],

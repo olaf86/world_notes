@@ -160,7 +160,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
       unawaited(
         context
             .push(
-              '/note/${pin.placeId}?title=${Uri.encodeComponent(pin.title)}',
+              ref
+                  .read(selectedWorldNavigationProvider)
+                  .note(pin.placeId, title: pin.title),
               extra: NoteAccessValidationRequest(
                 placeId: pin.placeId,
                 latitude: anchor.latitude,
@@ -259,7 +261,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     if (user == null) return;
 
     logMapDiagnostics('MapScreen.push note/create');
-    context.push('/note/create');
+    context.push(ref.read(selectedWorldNavigationProvider).noteCreation);
   }
 
   Future<void> _refreshMapNotes() async {

@@ -72,16 +72,19 @@ class _StoragePinAvatar extends ConsumerWidget {
               _FallbackAvatar(color: color, icon: icon, radius: radius),
           error: (_, _) =>
               _FallbackAvatar(color: color, icon: icon, radius: radius),
-          data: (url) => CachedNetworkImage(
-            imageUrl: url,
-            cacheKey: storagePath,
-            cacheManager: ref.watch(messageImageServiceProvider).cacheManager,
-            fit: BoxFit.cover,
-            placeholder: (_, _) =>
-                _FallbackAvatar(color: color, icon: icon, radius: radius),
-            errorWidget: (_, _, _) =>
-                _FallbackAvatar(color: color, icon: icon, radius: radius),
-          ),
+          data: (url) {
+            final imageService = ref.watch(messageImageServiceProvider);
+            return CachedNetworkImage(
+              imageUrl: url,
+              cacheKey: imageService.cacheKey(storagePath),
+              cacheManager: imageService.cacheManager,
+              fit: BoxFit.cover,
+              placeholder: (_, _) =>
+                  _FallbackAvatar(color: color, icon: icon, radius: radius),
+              errorWidget: (_, _, _) =>
+                  _FallbackAvatar(color: color, icon: icon, radius: radius),
+            );
+          },
         ),
       ),
     );

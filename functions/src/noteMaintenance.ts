@@ -1,4 +1,23 @@
-import {DocumentSnapshot} from "firebase-admin/firestore";
+import {DocumentSnapshot, Timestamp} from "firebase-admin/firestore";
+
+/**
+ * Returns whether a note exists and remains administratively active.
+ *
+ * @param {DocumentSnapshot} placeSnap The note document.
+ * @param {number} nowMillis Current server time in milliseconds.
+ * @return {boolean} Whether administrative actions may use this note.
+ */
+export function isActiveNoteForAdministration(
+  placeSnap: DocumentSnapshot,
+  nowMillis: number,
+): boolean {
+  const expiresAt = placeSnap.get("expiresAt");
+  return placeSnap.exists &&
+    placeSnap.get("isArchived") !== true &&
+    placeSnap.get("isModerationHidden") === false &&
+    expiresAt instanceof Timestamp &&
+    expiresAt.toMillis() > nowMillis;
+}
 
 /**
  * Reads maintainerIds from a note.
@@ -53,34 +72,6 @@ export function canMaintainNote(
   uid: string,
 ): boolean {
   return isNoteMaintainer(placeSnap, uid);
-}
-
-/**
- * Returns whether uid may change delegated maintainers.
- *
- * @param {DocumentSnapshot} placeSnap The note document.
- * @param {string} uid The user id to check.
- * @return {boolean} Whether the user can change maintainers.
- */
-export function canChangeNoteMaintainers(
-  placeSnap: DocumentSnapshot,
-  uid: string,
-): boolean {
-  return isNoteCreator(placeSnap, uid);
-}
-
-/**
- * Returns whether uid may revoke reusable invite links.
- *
- * @param {DocumentSnapshot} placeSnap The note document.
- * @param {string} uid The user id to check.
- * @return {boolean} Whether the user can revoke invite links.
- */
-export function canRevokeNoteInvites(
-  placeSnap: DocumentSnapshot,
-  uid: string,
-): boolean {
-  return isNoteCreator(placeSnap, uid);
 }
 
 /**

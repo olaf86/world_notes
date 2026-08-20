@@ -1,47 +1,38 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_functions/cloud_functions.dart';
-import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../domain/entities/user_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
-import '../../services/message_image_service.dart';
-import '../../services/my_notes_notification_service.dart';
 import '../../services/subscription_service.dart';
-import '../models/user_model.dart';
-import '../models/public_profile_model.dart';
+import '../../services/global_operation_observer.dart';
+import '../../services/world_firebase_clients.dart';
+
+typedef HomeFunctionsProvider = Future<WorldFunctionsClient> Function();
 
 class AuthRepositoryImpl implements AuthRepository {
   final FirebaseAuth _auth;
   final GoogleSignIn _googleSignIn;
-  final FirebaseFirestore _firestore;
-  final FirebaseFunctions _functions;
-  final MyNotesNotificationService _myNotesNotificationService;
+  final HomeFunctionsProvider _functionsProvider;
   final SubscriptionService _subscriptionService;
-  final MessageImageService _messageImageService;
+  final Uuid _uuid = const Uuid();
 
   AuthRepositoryImpl({
     required FirebaseAuth auth,
     required GoogleSignIn googleSignIn,
-    required FirebaseFirestore firestore,
-    required FirebaseFunctions functions,
-    required MyNotesNotificationService myNotesNotificationService,
+    required HomeFunctionsProvider functionsProvider,
     required SubscriptionService subscriptionService,
-    required MessageImageService messageImageService,
   }) : _auth = auth,
        _googleSignIn = googleSignIn,
-       _firestore = firestore,
-       _functions = functions,
-       _myNotesNotificationService = myNotesNotificationService,
-       _subscriptionService = subscriptionService,
-       _messageImageService = messageImageService;
+       _functionsProvider = functionsProvider,
+       _subscriptionService = subscriptionService;
 
   @override
   Stream<UserEntity?> get authStateChanges {
     return _auth.authStateChanges().asyncMap((firebaseUser) async {
       if (firebaseUser == null) return null;
-      return _fetchOrCreateUser(firebaseUser);
+      await _subscriptionService.identifyUser(firebaseUser.uid);
+      return _toEntity(firebaseUser);
     });
   }
 
@@ -69,7 +60,8 @@ class AuthRepositoryImpl implements AuthRepository {
     );
 
     final result = await _auth.signInWithCredential(credential);
-    return _fetchOrCreateUser(result.user!);
+    await _subscriptionService.identifyUser(result.user!.uid);
+    return _toEntity(result.user!);
   }
 
   @override
@@ -78,7 +70,8 @@ class AuthRepositoryImpl implements AuthRepository {
       email: email,
       password: password,
     );
-    return _fetchOrCreateUser(result.user!);
+    await _subscriptionService.identifyUser(result.user!.uid);
+    return _toEntity(result.user!);
   }
 
   @override
@@ -92,7 +85,8 @@ class AuthRepositoryImpl implements AuthRepository {
       password: password,
     );
     await result.user!.updateDisplayName(name);
-    return _fetchOrCreateUser(result.user!);
+    await _subscriptionService.identifyUser(result.user!.uid);
+    return _toEntity(result.user!);
   }
 
   @override
@@ -102,72 +96,31 @@ class AuthRepositoryImpl implements AuthRepository {
       throw StateError('No signed-in user.');
     }
 
-    await _functions
+    final functions = await _functionsProvider();
+    final response = await functions
         .httpsCallable('updateDisplayName')
-        .call<Map<String, dynamic>>({'displayName': displayName});
+        .call<Map<String, dynamic>>({
+          'displayName': displayName,
+          'operationId': _uuid.v7(),
+        });
+    await handleAcceptedGlobalOperation(
+      response: response.data,
+      policy: GlobalOperationObservationPolicy.none,
+      observer: null,
+    );
     await firebaseUser.reload();
-    return _fetchOrCreateUser(_auth.currentUser ?? firebaseUser);
+    return _toEntity(_auth.currentUser ?? firebaseUser);
   }
 
   @override
   Future<void> signOut() async {
-    try {
-      await _myNotesNotificationService.deleteCurrentToken();
-    } catch (error, stack) {
-      debugPrint('FCM token cleanup during sign-out failed: $error\n$stack');
-      // Token cleanup is best-effort; never trap the user in a signed-in state.
-    }
-    try {
-      await _messageImageService.clearCache();
-    } catch (error, stack) {
-      debugPrint('Image cache cleanup during sign-out failed: $error\n$stack');
-    }
     await Future.wait([_auth.signOut(), _googleSignIn.signOut()]);
   }
 
-  Future<UserEntity> _fetchOrCreateUser(User firebaseUser) async {
-    final docRef = _firestore.collection('users').doc(firebaseUser.uid);
-    final doc = await docRef.get();
-
-    late UserEntity entity;
-    if (doc.exists) {
-      entity = UserModel.fromFirestore(doc).toEntity();
-    } else {
-      final newUser = UserModel(
-        id: firebaseUser.uid,
-        name: firebaseUser.displayName ?? 'User',
-        email: firebaseUser.email,
-        photoUrl: firebaseUser.photoURL,
-      );
-      await docRef.set(newUser.toFirestore());
-      entity = newUser.toEntity();
-    }
-
-    await _syncPublicProfile(entity);
-    await _subscriptionService.identifyUser(entity.id);
-    return entity;
-  }
-
-  Future<void> _syncPublicProfile(UserEntity entity) async {
-    final profileRef = _firestore.collection('publicProfiles').doc(entity.id);
-    final existing = await profileRef.get();
-    final existingProfile = existing.exists
-        ? PublicProfileModel.fromFirestore(existing)
-        : null;
-    final photoVersion = existingProfile == null
-        ? 1
-        : existingProfile.photoUrl == entity.photoUrl
-        ? existingProfile.photoVersion
-        : existingProfile.photoVersion + 1;
-    final profile = PublicProfileModel(
-      id: entity.id,
-      displayName: entity.name,
-      photoUrl: entity.photoUrl,
-      photoVersion: photoVersion,
-    );
-    await profileRef.set(
-      profile.toOwnerFirestore(includeCounts: !existing.exists),
-      SetOptions(merge: true),
-    );
-  }
+  UserEntity _toEntity(User firebaseUser) => UserEntity(
+    id: firebaseUser.uid,
+    name: firebaseUser.displayName ?? 'User',
+    email: firebaseUser.email,
+    photoUrl: firebaseUser.photoURL,
+  );
 }

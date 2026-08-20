@@ -954,6 +954,17 @@ class AppLocalizationsEn extends AppLocalizations {
       'The language changed on this device, but could not be saved to your account.';
 
   @override
+  String get settingsContentWorldTitle => 'Content world';
+
+  @override
+  String get settingsContentWorldDescription =>
+      'Choose where you browse and post. Your permanent home world will not change.';
+
+  @override
+  String get settingsContentWorldSwitchFailed =>
+      'Could not switch worlds. Please try again.';
+
+  @override
   String get settingsMapStyleTitle => 'Map Style';
 
   @override
@@ -985,30 +996,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsMapStylePopDescription => 'Bright & colourful';
-
-  @override
-  String get settingsDataRegionTitle => 'Data Region';
-
-  @override
-  String get settingsDataRegionDescription =>
-      'Choose which region serves your requests. Auto picks the closest to your current location — handy to override while travelling.';
-
-  @override
-  String get settingsDataRegionAuto => 'Auto (nearest)';
-
-  @override
-  String settingsDataRegionCurrent(String region) {
-    return 'Currently: $region';
-  }
-
-  @override
-  String get settingsRegionAsiaTokyo => 'Asia (Tokyo)';
-
-  @override
-  String get settingsRegionAmericasUsCentral => 'Americas (US Central)';
-
-  @override
-  String get settingsRegionEuropeBelgium => 'Europe (Belgium)';
 
   @override
   String get settingsNotificationsTitle => 'Notifications';
@@ -1121,6 +1108,50 @@ class AppLocalizationsEn extends AppLocalizations {
   String get signOut => 'Sign Out';
 
   @override
+  String get homeWorldSelectionTitle => 'Choose your home world';
+
+  @override
+  String get homeWorldSelectionIntro =>
+      'Your home world keeps your account data close to you.';
+
+  @override
+  String get homeWorldSelectionPermanentWarning =>
+      'This choice cannot be changed later. You can still visit other prepared worlds without moving your home.';
+
+  @override
+  String get homeWorldSelectionUnavailable =>
+      'No home world is currently available.';
+
+  @override
+  String get homeWorldSelectionLoadFailed =>
+      'Could not load your account setup.';
+
+  @override
+  String get homeWorldSelectionSubmitFailed =>
+      'Could not set your home world. Please try again.';
+
+  @override
+  String get homeWorldSelectionConfirm => 'Set as my permanent home';
+
+  @override
+  String get worldAsia => 'Asia';
+
+  @override
+  String get worldAsiaLocation => 'Tokyo, Japan';
+
+  @override
+  String get worldNorthAmerica => 'North America';
+
+  @override
+  String get worldNorthAmericaLocation => 'Iowa, United States';
+
+  @override
+  String get worldEurope => 'Europe';
+
+  @override
+  String get worldEuropeLocation => 'Belgium';
+
+  @override
   String get followers => 'Followers';
 
   @override
@@ -1135,4 +1166,212 @@ class AppLocalizationsEn extends AppLocalizations {
   String subscriptionTemporarilyUnavailable(String planName) {
     return '$planName is temporarily unavailable.';
   }
+
+  @override
+  String get adminAccountSafety => 'Account safety';
+
+  @override
+  String get adminSafetyTargetUid => 'Target user ID';
+
+  @override
+  String get adminSafetyLoad => 'Load account safety';
+
+  @override
+  String get adminSafetyPoints => 'Violation points';
+
+  @override
+  String get adminSafetyAuthorityWorld => 'Authority world';
+
+  @override
+  String get adminSafetyRestriction => 'Posting restriction';
+
+  @override
+  String get adminSafetyBan => 'Ban';
+
+  @override
+  String get adminSafetyNone => 'None';
+
+  @override
+  String get adminSafetyPermanent => 'Permanent';
+
+  @override
+  String get adminSafetyAdjustPoints => 'Adjust points';
+
+  @override
+  String get adminSafetyPointDelta => 'Point change';
+
+  @override
+  String get adminSafetyPointDeltaHelp =>
+      'Enter an integer from -100 to 100, excluding 0.';
+
+  @override
+  String adminSafetySetRestriction(int days) {
+    return 'Restrict for $days day(s)';
+  }
+
+  @override
+  String get adminSafetyClearRestriction => 'Clear restriction';
+
+  @override
+  String adminSafetySetBan(int days) {
+    return 'Ban for $days days';
+  }
+
+  @override
+  String get adminSafetySetPermanentBan => 'Set permanent ban';
+
+  @override
+  String get adminSafetyClearBan => 'Clear ban';
+
+  @override
+  String get adminSafetyReason => 'Reason (required)';
+
+  @override
+  String get adminSafetyReference => 'Review or support reference (optional)';
+
+  @override
+  String get adminSafetyApply => 'Apply';
+
+  @override
+  String get adminSafetyContinue => 'Continue';
+
+  @override
+  String get adminSafetyAccepted =>
+      'The operation was accepted and will continue in the background.';
+
+  @override
+  String get adminSafetyAuditHistory => 'Administrator history';
+
+  @override
+  String get adminSafetyNoAudits => 'No administrator actions.';
+
+  @override
+  String get administratorInvitationTitle => 'Administrator invitation';
+
+  @override
+  String get inviteLoadFailed => 'Could not load this invitation.';
+
+  @override
+  String get inviteAcceptFailed => 'Could not accept this invitation.';
+
+  @override
+  String get worldStillPreparing =>
+      'This world is still preparing your account.';
+
+  @override
+  String get inviteInvalid =>
+      'This invitation is invalid or no longer available.';
+
+  @override
+  String get inviteExpired => 'This invitation has expired.';
+
+  @override
+  String get networkErrorTryAgain =>
+      'Network error. Check your connection and try again.';
+
+  @override
+  String get inviteSignInPrompt =>
+      'Sign in to review this administrator invitation.';
+
+  @override
+  String get signIn => 'Sign in';
+
+  @override
+  String get administratorInvitationAccepted =>
+      'You are now a note administrator. Your home world has not changed.';
+
+  @override
+  String get switchWorldAndOpenNote => 'Switch world and open note';
+
+  @override
+  String get goToMap => 'Go to map';
+
+  @override
+  String get administratorInvitationExplanation =>
+      'Accepting lets you read and administer this note remotely. Posting, likes, and visits still follow the normal location rules.';
+
+  @override
+  String get switchWorldAfterAcceptance =>
+      'Switch to this world after accepting';
+
+  @override
+  String get acceptAdministratorInvitation => 'Accept administrator invitation';
+
+  @override
+  String get administratorManageDescription =>
+      'Invite a specific user to help administer this note. Administrator access does not grant ordinary remote posting.';
+
+  @override
+  String get targetUserIdLabel => 'Target user ID';
+
+  @override
+  String get sendAdministratorInvitation => 'Invite administrator';
+
+  @override
+  String get administratorInviteCreated => 'Administrator invitation created.';
+
+  @override
+  String get inviteCreateFailed => 'Could not create the invitation.';
+
+  @override
+  String get administratorInviteRevoked => 'Administrator invitation revoked.';
+
+  @override
+  String get inviteRevokeFailed => 'Could not revoke the invitation.';
+
+  @override
+  String get administratorRemoved => 'Administrator access removed.';
+
+  @override
+  String get administratorRemoveFailed =>
+      'Could not remove administrator access.';
+
+  @override
+  String get memberRemoveFailed => 'Could not remove this member.';
+
+  @override
+  String get copyLink => 'Copy link';
+
+  @override
+  String get copied => 'Copied';
+
+  @override
+  String get noteAdministratorsTitle => 'Note administrators';
+
+  @override
+  String get pendingAdministratorInvitationsTitle => 'Pending invitations';
+
+  @override
+  String get passwordAccessMembersTitle => 'Password access';
+
+  @override
+  String get passwordAccessDescription =>
+      'These users unlocked the private note with its current password.';
+
+  @override
+  String get unlockedWithPassword => 'Unlocked with password';
+
+  @override
+  String get removeAccess => 'Remove access';
+
+  @override
+  String get noteCreatorLabel => 'Creator';
+
+  @override
+  String get noteAdministratorLabel => 'Administrator';
+
+  @override
+  String get resignAdministrator => 'Resign as administrator';
+
+  @override
+  String get removeAdministrator => 'Remove administrator';
+
+  @override
+  String get noPendingInvitations => 'No pending invitations.';
+
+  @override
+  String get invitationPending => 'Invitation pending';
+
+  @override
+  String get revokeInvitation => 'Revoke invitation';
 }

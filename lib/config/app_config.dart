@@ -154,6 +154,9 @@ class AppConfig {
   /// Firestore rules enforce this server-side.
   static const int maxMessagesPerThread = 1000;
 
+  /// Includes temporarily retained Likes for moderation-hidden messages.
+  static const int maxLikedMessageIds = 10000;
+
   /// Maximum distance from a note at which its detail can be opened for
   /// non-PRO users.
   /// Must match NOTE_DETAIL_ACCESS_RADIUS_KM in functions/src/constants.ts.
@@ -205,11 +208,8 @@ class AppConfig {
   /// Must be one of [noteExpiryPresetDays].
   static const int defaultNoteExpiryDays = 90;
 
-  /// Base URL for private-note invite links. The path is `/i/{token}` and is
-  /// handled as a deep link (Universal Links / App Links) once the associated
+  /// Base URL for private-note invite links. The path is supplied by the
+  /// selected-world navigation service and handled as a deep link once the
   /// domain is configured. Host: worldnotes.asobo.dev (Firebase Hosting).
-  static const String inviteLinkBase = 'https://worldnotes.asobo.dev/i/';
-
-  /// Builds the shareable invite URL for a token.
-  static String inviteLink(String token) => '$inviteLinkBase$token';
+  static const String inviteLinkBase = 'https://worldnotes.asobo.dev';
 }

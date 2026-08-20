@@ -1,0 +1,11 @@
+rules_version = '2';
+
+// Named world buckets stay server-only until their client data paths and
+// authorization tests are implemented. Admin SDK access bypasses these rules.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{objectPath=**} {
+      allow read, write: if false;
+    }
+  }
+}

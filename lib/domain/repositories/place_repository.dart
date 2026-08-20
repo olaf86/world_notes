@@ -1,6 +1,7 @@
 import '../entities/note_visitor_entity.dart';
 import '../entities/note_list_sort.dart';
 import '../entities/note_theme.dart';
+import '../entities/note_administrator_entity.dart';
 import '../entities/place_entity.dart';
 import '../entities/pin_summary_entity.dart';
 import '../entities/content_report.dart';
@@ -23,7 +24,8 @@ abstract class PlaceRepository {
   /// Creates a note via the `createNote` Cloud Function (the only path that
   /// may create a place — direct client writes are denied by rules). The
   /// function enforces the per-user note cap in a transaction and computes
-  /// the geohash server-side. Returns the new place id.
+  /// the geohash server-side. Its implementation supplies a retry-stable UUID
+  /// v7 and returns the accepted place id.
   ///
   /// Throws [FirebaseFunctionsException] — callers should surface a clear
   /// message for `unavailable`/`deadline-exceeded` (offline) and
@@ -64,8 +66,9 @@ abstract class PlaceRepository {
 
   // ── Maintainer queries ────────────────────────────────────────────────────
 
-  /// Returns the number of active (non-archived) notes maintained by [userId].
-  /// Used to enforce free / premium creation limits before writing.
+  /// Returns the number of active notes created by [userId]. Used for the
+  /// free / premium creation-limit precheck; delegated notes do not consume
+  /// the caller's creation quota.
   Future<int> countUserActivePlaces(String userId);
 
   /// Active notes maintained by [userId], used by the My Notes view.
@@ -134,40 +137,36 @@ abstract class PlaceRepository {
   /// The function is idempotent: sending the already-stored state is a no-op.
   Future<void> setNoteLike({required String placeId, required bool liked});
 
-  // ── Invitations (Cloud Functions) ─────────────────────────────────────────
+  // ── Note administrators (Cloud Functions) ────────────────────────────────
 
-  /// Maintainer-only: returns the note's reusable invite token if one is
-  /// already active. Does not create a new invite link.
-  Future<String?> getInviteLink(String placeId);
+  Future<NoteAdministratorInvitationResult> createNoteAdministratorInvitation({
+    required String placeId,
+    required String targetUid,
+  });
 
-  /// Maintainer-only: returns the note's reusable invite token (creating one
-  /// if needed) via `createInviteLink`. Combine with [AppConfig.inviteLink].
-  Future<String> createInviteLink(String placeId);
+  Future<NoteAdministratorInvitationPreview> previewNoteAdministratorInvitation(
+    String token,
+  );
 
-  /// Creator-only: revokes the note's invite link.
-  Future<void> revokeInvite(String placeId);
+  Future<String> acceptNoteAdministratorInvitation(String token);
+
+  Future<void> revokeNoteAdministratorInvitation({
+    required String placeId,
+    required String targetUid,
+  });
+
+  Future<void> removeNoteAdministrator({
+    required String placeId,
+    required String targetUid,
+  });
+
+  Future<NoteAdministratorAccess> getNoteAdministratorAccess(String placeId);
 
   /// Maintainer-only: removes a single regular member's access grant.
   Future<void> revokeNoteAccess({
     required String placeId,
     required String userId,
   });
-
-  /// Creator-only: promotes an existing member to a maintainer.
-  Future<void> grantNoteMaintainer({
-    required String placeId,
-    required String userId,
-  });
-
-  /// Creator-only: removes maintainer status from a member.
-  Future<void> revokeNoteMaintainer({
-    required String placeId,
-    required String userId,
-  });
-
-  /// Redeems an invite token for the signed-in user; returns the placeId to
-  /// open. Throws [FirebaseFunctionsException] (`not-found` = invalid/revoked).
-  Future<String> claimInvite(String token);
 
   /// Maintainer view of the note's access list.
   Stream<List<NoteMember>> watchMembers(String placeId);

@@ -1,10 +1,11 @@
 /* eslint-disable require-jsdoc */
-import {onCall, HttpsError} from "firebase-functions/v2/https";
+import {onCall, HttpsError} from "./platform/worldCallable";
 import {
   DocumentSnapshot,
-  getFirestore,
+  Timestamp,
 } from "firebase-admin/firestore";
 
+import {assertAccountSafetyAllows} from "./accountSafety";
 import {REGION} from "./constants";
 import {
   assertLiked,
@@ -44,7 +45,7 @@ function canLikeNote(
 
 export const setNoteLike = onCall<SetNoteLikeData>(
   {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) {
       throw new HttpsError("unauthenticated", "You must be signed in.");
@@ -52,7 +53,7 @@ export const setNoteLike = onCall<SetNoteLikeData>(
 
     const placeId = assertPlaceId(req.data?.placeId);
     const desiredLiked = assertLiked(req.data?.liked);
-    const db = getFirestore();
+    const db = world.firestore;
     const placeRef = db.collection("places").doc(placeId);
     const likeRef = placeRef.collection("likes").doc(uid);
     const memberRef = placeRef.collection("members").doc(uid);
@@ -68,6 +69,15 @@ export const setNoteLike = onCall<SetNoteLikeData>(
           !canMaintainNote(placeSnap, uid) ?
           await tx.get(memberRef) :
           null;
+      if (desiredLiked) {
+        await assertAccountSafetyAllows(
+          tx,
+          db,
+          uid,
+          "participation",
+          Timestamp.fromMillis(nowMs),
+        );
+      }
       if (!canLikeNote(placeSnap, memberSnap, uid, nowMs)) {
         throw new HttpsError(
           "permission-denied",

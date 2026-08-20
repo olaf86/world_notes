@@ -1664,6 +1664,24 @@ abstract class AppLocalizations {
   /// **'The language changed on this device, but could not be saved to your account.'**
   String get settingsLanguageUpdateFailed;
 
+  /// No description provided for @settingsContentWorldTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Content world'**
+  String get settingsContentWorldTitle;
+
+  /// No description provided for @settingsContentWorldDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose where you browse and post. Your permanent home world will not change.'**
+  String get settingsContentWorldDescription;
+
+  /// No description provided for @settingsContentWorldSwitchFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not switch worlds. Please try again.'**
+  String get settingsContentWorldSwitchFailed;
+
   /// No description provided for @settingsMapStyleTitle.
   ///
   /// In en, this message translates to:
@@ -1729,48 +1747,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Bright & colourful'**
   String get settingsMapStylePopDescription;
-
-  /// No description provided for @settingsDataRegionTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Data Region'**
-  String get settingsDataRegionTitle;
-
-  /// No description provided for @settingsDataRegionDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Choose which region serves your requests. Auto picks the closest to your current location — handy to override while travelling.'**
-  String get settingsDataRegionDescription;
-
-  /// No description provided for @settingsDataRegionAuto.
-  ///
-  /// In en, this message translates to:
-  /// **'Auto (nearest)'**
-  String get settingsDataRegionAuto;
-
-  /// No description provided for @settingsDataRegionCurrent.
-  ///
-  /// In en, this message translates to:
-  /// **'Currently: {region}'**
-  String settingsDataRegionCurrent(String region);
-
-  /// No description provided for @settingsRegionAsiaTokyo.
-  ///
-  /// In en, this message translates to:
-  /// **'Asia (Tokyo)'**
-  String get settingsRegionAsiaTokyo;
-
-  /// No description provided for @settingsRegionAmericasUsCentral.
-  ///
-  /// In en, this message translates to:
-  /// **'Americas (US Central)'**
-  String get settingsRegionAmericasUsCentral;
-
-  /// No description provided for @settingsRegionEuropeBelgium.
-  ///
-  /// In en, this message translates to:
-  /// **'Europe (Belgium)'**
-  String get settingsRegionEuropeBelgium;
 
   /// No description provided for @settingsNotificationsTitle.
   ///
@@ -1952,6 +1928,84 @@ abstract class AppLocalizations {
   /// **'Sign Out'**
   String get signOut;
 
+  /// No description provided for @homeWorldSelectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose your home world'**
+  String get homeWorldSelectionTitle;
+
+  /// No description provided for @homeWorldSelectionIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Your home world keeps your account data close to you.'**
+  String get homeWorldSelectionIntro;
+
+  /// No description provided for @homeWorldSelectionPermanentWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This choice cannot be changed later. You can still visit other prepared worlds without moving your home.'**
+  String get homeWorldSelectionPermanentWarning;
+
+  /// No description provided for @homeWorldSelectionUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No home world is currently available.'**
+  String get homeWorldSelectionUnavailable;
+
+  /// No description provided for @homeWorldSelectionLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load your account setup.'**
+  String get homeWorldSelectionLoadFailed;
+
+  /// No description provided for @homeWorldSelectionSubmitFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not set your home world. Please try again.'**
+  String get homeWorldSelectionSubmitFailed;
+
+  /// No description provided for @homeWorldSelectionConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Set as my permanent home'**
+  String get homeWorldSelectionConfirm;
+
+  /// No description provided for @worldAsia.
+  ///
+  /// In en, this message translates to:
+  /// **'Asia'**
+  String get worldAsia;
+
+  /// No description provided for @worldAsiaLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Tokyo, Japan'**
+  String get worldAsiaLocation;
+
+  /// No description provided for @worldNorthAmerica.
+  ///
+  /// In en, this message translates to:
+  /// **'North America'**
+  String get worldNorthAmerica;
+
+  /// No description provided for @worldNorthAmericaLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Iowa, United States'**
+  String get worldNorthAmericaLocation;
+
+  /// No description provided for @worldEurope.
+  ///
+  /// In en, this message translates to:
+  /// **'Europe'**
+  String get worldEurope;
+
+  /// No description provided for @worldEuropeLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Belgium'**
+  String get worldEuropeLocation;
+
   /// No description provided for @followers.
   ///
   /// In en, this message translates to:
@@ -1975,6 +2029,390 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{planName} is temporarily unavailable.'**
   String subscriptionTemporarilyUnavailable(String planName);
+
+  /// No description provided for @adminAccountSafety.
+  ///
+  /// In en, this message translates to:
+  /// **'Account safety'**
+  String get adminAccountSafety;
+
+  /// No description provided for @adminSafetyTargetUid.
+  ///
+  /// In en, this message translates to:
+  /// **'Target user ID'**
+  String get adminSafetyTargetUid;
+
+  /// No description provided for @adminSafetyLoad.
+  ///
+  /// In en, this message translates to:
+  /// **'Load account safety'**
+  String get adminSafetyLoad;
+
+  /// No description provided for @adminSafetyPoints.
+  ///
+  /// In en, this message translates to:
+  /// **'Violation points'**
+  String get adminSafetyPoints;
+
+  /// No description provided for @adminSafetyAuthorityWorld.
+  ///
+  /// In en, this message translates to:
+  /// **'Authority world'**
+  String get adminSafetyAuthorityWorld;
+
+  /// No description provided for @adminSafetyRestriction.
+  ///
+  /// In en, this message translates to:
+  /// **'Posting restriction'**
+  String get adminSafetyRestriction;
+
+  /// No description provided for @adminSafetyBan.
+  ///
+  /// In en, this message translates to:
+  /// **'Ban'**
+  String get adminSafetyBan;
+
+  /// No description provided for @adminSafetyNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get adminSafetyNone;
+
+  /// No description provided for @adminSafetyPermanent.
+  ///
+  /// In en, this message translates to:
+  /// **'Permanent'**
+  String get adminSafetyPermanent;
+
+  /// No description provided for @adminSafetyAdjustPoints.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjust points'**
+  String get adminSafetyAdjustPoints;
+
+  /// No description provided for @adminSafetyPointDelta.
+  ///
+  /// In en, this message translates to:
+  /// **'Point change'**
+  String get adminSafetyPointDelta;
+
+  /// No description provided for @adminSafetyPointDeltaHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an integer from -100 to 100, excluding 0.'**
+  String get adminSafetyPointDeltaHelp;
+
+  /// No description provided for @adminSafetySetRestriction.
+  ///
+  /// In en, this message translates to:
+  /// **'Restrict for {days} day(s)'**
+  String adminSafetySetRestriction(int days);
+
+  /// No description provided for @adminSafetyClearRestriction.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear restriction'**
+  String get adminSafetyClearRestriction;
+
+  /// No description provided for @adminSafetySetBan.
+  ///
+  /// In en, this message translates to:
+  /// **'Ban for {days} days'**
+  String adminSafetySetBan(int days);
+
+  /// No description provided for @adminSafetySetPermanentBan.
+  ///
+  /// In en, this message translates to:
+  /// **'Set permanent ban'**
+  String get adminSafetySetPermanentBan;
+
+  /// No description provided for @adminSafetyClearBan.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear ban'**
+  String get adminSafetyClearBan;
+
+  /// No description provided for @adminSafetyReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason (required)'**
+  String get adminSafetyReason;
+
+  /// No description provided for @adminSafetyReference.
+  ///
+  /// In en, this message translates to:
+  /// **'Review or support reference (optional)'**
+  String get adminSafetyReference;
+
+  /// No description provided for @adminSafetyApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get adminSafetyApply;
+
+  /// No description provided for @adminSafetyContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get adminSafetyContinue;
+
+  /// No description provided for @adminSafetyAccepted.
+  ///
+  /// In en, this message translates to:
+  /// **'The operation was accepted and will continue in the background.'**
+  String get adminSafetyAccepted;
+
+  /// No description provided for @adminSafetyAuditHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Administrator history'**
+  String get adminSafetyAuditHistory;
+
+  /// No description provided for @adminSafetyNoAudits.
+  ///
+  /// In en, this message translates to:
+  /// **'No administrator actions.'**
+  String get adminSafetyNoAudits;
+
+  /// No description provided for @administratorInvitationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Administrator invitation'**
+  String get administratorInvitationTitle;
+
+  /// No description provided for @inviteLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load this invitation.'**
+  String get inviteLoadFailed;
+
+  /// No description provided for @inviteAcceptFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not accept this invitation.'**
+  String get inviteAcceptFailed;
+
+  /// No description provided for @worldStillPreparing.
+  ///
+  /// In en, this message translates to:
+  /// **'This world is still preparing your account.'**
+  String get worldStillPreparing;
+
+  /// No description provided for @inviteInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'This invitation is invalid or no longer available.'**
+  String get inviteInvalid;
+
+  /// No description provided for @inviteExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'This invitation has expired.'**
+  String get inviteExpired;
+
+  /// No description provided for @networkErrorTryAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Network error. Check your connection and try again.'**
+  String get networkErrorTryAgain;
+
+  /// No description provided for @inviteSignInPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to review this administrator invitation.'**
+  String get inviteSignInPrompt;
+
+  /// No description provided for @signIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in'**
+  String get signIn;
+
+  /// No description provided for @administratorInvitationAccepted.
+  ///
+  /// In en, this message translates to:
+  /// **'You are now a note administrator. Your home world has not changed.'**
+  String get administratorInvitationAccepted;
+
+  /// No description provided for @switchWorldAndOpenNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch world and open note'**
+  String get switchWorldAndOpenNote;
+
+  /// No description provided for @goToMap.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to map'**
+  String get goToMap;
+
+  /// No description provided for @administratorInvitationExplanation.
+  ///
+  /// In en, this message translates to:
+  /// **'Accepting lets you read and administer this note remotely. Posting, likes, and visits still follow the normal location rules.'**
+  String get administratorInvitationExplanation;
+
+  /// No description provided for @switchWorldAfterAcceptance.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch to this world after accepting'**
+  String get switchWorldAfterAcceptance;
+
+  /// No description provided for @acceptAdministratorInvitation.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept administrator invitation'**
+  String get acceptAdministratorInvitation;
+
+  /// No description provided for @administratorManageDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite a specific user to help administer this note. Administrator access does not grant ordinary remote posting.'**
+  String get administratorManageDescription;
+
+  /// No description provided for @targetUserIdLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Target user ID'**
+  String get targetUserIdLabel;
+
+  /// No description provided for @sendAdministratorInvitation.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite administrator'**
+  String get sendAdministratorInvitation;
+
+  /// No description provided for @administratorInviteCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Administrator invitation created.'**
+  String get administratorInviteCreated;
+
+  /// No description provided for @inviteCreateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not create the invitation.'**
+  String get inviteCreateFailed;
+
+  /// No description provided for @administratorInviteRevoked.
+  ///
+  /// In en, this message translates to:
+  /// **'Administrator invitation revoked.'**
+  String get administratorInviteRevoked;
+
+  /// No description provided for @inviteRevokeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not revoke the invitation.'**
+  String get inviteRevokeFailed;
+
+  /// No description provided for @administratorRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Administrator access removed.'**
+  String get administratorRemoved;
+
+  /// No description provided for @administratorRemoveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not remove administrator access.'**
+  String get administratorRemoveFailed;
+
+  /// No description provided for @memberRemoveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not remove this member.'**
+  String get memberRemoveFailed;
+
+  /// No description provided for @copyLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy link'**
+  String get copyLink;
+
+  /// No description provided for @copied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied'**
+  String get copied;
+
+  /// No description provided for @noteAdministratorsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Note administrators'**
+  String get noteAdministratorsTitle;
+
+  /// No description provided for @pendingAdministratorInvitationsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending invitations'**
+  String get pendingAdministratorInvitationsTitle;
+
+  /// No description provided for @passwordAccessMembersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Password access'**
+  String get passwordAccessMembersTitle;
+
+  /// No description provided for @passwordAccessDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'These users unlocked the private note with its current password.'**
+  String get passwordAccessDescription;
+
+  /// No description provided for @unlockedWithPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlocked with password'**
+  String get unlockedWithPassword;
+
+  /// No description provided for @removeAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove access'**
+  String get removeAccess;
+
+  /// No description provided for @noteCreatorLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Creator'**
+  String get noteCreatorLabel;
+
+  /// No description provided for @noteAdministratorLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Administrator'**
+  String get noteAdministratorLabel;
+
+  /// No description provided for @resignAdministrator.
+  ///
+  /// In en, this message translates to:
+  /// **'Resign as administrator'**
+  String get resignAdministrator;
+
+  /// No description provided for @removeAdministrator.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove administrator'**
+  String get removeAdministrator;
+
+  /// No description provided for @noPendingInvitations.
+  ///
+  /// In en, this message translates to:
+  /// **'No pending invitations.'**
+  String get noPendingInvitations;
+
+  /// No description provided for @invitationPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Invitation pending'**
+  String get invitationPending;
+
+  /// No description provided for @revokeInvitation.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoke invitation'**
+  String get revokeInvitation;
 }
 
 class _AppLocalizationsDelegate

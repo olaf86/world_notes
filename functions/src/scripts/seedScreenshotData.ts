@@ -5,9 +5,13 @@ import {
   CollectionReference,
   DocumentData,
   FieldValue,
-  getFirestore,
   Timestamp,
 } from "firebase-admin/firestore";
+
+import {
+  createAdminWorldFirestoreClient,
+  DEFAULT_FIRESTORE_DATABASE_ID,
+} from "../platform/worldFirestoreProvider";
 
 const projectId = process.env.GCLOUD_PROJECT || "world-notes-prod";
 process.env.FIREBASE_AUTH_EMULATOR_HOST =
@@ -16,7 +20,10 @@ process.env.FIRESTORE_EMULATOR_HOST =
   process.env.FIRESTORE_EMULATOR_HOST || "127.0.0.1:8080";
 
 const app = initializeApp({projectId});
-const db = getFirestore(app);
+const db = createAdminWorldFirestoreClient(
+  app,
+  DEFAULT_FIRESTORE_DATABASE_ID,
+);
 const auth = getAuth(app);
 type ScreenshotLocale = "en" | "ja" | "zh_Hant" | "zh_Hans" | "ko";
 
@@ -213,6 +220,7 @@ async function resetSeedData(user: ScreenshotUser): Promise<void> {
     await deleteCollectionDocs(placeRef.collection("messages"));
     await deleteCollectionDocs(placeRef.collection("visitors"));
     await deleteCollectionDocs(placeRef.collection("members"));
+    await deleteCollectionDocs(placeRef.collection("likedMessages"));
     await placeRef.delete();
   }
 
@@ -254,7 +262,10 @@ function placeData(
     creatorName: user.displayName,
     creatorPhotoUrl: null,
     creatorPhotoVersion: 1,
+    creatorProfileRevision: 1,
     maintainerIds: [user.uid],
+    administratorCount: 0,
+    pendingAdministratorInviteCount: 0,
     createdAt: timestamp(hoursBefore(now, place.createdHoursAgo)),
     publishAt: timestamp(hoursBefore(now, place.publishHoursAgo ?? 1)),
     messageCount: place.messages.length,
@@ -281,41 +292,54 @@ function placeData(
 }
 
 async function seedUsers(user: ScreenshotUser): Promise<void> {
-  await db.collection("users").doc(user.uid).set({
-    displayName: user.displayName,
-    email: user.email,
-    photoUrl: null,
-    isPremium: false,
+  await seedAccountBundle(user.uid, user.displayName, user.email);
+
+  for (const other of otherUsers) {
+    await seedAccountBundle(other.uid, other.displayName, null);
+  }
+}
+
+async function seedAccountBundle(
+  uid: string,
+  displayName: string,
+  email: string | null,
+): Promise<void> {
+  const batch = db.batch();
+  batch.set(db.collection("userHomes").doc(uid), {
+    world: "asia",
+    epoch: 1,
     createdAt: FieldValue.serverTimestamp(),
   });
-  await db.collection("publicProfiles").doc(user.uid).set({
-    displayName: user.displayName,
+  batch.set(db.collection("users").doc(uid), {
+    displayName,
+    email,
+    photoUrl: null,
+    languagePreference: "system",
+    languagePreferenceRevision: 0,
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  batch.set(db.collection("publicProfiles").doc(uid), {
+    displayName,
     photoUrl: null,
     photoVersion: 1,
+    revision: 1,
     followerCount: 0,
     followingCount: 0,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });
-
-  for (const other of otherUsers) {
-    await db.collection("users").doc(other.uid).set({
-      displayName: other.displayName,
-      email: null,
-      photoUrl: null,
-      isPremium: false,
-      createdAt: FieldValue.serverTimestamp(),
-    });
-    await db.collection("publicProfiles").doc(other.uid).set({
-      displayName: other.displayName,
-      photoUrl: null,
-      photoVersion: 1,
-      followerCount: 0,
-      followingCount: 0,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    });
-  }
+  batch.set(db.collection("userEntitlements").doc(uid), {
+    isPremium: false,
+    revision: 1,
+    sourceCheckedAt: null,
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  batch.set(db.collection("userUsage").doc(uid), {
+    activeNoteCount: 0,
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  await batch.commit();
 }
 
 async function seedPlace(
@@ -329,9 +353,9 @@ async function seedPlace(
 
   if (place.visibility === "private") {
     await placeRef.collection("members").doc(user.uid).set({
+      userId: user.uid,
       displayName: user.displayName,
-      invited: true,
-      isMaintainer: true,
+      profileRevision: 1,
       viaPasswordVersion: 1,
     });
   }
@@ -511,11 +535,12 @@ function screenshotPlaces(user: ScreenshotUser): PlaceSeed[] {
         {
           id: "msg_cafe_02",
           content: localized(
-            "Added this as a private note so only the invited group sees it.",
-            "招待したメンバーだけに見える非公開ノートにしました。",
-            "已設為私人筆記，只有受邀成員看得到。",
-            "已设为私密笔记，只有受邀成员看得到。",
-            "초대받은 멤버만 볼 수 있도록 비공개 노트로 만들었어요.",
+            "Added this as a private note so only people with the " +
+              "password see it.",
+            "パスワードを知っている人だけに見える非公開ノートにしました。",
+            "已設為私人筆記，只有知道密碼的人看得到。",
+            "已设为私密笔记，只有知道密码的人看得到。",
+            "비밀번호를 아는 사람만 볼 수 있도록 비공개 노트로 만들었어요.",
           ),
           hoursAgo: 6,
         },

@@ -8,17 +8,17 @@ Implemented on `codex/app-submission-content-safety`:
 - Japanese and all release-locale report UI copy;
 - note reporting from the note detail screen;
 - note and message targets in the administrator review queue;
-- fail-closed title/subtitle moderation in `createNote`;
-- message-image and pin-thumbnail moderation before Firestore publication;
-- candidate image cleanup on rejection and callable failure;
+- optimistic title/subtitle and message moderation through regional jobs;
+- public-pending message images and pin-image candidates;
+- durable candidate cleanup on rejection, replacement, and orphan expiry;
+- 30-day hidden-message and hidden-note retention with metadata-only evidence;
 - moderation-hidden note enforcement across discovery, reads, posting, likes,
   visits, unlocks, and invite claims;
 - unit/widget coverage for reason codes, multimodal result aggregation,
   localization, note visibility, review parsing, and the report UI.
 
-Deployment still requires the existing `OPENAI_API_KEY` secret, the updated
-Functions, Firestore rules, and the new reports composite index to be deployed
-together.
+Deployment still requires the existing `OPENAI_API_KEY`, the updated
+Functions, Firestore rules, and indexes to be deployed together.
 
 ## Decision
 
@@ -195,12 +195,15 @@ gives stronger guarantees but requires an upload-session design.
 
 ### Map-pin images
 
-- Bind `OPENAI_API_KEY` to `setNotePinImage`.
-- After metadata validation, download and moderate the thumbnail before
-  attaching its path to the note.
-- On any non-allow result, delete the candidate object, retain the previous pin
-  image, and return a localized-safe error.
-- On provider unavailability, fail closed and delete the candidate object.
+- After metadata validation, attach a separate pending candidate and enqueue
+  the regional moderation job in the same Firestore transaction.
+- Keep the last accepted `pinImageStoragePath` until the candidate receives an
+  `allow` result; application reads may display the pending candidate during
+  this accepted public-pending interval.
+- On any completed non-allow result, detach and durably delete only the
+  candidate. Provider unavailability leaves it pending for retry.
+- When a newer candidate supersedes a pending one, identity guards prevent the
+  older job from changing the note and durable cleanup removes the older file.
 - If an administrator later hides an attached image, detach it before deleting
   the Storage object.
 
@@ -214,6 +217,34 @@ before submission. The script should:
 - skip missing and already-reviewed objects;
 - queue or hide non-allow content with the same production policy;
 - write audit metadata without logging image bytes or signed URLs.
+
+### Hidden-message retention
+
+- Each transition to `hidden` records an exact server timestamp and enqueues
+  one cleanup job due 30 days later.
+- Until cleanup starts, an administrator may restore the message together with
+  its retained image references and Like state. Starting cleanup permanently
+  closes restoration so a partial deletion cannot later become visible.
+- Cleanup removes the message ID from note-scoped user Like-state documents
+  in bounded batches. It then queues generation-guarded image deletion,
+  deletes the raw-content review record, and deletes the message.
+- The remaining audit contains moderation and lifecycle metadata only. It does
+  not retain raw content, image paths, or content-derived fingerprints, and it
+  expires through Firestore TTL after one year.
+
+### Hidden-note retention
+
+- Each transition to `hidden` records an exact server timestamp and enqueues
+  one cleanup job due 30 days later.
+- Cleanup first closes administrator restoration in the note document, then
+  removes note-scoped message Like states, messages, every other known note
+  subcollection,
+  note-scoped reports, moderation reviews, and administrator invitations in
+  bounded batches.
+- Message and pin-image objects are handed to the generation-guarded Storage
+  cleanup queue before their Firestore owners are deleted.
+- The final note audit retains moderation and lifecycle metadata only and
+  expires through Firestore TTL after one year.
 
 ### Tests
 

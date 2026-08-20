@@ -1,23 +1,50 @@
 rules_version = '2';
 
 // Assumed data ownership model:
-// - users/{uid}: private account and entitlement data; owner-readable.
+// - userHomes/{uid}: immutable server-written routing marker. Required fields:
+//   world (non-empty string), epoch (positive integer), createdAt (timestamp).
+//   Only that uid may read the exact document; collection listing is denied.
+// - users/{uid}: private owner-readable account data. The trusted bootstrap
+//   writes Auth-derived identity, language preference, and timestamps.
+// - userEntitlements/{uid}: server-only world-local entitlement mirror with
+//   isPremium (bool) and updatedAt (timestamp).
+// - userUsage/{uid}: server-only independent world usage with
+//   activeNoteCount (non-negative integer) and updatedAt (timestamp).
+// - accountSafety/{uid}: server-only authority or regional enforcement mirror
+//   containing a revisioned 0-100 score, independent automated/admin expiry
+//   sources, effective restriction/BAN fields, authority world and timestamps.
+//   appliedEvents receipts and adminAudits below it are also server-only.
+// - globalOperations/{operationId}: server-written durable global-command
+//   status. Contains bounded routing/status metadata, revision, SHA-256
+//   payloadHash, required-world snapshot, acknowledgements and timestamps.
+//   The bound owner may get only an exact known operation ID; listing and all
+//   client writes are denied.
 // - publicProfiles/{uid}: authenticated-readable display data; displayName,
 //   nullable photoUrl, photoVersion, counters, createdAt and updatedAt are
-//   required.
-// - socialEdges/{edgeId}: authenticated-readable, server-managed follow edge.
-// - users/{uid}/blockedUsers/{blockedUid}: owner-readable, server-managed
-//   private block relationship.
+//   required. All writes are trusted-server only.
+// - socialEdges/{edgeId}: server-managed directed follow state. Required
+//   fields: followerUid/followeeUid (bounded UID strings), following (bool),
+//   revision (positive integer), nullable createdAt and updatedAt (timestamp).
+//   Only active (`following == true`) edges are authenticated-readable;
+//   inactive revision tombstones remain server-only.
+// - users/{uid}/blockedUsers/{blockedUid}: server-managed directional block
+//   projection. Only active relationships are owner-readable; inactive
+//   revision tombstones remain server-only until TTL expiry.
 // - users/{uid}/notificationSettings: owner-readable, server-managed settings.
 // - users/{uid}/fcmTokens: sensitive server-managed delivery endpoints.
 // - users/{uid}/noteStates/{placeId}: private server-managed map activity
 //   state (non-negative lastSeenMessageCount and server timestamps).
 // - users/{uid}/notices: server-created inbox; owner may only set readAt.
 // - places/{placeId}: server-created note metadata and aggregates.
+// - places/{placeId}/administrators/{uid}: server-created delegated note
+//   administrator relationship. The bound uid may read its own record.
 // - places/{placeId}/messages: server-created message content.
+// - places/{placeId}/likedMessages/{uid}: owner-readable, server-managed
+//   note-scoped set of message IDs liked by that user.
 // - place access, visitor, like, counter and secret subcollections are scoped
 //   by the parent note and otherwise server-managed as declared below.
-// - moderation, invite, report and audit collections are server-only.
+// - note administrator invitations, administrator projections, notification
+//   intents, moderation, report and audit collections are server-only.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -31,10 +58,106 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == uid;
     }
 
+    function hasReadyAccount() {
+      let path = /databases/$(database)/documents/userHomes/$(request.auth.uid);
+      return isSignedIn()
+             && exists(path)
+             && get(path).data.world is string
+             && get(path).data.world.size() > 0
+             && get(path).data.world.size() <= 32
+             && get(path).data.epoch is int
+             && get(path).data.epoch > 0;
+    }
+
+    function isEffectiveSafetyExpiry(effective, automated, administrator) {
+      return (effective == null
+              && automated == null
+              && administrator == null)
+             || (effective is timestamp
+                 && (automated == null || automated <= effective)
+                 && (administrator == null || administrator <= effective)
+                 && (effective == automated || effective == administrator));
+    }
+
+    function isValidAccountSafetyProjection(safety) {
+      return safety.keys().hasOnly([
+               'revision',
+               'violationPoints',
+               'lastViolationAt',
+               'nextPointDecayAt',
+               'automatedRestrictedUntil',
+               'automatedBannedUntil',
+               'adminRestrictedUntil',
+               'adminBannedUntil',
+               'restrictedUntil',
+               'bannedUntil',
+               'isPermanentlyBanned',
+               'authorityWorld',
+               'updatedAt'
+             ])
+             && safety.revision is int
+             && safety.revision > 0
+             && safety.violationPoints is int
+             && safety.violationPoints >= 0
+             && safety.violationPoints <= 100
+             && (safety.lastViolationAt == null
+                 || safety.lastViolationAt is timestamp)
+             && (safety.nextPointDecayAt == null
+                 || safety.nextPointDecayAt is timestamp)
+             && (safety.automatedRestrictedUntil == null
+                 || safety.automatedRestrictedUntil is timestamp)
+             && (safety.automatedBannedUntil == null
+                 || safety.automatedBannedUntil is timestamp)
+             && (safety.adminRestrictedUntil == null
+                 || safety.adminRestrictedUntil is timestamp)
+             && (safety.adminBannedUntil == null
+                 || safety.adminBannedUntil is timestamp)
+             && (safety.restrictedUntil == null
+                 || safety.restrictedUntil is timestamp)
+             && (safety.bannedUntil == null
+                 || safety.bannedUntil is timestamp)
+             && safety.isPermanentlyBanned is bool
+             && safety.authorityWorld is string
+             && safety.authorityWorld.size() > 0
+             && safety.authorityWorld.size() <= 32
+             && safety.updatedAt is timestamp
+             && isEffectiveSafetyExpiry(
+                  safety.restrictedUntil,
+                  safety.automatedRestrictedUntil,
+                  safety.adminRestrictedUntil
+                )
+             && isEffectiveSafetyExpiry(
+                  safety.bannedUntil,
+                  safety.automatedBannedUntil,
+                  safety.adminBannedUntil
+                );
+    }
+
+    function accountSafetyAllowsContentWrite(safety) {
+      return isValidAccountSafetyProjection(safety)
+             && safety.isPermanentlyBanned == false
+             && (safety.bannedUntil == null
+                 || safety.bannedUntil <= request.time)
+             && (safety.restrictedUntil == null
+                 || safety.restrictedUntil <= request.time);
+    }
+
+    function canPerformContentWrite() {
+      let path = /databases/$(database)/documents/accountSafety/$(request.auth.uid);
+      return hasReadyAccount()
+             && exists(path)
+             && accountSafetyAllowsContentWrite(get(path).data);
+    }
+
+    function hasActiveUserBlock(blockerUid, blockedUid) {
+      let path = /databases/$(database)/documents/users/$(blockerUid)/blockedUsers/$(blockedUid);
+      return exists(path) && get(path).data.isBlocked == true;
+    }
+
     function hasUserBlockBetween(firstUid, secondUid) {
       return firstUid != secondUid
-             && (exists(/databases/$(database)/documents/users/$(firstUid)/blockedUsers/$(secondUid))
-                 || exists(/databases/$(database)/documents/users/$(secondUid)/blockedUsers/$(firstUid)));
+             && (hasActiveUserBlock(firstUid, secondUid)
+                 || hasActiveUserBlock(secondUid, firstUid));
     }
 
     function canInteractWithPlaceCreator(place) {
@@ -58,14 +181,13 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/places/$(placeId)).data;
     }
 
-    // True if the caller holds a still-valid access grant for a private note:
-    // either invited, or unlocked at the note's current passwordVersion
-    // (changing the password bumps the version, revoking old grants).
+    // True if the caller unlocked the private note at its current
+    // passwordVersion. Changing the password bumps the version and revokes
+    // every older access grant.
     function hasNoteMembership(placeId, place) {
       let path = /databases/$(database)/documents/places/$(placeId)/members/$(request.auth.uid);
       return exists(path)
-             && (get(path).data.invited == true
-                 || get(path).data.viaPasswordVersion == place.passwordVersion);
+             && get(path).data.viaPasswordVersion == place.passwordVersion;
     }
 
     // True if the caller may access a note's messages: public notes are open
@@ -90,17 +212,6 @@ service cloud.firestore {
              && place.expiresAt > request.time;
     }
 
-    function canListOwnedPlace(place) {
-      // My Notes list queries are constrained with
-      // `where('maintainerIds', arrayContains: request.auth.uid)`.
-      // Keep the list rule in the same shape so Firestore can prove every
-      // returned document is readable. The creator is also stored in
-      // maintainerIds at write/migration time.
-      return isSignedIn()
-             && canInteractWithPlaceCreator(place)
-             && request.auth.uid in place.maintainerIds;
-    }
-
     // A signed-in visitor must read an active private note's display metadata
     // (title, lock type, and hint) before they can unlock it. Message content
     // remains protected separately by canAccessNote/canReadMessage.
@@ -109,8 +220,25 @@ service cloud.firestore {
              && (isPlaceMaintainer(place) || isPubliclyReadablePlace(place));
     }
 
+    function canListCreatedPlace(place) {
+      // My Notes creator queries must include
+      // `where('createdByUserId', isEqualTo: request.auth.uid)`.
+      return isSignedIn()
+             && place.createdByUserId == request.auth.uid;
+    }
+
+    function hasReadableMessageModeration(message) {
+      return message.moderationAction in [
+        'pending',
+        'allow',
+        'sensitive',
+        'review'
+      ];
+    }
+
     function isPubliclyVisibleMessage(message) {
-      return message.isVisible == true
+      return hasReadableMessageModeration(message)
+             && message.isVisible == true
              && message.isPubliclyVisible == true;
     }
 
@@ -147,75 +275,11 @@ service cloud.firestore {
              && (notice.readAt == null || notice.readAt is timestamp);
     }
 
-    function isValidPublicProfile(profile) {
-      return profile.keys().hasAll([
-               'displayName',
-               'photoUrl',
-               'photoVersion',
-               'followerCount',
-               'followingCount',
-               'createdAt',
-               'updatedAt'
-             ])
-             && profile.keys().hasOnly([
-               'displayName',
-               'photoUrl',
-               'photoVersion',
-               'followerCount',
-               'followingCount',
-               'createdAt',
-               'updatedAt'
-             ])
-             && profile.displayName is string
-             && profile.displayName.size() > 0
-             && profile.displayName.size() <= 20
-             && (profile.photoUrl == null
-                 || (profile.photoUrl is string
-                     && profile.photoUrl.size() > 0
-                     && profile.photoUrl.size() <= 2000))
-             && profile.photoVersion is int
-             && profile.photoVersion > 0
-             && profile.followerCount is int
-             && profile.followerCount >= 0
-             && profile.followingCount is int
-             && profile.followingCount >= 0
-             && profile.createdAt is timestamp
-             && profile.updatedAt is timestamp;
-    }
-
-    function createsOwnPublicProfile(uid) {
-      return isCurrentUser(uid)
-             && isValidPublicProfile(request.resource.data)
-             && request.resource.data.followerCount == 0
-             && request.resource.data.followingCount == 0
-             && request.resource.data.createdAt == request.time
-             && request.resource.data.updatedAt == request.time;
-    }
-
-    function updatesOwnPublicProfile(uid) {
-      return isCurrentUser(uid)
-             && isValidPublicProfile(resource.data)
-             && isValidPublicProfile(request.resource.data)
-             && request.resource.data.diff(resource.data)
-                 .affectedKeys()
-                 .hasOnly([
-                   'displayName',
-                   'photoUrl',
-                   'photoVersion',
-                   'updatedAt'
-                 ])
-             && request.resource.data.createdAt == resource.data.createdAt
-             && request.resource.data.followerCount ==
-                 resource.data.followerCount
-             && request.resource.data.followingCount ==
-                 resource.data.followingCount
-             && request.resource.data.updatedAt == request.time;
-    }
-
     function canReadMessage(placeId, message) {
       return canAccessNote(placeId)
              && (isPubliclyVisibleMessage(message)
-                 || message.userId == request.auth.uid);
+                 || (message.userId == request.auth.uid
+                     && hasReadableMessageModeration(message)));
     }
 
     function isValidClientThreadStateTransition() {
@@ -233,24 +297,15 @@ service cloud.firestore {
              && (closesThread || reopensOwnerClosedThread);
     }
 
-    // ── users ─────────────────────────────────────────────────────────────────
+    // ── account bootstrap and private data ─────────────────────────────────
+    match /userHomes/{uid} {
+      allow get: if isCurrentUser(uid);
+      allow list, create, update, delete: if false;
+    }
+
     match /users/{uid} {
       allow read: if isCurrentUser(uid);
-      allow create: if isCurrentUser(uid)
-                    && request.resource.data.keys()
-                        .hasOnly(['displayName', 'email', 'photoUrl'])
-                    && request.resource.data.displayName is string
-                    && request.resource.data.displayName.size() > 0
-                    && request.resource.data.displayName.size() <= 20
-                    && (request.resource.data.email == null
-                        || (request.resource.data.email is string
-                            && request.resource.data.email.size() <= 320))
-                    && (request.resource.data.photoUrl == null
-                        || (request.resource.data.photoUrl is string
-                            && request.resource.data.photoUrl.size() <= 2000));
-      // Profile changes and all entitlement/counter fields are server-managed.
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if false;
 
       // Notification preferences are readable by the signed-in user, but only
       // callable Cloud Functions may change them. The server remains the single
@@ -272,10 +327,11 @@ service cloud.firestore {
         allow read, write: if false;
       }
 
-      // Private user-block list. Clients may observe only their own list;
-      // setUserBlock performs every write together with social cleanup.
+      // Private user-block list. Clients may observe only active entries in
+      // their own list. Inactive revision tombstones are intentionally hidden.
       match /blockedUsers/{blockedUid} {
-        allow read: if isCurrentUser(uid);
+        allow read: if isCurrentUser(uid)
+                    && resource.data.isBlocked == true;
         allow write: if false;
       }
 
@@ -285,6 +341,7 @@ service cloud.firestore {
         allow read: if isCurrentUser(uid);
         allow create: if false;
         allow update: if isCurrentUser(uid)
+                      && hasReadyAccount()
                       && isValidNotice(resource.data)
                       && isValidNotice(request.resource.data)
                       && request.resource.data.diff(resource.data)
@@ -295,26 +352,55 @@ service cloud.firestore {
       }
     }
 
+    match /userEntitlements/{uid} {
+      allow read, write: if false;
+    }
+
+    match /userUsage/{uid} {
+      allow read, write: if false;
+    }
+
+    match /accountSafety/{uid} {
+      allow read, write: if false;
+
+      match /appliedEvents/{eventId} {
+        allow read, write: if false;
+      }
+
+      match /adminAudits/{auditId} {
+        allow read, write: if false;
+      }
+    }
+
+    match /globalOperations/{operationId} {
+      allow get: if isSignedIn()
+                 && resource.data.ownerUid == request.auth.uid
+                 && resource.data.operationId == operationId;
+      allow list, create, update, delete: if false;
+    }
+
     // ── public profiles ─────────────────────────────────────────────────────
     match /publicProfiles/{uid} {
       allow read: if isSignedIn();
-      allow create: if createsOwnPublicProfile(uid);
-      allow update: if updatesOwnPublicProfile(uid);
-      allow delete: if false;
+      allow write: if false;
     }
 
-    // Flat, graph-ready user-following edges. Clients may read relationship
-    // pages, but all writes and public profile counters are maintained by the
-    // setUserFollow Cloud Function.
+    // Flat, graph-ready user-following edges. Every client query must include
+    // `following == true`; this prevents inactive revision tombstones from
+    // exposing former relationships. All writes and profile-counter changes
+    // remain trusted-server only.
     match /socialEdges/{edgeId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && resource.data.following == true;
       allow write: if false;
     }
 
     // ── places ────────────────────────────────────────────────────────────────
     match /places/{placeId} {
       allow get: if isSignedIn() && canGetPlace(resource.data);
-      allow list: if isSignedIn() && canListOwnedPlace(resource.data);
+      // Creator-owned notes use a scalar equality query that Rules can prove.
+      // Delegated notes are discovered through the caller's server-written
+      // administrators records and then read individually through `get`.
+      allow list: if canListCreatedPlace(resource.data);
 
       // Direct client creation is DENIED. Notes are created exclusively by the
       // `createNote` Cloud Function (Admin SDK, which bypasses these rules),
@@ -328,6 +414,8 @@ service cloud.firestore {
       //     closed manually by a maintainer; message-limit closes are
       //     permanent.
       allow update: if isPlaceMaintainer(resource.data)
+                    && hasReadyAccount()
+                    && canPerformContentWrite()
                     && isValidClientThreadStateTransition();
 
       // messageCount / lastMessageAt are maintained ONLY by Cloud Functions
@@ -352,14 +440,19 @@ service cloud.firestore {
         allow read, write: if false;
       }
 
-      // Access grants. A user may read their OWN membership; a note maintainer may
-      // read the whole list (to manage access). Grants are written exclusively
-      // by the unlockNote / claimInvite / revoke Cloud Functions.
+      // Password access grants. A user may read their OWN membership; a note
+      // maintainer may read the whole list. Grants are written exclusively by
+      // the unlockNote / revokeNoteAccess Cloud Functions.
       match /members/{memberUid} {
         allow read: if isSignedIn()
                     && (request.auth.uid == memberUid
                         || isPlaceMaintainer(getPlace(placeId)));
         allow write: if false;
+      }
+
+      // Immutable administrator invitation and membership audit events.
+      match /administratorAudits/{auditId} {
+        allow read, write: if false;
       }
 
       // Server-only counters used by Cloud Functions. In particular,
@@ -388,7 +481,7 @@ service cloud.firestore {
       // ── messages (subcollection) ──────────────────────────────────────
       // Nested under the place so reads can be gated on the parent note's
       // visibility + membership. For private notes, only maintainers and
-      // unlocked/invited members can read or post.
+      // password-unlocked members can read or post.
       match /messages/{messageId} {
         allow read: if canReadMessage(placeId, resource.data);
 
@@ -405,18 +498,25 @@ service cloud.firestore {
 
       }
 
+      // One exact owner-scoped document replaces a listener per visible
+      // message. Cloud Functions own every mutation and keep the message
+      // aggregate count in the same transaction.
+      match /likedMessages/{userId} {
+        allow get: if isCurrentUser(userId) && canAccessNote(placeId);
+        allow list, create, update, delete: if false;
+      }
+
     }
 
-    // Collection-group query support for the thread's own-like state. A
-    // collection-group query requires this root-level recursive match. A
-    // caller can list only edges whose stored owner is that caller; Cloud
-    // Functions are the only writer, so clients cannot forge `userId`.
-    // Keep `messageLikes` exclusive to this edge schema; a future unrelated
-    // collection must use a different name to avoid matching this rule.
-    // Individual document gets and all client writes remain denied by default.
-    match /{path=**}/messageLikes/{likeId} {
-      allow list: if isSignedIn()
+    // Collection-group discovery for active delegated note administrators.
+    // Rules cannot restrict a collection-group query to one parent path, so
+    // this globally unique subcollection name is reserved for note authority.
+    // The query must include `where('userId', isEqualTo: auth.uid)`. Records
+    // are server-written, preventing self-granted authority or identity data.
+    match /{path=**}/administrators/{administratorUid} {
+      allow read: if isSignedIn()
                   && resource.data.userId == request.auth.uid;
+      allow write: if false;
     }
 
     // Flat administrator review queue for non-allow moderation decisions.
@@ -437,11 +537,37 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // ── invites ─────────────────────────────────────────────────────────────
-    // Invite tokens are secrets (the doc id is the token). Read/write only via
-    // the createInviteLink / claimInvite / revokeInvite Cloud Functions
-    // (Admin SDK); clients can never enumerate or read them.
-    match /invites/{token} {
+    // Exact Storage object paths used by cleanup workers are server-only.
+    match /storageCleanupObjects/{jobId} {
+      allow read, write: if false;
+    }
+
+    // Exact hidden-content targets used by retention workers are server-only.
+    match /moderationRetentionTargets/{jobId} {
+      allow read, write: if false;
+    }
+
+    // Exact hidden-note subtree targets used by retention workers are
+    // server-only.
+    match /noteModerationRetentionTargets/{jobId} {
+      allow read, write: if false;
+    }
+
+    // Finalize receipts and orphan-cleanup state for immutable image objects.
+    // Clients receive image access only through the signed-URL callable.
+    match /imageUploads/{uploadId} {
+      allow read, write: if false;
+    }
+
+    // Target-bound, expiring administrator invitations. Signed tokens and
+    // lifecycle state are accessed only through callable Cloud Functions.
+    match /noteAdministratorInvitations/{inviteId} {
+      allow read, write: if false;
+    }
+
+    // Source-world intents used to route administrator invitation notices to
+    // the target account's home world. Clients must not enumerate recipients.
+    match /noteAdministratorInviteNotifications/{eventId} {
       allow read, write: if false;
     }
 

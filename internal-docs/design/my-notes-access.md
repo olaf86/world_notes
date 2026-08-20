@@ -18,7 +18,9 @@ Instead of adding a distance rule now, this design uses a simpler write-session 
 
 - Nearby access: Notes opened from nearby Map/List can write as before when a write session exists and `canAcceptMessages` is true.
 - Invite/private access: Notes opened through invite links, password unlocks, or pattern unlocks can also write as before when a write session exists.
-- My Notes access: The user can view their own notes from anywhere, but My Notes does not request a write session and does not show writing UI.
+- My Notes access: The user can view notes they created or administer from
+  anywhere, but My Notes does not request a write session and does not show
+  writing UI.
 - My Notes scope: The first version focuses on reading messages. It does not add owner management actions or remote editing.
 - Archived notes: The first version shows only active owned notes. Archived history is deferred.
 
@@ -107,6 +109,9 @@ Relevant existing pieces:
 - `firestore.rules` allows message creation when `canAccessNote(placeId)` and note state checks pass.
 - `PlaceEntity.canAcceptMessages` checks open/archive/expiry/message-count state.
 - `firestore.indexes.json` already contains `createdByUserId ASC, isArchived ASC`, which can support a basic owner note query.
+- Delegated-note discovery uses a single-field `administrators.userId`
+  index with `COLLECTION_GROUP` scope. Firestore's default collection-scoped
+  indexes do not cover this filtered collection-group query.
 
 This phase requires a small Firestore Rules change and one callable Function for write sessions, but it does not require moving message creation itself to a Function.
 
@@ -134,7 +139,8 @@ Profile
 
 `My Notes` branch:
 
-- Shows active notes created by the current user.
+- Shows active notes created by the current user plus notes where the user has
+  an active delegated `administrators` relationship.
 - Opens notes in read-only mode.
 - Does not depend on current location.
 - Does not request write sessions.
@@ -145,7 +151,7 @@ This keeps the information architecture cleaner:
 - Top tabs inside Map switch representation of the same nearby data.
 - My Notes no longer feels like a variant of nearby List.
 
-### 2. Add Owner Note Query
+### 2. Add Creator and Administrator Queries
 
 Add repository methods:
 
@@ -161,6 +167,20 @@ places
   .where('createdByUserId', isEqualTo: userId)
   .where('isArchived', isEqualTo: false)
 ```
+
+Delegated note discovery reuses the existing server-written relationship:
+
+```dart
+firestore
+  .collectionGroup('administrators')
+  .where('userId', isEqualTo: userId)
+```
+
+Each matching relationship identifies one parent `places/{placeId}` document,
+which is read or observed individually. This deliberately avoids copying the
+title, message count, like count, and archive state into a user projection.
+Only delegated notes need the additional relationship read and document
+listener; creator-owned notes remain one indexed collection query.
 
 Performance:
 
@@ -264,7 +284,10 @@ My Notes flow:
    - Keep message creation itself as a direct Firestore write.
 
 2. Repository/providers
-   - Add `watchMyPlaces` / `getMyPlaces`.
+   - Add `watchMyPlaces` / `getMyPlaces` backed by the creator query plus the
+     current user's collection-group `administrators` query.
+   - Observe each delegated parent note individually so mutable list fields
+     remain authoritative on `places/{placeId}` without projection fan-out.
    - Add `myPlacesProvider`.
    - Add `createWriteSession(placeId)` client method.
    - Sort active owned notes by `lastMessageAt ?? createdAt` descending.

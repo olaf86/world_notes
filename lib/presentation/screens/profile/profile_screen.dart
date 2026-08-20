@@ -251,6 +251,28 @@ class ProfileScreen extends ConsumerWidget {
                     ),
                   ),
                   onTap: () async {
+                    try {
+                      await ref
+                          .read(myNotesNotificationServiceProvider)
+                          .deleteCurrentToken();
+                    } catch (error, stack) {
+                      await _reportSignOutCleanupFailure(
+                        ref,
+                        operation: 'deleting the current FCM token',
+                        error: error,
+                        stack: stack,
+                      );
+                    }
+                    try {
+                      await ref.read(messageImageServiceProvider).clearCache();
+                    } catch (error, stack) {
+                      await _reportSignOutCleanupFailure(
+                        ref,
+                        operation: 'clearing the message image cache',
+                        error: error,
+                        stack: stack,
+                      );
+                    }
                     await ref.read(authRepositoryProvider).signOut();
                     await ref.read(subscriptionServiceProvider).logOut();
                   },
@@ -260,6 +282,31 @@ class ProfileScreen extends ConsumerWidget {
           },
         ),
       ),
+    );
+  }
+}
+
+Future<void> _reportSignOutCleanupFailure(
+  WidgetRef ref, {
+  required String operation,
+  required Object error,
+  required StackTrace stack,
+}) async {
+  final message = '[SignOut] Failed while $operation: $error';
+  debugPrint('$message\n$stack');
+  try {
+    final crashlytics = ref.read(firebaseCrashlyticsProvider);
+    await crashlytics.log(message);
+    await crashlytics.recordError(
+      error,
+      stack,
+      reason: 'Best-effort sign-out cleanup failed: $operation',
+      fatal: false,
+    );
+  } catch (reportingError, reportingStack) {
+    debugPrint(
+      '[SignOut] Could not report cleanup failure to Crashlytics: '
+      '$reportingError\n$reportingStack',
     );
   }
 }

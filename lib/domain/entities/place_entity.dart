@@ -4,10 +4,8 @@ import 'note_theme.dart';
 /// Axis 1 — Visibility (access control).
 ///
 /// public  — any proximity user can read & write.
-/// private — locked; access via password/pattern (verified server-side by a
-///           Cloud Function) or by maintainer invitation.  Once granted, access
-///           persists until the creator changes the secret (tracked by
-///           passwordVersion).
+/// private — locked; ordinary access uses a password/pattern verified by a
+///           Cloud Function. Note administrators use their separate authority.
 enum PlaceVisibility {
   public,
   private;
@@ -210,8 +208,7 @@ class PlaceEntity {
     if (isPublic) return true;
     if (isMaintainedBy(uid)) return true;
     if (membership == null) return false;
-    return membership.invited ||
-        membership.viaPasswordVersion == passwordVersion;
+    return membership.viaPasswordVersion == passwordVersion;
   }
 }
 
@@ -233,17 +230,11 @@ class ArchivedPlacesPage {
 
 /// A user's access grant to a private note (places/{id}/members/{uid}).
 class NoteMembership {
-  /// Granted by a maintainer invitation (survives password changes).
-  final bool invited;
-
   /// The note's passwordVersion at unlock time. Access is valid only while it
   /// still matches the note's current passwordVersion.
   final int viaPasswordVersion;
 
-  const NoteMembership({
-    required this.invited,
-    required this.viaPasswordVersion,
-  });
+  const NoteMembership({required this.viaPasswordVersion});
 }
 
 /// A member of a private note, as seen by maintainers in the access list.
@@ -251,18 +242,7 @@ class NoteMember {
   final String userId;
   final String? displayName;
 
-  /// True for invite-link members; false for password-unlock members.
-  final bool invited;
-
-  /// True when this member is also listed in the note's maintainerIds.
-  final bool isMaintainer;
-
-  const NoteMember({
-    required this.userId,
-    this.displayName,
-    this.invited = false,
-    this.isMaintainer = false,
-  });
+  const NoteMember({required this.userId, this.displayName});
 
   /// Best label to show for this member.
   String get label => displayName ?? userId;

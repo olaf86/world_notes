@@ -6,6 +6,7 @@ import '../../../domain/entities/admin_moderation_review_entity.dart';
 import '../../../l10n/l10n.dart';
 import '../../../l10n/localized_formatters.dart';
 import '../../providers/providers.dart';
+import 'admin_account_safety_screen.dart';
 
 class AdminModerationScreen extends ConsumerStatefulWidget {
   const AdminModerationScreen({super.key});
@@ -25,8 +26,17 @@ class _AdminModerationScreenState extends ConsumerState<AdminModerationScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Moderation'),
+        title: Text(context.l10n.moderation),
         actions: [
+          IconButton(
+            tooltip: context.l10n.adminAccountSafety,
+            icon: const Icon(Icons.admin_panel_settings_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const AdminAccountSafetyScreen(),
+              ),
+            ),
+          ),
           IconButton(
             tooltip: 'Refresh',
             icon: const Icon(Icons.refresh),

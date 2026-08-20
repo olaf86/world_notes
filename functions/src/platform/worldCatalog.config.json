@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "catalogVersion": 2,
+  "worlds": [
+    {
+      "worldId": "asia",
+      "databaseId": "(default)",
+      "firestoreLocation": "asia-northeast1",
+      "functionsRegion": "asia-northeast1",
+      "bucketName": "world-notes-prod.firebasestorage.app",
+      "displayNameKey": "world.asia",
+      "catalogState": "homeEnabled",
+      "homeAssignmentEnabled": true,
+      "contentAccessEnabled": true
+    },
+    {
+      "worldId": "northAmerica",
+      "databaseId": "north-america",
+      "firestoreLocation": "us-central1",
+      "functionsRegion": "us-central1",
+      "bucketName": "world-notes-prod-north-america",
+      "displayNameKey": "world.northAmerica",
+      "catalogState": "contentEnabled",
+      "homeAssignmentEnabled": false,
+      "contentAccessEnabled": true
+    },
+    {
+      "worldId": "europe",
+      "databaseId": "europe",
+      "firestoreLocation": "europe-west1",
+      "functionsRegion": "europe-west1",
+      "bucketName": "world-notes-prod-europe",
+      "displayNameKey": "world.europe",
+      "catalogState": "mirrorOnly",
+      "homeAssignmentEnabled": false,
+      "contentAccessEnabled": false
+    }
+  ]
+}

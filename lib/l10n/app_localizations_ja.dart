@@ -878,6 +878,17 @@ class AppLocalizationsJa extends AppLocalizations {
       'この端末の表示言語は変更されましたが、アカウントに保存できませんでした。';
 
   @override
+  String get settingsContentWorldTitle => 'コンテンツワールド';
+
+  @override
+  String get settingsContentWorldDescription =>
+      '閲覧・投稿するワールドを選びます。変更できないホームワールドはそのままです。';
+
+  @override
+  String get settingsContentWorldSwitchFailed =>
+      'ワールドを切り替えられませんでした。もう一度お試しください。';
+
+  @override
   String get settingsMapStyleTitle => 'マップスタイル';
 
   @override
@@ -909,30 +920,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get settingsMapStylePopDescription => '明るくカラフルな表示';
-
-  @override
-  String get settingsDataRegionTitle => 'データリージョン';
-
-  @override
-  String get settingsDataRegionDescription =>
-      'リクエストを処理するリージョンを選択します。自動では現在地に最も近いリージョンが選ばれ、旅行中は手動で変更できます。';
-
-  @override
-  String get settingsDataRegionAuto => '自動（最寄り）';
-
-  @override
-  String settingsDataRegionCurrent(String region) {
-    return '現在: $region';
-  }
-
-  @override
-  String get settingsRegionAsiaTokyo => 'アジア（東京）';
-
-  @override
-  String get settingsRegionAmericasUsCentral => 'アメリカ（米国中部）';
-
-  @override
-  String get settingsRegionEuropeBelgium => 'ヨーロッパ（ベルギー）';
 
   @override
   String get settingsNotificationsTitle => '通知';
@@ -1037,6 +1024,47 @@ class AppLocalizationsJa extends AppLocalizations {
   String get signOut => 'サインアウト';
 
   @override
+  String get homeWorldSelectionTitle => 'ホームワールドを選択';
+
+  @override
+  String get homeWorldSelectionIntro => 'ホームワールドは、あなたのアカウントデータを身近な地域に保管する場所です。';
+
+  @override
+  String get homeWorldSelectionPermanentWarning =>
+      'この選択は後から変更できません。ホームを移動せずに、準備済みのほかのワールドを訪れることはできます。';
+
+  @override
+  String get homeWorldSelectionUnavailable => '現在選択できるホームワールドはありません。';
+
+  @override
+  String get homeWorldSelectionLoadFailed => 'アカウントの準備状況を読み込めませんでした。';
+
+  @override
+  String get homeWorldSelectionSubmitFailed =>
+      'ホームワールドを設定できませんでした。もう一度お試しください。';
+
+  @override
+  String get homeWorldSelectionConfirm => 'このワールドを変更できないホームに設定';
+
+  @override
+  String get worldAsia => 'アジア';
+
+  @override
+  String get worldAsiaLocation => '日本・東京';
+
+  @override
+  String get worldNorthAmerica => '北米';
+
+  @override
+  String get worldNorthAmericaLocation => 'アメリカ・アイオワ';
+
+  @override
+  String get worldEurope => 'ヨーロッパ';
+
+  @override
+  String get worldEuropeLocation => 'ベルギー';
+
+  @override
   String get followers => 'フォロワー';
 
   @override
@@ -1051,4 +1079,203 @@ class AppLocalizationsJa extends AppLocalizations {
   String subscriptionTemporarilyUnavailable(String planName) {
     return '$planNameは現在利用できません。';
   }
+
+  @override
+  String get adminAccountSafety => 'アカウント安全性';
+
+  @override
+  String get adminSafetyTargetUid => '対象ユーザーID';
+
+  @override
+  String get adminSafetyLoad => 'アカウント安全性を読み込む';
+
+  @override
+  String get adminSafetyPoints => '違反ポイント';
+
+  @override
+  String get adminSafetyAuthorityWorld => '正本ワールド';
+
+  @override
+  String get adminSafetyRestriction => '投稿制限';
+
+  @override
+  String get adminSafetyBan => 'BAN';
+
+  @override
+  String get adminSafetyNone => 'なし';
+
+  @override
+  String get adminSafetyPermanent => '永久';
+
+  @override
+  String get adminSafetyAdjustPoints => 'ポイントを調整';
+
+  @override
+  String get adminSafetyPointDelta => 'ポイント増減値';
+
+  @override
+  String get adminSafetyPointDeltaHelp => '0を除く-100から100の整数を入力してください。';
+
+  @override
+  String adminSafetySetRestriction(int days) {
+    return '$days日間の投稿制限';
+  }
+
+  @override
+  String get adminSafetyClearRestriction => '投稿制限を解除';
+
+  @override
+  String adminSafetySetBan(int days) {
+    return '$days日間BAN';
+  }
+
+  @override
+  String get adminSafetySetPermanentBan => '永久BAN';
+
+  @override
+  String get adminSafetyClearBan => 'BANを解除';
+
+  @override
+  String get adminSafetyReason => '理由（必須）';
+
+  @override
+  String get adminSafetyReference => 'レビュー・サポート参照（任意）';
+
+  @override
+  String get adminSafetyApply => '適用';
+
+  @override
+  String get adminSafetyContinue => '続ける';
+
+  @override
+  String get adminSafetyAccepted => '処理を受け付けました。バックグラウンドで継続します。';
+
+  @override
+  String get adminSafetyAuditHistory => '管理者操作履歴';
+
+  @override
+  String get adminSafetyNoAudits => '管理者操作はありません。';
+
+  @override
+  String get administratorInvitationTitle => 'ノート管理者への招待';
+
+  @override
+  String get inviteLoadFailed => 'この招待を読み込めませんでした。';
+
+  @override
+  String get inviteAcceptFailed => 'この招待を承認できませんでした。';
+
+  @override
+  String get worldStillPreparing => 'このワールドではアカウントを準備中です。';
+
+  @override
+  String get inviteInvalid => 'この招待は無効か、すでに利用できません。';
+
+  @override
+  String get inviteExpired => 'この招待は期限切れです。';
+
+  @override
+  String get networkErrorTryAgain => 'ネットワークエラーです。接続を確認してもう一度お試しください。';
+
+  @override
+  String get inviteSignInPrompt => 'ノート管理者への招待を確認するにはサインインしてください。';
+
+  @override
+  String get signIn => 'サインイン';
+
+  @override
+  String get administratorInvitationAccepted =>
+      'ノート管理者になりました。ホームワールドは変更されていません。';
+
+  @override
+  String get switchWorldAndOpenNote => 'ワールドを切り替えてノートを開く';
+
+  @override
+  String get goToMap => 'マップへ移動';
+
+  @override
+  String get administratorInvitationExplanation =>
+      '承認すると、現在地に関係なくこのノートの閲覧と管理ができます。投稿、いいね、訪問には通常の位置情報ルールが適用されます。';
+
+  @override
+  String get switchWorldAfterAcceptance => '承認後にこのワールドへ切り替える';
+
+  @override
+  String get acceptAdministratorInvitation => '管理者への招待を承認';
+
+  @override
+  String get administratorManageDescription =>
+      '特定のユーザーを、このノートの管理者として招待します。管理者権限だけでは遠隔地から通常の投稿はできません。';
+
+  @override
+  String get targetUserIdLabel => '招待するユーザーID';
+
+  @override
+  String get sendAdministratorInvitation => '管理者として招待';
+
+  @override
+  String get administratorInviteCreated => '管理者への招待を作成しました。';
+
+  @override
+  String get inviteCreateFailed => '招待を作成できませんでした。';
+
+  @override
+  String get administratorInviteRevoked => '管理者への招待を取り消しました。';
+
+  @override
+  String get inviteRevokeFailed => '招待を取り消せませんでした。';
+
+  @override
+  String get administratorRemoved => '管理者権限を削除しました。';
+
+  @override
+  String get administratorRemoveFailed => '管理者権限を削除できませんでした。';
+
+  @override
+  String get memberRemoveFailed => 'このメンバーを削除できませんでした。';
+
+  @override
+  String get copyLink => 'リンクをコピー';
+
+  @override
+  String get copied => 'コピーしました';
+
+  @override
+  String get noteAdministratorsTitle => 'ノート管理者';
+
+  @override
+  String get pendingAdministratorInvitationsTitle => '承認待ちの招待';
+
+  @override
+  String get passwordAccessMembersTitle => 'パスワードでのアクセス';
+
+  @override
+  String get passwordAccessDescription => '現在のパスワードで非公開ノートを解除したユーザーです。';
+
+  @override
+  String get unlockedWithPassword => 'パスワードで解除';
+
+  @override
+  String get removeAccess => 'アクセス権を削除';
+
+  @override
+  String get noteCreatorLabel => '作成者';
+
+  @override
+  String get noteAdministratorLabel => '管理者';
+
+  @override
+  String get resignAdministrator => '管理者を辞任';
+
+  @override
+  String get removeAdministrator => '管理者から削除';
+
+  @override
+  String get noPendingInvitations => '承認待ちの招待はありません。';
+
+  @override
+  String get invitationPending => '承認待ち';
+
+  @override
+  String get revokeInvitation => '招待を取り消す';
 }

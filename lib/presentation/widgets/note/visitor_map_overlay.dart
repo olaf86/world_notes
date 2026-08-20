@@ -27,7 +27,11 @@ class VisitorMapOverlay extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final visitors = ref.watch(recentNoteVisitorsProvider(placeId));
 
-    void onTap() => context.push('/note/$placeId/visitors');
+    void onTap() {
+      context.push(
+        ref.read(selectedWorldNavigationProvider).noteVisitors(placeId),
+      );
+    }
 
     return visitors.when(
       loading: () => _OverlayPreview(

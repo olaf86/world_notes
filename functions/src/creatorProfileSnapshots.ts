@@ -1,57 +1,182 @@
-import {onDocumentWritten} from "firebase-functions/v2/firestore";
+/* eslint-disable valid-jsdoc */
+
+import {
+  DocumentSnapshot,
+  FieldPath,
+  Firestore,
+  Query,
+} from "firebase-admin/firestore";
 import * as logger from "firebase-functions/logger";
-import {getFirestore} from "firebase-admin/firestore";
+import {onDocumentWritten} from "firebase-functions/v2/firestore";
 
-import {REGION} from "./constants";
+import {
+  parsePublicProfileProjection,
+  PublicProfileProjection,
+} from "./profileEntitlementReplication";
+import {
+  WorldDatabaseConfig,
+  WorldFirestoreDatabaseId,
+  WorldFirestoreProvider,
+} from "./platform/worldFirestoreProvider";
+import {
+  WORLD_CATALOG,
+  WorldCatalogEntry,
+} from "./platform/worldCatalog";
 
-const BATCH_WRITE_LIMIT = 450;
+const PROFILE_PATH = "publicProfiles/{userId}";
+const PROJECTION_PAGE_SIZE = 200;
+
+const worldDatabases = WORLD_CATALOG.worlds.map((world) => ({
+  worldId: world.worldId,
+  databaseId: world.databaseId as WorldFirestoreDatabaseId,
+})) satisfies readonly WorldDatabaseConfig[];
+const productionFirestore = new WorldFirestoreProvider(worldDatabases);
+
+export interface ProfileSnapshotSyncResult {
+  readonly updatedPlaces: number;
+  readonly updatedMembers: number;
+}
 
 /**
- * Keeps the creator photo snapshot on active places in sync with the public
- * profile. Map-pin reads can then stay a single collection query.
+ * Converges creator and member snapshots to one public-profile revision.
+ *
+ * Each page is transactional. Older or duplicated profile events cannot roll
+ * a snapshot back because the local snapshot revision is checked before every
+ * update. Trigger retries restart safely from the first page.
  */
-export const syncCreatorPhotoSnapshot = onDocumentWritten(
-  {document: "publicProfiles/{userId}", region: REGION},
-  async (event) => {
-    const before = event.data?.before;
-    const after = event.data?.after;
-    if (!after?.exists) return;
+export async function syncProfileSnapshots(
+  firestore: Firestore,
+  userId: string,
+  profile: PublicProfileProjection,
+): Promise<ProfileSnapshotSyncResult> {
+  const [updatedPlaces, updatedMembers] = await Promise.all([
+    syncQueryPages(
+      firestore,
+      firestore.collection("places")
+        .where("createdByUserId", "==", userId)
+        .where("isArchived", "==", false)
+        .orderBy(FieldPath.documentId()),
+      "creatorProfileRevision",
+      profile.revision,
+      {
+        creatorName: profile.displayName,
+        creatorPhotoUrl: profile.photoUrl,
+        creatorPhotoVersion: profile.photoVersion,
+        creatorProfileRevision: profile.revision,
+      },
+    ),
+    syncQueryPages(
+      firestore,
+      firestore.collectionGroup("members")
+        .where("userId", "==", userId)
+        .orderBy(FieldPath.documentId()),
+      "profileRevision",
+      profile.revision,
+      {
+        displayName: profile.displayName,
+        profileRevision: profile.revision,
+      },
+    ),
+  ]);
+  return {updatedPlaces, updatedMembers};
+}
 
-    const previousPhotoUrl = before?.get("photoUrl") as string | null;
-    const previousPhotoVersion = before?.get("photoVersion") as number;
-    const photoUrl = after.get("photoUrl") as string | null;
-    const photoVersion = after.get("photoVersion") as number;
-    if (
-      before?.exists &&
-      previousPhotoUrl === photoUrl &&
-      previousPhotoVersion === photoVersion
-    ) return;
+/** Processes one stable query in bounded, restart-safe transaction pages. */
+async function syncQueryPages(
+  firestore: Firestore,
+  baseQuery: Query,
+  revisionField: string,
+  revision: number,
+  update: Readonly<Record<string, unknown>>,
+): Promise<number> {
+  let cursor: DocumentSnapshot | undefined;
+  let updated = 0;
+  let hasMore = true;
+  while (hasMore) {
+    let query = baseQuery.limit(PROJECTION_PAGE_SIZE);
+    if (cursor !== undefined) query = query.startAfter(cursor);
+    const page = await query.get();
+    if (page.empty) return updated;
 
-    const db = getFirestore();
-    const places = await db
-      .collection("places")
-      .where("createdByUserId", "==", event.params.userId)
-      .where("isArchived", "==", false)
-      .get();
-
-    for (
-      let index = 0;
-      index < places.docs.length;
-      index += BATCH_WRITE_LIMIT
-    ) {
-      const batch = db.batch();
-      for (const place of places.docs.slice(index, index + BATCH_WRITE_LIMIT)) {
-        batch.update(place.ref, {
-          creatorPhotoUrl: photoUrl,
-          creatorPhotoVersion: photoVersion,
-        });
+    updated += await firestore.runTransaction(async (transaction) => {
+      const current = await transaction.getAll(
+        ...page.docs.map((snapshot) => snapshot.ref),
+      );
+      let pageUpdates = 0;
+      for (const snapshot of current) {
+        if (!snapshot.exists) continue;
+        if (snapshotRevision(snapshot, revisionField) >= revision) continue;
+        transaction.update(snapshot.ref, update);
+        pageUpdates += 1;
       }
-      await batch.commit();
-    }
-
-    logger.info("Synchronized creator photo snapshots.", {
-      userId: event.params.userId,
-      updatedPlaceCount: places.size,
+      return pageUpdates;
     });
-  },
-);
+
+    cursor = page.docs.at(-1);
+    hasMore = page.size === PROJECTION_PAGE_SIZE;
+  }
+  return updated;
+}
+
+/** Reads the required positive profile revision from an existing snapshot. */
+function snapshotRevision(
+  snapshot: DocumentSnapshot,
+  field: string,
+): number {
+  const value = snapshot.get(field);
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value <= 0) {
+    throw new Error(`Profile snapshot ${field} is invalid.`);
+  }
+  return value;
+}
+
+/** Resolves one trusted world entry for trigger deployment metadata. */
+function requireWorld(worldId: string): WorldCatalogEntry {
+  const world = WORLD_CATALOG.worlds.find(
+    (candidate) => candidate.worldId === worldId,
+  );
+  if (world === undefined) throw new Error(`Unknown world: ${worldId}.`);
+  return world;
+}
+
+/** Creates one world-bound profile projection trigger. */
+function profileProjectionTrigger(worldId: string) {
+  const world = requireWorld(worldId);
+  return onDocumentWritten(
+    {
+      database: world.databaseId,
+      document: PROFILE_PATH,
+      region: world.functionsRegion,
+      retry: true,
+    },
+    async (event) => {
+      const before = event.data?.before;
+      const after = event.data?.after;
+      if (!after?.exists) return;
+      const profile = parsePublicProfileProjection(after);
+      const previousRevision = before?.exists ?
+        snapshotRevision(before, "revision") :
+        0;
+      if (previousRevision >= profile.revision) return;
+
+      const firestore = productionFirestore.forWorld(worldId);
+      const result = await syncProfileSnapshots(
+        firestore,
+        event.params.userId,
+        profile,
+      );
+
+      logger.info("Synchronized revisioned profile snapshots.", {
+        world: worldId,
+        userId: event.params.userId,
+        revision: profile.revision,
+        ...result,
+      });
+    },
+  );
+}
+
+export const syncAsiaProfileSnapshots = profileProjectionTrigger("asia");
+export const syncNorthAmericaProfileSnapshots =
+  profileProjectionTrigger("northAmerica");
+export const syncEuropeProfileSnapshots = profileProjectionTrigger("europe");

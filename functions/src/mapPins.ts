@@ -1,5 +1,5 @@
 /* eslint-disable require-jsdoc */
-import {onCall, HttpsError} from "firebase-functions/v2/https";
+import {onCall, HttpsError} from "./platform/worldCallable";
 import * as logger from "firebase-functions/logger";
 import {
   DocumentSnapshot,
@@ -7,7 +7,6 @@ import {
   Firestore,
   QuerySnapshot,
   Timestamp,
-  getFirestore,
 } from "firebase-admin/firestore";
 
 import {
@@ -32,6 +31,7 @@ import {
   findUserIdsWithBlockRelationshipToViewer,
   hasUserBlockBetween,
 } from "./userBlocks";
+import {pinImageCandidateStoragePath} from "./pinImageCandidate";
 
 interface Coordinates {
   latitude: number;
@@ -202,8 +202,8 @@ async function noteAccessRadiusKmForUser(
   db: Firestore,
   uid: string,
 ): Promise<number> {
-  const userSnap = await db.collection("users").doc(uid).get();
-  return userSnap.get("isPremium") === true ?
+  const entitlement = await db.collection("userEntitlements").doc(uid).get();
+  return entitlement.get("isPremium") === true ?
     PRO_NOTE_DETAIL_ACCESS_RADIUS_KM :
     NOTE_DETAIL_ACCESS_RADIUS_KM;
 }
@@ -283,6 +283,9 @@ function pinFromDoc(
   const creatorPhotoUrl = doc.get("creatorPhotoUrl") as string | null;
   const creatorPhotoVersion = doc.get("creatorPhotoVersion") as number;
   const storedPinImageStoragePath = doc.get("pinImageStoragePath");
+  const pendingPinImageStoragePath = pinImageCandidateStoragePath(
+    doc.get("pinImageCandidate"),
+  );
   return {
     placeId: doc.id,
     latitude: coords.latitude,
@@ -292,11 +295,12 @@ function pinFromDoc(
     colorHex: doc.get("colorHex") as string,
     themeId: doc.get("themeId") as string,
     icon: doc.get("icon") as string,
-    pinImageStoragePath:
+    pinImageStoragePath: pendingPinImageStoragePath ?? (
       typeof storedPinImageStoragePath === "string" &&
         storedPinImageStoragePath.trim().length > 0 ?
         storedPinImageStoragePath.trim() :
-        null,
+        null
+    ),
     creatorName,
     creatorPhotoUrl,
     creatorPhotoVersion,
@@ -445,6 +449,7 @@ async function addMarkerFlagsToPins(
           .collection("socialEdges")
           .where("followerUid", "==", uid)
           .where("followeeUid", "in", creatorUidChunk)
+          .where("following", "==", true)
           .get(),
       ),
     ),
@@ -488,7 +493,7 @@ async function addMarkerFlagsToPins(
 
 export const listMapPins = onCall<ListMapPinsData>(
   {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  async (req, world) => {
     const startedAt = Date.now();
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
@@ -504,7 +509,7 @@ export const listMapPins = onCall<ListMapPinsData>(
     );
     const searchRadiusKm = assertSearchRadiusKm(req.data?.searchRadiusKm);
 
-    const db = getFirestore();
+    const db = world.firestore;
     const noteAccessRadiusKm = await noteAccessRadiusKmForUser(db, uid);
     const nowMillis = Date.now();
     const publishedAt = Timestamp.fromMillis(nowMillis);
@@ -612,7 +617,7 @@ export const listMapPins = onCall<ListMapPinsData>(
 
 export const validateNoteAccess = onCall<ValidateNoteAccessData>(
   {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
 
@@ -622,7 +627,7 @@ export const validateNoteAccess = onCall<ValidateNoteAccessData>(
     }
     const user = assertCoordinatePair(req.data?.latitude, req.data?.longitude);
 
-    const db = getFirestore();
+    const db = world.firestore;
     const [snap, noteAccessRadiusKm] = await Promise.all([
       db.collection("places").doc(placeId).get(),
       noteAccessRadiusKmForUser(db, uid),

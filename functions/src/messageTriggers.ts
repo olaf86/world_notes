@@ -1,96 +1,119 @@
 import {onSchedule} from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
-import {getFirestore, FieldValue, Timestamp} from "firebase-admin/firestore";
-import {getStorage} from "firebase-admin/storage";
+import {FieldPath, FieldValue, Timestamp} from "firebase-admin/firestore";
 
-import {MAX_MESSAGES_PER_THREAD, REGION} from "./constants";
+import {MAX_MESSAGES_PER_THREAD} from "./constants";
+import {worldContext} from "./platform/worldContext";
+import {WORLD_REGISTRY} from "./platform/worldRegistry";
 import {
-  sendMyNotesMessageNotifications,
+  enqueueMyNotesMessageNotification,
 } from "./notifications";
 import {hasUserBlockBetweenInTransaction} from "./userBlocks";
+import {enqueueStorageObjectDeletion} from "./storageObjectCleanup";
+
+const SCHEDULED_MESSAGE_BATCH_SIZE = 100;
+const SCHEDULED_MESSAGE_MAX_BATCHES = 10;
+
+export interface ScheduledMessagePublicationResult {
+  readonly inspected: number;
+  readonly processed: number;
+  readonly published: number;
+}
 
 /**
- * Publishes scheduled messages whose publishAt has arrived.
+ * Publishes a bounded backlog of due messages in one world.
  *
  * The hidden messageSlots counter already reserved capacity at send time. This
- * job increments the public messageCount when the message or moderation
- * tombstone becomes public.
+ * worker increments the public messageCount only after moderation has reached
+ * a visible terminal state. Hidden tombstones are marked processed without
+ * becoming public. Cursor pagination lets one invocation inspect up to 1,000
+ * due documents without repeatedly selecting the first fixed page.
+ *
+ * @param {string} worldId Trusted catalog world to process.
+ * @return {Promise<ScheduledMessagePublicationResult>} Processing totals.
  */
-export const aggregatePublishedMessages = onSchedule(
-  {schedule: "every 1 minutes", timeZone: "Asia/Tokyo", region: REGION},
-  async () => {
-    const db = getFirestore();
-    const now = Timestamp.now();
-    const batchSize = 100;
+export async function publishScheduledMessagesForWorld(
+  worldId: string,
+): Promise<ScheduledMessagePublicationResult> {
+  const world = worldContext(worldId);
+  const db = world.firestore;
+  const now = Timestamp.now();
+  let inspected = 0;
+  let processed = 0;
+  let published = 0;
+  let after:
+    FirebaseFirestore.QueryDocumentSnapshot | undefined;
 
-    const snap = await db
+  for (
+    let batchIndex = 0;
+    batchIndex < SCHEDULED_MESSAGE_MAX_BATCHES;
+    batchIndex += 1
+  ) {
+    let query = db
       .collectionGroup("messages")
       .where("placeAggregateAppliedAt", "==", null)
+      .where(
+        "moderationAction",
+        "in",
+        ["allow", "sensitive", "review", "hidden"],
+      )
       .where("publishAt", "<=", now)
       .orderBy("publishAt")
-      .limit(batchSize)
-      .get();
+      .orderBy(FieldPath.documentId())
+      .limit(SCHEDULED_MESSAGE_BATCH_SIZE);
+    if (after !== undefined) query = query.startAfter(after);
+    const snapshot = await query.get();
+    if (snapshot.empty) break;
+    inspected += snapshot.size;
+    after = snapshot.docs[snapshot.docs.length - 1];
 
-    if (snap.empty) return;
-
-    let applied = 0;
-    const publishedMessages: Array<{
-      placeId: string;
-      messageId: string;
-      senderId: string;
-      notify: boolean;
-    }> = [];
-    await Promise.all(
-      snap.docs.map(async (messageDoc) => {
-        const placeRef = messageDoc.ref.parent.parent;
-        if (!placeRef) return;
-        const imagePathsToDelete = new Set<string>();
-
-        await db.runTransaction(async (tx) => {
-          imagePathsToDelete.clear();
-          const message = await tx.get(messageDoc.ref);
-          if (!message.exists) return;
-          if (message.get("placeAggregateAppliedAt") != null) return;
+    const batchResults = await Promise.all(
+      snapshot.docs.map(async (messageDocument) => {
+        const placeRef = messageDocument.ref.parent.parent;
+        if (placeRef === null) return {processed: false, published: false};
+        const result = await db.runTransaction(async (transaction) => {
+          const message = await transaction.get(messageDocument.ref);
+          if (!message.exists ||
+              message.get("placeAggregateAppliedAt") != null) {
+            return {processed: false, published: false};
+          }
           const isModerationRemoval =
             message.get("deletedReason") === "moderation";
-          if (
-            (message.get("isDeleted") === true && !isModerationRemoval) ||
-            message.get("isVisible") !== true
-          ) {
-            tx.update(messageDoc.ref, {
+          if ((message.get("isDeleted") === true && !isModerationRemoval) ||
+              message.get("isVisible") !== true) {
+            transaction.update(messageDocument.ref, {
               placeAggregateAppliedAt: FieldValue.serverTimestamp(),
             });
-            return;
+            return {processed: true, published: false};
           }
 
           const publishAt = message.get("publishAt") as Timestamp;
-          if (publishAt.toMillis() > Date.now()) return;
+          if (publishAt.toMillis() > now.toMillis()) {
+            return {processed: false, published: false};
+          }
 
-          const place = await tx.get(placeRef);
-          if (!place.exists) return;
+          const place = await transaction.get(placeRef);
+          if (!place.exists) return {processed: false, published: false};
           const senderId = message.get("userId") as string | undefined;
           const creatorUid =
             place.get("createdByUserId") as string | undefined;
-          if (
-            senderId &&
-            creatorUid &&
-            await hasUserBlockBetweenInTransaction(
-              tx,
-              db,
-              senderId,
-              creatorUid,
-            )
-          ) {
+          if (senderId && creatorUid &&
+              await hasUserBlockBetweenInTransaction(
+                transaction,
+                db,
+                senderId,
+                creatorUid,
+              )) {
             const counterRef =
               placeRef.collection("counters").doc("messageSlots");
-            const counter = await tx.get(counterRef);
+            const counter = await transaction.get(counterRef);
             const publicCount =
               (place.get("messageCount") as number | undefined) ?? 0;
             const currentSlots = counter.exists ?
               ((counter.get("count") as number | undefined) ?? 0) :
               publicCount;
             const nextSlots = Math.max(0, currentSlots - 1);
-            tx.set(
+            transaction.set(
               counterRef,
               {
                 count: nextSlots,
@@ -98,16 +121,13 @@ export const aggregatePublishedMessages = onSchedule(
               },
               {merge: true},
             );
-            const expiresAt =
-              place.get("expiresAt") as Timestamp | undefined;
-            if (
-              publicCount < MAX_MESSAGES_PER_THREAD &&
-              nextSlots < MAX_MESSAGES_PER_THREAD &&
-              place.get("closedReason") === "messageLimit" &&
-              place.get("isArchived") !== true &&
-              (!expiresAt || expiresAt.toMillis() > Date.now())
-            ) {
-              tx.update(placeRef, {
+            const expiresAt = place.get("expiresAt") as Timestamp | undefined;
+            if (publicCount < MAX_MESSAGES_PER_THREAD &&
+                nextSlots < MAX_MESSAGES_PER_THREAD &&
+                place.get("closedReason") === "messageLimit" &&
+                place.get("isArchived") !== true &&
+                (!expiresAt || expiresAt.toMillis() > now.toMillis())) {
+              transaction.update(placeRef, {
                 isOpen: true,
                 closedReason: FieldValue.delete(),
                 closedAt: FieldValue.delete(),
@@ -117,90 +137,97 @@ export const aggregatePublishedMessages = onSchedule(
             if (Array.isArray(storedPaths)) {
               for (const path of storedPaths) {
                 if (typeof path === "string" && path.length > 0) {
-                  imagePathsToDelete.add(path);
+                  enqueueStorageObjectDeletion(transaction, db, {
+                    sourceOperationId:
+                      `blockedScheduledMessage:${messageDocument.id}`,
+                    revision: 1,
+                    world: worldId,
+                    objectPath: path,
+                    createdAt: now,
+                  });
                 }
               }
             }
-            tx.delete(messageDoc.ref);
-            return;
+            transaction.delete(messageDocument.ref);
+            return {processed: true, published: false};
           }
 
           const currentCount =
             (place.get("messageCount") as number | undefined) ?? 0;
           const newCount = currentCount + 1;
-          const update: Record<string, unknown> = {
-            messageCount: newCount,
-          };
+          const update: Record<string, unknown> = {messageCount: newCount};
           const lastMessageAt =
             place.get("lastMessageAt") as Timestamp | undefined;
-          if (
-            !lastMessageAt ||
-            lastMessageAt.toMillis() < publishAt.toMillis()
-          ) {
+          if (!lastMessageAt ||
+              lastMessageAt.toMillis() < publishAt.toMillis()) {
             update.lastMessageAt = publishAt;
           }
-
-          if (
-            newCount >= MAX_MESSAGES_PER_THREAD &&
-            place.get("isOpen") === true
-          ) {
+          if (newCount >= MAX_MESSAGES_PER_THREAD &&
+              place.get("isOpen") === true) {
             update.isOpen = false;
             update.closedReason = "messageLimit";
             update.closedAt = FieldValue.serverTimestamp();
           }
 
-          tx.update(placeRef, update);
-          tx.update(messageDoc.ref, {
+          transaction.update(placeRef, update);
+          transaction.update(messageDocument.ref, {
             placeAggregateAppliedAt: FieldValue.serverTimestamp(),
             isPubliclyVisible: true,
           });
-          publishedMessages.push({
-            placeId: placeRef.id,
-            messageId: messageDoc.id,
-            senderId: message.get("userId") as string,
-            notify: !isModerationRemoval,
-          });
-          applied++;
+          if (!isModerationRemoval && typeof senderId === "string") {
+            enqueueMyNotesMessageNotification(transaction, db, {
+              sourceWorld: worldId,
+              place,
+              messageId: messageDocument.id,
+              senderId,
+              createdAt: now,
+            });
+          }
+          return {processed: true, published: true};
         });
-        if (imagePathsToDelete.size > 0) {
-          const bucket = getStorage().bucket();
-          await Promise.all([...imagePathsToDelete].map(async (path) => {
-            try {
-              await bucket.file(path).delete({ignoreNotFound: true});
-            } catch (error) {
-              logger.warn(
-                `Could not delete blocked scheduled image ${path}.`,
-                error,
-              );
-            }
-          }));
-        }
+
+        return result;
       }),
     );
+    processed += batchResults.filter((result) => result.processed).length;
+    published += batchResults.filter((result) => result.published).length;
+    if (snapshot.size < SCHEDULED_MESSAGE_BATCH_SIZE) break;
+  }
 
-    await Promise.all(
-      publishedMessages.map(async ({placeId, messageId, senderId, notify}) => {
-        if (!notify) return;
-        try {
-          await sendMyNotesMessageNotifications(
-            db,
-            placeId,
-            messageId,
-            senderId,
-          );
-        } catch (error) {
-          logger.error(
-            "aggregatePublishedMessages: failed to send My Notes " +
-              `notification for places/${placeId}/messages/${messageId}.`,
-            error,
-          );
-        }
-      },
-      ),
-    );
+  logger.info("Scheduled-message publication finished.", {
+    worldId,
+    inspected,
+    processed,
+    published,
+  });
+  return {inspected, processed, published};
+}
 
-    logger.info(
-      `aggregatePublishedMessages: applied ${applied}/${snap.size} messages.`,
-    );
-  },
-);
+/**
+ * Creates one regional scheduled-message publisher.
+ *
+ * @param {string} worldId Trusted catalog world to process.
+ * @return {ScheduleFunction} Regional scheduled function.
+ */
+function scheduledMessagePublicationSchedule(worldId: string) {
+  const world = WORLD_REGISTRY.requireWorld(worldId);
+  return onSchedule(
+    {
+      schedule: "every 1 minutes",
+      timeZone: "Etc/UTC",
+      region: world.functionsRegion,
+      retryCount: 3,
+      maxInstances: 1,
+    },
+    async () => {
+      await publishScheduledMessagesForWorld(worldId);
+    },
+  );
+}
+
+export const publishAsiaScheduledMessages =
+  scheduledMessagePublicationSchedule("asia");
+export const publishNorthAmericaScheduledMessages =
+  scheduledMessagePublicationSchedule("northAmerica");
+export const publishEuropeScheduledMessages =
+  scheduledMessagePublicationSchedule("europe");

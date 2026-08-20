@@ -6,7 +6,16 @@ import 'package:flutter/services.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import '../config/app_config.dart';
 
+typedef ServerEntitlementSynchronizer = Future<void> Function();
+
 class SubscriptionService {
+  SubscriptionService({
+    ServerEntitlementSynchronizer? serverEntitlementSynchronizer,
+  }) : _serverEntitlementSynchronizer = serverEntitlementSynchronizer;
+
+  final ServerEntitlementSynchronizer? _serverEntitlementSynchronizer;
+  Future<void>? _synchronizingEntitlement;
+
   /// Whether the RevenueCat SDK has been successfully configured.
   /// All SDK calls must be gated on this flag — calling any Purchases method
   /// before configure() triggers a Swift fatalError that Dart cannot catch.
@@ -50,6 +59,7 @@ class SubscriptionService {
           info.entitlements.active.containsKey(AppConfig.proEntitlementId),
         );
       }
+      unawaited(syncEntitlement());
     }
 
     controller = StreamController<bool>(
@@ -59,6 +69,7 @@ class SubscriptionService {
         // Register for future updates from the RevenueCat SDK.
         if (_configured) {
           Purchases.addCustomerInfoUpdateListener(listener);
+          unawaited(syncEntitlement());
         }
       },
       onCancel: () async {
@@ -87,9 +98,11 @@ class SubscriptionService {
     if (!_configured) return false;
     try {
       final result = await Purchases.purchase(PurchaseParams.package(package));
-      return result.customerInfo.entitlements.active.containsKey(
+      final active = result.customerInfo.entitlements.active.containsKey(
         AppConfig.proEntitlementId,
       );
+      await syncEntitlement();
+      return active;
     } catch (error, stack) {
       await _reportRevenueCatError('purchasing package', error, stack);
       return false;
@@ -100,7 +113,11 @@ class SubscriptionService {
     if (!_configured) return false;
     try {
       final info = await Purchases.restorePurchases();
-      return info.entitlements.active.containsKey(AppConfig.proEntitlementId);
+      final active = info.entitlements.active.containsKey(
+        AppConfig.proEntitlementId,
+      );
+      await syncEntitlement();
+      return active;
     } catch (error, stack) {
       await _reportRevenueCatError('restoring purchases', error, stack);
       return false;
@@ -111,6 +128,7 @@ class SubscriptionService {
     if (!_configured) return;
     try {
       await Purchases.logIn(userId);
+      await syncEntitlement();
     } catch (error, stack) {
       await _reportRevenueCatError('identifying user', error, stack);
     }
@@ -122,6 +140,31 @@ class SubscriptionService {
       await Purchases.logOut();
     } catch (error, stack) {
       await _reportRevenueCatError('logging out', error, stack);
+    }
+  }
+
+  /// Asks the server to verify CustomerInfo and refresh every regional mirror.
+  Future<void> syncEntitlement() {
+    final synchronizer = _serverEntitlementSynchronizer;
+    if (!_configured || synchronizer == null) {
+      return Future.value();
+    }
+    return _synchronizingEntitlement ??= _runEntitlementSync(
+      synchronizer,
+    ).whenComplete(() => _synchronizingEntitlement = null);
+  }
+
+  Future<void> _runEntitlementSync(
+    ServerEntitlementSynchronizer synchronizer,
+  ) async {
+    try {
+      await synchronizer();
+    } catch (error, stack) {
+      await _reportRevenueCatError(
+        'synchronizing server entitlement',
+        error,
+        stack,
+      );
     }
   }
 

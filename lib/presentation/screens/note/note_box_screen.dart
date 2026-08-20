@@ -264,7 +264,9 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     required String noteCreatorUserId,
   }) async {
     final result = await context.push<ReportContentResult>(
-      '/note/${widget.placeId}/messages/${message.id}/report',
+      ref
+          .read(selectedWorldNavigationProvider)
+          .messageReport(widget.placeId, message.id),
       extra: ReportedUserTarget(
         userId: message.author.id,
         displayName: message.author.name,
@@ -291,7 +293,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     required String creatorName,
   }) async {
     final result = await context.push<ReportContentResult>(
-      '/note/${widget.placeId}/report',
+      ref.read(selectedWorldNavigationProvider).noteReport(widget.placeId),
       extra: ReportedUserTarget(
         userId: creatorUserId,
         displayName: creatorName,
@@ -860,7 +862,9 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                             icon: const Icon(Icons.add_location_alt_outlined),
                             tooltip: l10n.createFromArchiveTooltip,
                             onPressed: () => context.push(
-                              '/note/create',
+                              ref
+                                  .read(selectedWorldNavigationProvider)
+                                  .noteCreation,
                               extra: NoteCreationDraft.fromPlace(place),
                             ),
                           ),

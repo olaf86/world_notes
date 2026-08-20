@@ -505,7 +505,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
 
       if (mounted) {
         context.pushReplacement(
-          '/note/$placeId?title=${Uri.encodeComponent(title)}',
+          ref.read(selectedWorldNavigationProvider).note(placeId, title: title),
         );
       }
     } on FirebaseFunctionsException catch (e) {

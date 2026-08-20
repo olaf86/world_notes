@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -11,19 +11,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../config/app_config.dart';
-import '../../config/regions.dart';
+import '../../config/bootstrap_world_catalog.dart';
 import '../../config/runtime_mode.dart';
+import '../../config/world_catalog.dart';
+import '../../config/world_navigation.dart';
 import '../../core/map_style.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../data/repositories/follow_repository_impl.dart';
+import '../../data/repositories/global_operation_repository_impl.dart';
 import '../../data/repositories/message_repository_impl.dart';
 import '../../data/repositories/notice_repository_impl.dart';
 import '../../data/repositories/place_repository_impl.dart';
 import '../../data/repositories/user_block_repository_impl.dart';
 import '../../domain/entities/follow_entity.dart';
 import '../../domain/entities/admin_moderation_review_entity.dart';
+import '../../domain/entities/global_operation_entity.dart';
 import '../../domain/entities/message_thread_item.dart';
 import '../../domain/entities/note_visitor_entity.dart';
 import '../../domain/entities/notice_entity.dart';
@@ -35,12 +40,15 @@ import '../../domain/entities/user_entity.dart';
 import '../../domain/entities/user_block_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/follow_repository.dart';
+import '../../domain/repositories/global_operation_repository.dart';
 import '../../domain/repositories/message_repository.dart';
 import '../../domain/repositories/notice_repository.dart';
 import '../../domain/repositories/place_repository.dart';
 import '../../domain/repositories/user_block_repository.dart';
 import '../../l10n/app_locale.dart';
 import '../../services/ad_privacy_service.dart';
+import '../../services/account_bootstrap_service.dart';
+import '../../services/global_operation_observer.dart';
 import '../../services/location_service.dart';
 import '../../services/admin_moderation_service.dart';
 import '../../services/message_image_service.dart';
@@ -48,20 +56,178 @@ import '../../services/my_notes_notification_service.dart';
 import '../../services/notice_notification_service.dart';
 import '../../services/note_open_interstitial_service.dart';
 import '../../services/subscription_service.dart';
+import '../../services/world_firebase_clients.dart';
 
 // --- Infrastructure ---
 
-final firestoreProvider = Provider<FirebaseFirestore>(
-  (_) => FirebaseFirestore.instance,
+final worldCatalogProvider = Provider<WorldCatalog>(
+  (_) => bootstrapWorldCatalog,
 );
+
+final homeAssignmentProvider = StreamProvider<HomeAssignment?>((ref) {
+  final user = ref.watch(authStateProvider).valueOrNull;
+  if (user == null) return Stream.value(null);
+  return ref.watch(accountBootstrapServiceProvider).watchHome(user.id);
+});
+
+/// Assigned authority world. Asia is also the bootstrap route before an
+/// assignment exists; the router keeps unassigned users out of product data.
+final homeWorldProvider = Provider<WorldId>((ref) {
+  return ref.watch(homeAssignmentProvider).valueOrNull?.homeWorld ??
+      asiaWorldId;
+});
+
+class SelectedWorldNotifier extends Notifier<WorldId> {
+  @override
+  WorldId build() {
+    final homeWorld = ref.watch(homeWorldProvider);
+    ref.watch(worldCatalogProvider).requireContentWorld(homeWorld);
+    return homeWorld;
+  }
+
+  Future<void> selectWorld(WorldId worldId) async {
+    ref.read(worldCatalogProvider).requireContentWorld(worldId);
+    final user = ref.read(authStateProvider).valueOrNull;
+    final assignment = await ref.read(homeAssignmentProvider.future);
+    if (user == null || assignment == null) {
+      throw StateError('Account bootstrap is incomplete.');
+    }
+    final ready = await ref.read(worldReadinessProvider(worldId).future);
+    if (!ready) {
+      throw StateError('World is still preparing this account.');
+    }
+    state = worldId;
+  }
+}
+
+final selectedWorldProvider = NotifierProvider<SelectedWorldNotifier, WorldId>(
+  SelectedWorldNotifier.new,
+);
+
+/// Canonical route builder with the current content world already injected.
+final selectedWorldNavigationProvider = Provider<WorldNavigation>((ref) {
+  return WorldNavigation(ref.watch(selectedWorldProvider));
+});
+
+final worldSelectionProvider = Provider<WorldSelection>((ref) {
+  return WorldSelection(
+    homeWorld: ref.watch(homeWorldProvider),
+    selectedWorld: ref.watch(selectedWorldProvider),
+  );
+});
+
+final selectedWorldCatalogEntryProvider = Provider<WorldCatalogEntry>((ref) {
+  return ref
+      .watch(worldCatalogProvider)
+      .requireContentWorld(ref.watch(selectedWorldProvider));
+});
+
+final worldFirebaseClientCacheProvider = Provider<WorldFirebaseClientCache>((
+  _,
+) {
+  return WorldFirebaseClientCache(
+    app: Firebase.app(),
+    emulatorHost: shouldUseFirebaseEmulators ? firebaseEmulatorHost() : null,
+  );
+});
+
+final worldFirebaseClientsProvider =
+    Provider.family<WorldFirebaseClients, WorldId>((ref, worldId) {
+      final world = ref
+          .watch(worldCatalogProvider)
+          .requireContentWorld(worldId);
+      return ref.watch(worldFirebaseClientCacheProvider).forWorld(world);
+    });
+
+final bootstrapWorldClientsProvider = Provider<WorldFirebaseClients>((ref) {
+  final asia = ref.watch(worldCatalogProvider).requireContentWorld(asiaWorldId);
+  return ref.watch(worldFirebaseClientCacheProvider).forWorld(asia);
+});
+
+final accountBootstrapServiceProvider = Provider<AccountBootstrapService>((
+  ref,
+) {
+  final bootstrapClients = ref.watch(bootstrapWorldClientsProvider);
+  return AccountBootstrapService(
+    directoryFirestore: bootstrapClients.firestore,
+    directoryFunctions: bootstrapClients.functions,
+    catalog: ref.watch(worldCatalogProvider),
+  );
+});
+
+final homeWorldClientsProvider = Provider<WorldFirebaseClients>((ref) {
+  return ref.watch(worldFirebaseClientsProvider(ref.watch(homeWorldProvider)));
+});
+
+final homeWorldFirestoreProvider = Provider<FirebaseFirestore>((ref) {
+  return ref.watch(homeWorldClientsProvider).firestore;
+});
+
+final homeWorldFunctionsProvider = Provider<WorldFunctionsClient>((ref) {
+  return ref.watch(homeWorldClientsProvider).functions;
+});
+
+final worldReadinessProvider = FutureProvider.family<bool, WorldId>((
+  ref,
+  worldId,
+) async {
+  final user = ref.watch(authStateProvider).valueOrNull;
+  final assignment = await ref.watch(homeAssignmentProvider.future);
+  if (user == null || assignment == null) return false;
+  final destination = ref.watch(worldFirebaseClientsProvider(worldId));
+  return ref
+      .watch(accountBootstrapServiceProvider)
+      .isWorldReady(
+        uid: user.id,
+        assignment: assignment,
+        destination: destination.firestore,
+      );
+});
+
+final selectedWorldClientsProvider = Provider<WorldFirebaseClients>((ref) {
+  return ref.watch(
+    worldFirebaseClientsProvider(ref.watch(selectedWorldProvider)),
+  );
+});
+
+final selectedWorldFirestoreProvider = Provider<FirebaseFirestore>((ref) {
+  return ref.watch(selectedWorldClientsProvider).firestore;
+});
 
 final firebaseAuthProvider = Provider<FirebaseAuth>(
   (_) => FirebaseAuth.instance,
 );
 
-final firebaseStorageProvider = Provider<FirebaseStorage>(
-  (_) => FirebaseStorage.instance,
-);
+/// Resolves the immutable home Functions route from the directory authority.
+/// Returns null while a newly authenticated account has no home assignment.
+final homeWorldFunctionsResolverProvider =
+    Provider<Future<WorldFunctionsClient?> Function()>((ref) {
+      return () async {
+        final authUser = ref.read(firebaseAuthProvider).currentUser;
+        if (authUser == null) return null;
+        final directory = ref.read(bootstrapWorldClientsProvider).firestore;
+        final homeSnapshot = await directory
+            .collection('userHomes')
+            .doc(authUser.uid)
+            .get();
+        if (!homeSnapshot.exists) return null;
+        final worldId = homeSnapshot.data()?['world'];
+        if (worldId is! String) {
+          throw const FormatException('Home world field is invalid.');
+        }
+        final world = ref
+            .read(worldCatalogProvider)
+            .requireWorld(WorldId(worldId));
+        return ref
+            .read(worldFirebaseClientCacheProvider)
+            .forWorld(world)
+            .functions;
+      };
+    });
+
+final selectedWorldStorageProvider = Provider<FirebaseStorage>((ref) {
+  return ref.watch(selectedWorldClientsProvider).storage;
+});
 
 final firebaseMessagingProvider = Provider<FirebaseMessaging>(
   (_) => FirebaseMessaging.instance,
@@ -76,13 +242,50 @@ final firebaseCrashlyticsProvider = Provider<FirebaseCrashlytics>(
 /// the system-language default.
 final sharedPreferencesProvider = Provider<SharedPreferences?>((_) => null);
 
-// The client must target a region where the functions are actually deployed,
-// or callable lookups 404. The region is resolved by [effectiveRegionProvider]
-// (manual override > nearest available to current location > default).
-final firebaseFunctionsProvider = Provider<FirebaseFunctions>((ref) {
-  final region = ref.watch(effectiveRegionProvider);
-  return FirebaseFunctions.instanceFor(region: region);
+final selectedWorldFunctionsProvider = Provider<WorldFunctionsClient>((ref) {
+  return ref.watch(selectedWorldClientsProvider).functions;
 });
+
+final globalOperationRepositoryProvider = Provider<GlobalOperationRepository>((
+  ref,
+) {
+  return GlobalOperationRepositoryImpl(
+    catalog: ref.watch(worldCatalogProvider),
+    clients: ref.watch(worldFirebaseClientCacheProvider),
+  );
+});
+
+/// Restores pending operation listeners for the signed-in account.
+final globalOperationObserverProvider = Provider<GlobalOperationObserver?>((
+  ref,
+) {
+  final user = ref.watch(authStateProvider).valueOrNull;
+  final preferences = ref.watch(sharedPreferencesProvider);
+  if (user == null || preferences == null) return null;
+
+  final observer = GlobalOperationObserver(
+    userId: user.id,
+    repository: ref.watch(globalOperationRepositoryProvider),
+    preferences: preferences,
+    reportError: (error, stack) => ref
+        .read(firebaseCrashlyticsProvider)
+        .recordError(
+          error,
+          stack,
+          reason: 'Global operation observation failed',
+          fatal: false,
+        ),
+  );
+  unawaited(observer.start());
+  ref.onDispose(() => unawaited(observer.dispose()));
+  return observer;
+});
+
+final observedGlobalOperationsProvider =
+    StreamProvider<List<GlobalOperationEntity>>((ref) {
+      final observer = ref.watch(globalOperationObserverProvider);
+      return observer?.operations ?? Stream.value(const []);
+    });
 
 // --- Services ---
 
@@ -91,7 +294,29 @@ final locationServiceProvider = Provider<LocationService>(
 );
 
 final subscriptionServiceProvider = Provider<SubscriptionService>(
-  (_) => SubscriptionService(),
+  (ref) => SubscriptionService(
+    serverEntitlementSynchronizer: () async {
+      final functions = await ref.read(homeWorldFunctionsResolverProvider)();
+      if (functions == null) return;
+      final response = await functions
+          .httpsCallable('refreshEntitlement')
+          .call<Map<String, dynamic>>({
+            'operationId': const Uuid().v7(),
+            'platform': switch (defaultTargetPlatform) {
+              TargetPlatform.iOS => 'ios',
+              TargetPlatform.android => 'android',
+              _ => throw UnsupportedError(
+                'RevenueCat entitlement sync supports iOS and Android only.',
+              ),
+            },
+          });
+      await handleAcceptedGlobalOperation(
+        response: response.data,
+        policy: GlobalOperationObservationPolicy.none,
+        observer: null,
+      );
+    },
+  ),
 );
 
 final adPrivacyServiceProvider = Provider<AdPrivacyService>(
@@ -121,7 +346,7 @@ final canRequestAdsProvider = Provider<bool>((ref) {
 
 final messageImageServiceProvider = Provider<MessageImageService>((ref) {
   final service = MessageImageService(
-    storage: ref.watch(firebaseStorageProvider),
+    functions: ref.watch(selectedWorldFunctionsProvider),
   );
   ref.onDispose(service.dispose);
   return service;
@@ -161,7 +386,7 @@ final myNotesNotificationServiceProvider = Provider<MyNotesNotificationService>(
   (ref) {
     final service = MyNotesNotificationService(
       messaging: ref.watch(firebaseMessagingProvider),
-      functions: ref.watch(firebaseFunctionsProvider),
+      functions: ref.watch(homeWorldFunctionsProvider),
       auth: ref.watch(firebaseAuthProvider),
       crashlytics: ref.watch(firebaseCrashlyticsProvider),
     );
@@ -185,7 +410,8 @@ final noticeNotificationServiceProvider = Provider<NoticeNotificationService>((
 
 final adminModerationServiceProvider = Provider<AdminModerationService>((ref) {
   return AdminModerationService(
-    functions: ref.watch(firebaseFunctionsProvider),
+    functions: ref.watch(selectedWorldFunctionsProvider),
+    operationObserver: ref.watch(globalOperationObserverProvider),
   );
 });
 
@@ -196,9 +422,10 @@ final appLanguagePreferenceProvider =
       (ref) {
         return AppLanguagePreferenceNotifier(
           auth: ref.watch(firebaseAuthProvider),
-          firestore: ref.watch(firestoreProvider),
-          functions: ref.watch(firebaseFunctionsProvider),
+          firestore: ref.watch(homeWorldFirestoreProvider),
+          functions: ref.watch(homeWorldFunctionsProvider),
           preferences: ref.watch(sharedPreferencesProvider),
+          operationObserver: ref.watch(globalOperationObserverProvider),
           syncAccount: !screenshotMode,
         );
       },
@@ -211,13 +438,15 @@ class AppLanguagePreferenceNotifier
   AppLanguagePreferenceNotifier({
     required FirebaseAuth auth,
     required FirebaseFirestore firestore,
-    required FirebaseFunctions functions,
+    required WorldFunctionsClient functions,
     required SharedPreferences? preferences,
+    required GlobalOperationObserver? operationObserver,
     required bool syncAccount,
   }) : _auth = auth,
        _firestore = firestore,
        _functions = functions,
        _preferences = preferences,
+       _operationObserver = operationObserver,
        super(
          AppLanguagePreference.fromLocalStorage(
            preferences?.getString(appLanguagePreferenceKey),
@@ -234,6 +463,7 @@ class AppLanguagePreferenceNotifier
        _firestore = null,
        _functions = null,
        _preferences = preferences,
+       _operationObserver = null,
        super(
          AppLanguagePreference.fromLocalStorage(
            preferences.getString(appLanguagePreferenceKey),
@@ -242,7 +472,9 @@ class AppLanguagePreferenceNotifier
 
   final FirebaseAuth? _auth;
   final FirebaseFirestore? _firestore;
-  final FirebaseFunctions? _functions;
+  final WorldFunctionsClient? _functions;
+  final GlobalOperationObserver? _operationObserver;
+  final Uuid _uuid = const Uuid();
   SharedPreferences? _preferences;
   StreamSubscription<User?>? _authSubscription;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
@@ -258,9 +490,17 @@ class AppLanguagePreferenceNotifier
     if (_auth?.currentUser == null || functions == null) return;
     _pendingPreference = preference;
     try {
-      await functions.httpsCallable('setLanguagePreference').call<void>({
-        'languagePreference': preference.storageValue,
-      });
+      final response = await functions
+          .httpsCallable('setLanguagePreference')
+          .call<Map<String, dynamic>>({
+            'languagePreference': preference.storageValue,
+            'operationId': _uuid.v7(),
+          });
+      await handleAcceptedGlobalOperation(
+        response: response.data,
+        policy: GlobalOperationObservationPolicy.none,
+        observer: _operationObserver,
+      );
     } catch (_) {
       _pendingPreference = null;
       rethrow;
@@ -323,9 +563,17 @@ class AppLanguagePreferenceNotifier
     final functions = _functions;
     if (functions == null) return;
     try {
-      await functions.httpsCallable('setLanguagePreference').call<void>({
-        'languagePreference': AppLanguagePreference.system.storageValue,
-      });
+      final response = await functions
+          .httpsCallable('setLanguagePreference')
+          .call<Map<String, dynamic>>({
+            'languagePreference': AppLanguagePreference.system.storageValue,
+            'operationId': _uuid.v7(),
+          });
+      await handleAcceptedGlobalOperation(
+        response: response.data,
+        policy: GlobalOperationObservationPolicy.none,
+        observer: _operationObserver,
+      );
     } catch (error, stack) {
       _accountBeingSeeded = null;
       debugPrint(
@@ -361,45 +609,59 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepositoryImpl(
     auth: ref.watch(firebaseAuthProvider),
     googleSignIn: GoogleSignIn(),
-    firestore: ref.watch(firestoreProvider),
-    functions: ref.watch(firebaseFunctionsProvider),
-    myNotesNotificationService: ref.watch(myNotesNotificationServiceProvider),
+    functionsProvider: () async {
+      final functions = await ref.read(homeWorldFunctionsResolverProvider)();
+      if (functions == null) {
+        throw StateError('Home world is not assigned.');
+      }
+      return functions;
+    },
     subscriptionService: ref.watch(subscriptionServiceProvider),
-    messageImageService: ref.watch(messageImageServiceProvider),
+  );
+});
+
+final worldPlaceRepositoryProvider = Provider.family<PlaceRepository, WorldId>((
+  ref,
+  worldId,
+) {
+  final clients = ref.watch(worldFirebaseClientsProvider(worldId));
+  return PlaceRepositoryImpl(
+    firestore: clients.firestore,
+    functions: clients.functions,
+    storage: clients.storage,
   );
 });
 
 final placeRepositoryProvider = Provider<PlaceRepository>((ref) {
-  return PlaceRepositoryImpl(
-    firestore: ref.watch(firestoreProvider),
-    functions: ref.watch(firebaseFunctionsProvider),
-    storage: ref.watch(firebaseStorageProvider),
+  return ref.watch(
+    worldPlaceRepositoryProvider(ref.watch(selectedWorldProvider)),
   );
 });
 
 final messageRepositoryProvider = Provider<MessageRepository>((ref) {
   return MessageRepositoryImpl(
-    firestore: ref.watch(firestoreProvider),
-    functions: ref.watch(firebaseFunctionsProvider),
-    storage: ref.watch(firebaseStorageProvider),
+    firestore: ref.watch(selectedWorldFirestoreProvider),
+    functions: ref.watch(selectedWorldFunctionsProvider),
+    storage: ref.watch(selectedWorldStorageProvider),
   );
 });
 
 final followRepositoryProvider = Provider<FollowRepository>((ref) {
   return FollowRepositoryImpl(
-    firestore: ref.watch(firestoreProvider),
-    functions: ref.watch(firebaseFunctionsProvider),
+    firestore: ref.watch(selectedWorldFirestoreProvider),
+    functions: ref.watch(homeWorldFunctionsProvider),
   );
 });
 
 final noticeRepositoryProvider = Provider<NoticeRepository>((ref) {
-  return NoticeRepositoryImpl(firestore: ref.watch(firestoreProvider));
+  return NoticeRepositoryImpl(firestore: ref.watch(homeWorldFirestoreProvider));
 });
 
 final userBlockRepositoryProvider = Provider<UserBlockRepository>((ref) {
   return UserBlockRepositoryImpl(
-    firestore: ref.watch(firestoreProvider),
-    functions: ref.watch(firebaseFunctionsProvider),
+    firestore: ref.watch(selectedWorldFirestoreProvider),
+    functions: ref.watch(homeWorldFunctionsProvider),
+    operationObserver: ref.watch(globalOperationObserverProvider),
   );
 });
 
@@ -425,38 +687,19 @@ final authStateProvider = StreamProvider<UserEntity?>((ref) {
   return ref.watch(authRepositoryProvider).authStateChanges;
 });
 
-final userProfileProvider = StreamProvider.autoDispose
-    .family<UserEntity?, String>((ref, userId) {
-      final id = userId.trim();
-      if (id.isEmpty) return Stream.value(null);
-      return ref
-          .watch(firestoreProvider)
-          .collection('users')
-          .doc(id)
-          .snapshots()
-          .map((snap) {
-            final data = snap.data();
-            if (data == null) return null;
-            final displayName = (data['displayName'] as String?)?.trim();
-            return UserEntity(
-              id: snap.id,
-              name: displayName == null || displayName.isEmpty
-                  ? 'User'
-                  : displayName,
-              email: data['email'] as String?,
-              photoUrl: data['photoUrl'] as String?,
-              isPremium: data['isPremium'] as bool? ?? false,
-            );
-          });
-    });
-
 final noteCreatorProfileProvider = Provider.autoDispose
     .family<UserEntity?, String>((ref, userId) {
       final id = userId.trim();
       if (id.isEmpty) return null;
-      final profile = ref.watch(userProfileProvider(id)).valueOrNull;
+      final profile = ref.watch(publicProfileProvider(id)).valueOrNull;
       final currentUser = ref.watch(authStateProvider).valueOrNull;
-      if (profile != null) return profile;
+      if (profile != null) {
+        return UserEntity(
+          id: id,
+          name: profile.displayName,
+          photoUrl: profile.photoUrl,
+        );
+      }
       return currentUser?.id == id ? currentUser : null;
     });
 
@@ -472,16 +715,68 @@ final adminClaimProvider = FutureProvider<bool>((ref) async {
 
 // --- Social profiles and follows ---
 
+/// Locally accepted block states used until the selected-world mirror catches
+/// up. This makes safety filtering immediate after the home-world commit.
+final optimisticUserBlockStatesProvider = StateProvider<Map<String, bool>>(
+  (_) => const {},
+);
+
+void _clearOptimisticUserBlockIfCaughtUp(
+  Ref ref, {
+  required String userId,
+  required bool optimistic,
+  required bool server,
+}) {
+  if (optimistic != server) return;
+  unawaited(
+    Future<void>.microtask(() {
+      final current = ref.read(optimisticUserBlockStatesProvider);
+      if (current[userId] != optimistic) return;
+      final next = {...current}..remove(userId);
+      ref.read(optimisticUserBlockStatesProvider.notifier).state = next;
+    }),
+  );
+}
+
 final blockedUserIdsProvider = StreamProvider<Set<String>>((ref) {
   final user = ref.watch(authStateProvider).valueOrNull;
   if (user == null) return Stream.value(const {});
-  return ref.watch(userBlockRepositoryProvider).watchBlockedUserIds(user.id);
+  final optimistic = ref.watch(optimisticUserBlockStatesProvider);
+  return ref
+      .watch(userBlockRepositoryProvider)
+      .watchBlockedUserIds(user.id)
+      .map((serverIds) {
+        final ids = {...serverIds};
+        for (final MapEntry(key: userId, value: blocked)
+            in optimistic.entries) {
+          _clearOptimisticUserBlockIfCaughtUp(
+            ref,
+            userId: userId,
+            optimistic: blocked,
+            server: serverIds.contains(userId),
+          );
+          if (blocked) {
+            ids.add(userId);
+          } else {
+            ids.remove(userId);
+          }
+        }
+        return ids;
+      });
 });
 
 final blockedUsersProvider = StreamProvider<List<UserBlock>>((ref) {
   final user = ref.watch(authStateProvider).valueOrNull;
   if (user == null) return Stream.value(const []);
-  return ref.watch(userBlockRepositoryProvider).watchBlockedUsers(user.id);
+  final optimistic = ref.watch(optimisticUserBlockStatesProvider);
+  return ref
+      .watch(userBlockRepositoryProvider)
+      .watchBlockedUsers(user.id)
+      .map(
+        (users) => users
+            .where((block) => optimistic[block.userId] ?? true)
+            .toList(growable: false),
+      );
 });
 
 final isUserBlockedProvider = StreamProvider.family<bool, String>((
@@ -490,9 +785,22 @@ final isUserBlockedProvider = StreamProvider.family<bool, String>((
 ) {
   final user = ref.watch(authStateProvider).valueOrNull;
   if (user == null || user.id == blockedUserId) return Stream.value(false);
+  final optimistic = ref.watch(optimisticUserBlockStatesProvider);
+  final localState = optimistic[blockedUserId];
   return ref
       .watch(userBlockRepositoryProvider)
-      .watchIsBlocked(blockerUserId: user.id, blockedUserId: blockedUserId);
+      .watchIsBlocked(blockerUserId: user.id, blockedUserId: blockedUserId)
+      .map((serverState) {
+        if (localState != null) {
+          _clearOptimisticUserBlockIfCaughtUp(
+            ref,
+            userId: blockedUserId,
+            optimistic: localState,
+            server: serverState,
+          );
+        }
+        return localState ?? serverState;
+      });
 });
 
 final publicProfileProvider = StreamProvider.family<PublicProfile?, String>((
@@ -550,7 +858,7 @@ final myNotesNotificationEnabledProvider = StreamProvider<bool>((ref) {
   final user = ref.watch(authStateProvider).valueOrNull;
   if (user == null) return Stream.value(false);
   return ref
-      .watch(firestoreProvider)
+      .watch(homeWorldFirestoreProvider)
       .collection('users')
       .doc(user.id)
       .collection('notificationSettings')
@@ -563,7 +871,7 @@ final myNotesNotificationPreviewEnabledProvider = StreamProvider<bool>((ref) {
   final user = ref.watch(authStateProvider).valueOrNull;
   if (user == null) return Stream.value(true);
   return ref
-      .watch(firestoreProvider)
+      .watch(homeWorldFirestoreProvider)
       .collection('users')
       .doc(user.id)
       .collection('notificationSettings')
@@ -980,59 +1288,6 @@ class MapStyleNotifier extends StateNotifier<MapStyle> {
     await prefs.setString(_prefKey, style.name);
   }
 }
-
-// --- Region selection ---
-
-/// User's region preference: a region id to force, or null for "Auto"
-/// (nearest available to the current location). Persisted across launches.
-class RegionPreferenceNotifier extends StateNotifier<String?> {
-  static const _prefKey = 'region_override';
-
-  RegionPreferenceNotifier() : super(null) {
-    _load();
-  }
-
-  Future<void> _load() async {
-    final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getString(_prefKey);
-    // Ignore a saved region that no longer exists / is unavailable.
-    if (saved != null && (Regions.byId(saved)?.available ?? false)) {
-      state = saved;
-    }
-  }
-
-  /// Pass a region id to pin it, or null to return to Auto.
-  Future<void> setOverride(String? regionId) async {
-    state = regionId;
-    final prefs = await SharedPreferences.getInstance();
-    if (regionId == null) {
-      await prefs.remove(_prefKey);
-    } else {
-      await prefs.setString(_prefKey, regionId);
-    }
-  }
-}
-
-final regionPreferenceProvider =
-    StateNotifierProvider<RegionPreferenceNotifier, String?>(
-      (ref) => RegionPreferenceNotifier(),
-    );
-
-/// The region the client actually targets:
-///   1. a valid, available manual override, else
-///   2. the nearest available region to the current location, else
-///   3. the default region.
-final effectiveRegionProvider = Provider<String>((ref) {
-  final override = ref.watch(regionPreferenceProvider);
-  if (override != null && (Regions.byId(override)?.available ?? false)) {
-    return override;
-  }
-  final pos = ref.watch(anchorPositionProvider);
-  if (pos != null) {
-    return Regions.nearestAvailableId(pos.latitude, pos.longitude);
-  }
-  return Regions.defaultId;
-});
 
 class MapLatLng {
   final double lat;

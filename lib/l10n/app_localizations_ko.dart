@@ -880,6 +880,16 @@ class AppLocalizationsKo extends AppLocalizations {
       '이 기기의 표시 언어는 변경되었지만 계정에 저장하지 못했습니다.';
 
   @override
+  String get settingsContentWorldTitle => '콘텐츠 월드';
+
+  @override
+  String get settingsContentWorldDescription =>
+      '둘러보고 게시할 월드를 선택합니다. 변경할 수 없는 홈 월드는 그대로 유지됩니다.';
+
+  @override
+  String get settingsContentWorldSwitchFailed => '월드를 전환하지 못했습니다. 다시 시도해 주세요.';
+
+  @override
   String get settingsMapStyleTitle => '지도 스타일';
 
   @override
@@ -911,30 +921,6 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get settingsMapStylePopDescription => '밝고 화려한 표시';
-
-  @override
-  String get settingsDataRegionTitle => '데이터 지역';
-
-  @override
-  String get settingsDataRegionDescription =>
-      '요청을 처리할 지역을 선택합니다. 자동은 현재 위치에서 가장 가까운 지역을 선택하며 여행 중에는 직접 변경할 수 있습니다.';
-
-  @override
-  String get settingsDataRegionAuto => '자동(가장 가까운 지역)';
-
-  @override
-  String settingsDataRegionCurrent(String region) {
-    return '현재: $region';
-  }
-
-  @override
-  String get settingsRegionAsiaTokyo => '아시아(도쿄)';
-
-  @override
-  String get settingsRegionAmericasUsCentral => '아메리카(미국 중부)';
-
-  @override
-  String get settingsRegionEuropeBelgium => '유럽(벨기에)';
 
   @override
   String get settingsNotificationsTitle => '알림';
@@ -1039,6 +1025,46 @@ class AppLocalizationsKo extends AppLocalizations {
   String get signOut => '로그아웃';
 
   @override
+  String get homeWorldSelectionTitle => '홈 월드 선택';
+
+  @override
+  String get homeWorldSelectionIntro => '홈 월드는 계정 데이터를 가까운 지역에 보관합니다.';
+
+  @override
+  String get homeWorldSelectionPermanentWarning =>
+      '이 선택은 나중에 변경할 수 없습니다. 홈을 옮기지 않고도 준비된 다른 월드를 방문할 수 있습니다.';
+
+  @override
+  String get homeWorldSelectionUnavailable => '현재 선택할 수 있는 홈 월드가 없습니다.';
+
+  @override
+  String get homeWorldSelectionLoadFailed => '계정 준비 상태를 불러오지 못했습니다.';
+
+  @override
+  String get homeWorldSelectionSubmitFailed => '홈 월드를 설정하지 못했습니다. 다시 시도해 주세요.';
+
+  @override
+  String get homeWorldSelectionConfirm => '영구 홈으로 설정';
+
+  @override
+  String get worldAsia => '아시아';
+
+  @override
+  String get worldAsiaLocation => '일본 도쿄';
+
+  @override
+  String get worldNorthAmerica => '북미';
+
+  @override
+  String get worldNorthAmericaLocation => '미국 아이오와';
+
+  @override
+  String get worldEurope => '유럽';
+
+  @override
+  String get worldEuropeLocation => '벨기에';
+
+  @override
   String get followers => '팔로워';
 
   @override
@@ -1053,4 +1079,203 @@ class AppLocalizationsKo extends AppLocalizations {
   String subscriptionTemporarilyUnavailable(String planName) {
     return '$planName을(를) 일시적으로 사용할 수 없습니다.';
   }
+
+  @override
+  String get adminAccountSafety => '계정 안전';
+
+  @override
+  String get adminSafetyTargetUid => '대상 사용자 ID';
+
+  @override
+  String get adminSafetyLoad => '계정 안전 불러오기';
+
+  @override
+  String get adminSafetyPoints => '위반 점수';
+
+  @override
+  String get adminSafetyAuthorityWorld => '기준 월드';
+
+  @override
+  String get adminSafetyRestriction => '게시 제한';
+
+  @override
+  String get adminSafetyBan => '차단';
+
+  @override
+  String get adminSafetyNone => '없음';
+
+  @override
+  String get adminSafetyPermanent => '영구';
+
+  @override
+  String get adminSafetyAdjustPoints => '점수 조정';
+
+  @override
+  String get adminSafetyPointDelta => '점수 변경값';
+
+  @override
+  String get adminSafetyPointDeltaHelp => '0을 제외한 -100부터 100 사이의 정수를 입력하세요.';
+
+  @override
+  String adminSafetySetRestriction(int days) {
+    return '$days일 게시 제한';
+  }
+
+  @override
+  String get adminSafetyClearRestriction => '게시 제한 해제';
+
+  @override
+  String adminSafetySetBan(int days) {
+    return '$days일 차단';
+  }
+
+  @override
+  String get adminSafetySetPermanentBan => '영구 차단';
+
+  @override
+  String get adminSafetyClearBan => '차단 해제';
+
+  @override
+  String get adminSafetyReason => '사유(필수)';
+
+  @override
+  String get adminSafetyReference => '검토 또는 지원 참조(선택)';
+
+  @override
+  String get adminSafetyApply => '적용';
+
+  @override
+  String get adminSafetyContinue => '계속';
+
+  @override
+  String get adminSafetyAccepted => '작업이 접수되었으며 백그라운드에서 계속됩니다.';
+
+  @override
+  String get adminSafetyAuditHistory => '관리자 작업 기록';
+
+  @override
+  String get adminSafetyNoAudits => '관리자 작업이 없습니다.';
+
+  @override
+  String get administratorInvitationTitle => '노트 관리자 초대';
+
+  @override
+  String get inviteLoadFailed => '이 초대를 불러올 수 없습니다.';
+
+  @override
+  String get inviteAcceptFailed => '이 초대를 수락할 수 없습니다.';
+
+  @override
+  String get worldStillPreparing => '이 월드에서 계정을 준비 중입니다.';
+
+  @override
+  String get inviteInvalid => '이 초대는 유효하지 않거나 더 이상 사용할 수 없습니다.';
+
+  @override
+  String get inviteExpired => '이 초대는 만료되었습니다.';
+
+  @override
+  String get networkErrorTryAgain => '네트워크 오류입니다. 연결을 확인하고 다시 시도하세요.';
+
+  @override
+  String get inviteSignInPrompt => '노트 관리자 초대를 확인하려면 로그인하세요.';
+
+  @override
+  String get signIn => '로그인';
+
+  @override
+  String get administratorInvitationAccepted =>
+      '이제 노트 관리자입니다. 홈 월드는 변경되지 않았습니다.';
+
+  @override
+  String get switchWorldAndOpenNote => '월드를 전환하고 노트 열기';
+
+  @override
+  String get goToMap => '지도로 이동';
+
+  @override
+  String get administratorInvitationExplanation =>
+      '수락하면 위치와 관계없이 이 노트를 읽고 관리할 수 있습니다. 게시, 좋아요, 방문에는 일반 위치 규칙이 적용됩니다.';
+
+  @override
+  String get switchWorldAfterAcceptance => '수락 후 이 월드로 전환';
+
+  @override
+  String get acceptAdministratorInvitation => '관리자 초대 수락';
+
+  @override
+  String get administratorManageDescription =>
+      '특정 사용자를 이 노트의 관리자로 초대합니다. 관리자 권한만으로 원격에서 일반 게시를 할 수는 없습니다.';
+
+  @override
+  String get targetUserIdLabel => '대상 사용자 ID';
+
+  @override
+  String get sendAdministratorInvitation => '관리자로 초대';
+
+  @override
+  String get administratorInviteCreated => '관리자 초대를 만들었습니다.';
+
+  @override
+  String get inviteCreateFailed => '초대를 만들 수 없습니다.';
+
+  @override
+  String get administratorInviteRevoked => '관리자 초대를 취소했습니다.';
+
+  @override
+  String get inviteRevokeFailed => '초대를 취소할 수 없습니다.';
+
+  @override
+  String get administratorRemoved => '관리자 권한을 제거했습니다.';
+
+  @override
+  String get administratorRemoveFailed => '관리자 권한을 제거할 수 없습니다.';
+
+  @override
+  String get memberRemoveFailed => '이 멤버를 제거할 수 없습니다.';
+
+  @override
+  String get copyLink => '링크 복사';
+
+  @override
+  String get copied => '복사됨';
+
+  @override
+  String get noteAdministratorsTitle => '노트 관리자';
+
+  @override
+  String get pendingAdministratorInvitationsTitle => '대기 중인 초대';
+
+  @override
+  String get passwordAccessMembersTitle => '비밀번호 접근';
+
+  @override
+  String get passwordAccessDescription => '현재 비밀번호로 비공개 노트를 잠금 해제한 사용자입니다.';
+
+  @override
+  String get unlockedWithPassword => '비밀번호로 잠금 해제';
+
+  @override
+  String get removeAccess => '접근 권한 제거';
+
+  @override
+  String get noteCreatorLabel => '작성자';
+
+  @override
+  String get noteAdministratorLabel => '관리자';
+
+  @override
+  String get resignAdministrator => '관리자 사임';
+
+  @override
+  String get removeAdministrator => '관리자 제거';
+
+  @override
+  String get noPendingInvitations => '대기 중인 초대가 없습니다.';
+
+  @override
+  String get invitationPending => '초대 대기 중';
+
+  @override
+  String get revokeInvitation => '초대 취소';
 }

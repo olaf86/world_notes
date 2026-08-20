@@ -2,6 +2,20 @@
   "projects": {
     "default": "world-notes-prod"
   },
-  "targets": {},
+  "targets": {
+    "world-notes-prod": {
+      "storage": {
+        "asia": [
+          "world-notes-prod.firebasestorage.app"
+        ],
+        "north-america": [
+          "world-notes-prod-north-america"
+        ],
+        "europe": [
+          "world-notes-prod-europe"
+        ]
+      }
+    }
+  },
   "etags": {}
 }

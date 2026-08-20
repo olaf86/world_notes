@@ -869,6 +869,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsLanguageUpdateFailed => '此设备的显示语言已更改，但无法保存到你的账户。';
 
   @override
+  String get settingsContentWorldTitle => '内容世界';
+
+  @override
+  String get settingsContentWorldDescription => '选择浏览和发布内容的世界。无法更改的主世界将保持不变。';
+
+  @override
+  String get settingsContentWorldSwitchFailed => '无法切换世界，请重试。';
+
+  @override
   String get settingsMapStyleTitle => '地图样式';
 
   @override
@@ -900,30 +909,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsMapStylePopDescription => '明亮多彩的显示';
-
-  @override
-  String get settingsDataRegionTitle => '数据区域';
-
-  @override
-  String get settingsDataRegionDescription =>
-      '选择处理请求的区域。自动会选择离当前位置最近的区域，旅行时也可手动更改。';
-
-  @override
-  String get settingsDataRegionAuto => '自动（最近）';
-
-  @override
-  String settingsDataRegionCurrent(String region) {
-    return '当前：$region';
-  }
-
-  @override
-  String get settingsRegionAsiaTokyo => '亚洲（东京）';
-
-  @override
-  String get settingsRegionAmericasUsCentral => '美洲（美国中部）';
-
-  @override
-  String get settingsRegionEuropeBelgium => '欧洲（比利时）';
 
   @override
   String get settingsNotificationsTitle => '通知';
@@ -1026,6 +1011,46 @@ class AppLocalizationsZh extends AppLocalizations {
   String get signOut => '退出登录';
 
   @override
+  String get homeWorldSelectionTitle => '选择主世界';
+
+  @override
+  String get homeWorldSelectionIntro => '主世界会将你的账户数据保存在离你较近的地区。';
+
+  @override
+  String get homeWorldSelectionPermanentWarning =>
+      '此选择以后无法更改。你仍可在不迁移主世界的情况下访问其他已准备好的世界。';
+
+  @override
+  String get homeWorldSelectionUnavailable => '目前没有可选择的主世界。';
+
+  @override
+  String get homeWorldSelectionLoadFailed => '无法加载账户准备状态。';
+
+  @override
+  String get homeWorldSelectionSubmitFailed => '无法设置主世界，请重试。';
+
+  @override
+  String get homeWorldSelectionConfirm => '设为永久主世界';
+
+  @override
+  String get worldAsia => '亚洲';
+
+  @override
+  String get worldAsiaLocation => '日本东京';
+
+  @override
+  String get worldNorthAmerica => '北美';
+
+  @override
+  String get worldNorthAmericaLocation => '美国爱荷华州';
+
+  @override
+  String get worldEurope => '欧洲';
+
+  @override
+  String get worldEuropeLocation => '比利时';
+
+  @override
   String get followers => '粉丝';
 
   @override
@@ -1040,6 +1065,204 @@ class AppLocalizationsZh extends AppLocalizations {
   String subscriptionTemporarilyUnavailable(String planName) {
     return '$planName 目前暂时无法使用。';
   }
+
+  @override
+  String get adminAccountSafety => '账户安全';
+
+  @override
+  String get adminSafetyTargetUid => '目标用户 ID';
+
+  @override
+  String get adminSafetyLoad => '加载账户安全状态';
+
+  @override
+  String get adminSafetyPoints => '违规积分';
+
+  @override
+  String get adminSafetyAuthorityWorld => '权威世界';
+
+  @override
+  String get adminSafetyRestriction => '发帖限制';
+
+  @override
+  String get adminSafetyBan => '封禁';
+
+  @override
+  String get adminSafetyNone => '无';
+
+  @override
+  String get adminSafetyPermanent => '永久';
+
+  @override
+  String get adminSafetyAdjustPoints => '调整积分';
+
+  @override
+  String get adminSafetyPointDelta => '积分变化值';
+
+  @override
+  String get adminSafetyPointDeltaHelp => '请输入 -100 到 100 之间且不为 0 的整数。';
+
+  @override
+  String adminSafetySetRestriction(int days) {
+    return '限制发帖 $days 天';
+  }
+
+  @override
+  String get adminSafetyClearRestriction => '解除发帖限制';
+
+  @override
+  String adminSafetySetBan(int days) {
+    return '封禁 $days 天';
+  }
+
+  @override
+  String get adminSafetySetPermanentBan => '永久封禁';
+
+  @override
+  String get adminSafetyClearBan => '解除封禁';
+
+  @override
+  String get adminSafetyReason => '原因（必填）';
+
+  @override
+  String get adminSafetyReference => '审核或支持工单引用（可选）';
+
+  @override
+  String get adminSafetyApply => '应用';
+
+  @override
+  String get adminSafetyContinue => '继续';
+
+  @override
+  String get adminSafetyAccepted => '操作已受理，将在后台继续处理。';
+
+  @override
+  String get adminSafetyAuditHistory => '管理员操作记录';
+
+  @override
+  String get adminSafetyNoAudits => '暂无管理员操作。';
+
+  @override
+  String get administratorInvitationTitle => '笔记管理员邀请';
+
+  @override
+  String get inviteLoadFailed => '无法加载此邀请。';
+
+  @override
+  String get inviteAcceptFailed => '无法接受此邀请。';
+
+  @override
+  String get worldStillPreparing => '此世界仍在准备您的账户。';
+
+  @override
+  String get inviteInvalid => '此邀请无效或已不可用。';
+
+  @override
+  String get inviteExpired => '此邀请已过期。';
+
+  @override
+  String get networkErrorTryAgain => '网络错误。请检查连接后重试。';
+
+  @override
+  String get inviteSignInPrompt => '请登录以查看此笔记管理员邀请。';
+
+  @override
+  String get signIn => '登录';
+
+  @override
+  String get administratorInvitationAccepted => '您现在是笔记管理员。您的主世界未发生变化。';
+
+  @override
+  String get switchWorldAndOpenNote => '切换世界并打开笔记';
+
+  @override
+  String get goToMap => '前往地图';
+
+  @override
+  String get administratorInvitationExplanation =>
+      '接受后，您可以不受位置限制地阅读和管理此笔记。发帖、点赞和访问仍遵循常规位置规则。';
+
+  @override
+  String get switchWorldAfterAcceptance => '接受后切换到此世界';
+
+  @override
+  String get acceptAdministratorInvitation => '接受管理员邀请';
+
+  @override
+  String get administratorManageDescription =>
+      '邀请指定用户协助管理此笔记。管理员权限本身不允许远程进行普通发帖。';
+
+  @override
+  String get targetUserIdLabel => '目标用户 ID';
+
+  @override
+  String get sendAdministratorInvitation => '邀请管理员';
+
+  @override
+  String get administratorInviteCreated => '已创建管理员邀请。';
+
+  @override
+  String get inviteCreateFailed => '无法创建邀请。';
+
+  @override
+  String get administratorInviteRevoked => '已撤销管理员邀请。';
+
+  @override
+  String get inviteRevokeFailed => '无法撤销邀请。';
+
+  @override
+  String get administratorRemoved => '已移除管理员权限。';
+
+  @override
+  String get administratorRemoveFailed => '无法移除管理员权限。';
+
+  @override
+  String get memberRemoveFailed => '无法移除此成员。';
+
+  @override
+  String get copyLink => '复制链接';
+
+  @override
+  String get copied => '已复制';
+
+  @override
+  String get noteAdministratorsTitle => '笔记管理员';
+
+  @override
+  String get pendingAdministratorInvitationsTitle => '待处理邀请';
+
+  @override
+  String get passwordAccessMembersTitle => '密码访问';
+
+  @override
+  String get passwordAccessDescription => '这些用户已使用当前密码解锁此私密笔记。';
+
+  @override
+  String get unlockedWithPassword => '已使用密码解锁';
+
+  @override
+  String get removeAccess => '移除访问权限';
+
+  @override
+  String get noteCreatorLabel => '创建者';
+
+  @override
+  String get noteAdministratorLabel => '管理员';
+
+  @override
+  String get resignAdministrator => '辞去管理员';
+
+  @override
+  String get removeAdministrator => '移除管理员';
+
+  @override
+  String get noPendingInvitations => '没有待处理邀请。';
+
+  @override
+  String get invitationPending => '邀请待处理';
+
+  @override
+  String get revokeInvitation => '撤销邀请';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -1907,6 +2130,15 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get settingsLanguageUpdateFailed => '此设备的显示语言已更改，但无法保存到你的账户。';
 
   @override
+  String get settingsContentWorldTitle => '内容世界';
+
+  @override
+  String get settingsContentWorldDescription => '选择浏览和发布内容的世界。无法更改的主世界将保持不变。';
+
+  @override
+  String get settingsContentWorldSwitchFailed => '无法切换世界，请重试。';
+
+  @override
   String get settingsMapStyleTitle => '地图样式';
 
   @override
@@ -1938,30 +2170,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get settingsMapStylePopDescription => '明亮多彩的显示';
-
-  @override
-  String get settingsDataRegionTitle => '数据区域';
-
-  @override
-  String get settingsDataRegionDescription =>
-      '选择处理请求的区域。自动会选择离当前位置最近的区域，旅行时也可手动更改。';
-
-  @override
-  String get settingsDataRegionAuto => '自动（最近）';
-
-  @override
-  String settingsDataRegionCurrent(String region) {
-    return '当前：$region';
-  }
-
-  @override
-  String get settingsRegionAsiaTokyo => '亚洲（东京）';
-
-  @override
-  String get settingsRegionAmericasUsCentral => '美洲（美国中部）';
-
-  @override
-  String get settingsRegionEuropeBelgium => '欧洲（比利时）';
 
   @override
   String get settingsNotificationsTitle => '通知';
@@ -2064,6 +2272,46 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get signOut => '退出登录';
 
   @override
+  String get homeWorldSelectionTitle => '选择主世界';
+
+  @override
+  String get homeWorldSelectionIntro => '主世界会将你的账户数据保存在离你较近的地区。';
+
+  @override
+  String get homeWorldSelectionPermanentWarning =>
+      '此选择以后无法更改。你仍可在不迁移主世界的情况下访问其他已准备好的世界。';
+
+  @override
+  String get homeWorldSelectionUnavailable => '目前没有可选择的主世界。';
+
+  @override
+  String get homeWorldSelectionLoadFailed => '无法加载账户准备状态。';
+
+  @override
+  String get homeWorldSelectionSubmitFailed => '无法设置主世界，请重试。';
+
+  @override
+  String get homeWorldSelectionConfirm => '设为永久主世界';
+
+  @override
+  String get worldAsia => '亚洲';
+
+  @override
+  String get worldAsiaLocation => '日本东京';
+
+  @override
+  String get worldNorthAmerica => '北美';
+
+  @override
+  String get worldNorthAmericaLocation => '美国爱荷华州';
+
+  @override
+  String get worldEurope => '欧洲';
+
+  @override
+  String get worldEuropeLocation => '比利时';
+
+  @override
   String get followers => '粉丝';
 
   @override
@@ -2078,6 +2326,204 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String subscriptionTemporarilyUnavailable(String planName) {
     return '$planName 目前暂时无法使用。';
   }
+
+  @override
+  String get adminAccountSafety => '账户安全';
+
+  @override
+  String get adminSafetyTargetUid => '目标用户 ID';
+
+  @override
+  String get adminSafetyLoad => '加载账户安全状态';
+
+  @override
+  String get adminSafetyPoints => '违规积分';
+
+  @override
+  String get adminSafetyAuthorityWorld => '权威世界';
+
+  @override
+  String get adminSafetyRestriction => '发帖限制';
+
+  @override
+  String get adminSafetyBan => '封禁';
+
+  @override
+  String get adminSafetyNone => '无';
+
+  @override
+  String get adminSafetyPermanent => '永久';
+
+  @override
+  String get adminSafetyAdjustPoints => '调整积分';
+
+  @override
+  String get adminSafetyPointDelta => '积分变化值';
+
+  @override
+  String get adminSafetyPointDeltaHelp => '请输入 -100 到 100 之间且不为 0 的整数。';
+
+  @override
+  String adminSafetySetRestriction(int days) {
+    return '限制发帖 $days 天';
+  }
+
+  @override
+  String get adminSafetyClearRestriction => '解除发帖限制';
+
+  @override
+  String adminSafetySetBan(int days) {
+    return '封禁 $days 天';
+  }
+
+  @override
+  String get adminSafetySetPermanentBan => '永久封禁';
+
+  @override
+  String get adminSafetyClearBan => '解除封禁';
+
+  @override
+  String get adminSafetyReason => '原因（必填）';
+
+  @override
+  String get adminSafetyReference => '审核或支持工单引用（可选）';
+
+  @override
+  String get adminSafetyApply => '应用';
+
+  @override
+  String get adminSafetyContinue => '继续';
+
+  @override
+  String get adminSafetyAccepted => '操作已受理，将在后台继续处理。';
+
+  @override
+  String get adminSafetyAuditHistory => '管理员操作记录';
+
+  @override
+  String get adminSafetyNoAudits => '暂无管理员操作。';
+
+  @override
+  String get administratorInvitationTitle => '笔记管理员邀请';
+
+  @override
+  String get inviteLoadFailed => '无法加载此邀请。';
+
+  @override
+  String get inviteAcceptFailed => '无法接受此邀请。';
+
+  @override
+  String get worldStillPreparing => '此世界仍在准备您的账户。';
+
+  @override
+  String get inviteInvalid => '此邀请无效或已不可用。';
+
+  @override
+  String get inviteExpired => '此邀请已过期。';
+
+  @override
+  String get networkErrorTryAgain => '网络错误。请检查连接后重试。';
+
+  @override
+  String get inviteSignInPrompt => '请登录以查看此笔记管理员邀请。';
+
+  @override
+  String get signIn => '登录';
+
+  @override
+  String get administratorInvitationAccepted => '您现在是笔记管理员。您的主世界未发生变化。';
+
+  @override
+  String get switchWorldAndOpenNote => '切换世界并打开笔记';
+
+  @override
+  String get goToMap => '前往地图';
+
+  @override
+  String get administratorInvitationExplanation =>
+      '接受后，您可以不受位置限制地阅读和管理此笔记。发帖、点赞和访问仍遵循常规位置规则。';
+
+  @override
+  String get switchWorldAfterAcceptance => '接受后切换到此世界';
+
+  @override
+  String get acceptAdministratorInvitation => '接受管理员邀请';
+
+  @override
+  String get administratorManageDescription =>
+      '邀请指定用户协助管理此笔记。管理员权限本身不允许远程进行普通发帖。';
+
+  @override
+  String get targetUserIdLabel => '目标用户 ID';
+
+  @override
+  String get sendAdministratorInvitation => '邀请管理员';
+
+  @override
+  String get administratorInviteCreated => '已创建管理员邀请。';
+
+  @override
+  String get inviteCreateFailed => '无法创建邀请。';
+
+  @override
+  String get administratorInviteRevoked => '已撤销管理员邀请。';
+
+  @override
+  String get inviteRevokeFailed => '无法撤销邀请。';
+
+  @override
+  String get administratorRemoved => '已移除管理员权限。';
+
+  @override
+  String get administratorRemoveFailed => '无法移除管理员权限。';
+
+  @override
+  String get memberRemoveFailed => '无法移除此成员。';
+
+  @override
+  String get copyLink => '复制链接';
+
+  @override
+  String get copied => '已复制';
+
+  @override
+  String get noteAdministratorsTitle => '笔记管理员';
+
+  @override
+  String get pendingAdministratorInvitationsTitle => '待处理邀请';
+
+  @override
+  String get passwordAccessMembersTitle => '密码访问';
+
+  @override
+  String get passwordAccessDescription => '这些用户已使用当前密码解锁此私密笔记。';
+
+  @override
+  String get unlockedWithPassword => '已使用密码解锁';
+
+  @override
+  String get removeAccess => '移除访问权限';
+
+  @override
+  String get noteCreatorLabel => '创建者';
+
+  @override
+  String get noteAdministratorLabel => '管理员';
+
+  @override
+  String get resignAdministrator => '辞去管理员';
+
+  @override
+  String get removeAdministrator => '移除管理员';
+
+  @override
+  String get noPendingInvitations => '没有待处理邀请。';
+
+  @override
+  String get invitationPending => '邀请待处理';
+
+  @override
+  String get revokeInvitation => '撤销邀请';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -2946,6 +3392,15 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get settingsLanguageUpdateFailed => '此裝置的顯示語言已變更，但無法儲存到你的帳號。';
 
   @override
+  String get settingsContentWorldTitle => '內容世界';
+
+  @override
+  String get settingsContentWorldDescription => '選擇瀏覽和發佈內容的世界。無法變更的主世界會保持不變。';
+
+  @override
+  String get settingsContentWorldSwitchFailed => '無法切換世界，請再試一次。';
+
+  @override
   String get settingsMapStyleTitle => '地圖樣式';
 
   @override
@@ -2977,30 +3432,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get settingsMapStylePopDescription => '明亮多彩的顯示';
-
-  @override
-  String get settingsDataRegionTitle => '資料區域';
-
-  @override
-  String get settingsDataRegionDescription =>
-      '選擇處理請求的區域。自動會選擇離目前位置最近的區域，旅行時也可手動變更。';
-
-  @override
-  String get settingsDataRegionAuto => '自動（最近）';
-
-  @override
-  String settingsDataRegionCurrent(String region) {
-    return '目前：$region';
-  }
-
-  @override
-  String get settingsRegionAsiaTokyo => '亞洲（東京）';
-
-  @override
-  String get settingsRegionAmericasUsCentral => '美洲（美國中部）';
-
-  @override
-  String get settingsRegionEuropeBelgium => '歐洲（比利時）';
 
   @override
   String get settingsNotificationsTitle => '通知';
@@ -3103,6 +3534,46 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get signOut => '登出';
 
   @override
+  String get homeWorldSelectionTitle => '選擇主世界';
+
+  @override
+  String get homeWorldSelectionIntro => '主世界會將你的帳戶資料保存在離你較近的地區。';
+
+  @override
+  String get homeWorldSelectionPermanentWarning =>
+      '此選擇之後無法變更。你仍可在不遷移主世界的情況下造訪其他已準備好的世界。';
+
+  @override
+  String get homeWorldSelectionUnavailable => '目前沒有可選擇的主世界。';
+
+  @override
+  String get homeWorldSelectionLoadFailed => '無法載入帳戶準備狀態。';
+
+  @override
+  String get homeWorldSelectionSubmitFailed => '無法設定主世界，請再試一次。';
+
+  @override
+  String get homeWorldSelectionConfirm => '設為永久主世界';
+
+  @override
+  String get worldAsia => '亞洲';
+
+  @override
+  String get worldAsiaLocation => '日本東京';
+
+  @override
+  String get worldNorthAmerica => '北美';
+
+  @override
+  String get worldNorthAmericaLocation => '美國愛荷華州';
+
+  @override
+  String get worldEurope => '歐洲';
+
+  @override
+  String get worldEuropeLocation => '比利時';
+
+  @override
   String get followers => '粉絲';
 
   @override
@@ -3117,4 +3588,202 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String subscriptionTemporarilyUnavailable(String planName) {
     return '$planName 目前暫時無法使用。';
   }
+
+  @override
+  String get adminAccountSafety => '帳戶安全';
+
+  @override
+  String get adminSafetyTargetUid => '目標使用者 ID';
+
+  @override
+  String get adminSafetyLoad => '載入帳戶安全狀態';
+
+  @override
+  String get adminSafetyPoints => '違規點數';
+
+  @override
+  String get adminSafetyAuthorityWorld => '權威世界';
+
+  @override
+  String get adminSafetyRestriction => '發文限制';
+
+  @override
+  String get adminSafetyBan => '停權';
+
+  @override
+  String get adminSafetyNone => '無';
+
+  @override
+  String get adminSafetyPermanent => '永久';
+
+  @override
+  String get adminSafetyAdjustPoints => '調整點數';
+
+  @override
+  String get adminSafetyPointDelta => '點數變更值';
+
+  @override
+  String get adminSafetyPointDeltaHelp => '請輸入 -100 到 100 之間且不為 0 的整數。';
+
+  @override
+  String adminSafetySetRestriction(int days) {
+    return '限制發文 $days 天';
+  }
+
+  @override
+  String get adminSafetyClearRestriction => '解除發文限制';
+
+  @override
+  String adminSafetySetBan(int days) {
+    return '停權 $days 天';
+  }
+
+  @override
+  String get adminSafetySetPermanentBan => '永久停權';
+
+  @override
+  String get adminSafetyClearBan => '解除停權';
+
+  @override
+  String get adminSafetyReason => '原因（必填）';
+
+  @override
+  String get adminSafetyReference => '審查或支援案件參照（選填）';
+
+  @override
+  String get adminSafetyApply => '套用';
+
+  @override
+  String get adminSafetyContinue => '繼續';
+
+  @override
+  String get adminSafetyAccepted => '操作已受理，將在背景繼續處理。';
+
+  @override
+  String get adminSafetyAuditHistory => '管理員操作記錄';
+
+  @override
+  String get adminSafetyNoAudits => '目前沒有管理員操作。';
+
+  @override
+  String get administratorInvitationTitle => '筆記管理員邀請';
+
+  @override
+  String get inviteLoadFailed => '無法載入此邀請。';
+
+  @override
+  String get inviteAcceptFailed => '無法接受此邀請。';
+
+  @override
+  String get worldStillPreparing => '此世界仍在準備您的帳戶。';
+
+  @override
+  String get inviteInvalid => '此邀請無效或已無法使用。';
+
+  @override
+  String get inviteExpired => '此邀請已過期。';
+
+  @override
+  String get networkErrorTryAgain => '網路錯誤。請檢查連線後重試。';
+
+  @override
+  String get inviteSignInPrompt => '請登入以查看此筆記管理員邀請。';
+
+  @override
+  String get signIn => '登入';
+
+  @override
+  String get administratorInvitationAccepted => '您現在是筆記管理員。您的主世界沒有變更。';
+
+  @override
+  String get switchWorldAndOpenNote => '切換世界並開啟筆記';
+
+  @override
+  String get goToMap => '前往地圖';
+
+  @override
+  String get administratorInvitationExplanation =>
+      '接受後，您可以不受位置限制地閱讀和管理此筆記。發文、按讚和造訪仍遵循一般位置規則。';
+
+  @override
+  String get switchWorldAfterAcceptance => '接受後切換到此世界';
+
+  @override
+  String get acceptAdministratorInvitation => '接受管理員邀請';
+
+  @override
+  String get administratorManageDescription =>
+      '邀請指定使用者協助管理此筆記。管理員權限本身不允許遠端進行一般發文。';
+
+  @override
+  String get targetUserIdLabel => '目標使用者 ID';
+
+  @override
+  String get sendAdministratorInvitation => '邀請管理員';
+
+  @override
+  String get administratorInviteCreated => '已建立管理員邀請。';
+
+  @override
+  String get inviteCreateFailed => '無法建立邀請。';
+
+  @override
+  String get administratorInviteRevoked => '已撤銷管理員邀請。';
+
+  @override
+  String get inviteRevokeFailed => '無法撤銷邀請。';
+
+  @override
+  String get administratorRemoved => '已移除管理員權限。';
+
+  @override
+  String get administratorRemoveFailed => '無法移除管理員權限。';
+
+  @override
+  String get memberRemoveFailed => '無法移除此成員。';
+
+  @override
+  String get copyLink => '複製連結';
+
+  @override
+  String get copied => '已複製';
+
+  @override
+  String get noteAdministratorsTitle => '筆記管理員';
+
+  @override
+  String get pendingAdministratorInvitationsTitle => '待處理邀請';
+
+  @override
+  String get passwordAccessMembersTitle => '密碼存取';
+
+  @override
+  String get passwordAccessDescription => '這些使用者已使用目前密碼解鎖此私人筆記。';
+
+  @override
+  String get unlockedWithPassword => '已使用密碼解鎖';
+
+  @override
+  String get removeAccess => '移除存取權';
+
+  @override
+  String get noteCreatorLabel => '建立者';
+
+  @override
+  String get noteAdministratorLabel => '管理員';
+
+  @override
+  String get resignAdministrator => '辭去管理員';
+
+  @override
+  String get removeAdministrator => '移除管理員';
+
+  @override
+  String get noPendingInvitations => '沒有待處理邀請。';
+
+  @override
+  String get invitationPending => '邀請待處理';
+
+  @override
+  String get revokeInvitation => '撤銷邀請';
 }

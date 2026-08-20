@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
@@ -8,20 +11,21 @@ import '../../../config/app_config.dart';
 import '../../../config/runtime_mode.dart';
 import '../../../l10n/l10n.dart';
 import '../../../services/subscription_service.dart';
+import '../../providers/providers.dart';
 import '../../widgets/loading_skeleton.dart';
 
 /// Displays the RevenueCat Paywall so users can subscribe to World Notes PRO.
 ///
 /// Falls back to a simple message when the RevenueCat SDK is not configured
 /// (e.g. no API key in debug builds).
-class SubscriptionScreen extends StatefulWidget {
+class SubscriptionScreen extends ConsumerStatefulWidget {
   const SubscriptionScreen({super.key});
 
   @override
-  State<SubscriptionScreen> createState() => _SubscriptionScreenState();
+  ConsumerState<SubscriptionScreen> createState() => _SubscriptionScreenState();
 }
 
-class _SubscriptionScreenState extends State<SubscriptionScreen> {
+class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
   late Future<Offering> _offeringFuture;
 
   @override
@@ -76,7 +80,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           );
         }
 
-        return _RevenueCatPaywall(offering: offering);
+        return _RevenueCatPaywall(
+          offering: offering,
+          onEntitlementChanged: () =>
+              ref.read(subscriptionServiceProvider).syncEntitlement(),
+        );
       },
     );
   }
@@ -346,9 +354,13 @@ class _PaywallSkeleton extends StatelessWidget {
 }
 
 class _RevenueCatPaywall extends StatelessWidget {
-  const _RevenueCatPaywall({required this.offering});
+  const _RevenueCatPaywall({
+    required this.offering,
+    required this.onEntitlementChanged,
+  });
 
   final Offering offering;
+  final Future<void> Function() onEntitlementChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -378,11 +390,13 @@ class _RevenueCatPaywall extends StatelessWidget {
             ),
           },
           onPurchaseCompleted: (customerInfo, storeTransaction) {
+            unawaited(onEntitlementChanged());
             if (context.mounted) Navigator.of(context).pop();
           },
           onPurchaseError: (error) =>
               _handlePaywallError(context, 'purchase', error),
           onRestoreCompleted: (customerInfo) {
+            unawaited(onEntitlementChanged());
             if (context.mounted) Navigator.of(context).pop();
           },
           onRestoreError: (error) =>

@@ -1,11 +1,13 @@
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../domain/entities/follow_entity.dart';
 import '../../domain/entities/public_profile_entity.dart';
 import '../../domain/repositories/follow_repository.dart';
+import '../../services/world_firebase_clients.dart';
+import '../../services/global_operation_observer.dart';
 import '../models/follow_edge_model.dart';
 import '../models/public_profile_model.dart';
 
@@ -13,11 +15,12 @@ class FollowRepositoryImpl implements FollowRepository {
   static const int defaultPageSize = 20;
 
   final FirebaseFirestore _firestore;
-  final FirebaseFunctions _functions;
+  final WorldFunctionsClient _functions;
+  final Uuid _uuid = const Uuid();
 
   FollowRepositoryImpl({
     required FirebaseFirestore firestore,
-    required FirebaseFunctions functions,
+    required WorldFunctionsClient functions,
   }) : _firestore = firestore,
        _functions = functions;
 
@@ -38,9 +41,12 @@ class FollowRepositoryImpl implements FollowRepository {
     required String followeeUid,
   }) {
     return _edges
-        .doc(socialEdgeId(followerUid: followerUid, followeeUid: followeeUid))
+        .where('followerUid', isEqualTo: followerUid)
+        .where('followeeUid', isEqualTo: followeeUid)
+        .where('following', isEqualTo: true)
+        .limit(1)
         .snapshots()
-        .map((doc) => doc.exists);
+        .map((snapshot) => snapshot.docs.isNotEmpty);
   }
 
   @override
@@ -48,10 +54,18 @@ class FollowRepositoryImpl implements FollowRepository {
     required String targetUserId,
     required bool following,
   }) async {
-    await _functions.httpsCallable('setUserFollow').call<void>({
-      'targetUserId': targetUserId,
-      'following': following,
-    });
+    final response = await _functions
+        .httpsCallable('setUserFollow')
+        .call<Map<String, dynamic>>({
+          'targetUserId': targetUserId,
+          'following': following,
+          'operationId': _uuid.v7(),
+        });
+    await handleAcceptedGlobalOperation(
+      response: response.data,
+      policy: GlobalOperationObservationPolicy.none,
+      observer: null,
+    );
   }
 
   @override
@@ -98,6 +112,7 @@ class FollowRepositoryImpl implements FollowRepository {
   }) async {
     Query query = _edges
         .where(field, isEqualTo: userId)
+        .where('following', isEqualTo: true)
         .orderBy('createdAt', descending: true)
         .limit(limit);
 

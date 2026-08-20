@@ -6,12 +6,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:world_notes/config/router.dart';
+import 'package:world_notes/config/bootstrap_world_catalog.dart';
 import 'package:world_notes/domain/entities/notice_entity.dart';
 import 'package:world_notes/domain/entities/place_entity.dart';
 import 'package:world_notes/domain/entities/user_entity.dart';
 import 'package:world_notes/l10n/app_localizations.dart';
 import 'package:world_notes/presentation/providers/providers.dart';
 import 'package:world_notes/services/location_service.dart';
+import 'package:world_notes/services/account_bootstrap_service.dart';
 
 void main() {
   testWidgets(
@@ -25,6 +27,12 @@ void main() {
               const UserEntity(id: 'user-1', name: 'Test user'),
             ),
           ),
+          homeAssignmentProvider.overrideWith(
+            (ref) => Stream.value(
+              const HomeAssignment(homeWorld: asiaWorldId, epoch: 1),
+            ),
+          ),
+          worldReadinessProvider.overrideWith((ref, worldId) async => true),
           isPremiumProvider.overrideWith((ref) => Stream.value(true)),
           noticesProvider.overrideWith(
             (ref) => Stream<List<NoticeEntity>>.value(const []),
@@ -42,6 +50,7 @@ void main() {
       addTearDown(container.dispose);
 
       await container.read(authStateProvider.future);
+      await container.read(homeAssignmentProvider.future);
       await container.read(isPremiumProvider.future);
       final router = container.read(routerProvider);
       addTearDown(router.dispose);
@@ -62,7 +71,9 @@ void main() {
       expect(find.byType(NavigationBar), findsOneWidget);
       expect(tester.takeException(), isNull);
 
-      unawaited(router.push<void>('/note/place-1?title=Nearby%20note'));
+      unawaited(
+        router.push<void>('/worlds/asia/notes/place-1?title=Nearby%20note'),
+      );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
 

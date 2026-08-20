@@ -1,6 +1,6 @@
 /* eslint-disable require-jsdoc */
 import {createHash} from "crypto";
-import {onCall, HttpsError} from "firebase-functions/v2/https";
+import {onCall, HttpsError} from "./platform/worldCallable";
 import * as logger from "firebase-functions/logger";
 import {
   DocumentReference,
@@ -8,11 +8,22 @@ import {
   FieldValue,
   Firestore,
   Timestamp,
-  getFirestore,
+  Transaction,
 } from "firebase-admin/firestore";
 import {BatchResponse, getMessaging} from "firebase-admin/messaging";
 
 import {REGION} from "./constants";
+import {
+  classifyFcmError,
+  newNotificationOutboxData,
+  notificationEventId,
+  NotificationDeliveryHandler,
+  NotificationDeliveryResult,
+  NotificationOutboxData,
+  NotificationRecipientStatus,
+} from "./notificationOutbox";
+import {worldContext} from "./platform/worldContext";
+import {WORLD_REGISTRY} from "./platform/worldRegistry";
 import {maintainerIdsOf} from "./noteMaintenance";
 import {hasUserBlockBetween} from "./userBlocks";
 
@@ -36,6 +47,7 @@ interface SetMyNotesNotificationPreviewEnabledData {
 type NotificationLocale = "en" | "ja";
 
 interface MyNotesNotificationToken {
+  uid: string;
   ref: DocumentReference;
   token: string;
   showPreview: boolean;
@@ -54,6 +66,7 @@ interface MyNotesNotificationGroup {
 }
 
 interface MyNotesSendContext {
+  sourceWorld: string;
   placeId: string;
   messageId: string;
   locale: NotificationLocale;
@@ -73,13 +86,11 @@ const SUPPORTED_NOTIFICATION_LOCALES: readonly NotificationLocale[] = [
   "ja",
 ];
 const FCM_MULTICAST_LIMIT = 500;
+const NOTIFICATION_LIFETIME_MILLIS = 24 * 60 * 60 * 1000;
 const NOTIFICATION_PLACE_TITLE_MAX_LENGTH = 80;
 const NOTIFICATION_MESSAGE_PREVIEW_MAX_LENGTH = 120;
 const TEXT_ELLIPSIS = "...";
-const INVALID_FCM_TOKEN_CODES = new Set([
-  "messaging/registration-token-not-registered",
-  "messaging/invalid-registration-token",
-]);
+export const MY_NOTES_MESSAGE_NOTIFICATION_EVENT = "notifyNoteMessage";
 const MY_NOTES_NOTIFICATION_COPY: Record<
   NotificationLocale,
   {
@@ -227,29 +238,15 @@ function logMyNotesNotificationFailures(
   });
 }
 
-async function deleteInvalidFcmTokens(
-  response: BatchResponse,
-  tokens: MyNotesNotificationToken[],
-): Promise<void> {
-  await Promise.all(
-    response.responses.map(async (result, index) => {
-      const code = result.error?.code;
-      if (code != null && INVALID_FCM_TOKEN_CODES.has(code)) {
-        await tokens[index].ref.delete();
-      }
-    }),
-  );
-}
-
 export const registerFcmToken = onCall<RegisterFcmTokenData>(
-  {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  {enforceAppCheck: true, region: REGION, requireHomeWorld: true},
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
 
     const token = validToken(req.data?.token);
     const platform = platformOf(req.data?.platform);
-    const ref = getFirestore()
+    const ref = world.firestore
       .collection("users")
       .doc(uid)
       .collection("fcmTokens")
@@ -275,13 +272,13 @@ export const registerFcmToken = onCall<RegisterFcmTokenData>(
 );
 
 export const deleteFcmToken = onCall<DeleteFcmTokenData>(
-  {enforceAppCheck: true, region: REGION},
-  async (req) => {
+  {enforceAppCheck: true, region: REGION, requireHomeWorld: true},
+  async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
 
     const token = validToken(req.data?.token);
-    await getFirestore()
+    await world.firestore
       .collection("users")
       .doc(uid)
       .collection("fcmTokens")
@@ -294,15 +291,15 @@ export const deleteFcmToken = onCall<DeleteFcmTokenData>(
 
 export const setMyNotesNotificationEnabled =
   onCall<SetMyNotesNotificationEnabledData>(
-    {enforceAppCheck: true, region: REGION},
-    async (req) => {
+    {enforceAppCheck: true, region: REGION, requireHomeWorld: true},
+    async (req, world) => {
       const uid = req.auth?.uid;
       if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
       if (typeof req.data?.enabled !== "boolean") {
         throw new HttpsError("invalid-argument", "enabled is required.");
       }
 
-      await getFirestore()
+      await world.firestore
         .collection("users")
         .doc(uid)
         .collection("notificationSettings")
@@ -321,15 +318,15 @@ export const setMyNotesNotificationEnabled =
 
 export const setMyNotesNotificationPreviewEnabled =
   onCall<SetMyNotesNotificationPreviewEnabledData>(
-    {enforceAppCheck: true, region: REGION},
-    async (req) => {
+    {enforceAppCheck: true, region: REGION, requireHomeWorld: true},
+    async (req, world) => {
       const uid = req.auth?.uid;
       if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
       if (typeof req.data?.enabled !== "boolean") {
         throw new HttpsError("invalid-argument", "enabled is required.");
       }
 
-      await getFirestore()
+      await world.firestore
         .collection("users")
         .doc(uid)
         .collection("notificationSettings")
@@ -347,155 +344,332 @@ export const setMyNotesNotificationPreviewEnabled =
   );
 
 /**
- * Sends an actionable push to note maintainers for a public message.
+ * Creates one durable source-world notification intent in a transaction.
  *
- * @param {Firestore} db Firestore instance.
- * @param {string} placeId Note id.
- * @param {string} messageId Message id.
- * @param {string} senderId User id that posted the message.
+ * @param {Transaction} transaction Message-publication transaction.
+ * @param {Firestore} firestore Source-world Firestore database.
+ * @param {object} input Trusted message and recipient source values.
+ * @return {string | null} Event ID, or null when nobody should be notified.
  */
-export async function sendMyNotesMessageNotifications(
-  db: Firestore,
-  placeId: string,
-  messageId: string,
-  senderId: string,
-): Promise<void> {
-  const placeRef = db.collection("places").doc(placeId);
-  const messageRef = placeRef.collection("messages").doc(messageId);
-  const [placeSnap, messageSnap] = await Promise.all([
-    placeRef.get(),
-    messageRef.get(),
-  ]);
+export function enqueueMyNotesMessageNotification(
+  transaction: Transaction,
+  firestore: Firestore,
+  input: Readonly<{
+    sourceWorld: string;
+    place: DocumentSnapshot;
+    messageId: string;
+    senderId: string;
+    createdAt: Timestamp;
+  }>,
+): string | null {
+  WORLD_REGISTRY.requireWorld(input.sourceWorld);
+  const recipients = currentMaintainerIds(input.place);
+  recipients.delete(input.senderId);
+  if (recipients.size === 0) return null;
 
-  if (!placeSnap.exists || !messageSnap.exists) return;
-  if (placeSnap.get("isArchived") === true) return;
-  const expiresAt = placeSnap.get("expiresAt") as Timestamp | undefined;
-  if (!expiresAt || expiresAt.toMillis() <= Date.now()) return;
-  if (messageSnap.get("isDeleted") === true) return;
-  if (messageSnap.get("isVisible") !== true) return;
-  if (messageSnap.get("isPubliclyVisible") !== true) return;
-
-  const maintainerIds = new Set<string>(
-    maintainerIdsOf(placeSnap)
-      .filter((value) => typeof value === "string" && value.length > 0),
+  const placeId = input.place.id;
+  const identity = {
+    sourceEventId: input.messageId,
+    ownerWorld: input.sourceWorld,
+    eventType: MY_NOTES_MESSAGE_NOTIFICATION_EVENT,
+    partition: createHash("sha256").update(placeId).digest("hex"),
+  };
+  const eventId = notificationEventId(identity);
+  const data = newNotificationOutboxData({
+    ...identity,
+    eventId,
+    sourceWorld: input.sourceWorld,
+    entityType: "message",
+    entityId: input.messageId,
+    sourcePath: `places/${placeId}/messages/${input.messageId}`,
+    recipientUids: [...recipients].sort(),
+    expiresAt: Timestamp.fromMillis(
+      input.createdAt.toMillis() + NOTIFICATION_LIFETIME_MILLIS,
+    ),
+  }, input.createdAt);
+  transaction.create(
+    firestore.collection("notificationOutbox").doc(eventId),
+    {...data},
   );
-  const createdBy = placeSnap.get("createdByUserId") as string | undefined;
-  if (createdBy) maintainerIds.add(createdBy);
-  maintainerIds.delete(senderId);
-  if (maintainerIds.size === 0) return;
+  return eventId;
+}
 
-  const maintainerEntries = await Promise.all(
-    [...maintainerIds].map(async (uid) => {
-      if (await hasUserBlockBetween(db, uid, senderId)) {
-        return {enabled: false, tokens: []};
-      }
-      const userRef = db.collection("users").doc(uid);
-      const settingsRef = userRef
-        .collection("notificationSettings")
-        .doc("main");
-      const tokensRef = userRef.collection("fcmTokens");
-      const [userSnap, settingsSnap, tokensSnap] = await Promise.all([
-        userRef.get(),
-        settingsRef.get(),
-        tokensRef.get(),
-      ]);
-      const enabled = settingsSnap.get("myNotesEnabled") === true;
-      if (!enabled) return {enabled: false, tokens: []};
-      const showPreview = settingsSnap.get("myNotesPreviewEnabled") !== false;
-      const locale = notificationLocaleOf(userSnap.get("locale"));
-      const tokens = tokensSnap.docs.flatMap((doc) => {
-        const token = doc.get("token");
-        return typeof token === "string" && token.length > 0 ?
-          [{ref: doc.ref, token, showPreview, locale}] :
-          [];
-      });
-      return {enabled: true, tokens};
-    }),
+/** Delivers durable message-notification events from their source world. */
+export const myNotesMessageNotificationHandler: NotificationDeliveryHandler = {
+  eventType: MY_NOTES_MESSAGE_NOTIFICATION_EVENT,
+  deliver: deliverMyNotesMessageNotification,
+};
+
+async function deliverMyNotesMessageNotification(
+  {firestore, event}: Readonly<{
+    firestore: Firestore;
+    event: NotificationOutboxData;
+  }>,
+): Promise<NotificationDeliveryResult> {
+  const pendingRecipients = event.recipientUids.filter(
+    (uid) => event.recipientResults[uid] === "pending",
   );
-
-  const enabledMaintainerCount = maintainerEntries.filter(
-    (entry) => entry.enabled,
-  ).length;
-  const tokenEntries = maintainerEntries.flatMap((entry) => entry.tokens);
-  if (tokenEntries.length === 0) {
-    logger.info(
-      "sendMyNotesMessageNotifications: no registered recipient tokens.",
-      {
-        placeId,
-        messageId,
-        maintainerCount: maintainerIds.size,
-        enabledMaintainerCount,
-      },
-    );
-    return;
+  const skipped = resultForRecipients(pendingRecipients, "skipped");
+  if (event.ownerWorld !== event.sourceWorld ||
+      event.eventType !== MY_NOTES_MESSAGE_NOTIFICATION_EVENT ||
+      event.entityType !== "message") {
+    throw new Error("Message notification event route is invalid.");
   }
 
-  const sendToGroup = async (
-    group: MyNotesNotificationGroup,
-  ): Promise<number> => {
+  const route = requireMessageSourceRoute(event);
+  const placeRef = firestore.collection("places").doc(route.placeId);
+  const [place, message] = await Promise.all([
+    placeRef.get(),
+    firestore.doc(event.sourcePath).get(),
+  ]);
+  if (!isDeliverableMessage(place, message)) {
+    return {recipientResults: skipped};
+  }
+  const senderId = message.get("userId");
+  if (typeof senderId !== "string" || senderId.length === 0) {
+    throw new Error("Message notification sender is invalid.");
+  }
+
+  const maintainers = currentMaintainerIds(place);
+  const recipientEntries = await Promise.all(pendingRecipients.map(
+    (uid) => notificationRecipientEntry(
+      firestore,
+      uid,
+      senderId,
+      maintainers.has(uid),
+    ),
+  ));
+  const recipientResults: Record<string, NotificationRecipientStatus> = {};
+  const tokens: MyNotesNotificationToken[] = [];
+  for (const entry of recipientEntries) {
+    if (!entry.enabled || entry.tokens.length === 0) {
+      recipientResults[entry.uid] = "skipped";
+    } else {
+      recipientResults[entry.uid] = "pending";
+      tokens.push(...entry.tokens);
+    }
+  }
+
+  const retryUids = new Set<string>();
+  const successfulUids = new Set<string>();
+  let lastErrorCode: string | undefined;
+  for (const group of groupMyNotesNotificationTokens(tokens)) {
     const notification = myNotesNotificationContent(
-      placeSnap,
-      messageSnap,
+      place,
+      message,
       group.showPreview,
       group.locale,
     );
-    const context: MyNotesSendContext = {
-      placeId,
-      messageId,
-      locale: group.locale,
-      showPreview: group.showPreview,
-    };
-    let successCount = 0;
     for (let i = 0; i < group.tokens.length; i += FCM_MULTICAST_LIMIT) {
       const chunk = group.tokens.slice(i, i + FCM_MULTICAST_LIMIT);
+      const context: MyNotesSendContext = {
+        sourceWorld: event.sourceWorld,
+        placeId: route.placeId,
+        messageId: event.entityId,
+        locale: group.locale,
+        showPreview: group.showPreview,
+      };
       try {
         const response = await getMessaging().sendEachForMulticast({
           tokens: chunk.map((entry) => entry.token),
           notification,
           data: {
             type: "my_note_message",
-            placeId,
-            messageId,
+            eventId: event.eventId,
+            worldId: event.sourceWorld,
+            placeId: route.placeId,
+            messageId: event.entityId,
           },
           apns: {
-            payload: {
-              aps: {
-                sound: "default",
-                threadId: `place:${placeId}`,
-              },
-            },
+            headers: {"apns-collapse-id": event.eventId},
+            payload: {aps: {
+              sound: "default",
+              threadId: `world:${event.sourceWorld}:place:${route.placeId}`,
+            }},
           },
           android: {
             priority: "high",
             notification: {
               sound: "default",
-              tag: `place:${placeId}`,
+              tag: `notification:${event.eventId}`,
             },
           },
         });
-
-        successCount += response.successCount;
         logMyNotesNotificationFailures(response, context, chunk.length);
-        await deleteInvalidFcmTokens(response, chunk);
+        const classified = await classifyDeliveryResults(response, chunk);
+        classified.successfulUids.forEach((uid) => successfulUids.add(uid));
+        classified.retryUids.forEach((uid) => retryUids.add(uid));
+        lastErrorCode ??= classified.lastErrorCode;
       } catch (error) {
-        logger.error("sendMyNotesMessageNotifications: FCM send threw.", {
+        chunk.forEach((token) => retryUids.add(token.uid));
+        lastErrorCode ??= notificationProviderErrorCode(error);
+        logger.error("Message notification FCM send threw.", {
           ...context,
           tokenCount: chunk.length,
           error,
         });
-        throw error;
       }
     }
-    return successCount;
-  };
-
-  let sent = 0;
-  for (const group of groupMyNotesNotificationTokens(tokenEntries)) {
-    sent += await sendToGroup(group);
   }
 
-  logger.info(
-    `sendMyNotesMessageNotifications: sent ${sent}/${tokenEntries.length}` +
-      ` for places/${placeId}/messages/${messageId}.`,
+  for (const entry of recipientEntries) {
+    if (successfulUids.has(entry.uid)) {
+      recipientResults[entry.uid] = "complete";
+    } else if (retryUids.has(entry.uid)) {
+      recipientResults[entry.uid] = "pending";
+    } else if (recipientResults[entry.uid] === "pending") {
+      recipientResults[entry.uid] = "skipped";
+    }
+  }
+  return {recipientResults, ...(lastErrorCode ? {lastErrorCode} : {})};
+}
+
+function currentMaintainerIds(place: DocumentSnapshot): Set<string> {
+  const maintainers = new Set(
+    maintainerIdsOf(place).filter(
+      (uid) => typeof uid === "string" && uid.length > 0,
+    ),
   );
+  const creator = place.get("createdByUserId");
+  if (typeof creator === "string" && creator.length > 0) {
+    maintainers.add(creator);
+  }
+  return maintainers;
+}
+
+function requireMessageSourceRoute(
+  event: NotificationOutboxData,
+): {placeId: string} {
+  const segments = event.sourcePath.split("/");
+  if (segments.length !== 4 || segments[0] !== "places" ||
+      segments[2] !== "messages" || segments[3] !== event.entityId) {
+    throw new Error("Message notification source path is invalid.");
+  }
+  return {placeId: segments[1]};
+}
+
+function isDeliverableMessage(
+  place: DocumentSnapshot,
+  message: DocumentSnapshot,
+): boolean {
+  if (!place.exists || !message.exists || place.get("isArchived") === true) {
+    return false;
+  }
+  const expiresAt = place.get("expiresAt");
+  const moderationAction = message.get("moderationAction");
+  return expiresAt instanceof Timestamp &&
+    expiresAt.toMillis() > Date.now() &&
+    (moderationAction === "allow" ||
+     moderationAction === "sensitive" ||
+     moderationAction === "review") &&
+    message.get("isDeleted") !== true &&
+    message.get("isVisible") === true &&
+    message.get("isPubliclyVisible") === true;
+}
+
+async function notificationRecipientEntry(
+  sourceFirestore: Firestore,
+  uid: string,
+  senderId: string,
+  isMaintainer: boolean,
+): Promise<{
+  uid: string;
+  enabled: boolean;
+  tokens: MyNotesNotificationToken[];
+}> {
+  if (!isMaintainer || await hasUserBlockBetween(
+    sourceFirestore,
+    uid,
+    senderId,
+  )) {
+    return {uid, enabled: false, tokens: []};
+  }
+  const homeAssignment = await sourceFirestore
+    .collection("userHomes")
+    .doc(uid)
+    .get();
+  const homeWorld = homeAssignment.get("world");
+  if (typeof homeWorld !== "string") {
+    return {uid, enabled: false, tokens: []};
+  }
+  try {
+    WORLD_REGISTRY.requireWorld(homeWorld);
+  } catch {
+    return {uid, enabled: false, tokens: []};
+  }
+  const userRef = worldContext(homeWorld).firestore
+    .collection("users")
+    .doc(uid);
+  const [user, settings, tokenDocuments] = await Promise.all([
+    userRef.get(),
+    userRef.collection("notificationSettings").doc("main").get(),
+    userRef.collection("fcmTokens").get(),
+  ]);
+  if (settings.get("myNotesEnabled") !== true) {
+    return {uid, enabled: false, tokens: []};
+  }
+  const showPreview = settings.get("myNotesPreviewEnabled") !== false;
+  const locale = notificationLocaleOf(user.get("languagePreference"));
+  const tokens = tokenDocuments.docs.flatMap((document) => {
+    const token = document.get("token");
+    return typeof token === "string" && token.length > 0 ? [{
+      uid,
+      ref: document.ref,
+      token,
+      showPreview,
+      locale,
+    }] : [];
+  });
+  return {uid, enabled: true, tokens};
+}
+
+async function classifyDeliveryResults(
+  response: BatchResponse,
+  tokens: MyNotesNotificationToken[],
+): Promise<{
+  successfulUids: Set<string>;
+  retryUids: Set<string>;
+  lastErrorCode?: string;
+}> {
+  const successfulUids = new Set<string>();
+  const retryUids = new Set<string>();
+  const deletions: Promise<unknown>[] = [];
+  let lastErrorCode: string | undefined;
+  response.responses.forEach((result, index) => {
+    const token = tokens[index];
+    if (result.success) {
+      successfulUids.add(token.uid);
+      return;
+    }
+    const code = result.error?.code ?? "messaging/unknown-error";
+    const disposition = classifyFcmError(code);
+    if (disposition === "deleteToken") {
+      deletions.push(token.ref.delete());
+    } else if (disposition === "retry" || disposition === "deploymentFault") {
+      retryUids.add(token.uid);
+      lastErrorCode ??= code;
+    } else {
+      logger.error("Message notification payload was rejected.", {code});
+    }
+  });
+  const deletionResults = await Promise.allSettled(deletions);
+  if (deletionResults.some((result) => result.status === "rejected")) {
+    logger.warn("Could not delete one or more invalid FCM tokens.");
+  }
+  return {successfulUids, retryUids, ...(lastErrorCode ? {lastErrorCode} : {})};
+}
+
+function notificationProviderErrorCode(error: unknown): string {
+  if (typeof error === "object" && error !== null && "code" in error) {
+    const code = String((error as {code: unknown}).code);
+    if (/^[A-Za-z0-9_.:/-]{1,128}$/.test(code)) return code;
+  }
+  return "fcm-send-error";
+}
+
+function resultForRecipients(
+  recipients: readonly string[],
+  status: NotificationRecipientStatus,
+): Record<string, NotificationRecipientStatus> {
+  return Object.fromEntries(recipients.map((uid) => [uid, status]));
 }

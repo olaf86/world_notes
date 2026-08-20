@@ -1,29 +1,73 @@
-import 'package:cloud_functions/cloud_functions.dart';
+import 'package:uuid/uuid.dart';
 
+import 'world_firebase_clients.dart';
+
+import '../domain/entities/admin_account_safety_entity.dart';
 import '../domain/entities/admin_moderation_review_entity.dart';
+import 'global_operation_observer.dart';
 
 const defaultAdminModerationReviewListLimit = 20;
 
-class AdminModerationService {
-  final FirebaseFunctions _functions;
+final class AdminModerationReviewPage {
+  const AdminModerationReviewPage({
+    required this.reviews,
+    required this.nextCursor,
+  });
 
-  const AdminModerationService({required FirebaseFunctions functions})
-    : _functions = functions;
+  final List<AdminModerationReviewEntity> reviews;
+  final String? nextCursor;
+}
+
+final class AdminModerationService {
+  final WorldFunctionsClient _functions;
+  final GlobalOperationObserver? _operationObserver;
+  final Uuid _uuid;
+
+  AdminModerationService({
+    required WorldFunctionsClient functions,
+    required GlobalOperationObserver? operationObserver,
+    Uuid uuid = const Uuid(),
+  }) : _functions = functions,
+       _operationObserver = operationObserver,
+       _uuid = uuid;
 
   Future<List<AdminModerationReviewEntity>> listReviews({
     required AdminModerationReviewStatus status,
     int limit = defaultAdminModerationReviewListLimit,
   }) async {
+    return (await listReviewPage(status: status, limit: limit)).reviews;
+  }
+
+  Future<AdminModerationReviewPage> listReviewPage({
+    required AdminModerationReviewStatus status,
+    int limit = defaultAdminModerationReviewListLimit,
+    String? cursor,
+  }) async {
     final result = await _functions
         .httpsCallable('adminListModerationReviews')
-        .call<Map<String, dynamic>>({'status': status.name, 'limit': limit});
+        .call<Map<String, dynamic>>({
+          'status': status.name,
+          'limit': limit,
+          'cursor': ?cursor,
+        });
     final data = result.data;
     final reviews = data['reviews'];
-    if (reviews is! List) return const [];
-    return reviews
-        .whereType<Map>()
-        .map((item) => AdminModerationReviewEntity.fromJson(_stringKeyed(item)))
-        .toList(growable: false);
+    if (reviews is! List) {
+      throw const FormatException('Moderation review page is invalid.');
+    }
+    final nextCursor = data['nextCursor'];
+    if (nextCursor != null && nextCursor is! String) {
+      throw const FormatException('Moderation review cursor is invalid.');
+    }
+    return AdminModerationReviewPage(
+      reviews: reviews
+          .whereType<Map>()
+          .map(
+            (item) => AdminModerationReviewEntity.fromJson(_stringKeyed(item)),
+          )
+          .toList(growable: false),
+      nextCursor: nextCursor as String?,
+    );
   }
 
   Future<void> reviewContent({
@@ -43,6 +87,50 @@ class AdminModerationService {
       'action': action.name,
       if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
     });
+  }
+
+  Future<AdminAccountSafetyEntity> getAccountSafety({
+    required String targetUid,
+    int auditLimit = defaultAdminModerationReviewListLimit,
+  }) async {
+    final result = await _functions
+        .httpsCallable('adminGetAccountSafety')
+        .call<Map<String, dynamic>>({
+          'targetUid': targetUid,
+          'auditLimit': auditLimit,
+        });
+    return AdminAccountSafetyEntity.fromJson(result.data);
+  }
+
+  Future<AdminAccountSafetyUpdateResult> updateAccountSafety({
+    required String targetUid,
+    required AdminAccountSafetyAction action,
+    required String reason,
+    String? reference,
+  }) async {
+    final result = await _functions
+        .httpsCallable('adminUpdateAccountSafety')
+        .call<Map<String, dynamic>>({
+          'targetUid': targetUid,
+          'operationId': _uuid.v7(),
+          'action': action.toJson(),
+          'reason': reason.trim(),
+          if (reference != null && reference.trim().isNotEmpty)
+            'reference': reference.trim(),
+        });
+    final operation = await handleAcceptedGlobalOperation(
+      response: result.data,
+      policy: GlobalOperationObservationPolicy.durable,
+      observer: _operationObserver,
+    );
+    final revision = result.data['revision'];
+    if (revision is! int || revision <= 0) {
+      throw const FormatException('Account safety revision is invalid.');
+    }
+    return AdminAccountSafetyUpdateResult(
+      operation: operation,
+      revision: revision,
+    );
   }
 }
 

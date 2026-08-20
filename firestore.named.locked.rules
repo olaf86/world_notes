@@ -1,0 +1,11 @@
+rules_version = '2';
+
+// Named world databases stay server-only until their client data paths and
+// authorization model are implemented. Admin SDK access bypasses these rules.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

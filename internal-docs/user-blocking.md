@@ -6,16 +6,26 @@ A block is a directed relationship stored at:
 
 ```text
 users/{blockerUserId}/blockedUsers/{blockedUserId}
-  createdAt: timestamp
+  blockedUid: string
+  isBlocked: boolean
+  revision: integer
+  authorityWorld: string
+  updatedAt: timestamp
+  expireAt: timestamp | null
 ```
 
-Only the blocker can read this collection. Clients cannot write it directly;
-`setUserBlock` is the authoritative mutation API.
+The blocker's immutable home world is authoritative. The same revisioned
+projection is mirrored to every active world. Only active (`isBlocked == true`)
+entries are readable by the blocker; inactive tombstones are server-only and
+expire from destination worlds after 90 days. Clients cannot write directly;
+`setUserBlock` is the authoritative mutation API and is durably observed until
+every required world acknowledges the revision.
 
 Block and follow are separate concepts in storage, but a pair cannot remain
-followed while either direction is blocked. Creating a block removes both
-follow edges and adjusts both public profile counters. A later unblock does
-not restore follows.
+followed while either direction is blocked. Creating a block immediately
+applies the local enforcement mirror and durably schedules removal of both
+follow edges, with profile counters converging from the revisioned edges. A
+later unblock does not restore follows.
 
 ## Blocking effects
 
@@ -69,8 +79,9 @@ aggregate counters.
 
 ## Unblocking
 
-Unblocking only deletes the directed block document. Content may become
-visible again, but follows, note membership, maintainer access, deleted
+Unblocking writes a newer inactive revision rather than deleting the authority
+document. Each world stops enforcing after applying that revision. Content may
+become visible again, but follows, note membership, maintainer access, deleted
 scheduled messages, and previous notification delivery are not restored.
 
 ## User interface

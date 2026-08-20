@@ -12,6 +12,7 @@ abstract class MessageRepository {
     required String placeId,
     required String beforeMessageId,
     required int limit,
+    required String currentUserId,
     Set<String> blockedUserIds = const {},
   });
   Future<MessageEntity> sendMessage({

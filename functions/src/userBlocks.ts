@@ -1,31 +1,14 @@
 import {
-  DocumentReference,
   Firestore,
   Transaction,
 } from "firebase-admin/firestore";
 
-/**
- * Returns the private block document for one directed user relationship.
- *
- * The document path identifies both users, so the document needs only its
- * creation timestamp.
- *
- * @param {Firestore} db Firestore instance.
- * @param {string} blockerUid User who created the block.
- * @param {string} blockedUid User who was blocked.
- * @return {DocumentReference} Directed block document.
- */
-export function userBlockRef(
-  db: Firestore,
-  blockerUid: string,
-  blockedUid: string,
-): DocumentReference {
-  return db
-    .collection("users")
-    .doc(blockerUid)
-    .collection("blockedUsers")
-    .doc(blockedUid);
-}
+import {
+  isActiveUserBlock,
+  userBlockRef,
+} from "./userBlockReplication";
+
+export {userBlockRef};
 
 /**
  * Checks whether either user has blocked the other.
@@ -45,7 +28,8 @@ export async function hasUserBlockBetween(
     userBlockRef(db, firstUid, secondUid).get(),
     userBlockRef(db, secondUid, firstUid).get(),
   ]);
-  return firstToSecond.exists || secondToFirst.exists;
+  return isActiveUserBlock(firstToSecond, firstUid, secondUid) ||
+    isActiveUserBlock(secondToFirst, secondUid, firstUid);
 }
 
 /**
@@ -82,7 +66,15 @@ export async function findUserIdsWithBlockRelationshipToViewer(
   const snapshots = await db.getAll(...refs);
   const blocked = new Set<string>();
   for (let index = 0; index < candidates.length; index++) {
-    if (snapshots[index * 2].exists || snapshots[index * 2 + 1].exists) {
+    if (isActiveUserBlock(
+      snapshots[index * 2],
+      viewerUid,
+      candidates[index],
+    ) || isActiveUserBlock(
+      snapshots[index * 2 + 1],
+      candidates[index],
+      viewerUid,
+    )) {
       blocked.add(candidates[index]);
     }
   }
@@ -112,5 +104,6 @@ export async function hasUserBlockBetweenInTransaction(
     tx.get(userBlockRef(db, firstUid, secondUid)),
     tx.get(userBlockRef(db, secondUid, firstUid)),
   ]);
-  return firstToSecond.exists || secondToFirst.exists;
+  return isActiveUserBlock(firstToSecond, firstUid, secondUid) ||
+    isActiveUserBlock(secondToFirst, secondUid, firstUid);
 }

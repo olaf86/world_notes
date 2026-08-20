@@ -4,6 +4,140 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('defines only required profile snapshot propagation indexes', () {
+    final config = _loadConfig();
+
+    expect(
+      _hasIndex(config, 'places', [
+        ('createdByUserId', 'ASCENDING'),
+        ('isArchived', 'ASCENDING'),
+        ('__name__', 'ASCENDING'),
+      ]),
+      isTrue,
+    );
+    expect(
+      _hasIndex(config, 'members', [
+        ('userId', 'ASCENDING'),
+        ('__name__', 'ASCENDING'),
+      ], queryScope: 'COLLECTION_GROUP'),
+      isFalse,
+      reason: 'The members query is covered by single-field indexing.',
+    );
+  });
+
+  test('enables delegated administrator collection-group discovery', () {
+    final config = _loadConfig();
+    final overrides = (config['fieldOverrides'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+
+    expect(
+      overrides.any((override) {
+        if (override['collectionGroup'] != 'administrators' ||
+            override['fieldPath'] != 'userId') {
+          return false;
+        }
+        final indexes = (override['indexes'] as List<dynamic>)
+            .cast<Map<String, dynamic>>();
+        return indexes.length == 1 &&
+            indexes.single['order'] == 'ASCENDING' &&
+            indexes.single['queryScope'] == 'COLLECTION_GROUP';
+      }),
+      isTrue,
+      reason: 'My Notes filters the administrators collection group by uid.',
+    );
+  });
+
+  test('defines active social-edge relationship and list indexes', () {
+    final config = _loadConfig();
+
+    expect(
+      _hasIndex(config, 'socialEdges', [
+        ('followerUid', 'ASCENDING'),
+        ('following', 'ASCENDING'),
+        ('createdAt', 'DESCENDING'),
+      ]),
+      isTrue,
+    );
+    expect(
+      _hasIndex(config, 'socialEdges', [
+        ('followeeUid', 'ASCENDING'),
+        ('following', 'ASCENDING'),
+        ('createdAt', 'DESCENDING'),
+      ]),
+      isTrue,
+    );
+    expect(
+      _hasIndex(config, 'socialEdges', [
+        ('followerUid', 'ASCENDING'),
+        ('followeeUid', 'ASCENDING'),
+        ('following', 'ASCENDING'),
+      ]),
+      isTrue,
+    );
+  });
+
+  test('uses only automatic indexing for liked messages', () {
+    final config = _loadConfig();
+    final indexes = (config['indexes'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+    final overrides = (config['fieldOverrides'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+
+    expect(
+      indexes.where((index) => index['collectionGroup'] == 'likedMessages'),
+      isEmpty,
+      reason: 'Exact reads and one array-contains cleanup need no composite.',
+    );
+    expect(
+      overrides.where(
+        (override) =>
+            override['collectionGroup'] == 'likedMessages' &&
+            override['fieldPath'] == 'messageIds',
+      ),
+      isEmpty,
+      reason: 'Cleanup requires the automatic array-contains index.',
+    );
+  });
+
+  test('defines active block queries, cleanup lookup, and tombstone TTL', () {
+    final config = _loadConfig();
+
+    expect(
+      _hasIndex(config, 'blockedUsers', [
+        ('isBlocked', 'ASCENDING'),
+        ('updatedAt', 'DESCENDING'),
+      ]),
+      isTrue,
+    );
+    expect(
+      _hasIndex(config, 'blockedUsers', [
+        ('blockedUid', 'ASCENDING'),
+        ('isBlocked', 'ASCENDING'),
+      ]),
+      isTrue,
+    );
+    expect(
+      _hasIndex(config, 'messages', [
+        ('userId', 'ASCENDING'),
+        ('isPubliclyVisible', 'ASCENDING'),
+        ('placeAggregateAppliedAt', 'ASCENDING'),
+      ]),
+      isTrue,
+    );
+    final overrides = (config['fieldOverrides'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+    expect(
+      overrides.any(
+        (override) =>
+            override['collectionGroup'] == 'blockedUsers' &&
+            override['fieldPath'] == 'expireAt' &&
+            override['ttl'] == true &&
+            (override['indexes'] as List<dynamic>).isEmpty,
+      ),
+      isTrue,
+    );
+  });
+
   test('defines archived-note indexes for both sort directions', () {
     final config =
         jsonDecode(File('firestore.indexes.json').readAsStringSync())
@@ -39,6 +173,284 @@ void main() {
       isTrue,
     );
   });
+
+  test('defines the moderation review cursor index', () {
+    final config = _loadConfig();
+
+    expect(
+      _hasIndex(config, 'moderationReviews', [
+        ('status', 'ASCENDING'),
+        ('createdAt', 'ASCENDING'),
+      ]),
+      isTrue,
+    );
+  });
+
+  test('defines the pending global-operation reconciliation index', () {
+    final config =
+        jsonDecode(File('firestore.indexes.json').readAsStringSync())
+            as Map<String, dynamic>;
+    final indexes = (config['indexes'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+
+    expect(
+      indexes.any((index) {
+        if (index['collectionGroup'] != 'globalOperations' ||
+            index['queryScope'] != 'COLLECTION') {
+          return false;
+        }
+        final fields = (index['fields'] as List<dynamic>)
+            .cast<Map<String, dynamic>>();
+        return fields.length == 2 &&
+            fields[0]['fieldPath'] == 'status' &&
+            fields[0]['order'] == 'ASCENDING' &&
+            fields[1]['fieldPath'] == 'acceptedAt' &&
+            fields[1]['order'] == 'ASCENDING';
+      }),
+      isTrue,
+    );
+  });
+
+  test('defines due and expired-lease cleanup reconciliation indexes', () {
+    final config =
+        jsonDecode(File('firestore.indexes.json').readAsStringSync())
+            as Map<String, dynamic>;
+    final indexes = (config['indexes'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+    final secondFields = <String>{
+      for (final index in indexes)
+        if (index['collectionGroup'] == 'jobs' &&
+            index['queryScope'] == 'COLLECTION' &&
+            (index['fields'] as List<dynamic>).length == 2 &&
+            ((index['fields'] as List<dynamic>)[0]
+                    as Map<String, dynamic>)['fieldPath'] ==
+                'status')
+          ((index['fields'] as List<dynamic>)[1]
+                  as Map<String, dynamic>)['fieldPath']
+              as String,
+    };
+
+    expect(secondFields, containsAll(<String>{'nextAttemptAt', 'leaseUntil'}));
+  });
+
+  test('enables cleanup completion TTL without indexing its timestamp', () {
+    final config =
+        jsonDecode(File('firestore.indexes.json').readAsStringSync())
+            as Map<String, dynamic>;
+    final overrides = (config['fieldOverrides'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+
+    expect(
+      overrides.any(
+        (override) =>
+            override['collectionGroup'] == 'jobs' &&
+            override['fieldPath'] == 'expireAt' &&
+            override['ttl'] == true &&
+            (override['indexes'] as List<dynamic>).isEmpty,
+      ),
+      isTrue,
+    );
+  });
+
+  test('defines notification retry indexes and terminal TTL', () {
+    final config =
+        jsonDecode(File('firestore.indexes.json').readAsStringSync())
+            as Map<String, dynamic>;
+    final indexes = (config['indexes'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+    final secondFields = <String>{
+      for (final index in indexes)
+        if (index['collectionGroup'] == 'notificationOutbox' &&
+            index['queryScope'] == 'COLLECTION' &&
+            (index['fields'] as List<dynamic>).length == 2 &&
+            ((index['fields'] as List<dynamic>)[0]
+                    as Map<String, dynamic>)['fieldPath'] ==
+                'status')
+          ((index['fields'] as List<dynamic>)[1]
+                  as Map<String, dynamic>)['fieldPath']
+              as String,
+    };
+    final overrides = (config['fieldOverrides'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+
+    expect(secondFields, containsAll(<String>{'nextAttemptAt', 'leaseUntil'}));
+    expect(
+      overrides.any(
+        (override) =>
+            override['collectionGroup'] == 'notificationOutbox' &&
+            override['fieldPath'] == 'expireAt' &&
+            override['ttl'] == true &&
+            (override['indexes'] as List<dynamic>).isEmpty,
+      ),
+      isTrue,
+    );
+  });
+
+  test('defines orphan-image sweep index and tracker TTL', () {
+    final config = _loadConfig();
+    final overrides = (config['fieldOverrides'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+
+    expect(
+      _hasIndex(config, 'imageUploads', [
+        ('status', 'ASCENDING'),
+        ('checkAfter', 'ASCENDING'),
+      ]),
+      isTrue,
+    );
+    expect(
+      overrides.any(
+        (override) =>
+            override['collectionGroup'] == 'imageUploads' &&
+            override['fieldPath'] == 'expireAt' &&
+            override['ttl'] == true &&
+            (override['indexes'] as List<dynamic>).isEmpty,
+      ),
+      isTrue,
+    );
+  });
+
+  test('enables administrator invitation and audit retention TTLs', () {
+    final config = _loadConfig();
+    final overrides = (config['fieldOverrides'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+
+    expect(
+      overrides.any(
+        (override) =>
+            override['collectionGroup'] == 'noteAdministratorInvitations' &&
+            override['fieldPath'] == 'purgeAt' &&
+            override['ttl'] == true &&
+            (override['indexes'] as List<dynamic>).isEmpty,
+      ),
+      isTrue,
+      reason: 'Administrator invitations must purge terminal records.',
+    );
+
+    for (final collectionGroup in <String>[
+      'noteAdministratorInviteNotifications',
+      'administratorAudits',
+    ]) {
+      expect(
+        overrides.any(
+          (override) =>
+              override['collectionGroup'] == collectionGroup &&
+              override['fieldPath'] == 'expireAt' &&
+              override['ttl'] == true &&
+              (override['indexes'] as List<dynamic>).isEmpty,
+        ),
+        isTrue,
+        reason: '$collectionGroup must expire terminal server records.',
+      );
+    }
+  });
+
+  test('enables account safety receipt TTL without indexing its timestamp', () {
+    final config =
+        jsonDecode(File('firestore.indexes.json').readAsStringSync())
+            as Map<String, dynamic>;
+    final overrides = (config['fieldOverrides'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+
+    expect(
+      overrides.any(
+        (override) =>
+            override['collectionGroup'] == 'appliedEvents' &&
+            override['fieldPath'] == 'expireAt' &&
+            override['ttl'] == true &&
+            (override['indexes'] as List<dynamic>).isEmpty,
+      ),
+      isTrue,
+    );
+    expect(
+      overrides.any(
+        (override) =>
+            override['collectionGroup'] == 'adminAudits' &&
+            override['fieldPath'] == 'expireAt' &&
+            override['ttl'] == true &&
+            (override['indexes'] as List<dynamic>).isEmpty,
+      ),
+      isTrue,
+    );
+  });
+
+  test('exempts note moderation coordination fields from indexing', () {
+    final config = _loadConfig();
+    final overrides = (config['fieldOverrides'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+
+    for (final fieldPath in <String>[
+      'moderationInputHash',
+      'activeNoteSlotReleasedAt',
+      'moderationRetentionStartedAt',
+      'moderationRetentionPurgeStartedAt',
+      'moderationHiddenJobId',
+      'moderationSafetyAppliedAt',
+      'pinImageCandidate',
+      'pinImageModerationAction',
+      'pinImageModerationProvider',
+      'pinImageModerationPolicyVersion',
+      'pinImageModerationCheckedAt',
+    ]) {
+      expect(
+        overrides.any(
+          (override) =>
+              override['collectionGroup'] == 'places' &&
+              override['fieldPath'] == fieldPath &&
+              (override['indexes'] as List<dynamic>).isEmpty,
+        ),
+        isTrue,
+        reason: '$fieldPath is server coordination state, not query data.',
+      );
+    }
+
+    expect(
+      overrides.any(
+        (override) =>
+            override['collectionGroup'] == 'moderationAuditLogs' &&
+            override['fieldPath'] == 'expireAt' &&
+            override['ttl'] == true &&
+            (override['indexes'] as List<dynamic>).isEmpty,
+      ),
+      isTrue,
+      reason: 'Metadata-only moderation audits must expire after retention.',
+    );
+  });
+
+  test('exempts message-retention coordination fields from indexing', () {
+    final config = _loadConfig();
+    final overrides = (config['fieldOverrides'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+
+    expect(
+      overrides.any(
+        (override) =>
+            override['collectionGroup'] == 'messages' &&
+            override['fieldPath'] == 'moderationPurgeStartedAt' &&
+            (override['indexes'] as List<dynamic>).isEmpty,
+      ),
+      isTrue,
+      reason: 'The purge barrier is cleanup state, not query data.',
+    );
+
+    for (final collectionGroup in <String>[
+      'moderationRetentionTargets',
+      'noteModerationRetentionTargets',
+    ]) {
+      for (final fieldPath in <String>['targetPath', 'hiddenAt', 'createdAt']) {
+        expect(
+          overrides.any(
+            (override) =>
+                override['collectionGroup'] == collectionGroup &&
+                override['fieldPath'] == fieldPath &&
+                (override['indexes'] as List<dynamic>).isEmpty,
+          ),
+          isTrue,
+          reason: '$fieldPath is addressed by cleanup job id, not queried.',
+        );
+      }
+    }
+  });
 }
 
 bool _isArchivedNotesIndex(Map<String, dynamic> index) {
@@ -51,8 +463,8 @@ bool _isArchivedNotesIndex(Map<String, dynamic> index) {
       .cast<Map<String, dynamic>>();
   return fields.any(
         (field) =>
-            field['fieldPath'] == 'maintainerIds' &&
-            field['arrayConfig'] == 'CONTAINS',
+            field['fieldPath'] == 'createdByUserId' &&
+            field['order'] == 'ASCENDING',
       ) &&
       fields.any(
         (field) =>
@@ -67,4 +479,35 @@ String? _orderOf(Map<String, dynamic> index, String fieldPath) {
     if (field['fieldPath'] == fieldPath) return field['order'] as String?;
   }
   return null;
+}
+
+Map<String, dynamic> _loadConfig() {
+  return jsonDecode(File('firestore.indexes.json').readAsStringSync())
+      as Map<String, dynamic>;
+}
+
+bool _hasIndex(
+  Map<String, dynamic> config,
+  String collectionGroup,
+  List<(String, String)> expectedFields, {
+  String queryScope = 'COLLECTION',
+}) {
+  final indexes = (config['indexes'] as List<dynamic>)
+      .cast<Map<String, dynamic>>();
+  return indexes.any((index) {
+    if (index['collectionGroup'] != collectionGroup ||
+        index['queryScope'] != queryScope) {
+      return false;
+    }
+    final fields = (index['fields'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+    if (fields.length != expectedFields.length) return false;
+    for (var index = 0; index < fields.length; index += 1) {
+      if (fields[index]['fieldPath'] != expectedFields[index].$1 ||
+          fields[index]['order'] != expectedFields[index].$2) {
+        return false;
+      }
+    }
+    return true;
+  });
 }

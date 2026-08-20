@@ -223,7 +223,7 @@ Future<void> _pumpScreen(
         },
       ),
       GoRoute(
-        path: '/note/:placeId',
+        path: '/worlds/:worldId/notes/:placeId',
         builder: (context, state) => const SizedBox.shrink(),
       ),
     ],

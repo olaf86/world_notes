@@ -35,34 +35,37 @@
       "collectionGroup": "places",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "maintainerIds", "arrayConfig": "CONTAINS" },
-        { "fieldPath": "isArchived", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "places",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "maintainerIds", "arrayConfig": "CONTAINS" },
-        { "fieldPath": "isArchived", "order": "ASCENDING" },
-        { "fieldPath": "archivedAt", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "places",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "maintainerIds", "arrayConfig": "CONTAINS" },
-        { "fieldPath": "isArchived", "order": "ASCENDING" },
-        { "fieldPath": "archivedAt", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "places",
-      "queryScope": "COLLECTION",
-      "fields": [
         { "fieldPath": "isArchived", "order": "ASCENDING" },
         { "fieldPath": "expiresAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "places",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "createdByUserId", "order": "ASCENDING" },
+        { "fieldPath": "isArchived", "order": "ASCENDING" },
+        { "fieldPath": "__name__", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "places",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "createdByUserId", "order": "ASCENDING" },
+        { "fieldPath": "isArchived", "order": "ASCENDING" },
+        { "fieldPath": "archivedAt", "order": "DESCENDING" },
+        { "fieldPath": "__name__", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "places",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "createdByUserId", "order": "ASCENDING" },
+        { "fieldPath": "isArchived", "order": "ASCENDING" },
+        { "fieldPath": "archivedAt", "order": "ASCENDING" },
+        { "fieldPath": "__name__", "order": "ASCENDING" }
       ]
     },
     {
@@ -71,6 +74,7 @@
       "fields": [
         { "fieldPath": "isPubliclyVisible", "order": "ASCENDING" },
         { "fieldPath": "isVisible", "order": "ASCENDING" },
+        { "fieldPath": "moderationAction", "order": "ASCENDING" },
         { "fieldPath": "publishAt", "order": "DESCENDING" }
       ]
     },
@@ -80,24 +84,26 @@
       "fields": [
         { "fieldPath": "userId", "order": "ASCENDING" },
         { "fieldPath": "isPubliclyVisible", "order": "ASCENDING" },
+        { "fieldPath": "moderationAction", "order": "ASCENDING" },
         { "fieldPath": "publishAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "messages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "isPubliclyVisible", "order": "ASCENDING" },
+        { "fieldPath": "placeAggregateAppliedAt", "order": "ASCENDING" }
       ]
     },
     {
       "collectionGroup": "messages",
       "queryScope": "COLLECTION_GROUP",
       "fields": [
+        { "fieldPath": "moderationAction", "order": "ASCENDING" },
         { "fieldPath": "placeAggregateAppliedAt", "order": "ASCENDING" },
         { "fieldPath": "publishAt", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "messageLikes",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        { "fieldPath": "placeId", "order": "ASCENDING" },
-        { "fieldPath": "userId", "order": "ASCENDING" },
-        { "fieldPath": "liked", "order": "ASCENDING" }
       ]
     },
     {
@@ -122,7 +128,24 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "followerUid", "order": "ASCENDING" },
+        { "fieldPath": "following", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "blockedUsers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isBlocked", "order": "ASCENDING" },
+        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "blockedUsers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "blockedUid", "order": "ASCENDING" },
+        { "fieldPath": "isBlocked", "order": "ASCENDING" }
       ]
     },
     {
@@ -130,6 +153,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "followeeUid", "order": "ASCENDING" },
+        { "fieldPath": "following", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     },
@@ -138,9 +162,264 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "followerUid", "order": "ASCENDING" },
-        { "fieldPath": "followeeUid", "order": "ASCENDING" }
+        { "fieldPath": "followeeUid", "order": "ASCENDING" },
+        { "fieldPath": "following", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "globalOperations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "acceptedAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "jobs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "nextAttemptAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "jobs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "leaseUntil", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "notificationOutbox",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "nextAttemptAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "notificationOutbox",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "leaseUntil", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "moderationJobs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "nextAttemptAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "moderationJobs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "leaseUntil", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "imageUploads",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "checkAfter", "order": "ASCENDING" }
       ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "collectionGroup": "administrators",
+      "fieldPath": "userId",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }
+      ]
+    },
+    {
+      "collectionGroup": "blockedUsers",
+      "fieldPath": "expireAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "globalOperations",
+      "fieldPath": "expireAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "jobs",
+      "fieldPath": "expireAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "notificationOutbox",
+      "fieldPath": "expireAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "moderationJobs",
+      "fieldPath": "expireAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "imageUploads",
+      "fieldPath": "expireAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "noteAdministratorInvitations",
+      "fieldPath": "purgeAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "noteAdministratorInviteNotifications",
+      "fieldPath": "expireAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "administratorAudits",
+      "fieldPath": "expireAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "places",
+      "fieldPath": "moderationPolicyVersion",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "places",
+      "fieldPath": "moderationCheckedAt",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "places",
+      "fieldPath": "moderationInputHash",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "places",
+      "fieldPath": "activeNoteSlotReleasedAt",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "places",
+      "fieldPath": "moderationRetentionStartedAt",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "places",
+      "fieldPath": "moderationRetentionPurgeStartedAt",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "places",
+      "fieldPath": "moderationHiddenJobId",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "places",
+      "fieldPath": "moderationSafetyAppliedAt",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "places",
+      "fieldPath": "pinImageCandidate",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "places",
+      "fieldPath": "pinImageModerationAction",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "places",
+      "fieldPath": "pinImageModerationProvider",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "places",
+      "fieldPath": "pinImageModerationPolicyVersion",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "places",
+      "fieldPath": "pinImageModerationCheckedAt",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "messages",
+      "fieldPath": "moderationPolicyVersion",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "messages",
+      "fieldPath": "moderationCheckedAt",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "messages",
+      "fieldPath": "moderationPurgeStartedAt",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "moderationRetentionTargets",
+      "fieldPath": "targetPath",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "moderationRetentionTargets",
+      "fieldPath": "hiddenAt",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "moderationRetentionTargets",
+      "fieldPath": "createdAt",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "noteModerationRetentionTargets",
+      "fieldPath": "targetPath",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "noteModerationRetentionTargets",
+      "fieldPath": "hiddenAt",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "noteModerationRetentionTargets",
+      "fieldPath": "createdAt",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "moderationAuditLogs",
+      "fieldPath": "expireAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "appliedEvents",
+      "fieldPath": "expireAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "adminAudits",
+      "fieldPath": "expireAt",
+      "ttl": true,
+      "indexes": []
+    }
+  ]
 }

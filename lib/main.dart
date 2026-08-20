@@ -1,12 +1,9 @@
 import 'dart:async';
 
 import 'package:firebase_app_check/firebase_app_check.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -21,7 +18,9 @@ import 'firebase_options.dart';
 import 'l10n/app_locale.dart';
 import 'l10n/l10n.dart';
 import 'presentation/providers/providers.dart';
+import 'services/notice_notification_service.dart';
 import 'services/subscription_service.dart';
+import 'services/account_bootstrap_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -60,15 +59,6 @@ Future<void> _configureFirebaseServices() async {
     final host = firebaseEmulatorHost();
     debugPrint('Using Firebase emulators (host: $host)');
     FirebaseAuth.instance.useAuthEmulator(host, 9099);
-    FirebaseFirestore.instance.useFirestoreEmulator(host, 8080);
-    FirebaseStorage.instance.useStorageEmulator(host, 9199);
-    FirebaseFunctions.instance.useFunctionsEmulator(host, 5001);
-    FirebaseFunctions.instanceFor(
-      region: 'asia-northeast1',
-    ).useFunctionsEmulator(host, 5001);
-    FirebaseFirestore.instance.settings = const Settings(
-      persistenceEnabled: false,
-    );
     return;
   }
 
@@ -127,27 +117,14 @@ class WorldNotesApp extends ConsumerStatefulWidget {
 class _WorldNotesAppState extends ConsumerState<WorldNotesApp>
     with WidgetsBindingObserver {
   StreamSubscription<NotificationPlaceRoute>? _notificationOpenSubscription;
-  StreamSubscription<String>? _noticeOpenSubscription;
+  StreamSubscription<NotificationNoticeRoute>? _noticeOpenSubscription;
+  HomeAssignment? _boundAssignment;
 
   @override
   void initState() {
     super.initState();
     if (screenshotMode) return;
     WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final service = ref.read(myNotesNotificationServiceProvider);
-      service.initialPlaceRouteFromLaunch().then(_openPlaceFromNotification);
-      _notificationOpenSubscription = service.openedPlaceRoutes.listen(
-        _openPlaceFromNotification,
-      );
-      final noticeService = ref.read(noticeNotificationServiceProvider);
-      noticeService.initialNoticeIdFromLaunch().then(
-        _openNoticesFromNotification,
-      );
-      _noticeOpenSubscription = noticeService.openedNoticeIds.listen(
-        _openNoticesFromNotification,
-      );
-    });
   }
 
   @override
@@ -168,24 +145,84 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp>
     }
   }
 
-  void _openPlaceFromNotification(NotificationPlaceRoute? route) {
-    if (!mounted) return;
+  Future<void> _openPlaceFromNotification(NotificationPlaceRoute? route) async {
+    if (!mounted || route == null) return;
+    try {
+      await ref
+          .read(selectedWorldProvider.notifier)
+          .selectWorld(route.note.worldId);
+    } on StateError {
+      return;
+    }
     openNotificationPlace(ref.read(routerProvider), route);
   }
 
-  void _openNoticesFromNotification(String? noticeId) {
-    if (!mounted || noticeId == null) return;
+  Future<void> _openNoticesFromNotification(
+    NotificationNoticeRoute? route,
+  ) async {
+    if (!mounted || route == null) return;
+    try {
+      await ref
+          .read(selectedWorldProvider.notifier)
+          .selectWorld(route.notice.worldId);
+    } on StateError {
+      return;
+    }
     openNotices(ref.read(routerProvider));
+  }
+
+  Future<void> _bindNotificationServices(HomeAssignment assignment) async {
+    if (!mounted || _boundAssignment == assignment) return;
+    _boundAssignment = assignment;
+    await _notificationOpenSubscription?.cancel();
+    await _noticeOpenSubscription?.cancel();
+
+    final service = ref.read(myNotesNotificationServiceProvider);
+    await _openPlaceFromNotification(
+      await service.initialPlaceRouteFromLaunch(),
+    );
+    _notificationOpenSubscription = service.openedPlaceRoutes.listen(
+      _openPlaceFromNotification,
+    );
+    final noticeService = ref.read(noticeNotificationServiceProvider);
+    await _openNoticesFromNotification(
+      await noticeService.initialNoticeRouteFromLaunch(),
+    );
+    _noticeOpenSubscription = noticeService.openedNoticeRoutes.listen(
+      _openNoticesFromNotification,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AsyncValue<HomeAssignment?>>(homeAssignmentProvider, (
+      previous,
+      next,
+    ) {
+      final assignment = next.valueOrNull;
+      if (assignment != null) {
+        unawaited(_bindNotificationServices(assignment));
+      } else if (previous?.valueOrNull != null) {
+        _boundAssignment = null;
+      }
+    });
+    final currentAssignment = ref.watch(homeAssignmentProvider).valueOrNull;
+    if (!screenshotMode &&
+        currentAssignment != null &&
+        _boundAssignment != currentAssignment) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(_bindNotificationServices(currentAssignment));
+      });
+    }
     final router = ref.watch(routerProvider);
     final languagePreference = ref.watch(appLanguagePreferenceProvider);
     // Keep the post-login UMP/ATT flow alive for the app lifetime. Ad widgets
     // remain disabled until this provider allows requests and initializes the
     // Mobile Ads SDK.
     ref.watch(adPrivacyStatusProvider);
+    // Operation listeners are app-scoped so accepted work remains observable
+    // after navigation and is restored from local storage after relaunch.
+    ref.watch(globalOperationObserverProvider);
 
     return MaterialApp.router(
       onGenerateTitle: (context) => context.l10n.appName,

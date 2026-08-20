@@ -2,22 +2,23 @@ import 'dart:async';
 
 import 'package:go_router/go_router.dart';
 
+import 'world_navigation.dart';
+import 'world_routes.dart';
+
 class NotificationPlaceRoute {
-  final String placeId;
+  final WorldRoute note;
   final bool readOnly;
 
-  const NotificationPlaceRoute({required this.placeId, this.readOnly = false});
+  const NotificationPlaceRoute({required this.note, this.readOnly = false});
 
-  String get location {
-    return Uri(
-      path: '/note/$placeId',
-      queryParameters: readOnly ? const {'readOnly': 'true'} : null,
-    ).toString();
-  }
+  String get placeId => note.entityId;
+
+  String get location =>
+      WorldNavigation(note.worldId).note(note.entityId, readOnly: readOnly);
 }
 
 void openNotificationPlace(GoRouter router, NotificationPlaceRoute? route) {
-  if (route == null || route.placeId.isEmpty) return;
+  if (route == null) return;
 
   unawaited(router.push<void>(route.location));
 }

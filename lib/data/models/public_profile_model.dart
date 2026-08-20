@@ -38,17 +38,6 @@ class PublicProfileModel {
     );
   }
 
-  Map<String, dynamic> toOwnerFirestore({required bool includeCounts}) {
-    return {
-      'displayName': displayName,
-      'photoUrl': photoUrl,
-      'photoVersion': photoVersion,
-      if (includeCounts) ...{'followerCount': 0, 'followingCount': 0},
-      'updatedAt': FieldValue.serverTimestamp(),
-      if (includeCounts) 'createdAt': FieldValue.serverTimestamp(),
-    };
-  }
-
   PublicProfile toEntity() => PublicProfile(
     id: id,
     displayName: displayName,
