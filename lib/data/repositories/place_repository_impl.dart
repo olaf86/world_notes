@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -187,14 +188,57 @@ class PlaceRepositoryImpl implements PlaceRepository {
 
   // ── Maintainer queries ────────────────────────────────────────────────────
 
-  Query _maintainedPlacesQuery(String userId, {required bool isArchived}) =>
+  Query _createdPlacesQuery(String userId, {required bool isArchived}) =>
       _places
-          .where('maintainerIds', arrayContains: userId)
+          .where('createdByUserId', isEqualTo: userId)
           .where('isArchived', isEqualTo: isArchived);
 
-  List<PlaceEntity> _collectMyPlaces(QuerySnapshot snap) {
-    final places = snap.docs
-        .map((doc) => PlaceModel.fromFirestore(doc).toEntity())
+  Query _administratorRecordsQuery(String userId) => _firestore
+      .collectionGroup('administrators')
+      .where('userId', isEqualTo: userId);
+
+  Set<String> _administratorPlaceIds(QuerySnapshot snapshot) {
+    return snapshot.docs.map((document) {
+      final place = document.reference.parent.parent;
+      if (place == null || place.parent.id != 'places') {
+        throw StateError('Administrator record has an invalid place path.');
+      }
+      return place.id;
+    }).toSet();
+  }
+
+  Future<List<DocumentSnapshot>> _delegatedPlaceDocuments(
+    QuerySnapshot administratorRecords,
+  ) async {
+    final placeIds = _administratorPlaceIds(administratorRecords);
+    if (placeIds.isEmpty) return const [];
+    final documents = await Future.wait(placeIds.map((placeId) async {
+      try {
+        return await _places.doc(placeId).get();
+      } on FirebaseException catch (error) {
+        // A block is enforced before its asynchronous relationship cleanup.
+        // During that short window the relationship is discoverable, while
+        // the parent note correctly denies an exact read. Treat it as absent.
+        if (error.code == 'permission-denied') return null;
+        rethrow;
+      }
+    }));
+    return documents.whereType<DocumentSnapshot>().toList();
+  }
+
+  Iterable<PlaceEntity> _placeEntities(
+    Iterable<DocumentSnapshot> documents,
+  ) sync* {
+    for (final document in documents) {
+      if (document.exists) {
+        yield PlaceModel.fromFirestore(document).toEntity();
+      }
+    }
+  }
+
+  List<PlaceEntity> _collectMyPlaces(Iterable<PlaceEntity> values) {
+    final byId = {for (final place in values) place.id: place};
+    final places = byId.values
         .where((place) => !place.isArchived && !place.isExpired)
         .toList();
     places.sort((a, b) {
@@ -207,35 +251,154 @@ class PlaceRepositoryImpl implements PlaceRepository {
 
   @override
   Future<int> countUserActivePlaces(String userId) async {
-    final snap = await _places
-        .where('maintainerIds', arrayContains: userId)
-        .where('isArchived', isEqualTo: false)
-        .count()
-        .get();
-    return snap.count ?? 0;
+    if (userId.isEmpty) return 0;
+    final snapshot = await _createdPlacesQuery(
+      userId,
+      isArchived: false,
+    ).count().get();
+    return snapshot.count ?? 0;
   }
 
   @override
   Stream<List<PlaceEntity>> watchMyPlaces(String userId) {
-    return _maintainedPlacesQuery(
-      userId,
-      isArchived: false,
-    ).snapshots().map(_collectMyPlaces);
+    if (userId.isEmpty) return Stream.value(const []);
+
+    late final StreamController<List<PlaceEntity>> controller;
+    QuerySnapshot? createdSnapshot;
+    QuerySnapshot? administratorSnapshot;
+    StreamSubscription<QuerySnapshot>? createdSubscription;
+    StreamSubscription<QuerySnapshot>? administratorSubscription;
+    final delegatedSnapshots = <String, DocumentSnapshot>{};
+    final inaccessibleDelegatedIds = <String>{};
+    final delegatedSubscriptions =
+        <String, StreamSubscription<DocumentSnapshot>>{};
+
+    void emitIfReady() {
+      final created = createdSnapshot;
+      final administrators = administratorSnapshot;
+      if (created == null || administrators == null) return;
+      final delegatedIds = _administratorPlaceIds(administrators);
+      if (!delegatedIds.every(
+        (placeId) =>
+            delegatedSnapshots.containsKey(placeId) ||
+            inaccessibleDelegatedIds.contains(placeId),
+      )) {
+        return;
+      }
+      controller.add(
+        _collectMyPlaces([
+          ..._placeEntities(created.docs),
+          ..._placeEntities(
+            delegatedIds
+                .map((placeId) => delegatedSnapshots[placeId])
+                .whereType<DocumentSnapshot>(),
+          ),
+        ]),
+      );
+    }
+
+    void synchronizeDelegatedSubscriptions() {
+      final administrators = administratorSnapshot;
+      if (administrators == null) return;
+      final delegatedIds = _administratorPlaceIds(administrators);
+      final staleIds = delegatedSubscriptions.keys
+          .where((placeId) => !delegatedIds.contains(placeId))
+          .toList();
+      for (final placeId in staleIds) {
+        final subscription = delegatedSubscriptions.remove(placeId);
+        delegatedSnapshots.remove(placeId);
+        inaccessibleDelegatedIds.remove(placeId);
+        if (subscription != null) unawaited(subscription.cancel());
+      }
+      for (final placeId in delegatedIds) {
+        if (delegatedSubscriptions.containsKey(placeId)) continue;
+        late final StreamSubscription<DocumentSnapshot> subscription;
+        subscription = _places
+            .doc(placeId)
+            .snapshots()
+            .listen(
+              (snapshot) {
+                if (delegatedSubscriptions[placeId] != subscription) return;
+                inaccessibleDelegatedIds.remove(placeId);
+                delegatedSnapshots[placeId] = snapshot;
+                emitIfReady();
+              },
+              onError: (Object error, StackTrace stackTrace) {
+                if (delegatedSubscriptions[placeId] != subscription) return;
+                if (error is FirebaseException &&
+                    error.code == 'permission-denied') {
+                  delegatedSnapshots.remove(placeId);
+                  inaccessibleDelegatedIds.add(placeId);
+                  emitIfReady();
+                  return;
+                }
+                controller.addError(error, stackTrace);
+              },
+            );
+        delegatedSubscriptions[placeId] = subscription;
+      }
+      emitIfReady();
+    }
+
+    controller = StreamController<List<PlaceEntity>>(
+      onListen: () {
+        createdSubscription = _createdPlacesQuery(userId, isArchived: false)
+            .snapshots()
+            .listen((snapshot) {
+              createdSnapshot = snapshot;
+              emitIfReady();
+            }, onError: controller.addError);
+        administratorSubscription = _administratorRecordsQuery(userId)
+            .snapshots()
+            .listen((snapshot) {
+              administratorSnapshot = snapshot;
+              synchronizeDelegatedSubscriptions();
+            }, onError: controller.addError);
+      },
+      onCancel: () async {
+        final delegated = delegatedSubscriptions.values.toList();
+        delegatedSubscriptions.clear();
+        delegatedSnapshots.clear();
+        inaccessibleDelegatedIds.clear();
+        await Future.wait([
+          if (createdSubscription != null) createdSubscription!.cancel(),
+          if (administratorSubscription != null)
+            administratorSubscription!.cancel(),
+          ...delegated.map((subscription) => subscription.cancel()),
+        ]);
+      },
+    );
+    return controller.stream;
   }
 
   @override
   Future<List<PlaceEntity>> getMyPlaces(String userId) async {
-    final snap = await _maintainedPlacesQuery(userId, isArchived: false).get();
-    return _collectMyPlaces(snap);
+    if (userId.isEmpty) return const [];
+    final snapshots = await Future.wait([
+      _createdPlacesQuery(userId, isArchived: false).get(),
+      _administratorRecordsQuery(userId).get(),
+    ]);
+    final delegated = await _delegatedPlaceDocuments(snapshots[1]);
+    return _collectMyPlaces([
+      ..._placeEntities(snapshots[0].docs),
+      ..._placeEntities(delegated),
+    ]);
   }
 
   @override
   Future<int> countArchivedMyPlaces(String userId) async {
-    final snap = await _maintainedPlacesQuery(
+    if (userId.isEmpty) return 0;
+    final createdCount = await _createdPlacesQuery(
       userId,
       isArchived: true,
     ).count().get();
-    return snap.count ?? 0;
+    final administratorRecords = await _administratorRecordsQuery(userId).get();
+    final delegated = await _delegatedPlaceDocuments(administratorRecords);
+    final delegatedIds = _placeEntities(delegated)
+        .where((place) => place.isArchived && place.createdByUserId != userId)
+        .map((place) => place.id)
+        .toSet();
+    return (createdCount.count ?? 0) + delegatedIds.length;
   }
 
   @override
@@ -250,21 +413,67 @@ class PlaceRepositoryImpl implements PlaceRepository {
           sort == NoteListSort.archivedOldest,
     );
 
-    Query query = _maintainedPlacesQuery(userId, isArchived: true)
-        .orderBy('archivedAt', descending: sort == NoteListSort.archivedNewest)
-        .limit(limit + 1);
-    if (cursor != null) {
-      query = query.startAfterDocument(cursor as DocumentSnapshot);
+    if (userId.isEmpty || limit <= 0) {
+      return const ArchivedPlacesPage(
+        places: [],
+        nextCursor: null,
+        hasMore: false,
+      );
+    }
+    final previous = cursor == null
+        ? null
+        : cursor as _ArchivedMaintainedNotesCursor;
+    if (previous != null && previous.sort != sort) {
+      throw ArgumentError('Archive cursor sort does not match the request.');
+    }
+    final buffered = [...?previous?.bufferedPlaces];
+    DocumentSnapshot? lastCreatedDocument = previous?.lastCreatedDocument;
+    var hasMoreCreated = previous?.hasMoreCreated ?? true;
+
+    if (cursor == null) {
+      final administratorRecords = await _administratorRecordsQuery(
+        userId,
+      ).get();
+      final delegated = await _delegatedPlaceDocuments(administratorRecords);
+      buffered.addAll(
+        _placeEntities(
+          delegated,
+        ).where((place) => place.isArchived && place.createdByUserId != userId),
+      );
     }
 
-    final snap = await query.get();
-    final pageDocs = snap.docs.take(limit).toList();
+    if (hasMoreCreated) {
+      final descending = sort == NoteListSort.archivedNewest;
+      Query query = _createdPlacesQuery(userId, isArchived: true)
+          .orderBy('archivedAt', descending: descending)
+          .orderBy(FieldPath.documentId, descending: descending)
+          .limit(limit + 1);
+      if (lastCreatedDocument != null) {
+        query = query.startAfterDocument(lastCreatedDocument);
+      }
+      final created = await query.get();
+      buffered.addAll(_placeEntities(created.docs));
+      if (created.docs.isNotEmpty) {
+        lastCreatedDocument = created.docs.last;
+      }
+      hasMoreCreated = created.docs.length > limit;
+    }
+
+    final sorted = _sortArchivedMaintainedPlaces(buffered, sort);
+    final page = sorted.take(limit).toList();
+    final remaining = sorted.skip(page.length).toList();
+    final hasMore = hasMoreCreated || remaining.isNotEmpty;
     return ArchivedPlacesPage(
-      places: pageDocs
-          .map((doc) => PlaceModel.fromFirestore(doc).toEntity())
-          .toList(),
-      nextCursor: pageDocs.isEmpty ? null : pageDocs.last,
-      hasMore: snap.docs.length > limit,
+      places: page,
+      nextCursor: hasMore
+          ? _ArchivedMaintainedNotesCursor(
+              sort: sort,
+              bufferedPlaces: remaining,
+              lastCreatedDocument: lastCreatedDocument,
+              hasMoreCreated: hasMoreCreated,
+            )
+          : null,
+      hasMore: hasMore,
     );
   }
 
@@ -609,4 +818,34 @@ class PlaceRepositoryImpl implements PlaceRepository {
       'enabled': enabled,
     });
   }
+}
+
+class _ArchivedMaintainedNotesCursor {
+  final NoteListSort sort;
+  final List<PlaceEntity> bufferedPlaces;
+  final DocumentSnapshot? lastCreatedDocument;
+  final bool hasMoreCreated;
+
+  const _ArchivedMaintainedNotesCursor({
+    required this.sort,
+    required this.bufferedPlaces,
+    required this.lastCreatedDocument,
+    required this.hasMoreCreated,
+  });
+}
+
+List<PlaceEntity> _sortArchivedMaintainedPlaces(
+  Iterable<PlaceEntity> places,
+  NoteListSort sort,
+) {
+  final sorted = {for (final place in places) place.id: place}.values.toList();
+  final descending = sort == NoteListSort.archivedNewest;
+  sorted.sort((a, b) {
+    final aTime = a.archivedAt ?? a.createdAt;
+    final bTime = b.archivedAt ?? b.createdAt;
+    final byTime = descending ? bTime.compareTo(aTime) : aTime.compareTo(bTime);
+    if (byTime != 0) return byTime;
+    return descending ? b.id.compareTo(a.id) : a.id.compareTo(b.id);
+  });
+  return sorted;
 }

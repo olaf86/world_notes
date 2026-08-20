@@ -185,15 +185,17 @@ async function cleanOwnedPlace(
     const placeRef = context.firestore.collection("places").doc(placeId);
     const counterRef = placeRef.collection("counters").doc("messageSlots");
     const memberRef = placeRef.collection("members").doc(peerUid);
+    const administratorRef = placeRef.collection("administrators").doc(peerUid);
     const messagesQuery = placeRef
       .collection("messages")
       .where("userId", "==", peerUid)
       .where("isPubliclyVisible", "==", false)
       .where("placeAggregateAppliedAt", "==", null)
       .limit(SCHEDULED_MESSAGE_BATCH_SIZE);
-    const [place, counter, messages] = await Promise.all([
+    const [place, counter, administrator, messages] = await Promise.all([
       transaction.get(placeRef),
       transaction.get(counterRef),
+      transaction.get(administratorRef),
       transaction.get(messagesQuery),
     ]);
     if (!place.exists) return false;
@@ -227,9 +229,20 @@ async function cleanOwnedPlace(
       );
     }
 
-    transaction.update(placeRef, {
+    const placeUpdate: Record<string, unknown> = {
       maintainerIds: FieldValue.arrayRemove(peerUid),
-    });
+    };
+    if (administrator.exists) {
+      const administratorCount = nonNegativeCount(
+        place.get("administratorCount"),
+      );
+      if (administratorCount === 0) {
+        throw new Error("Block cleanup administrator count is invalid.");
+      }
+      placeUpdate.administratorCount = administratorCount - 1;
+      transaction.delete(administratorRef);
+    }
+    transaction.update(placeRef, placeUpdate);
     transaction.delete(memberRef);
     for (const message of messages.docs) transaction.delete(message.ref);
 

@@ -1296,15 +1296,18 @@ deletion. A typed local cleanup job transitions expired pending records and
 releases their pending slot exactly once; Firestore TTL may remove the terminal
 record later but does not own counter correctness.
 
-**Decided for administrator discovery:** the management list queries only the
-currently selected world, for example with
-`places.where(maintainerIds, array-contains: uid)`. It does not federate three
-queries and does not maintain a home-world or all-world managed-note
-projection. To manage a note in another world, the user deliberately switches
-to that world. Cross-world administrator invitations are expected to be rare;
-the home-world notification and signed invitation link provide the initial
-route and identify the target world. This keeps ordinary home-world use local
-and makes administrator discovery consistent with the MMO-style world model.
+**Decided for administrator discovery:** the management list reads only the
+currently selected world. Creator-owned notes use
+`places.where(createdByUserId == uid)`. Delegated notes are discovered through
+the existing collection-group `administrators.where(userId == uid)`
+relationship and their parent place documents are read individually. It does
+not federate three world queries and does not maintain a home-world or
+all-world managed-note projection. To manage a note in another world, the user
+deliberately switches to that world. Cross-world administrator invitations are
+expected to be rare; the home-world notification and signed invitation link
+provide the initial route and identify the target world. This keeps ordinary
+home-world use local and makes administrator discovery consistent with the
+MMO-style world model.
 
 ### 4. Storage placement
 

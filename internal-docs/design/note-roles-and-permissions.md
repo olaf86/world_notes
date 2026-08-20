@@ -36,7 +36,11 @@ inside widgets. Cloud Functions should use named helpers in
 
 Operational notes:
 
-- `maintainerIds` intentionally includes `createdByUserId` so My Notes queries
-  and maintainer notifications can use one array-contains query.
+- `maintainerIds` intentionally includes `createdByUserId` so trusted server
+  authorization checks and maintainer notifications share one compact ACL.
+  My Notes does not query this array: creator-owned notes use a scalar
+  `createdByUserId` query, while delegated notes are discovered through the
+  existing server-written `administrators` relationship and read individually.
+  This avoids a mutable per-user note-summary projection.
 - Invite-link revocation is creator-only because it invalidates an existing
   sharing channel for everyone.

@@ -25,6 +25,28 @@ void main() {
     );
   });
 
+  test('enables delegated administrator collection-group discovery', () {
+    final config = _loadConfig();
+    final overrides = (config['fieldOverrides'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+
+    expect(
+      overrides.any((override) {
+        if (override['collectionGroup'] != 'administrators' ||
+            override['fieldPath'] != 'userId') {
+          return false;
+        }
+        final indexes = (override['indexes'] as List<dynamic>)
+            .cast<Map<String, dynamic>>();
+        return indexes.length == 1 &&
+            indexes.single['order'] == 'ASCENDING' &&
+            indexes.single['queryScope'] == 'COLLECTION_GROUP';
+      }),
+      isTrue,
+      reason: 'My Notes filters the administrators collection group by uid.',
+    );
+  });
+
   test('defines active social-edge relationship and list indexes', () {
     final config = _loadConfig();
 
@@ -441,8 +463,8 @@ bool _isArchivedNotesIndex(Map<String, dynamic> index) {
       .cast<Map<String, dynamic>>();
   return fields.any(
         (field) =>
-            field['fieldPath'] == 'maintainerIds' &&
-            field['arrayConfig'] == 'CONTAINS',
+            field['fieldPath'] == 'createdByUserId' &&
+            field['order'] == 'ASCENDING',
       ) &&
       fields.any(
         (field) =>

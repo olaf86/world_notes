@@ -36,6 +36,8 @@ rules_version = '2';
 //   state (non-negative lastSeenMessageCount and server timestamps).
 // - users/{uid}/notices: server-created inbox; owner may only set readAt.
 // - places/{placeId}: server-created note metadata and aggregates.
+// - places/{placeId}/administrators/{uid}: server-created delegated note
+//   administrator relationship. The bound uid may read its own record.
 // - places/{placeId}/messages: server-created message content.
 // - places/{placeId}/likedMessages/{uid}: owner-readable, server-managed
 //   note-scoped set of message IDs liked by that user.
@@ -210,23 +212,19 @@ service cloud.firestore {
              && place.expiresAt > request.time;
     }
 
-    function canListOwnedPlace(place) {
-      // My Notes list queries are constrained with
-      // `where('maintainerIds', arrayContains: request.auth.uid)`.
-      // Keep the list rule in the same shape so Firestore can prove every
-      // returned document is readable. The creator is also stored in
-      // maintainerIds at write/migration time.
-      return isSignedIn()
-             && canInteractWithPlaceCreator(place)
-             && request.auth.uid in place.maintainerIds;
-    }
-
     // A signed-in visitor must read an active private note's display metadata
     // (title, lock type, and hint) before they can unlock it. Message content
     // remains protected separately by canAccessNote/canReadMessage.
     function canGetPlace(place) {
       return canInteractWithPlaceCreator(place)
              && (isPlaceMaintainer(place) || isPubliclyReadablePlace(place));
+    }
+
+    function canListCreatedPlace(place) {
+      // My Notes creator queries must include
+      // `where('createdByUserId', isEqualTo: request.auth.uid)`.
+      return isSignedIn()
+             && place.createdByUserId == request.auth.uid;
     }
 
     function hasReadableMessageModeration(message) {
@@ -399,7 +397,10 @@ service cloud.firestore {
     // ── places ────────────────────────────────────────────────────────────────
     match /places/{placeId} {
       allow get: if isSignedIn() && canGetPlace(resource.data);
-      allow list: if isSignedIn() && canListOwnedPlace(resource.data);
+      // Creator-owned notes use a scalar equality query that Rules can prove.
+      // Delegated notes are discovered through the caller's server-written
+      // administrators records and then read individually through `get`.
+      allow list: if canListCreatedPlace(resource.data);
 
       // Direct client creation is DENIED. Notes are created exclusively by the
       // `createNote` Cloud Function (Admin SDK, which bypasses these rules),
@@ -447,12 +448,6 @@ service cloud.firestore {
                     && (request.auth.uid == memberUid
                         || isPlaceMaintainer(getPlace(placeId)));
         allow write: if false;
-      }
-
-      // Active delegated note-administrator projections. The callable layer
-      // is the only authority allowed to create or remove these records.
-      match /administrators/{administratorUid} {
-        allow read, write: if false;
       }
 
       // Immutable administrator invitation and membership audit events.
@@ -511,6 +506,17 @@ service cloud.firestore {
         allow list, create, update, delete: if false;
       }
 
+    }
+
+    // Collection-group discovery for active delegated note administrators.
+    // Rules cannot restrict a collection-group query to one parent path, so
+    // this globally unique subcollection name is reserved for note authority.
+    // The query must include `where('userId', isEqualTo: auth.uid)`. Records
+    // are server-written, preventing self-granted authority or identity data.
+    match /{path=**}/administrators/{administratorUid} {
+      allow read: if isSignedIn()
+                  && resource.data.userId == request.auth.uid;
+      allow write: if false;
     }
 
     // Flat administrator review queue for non-allow moderation decisions.

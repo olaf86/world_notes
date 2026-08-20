@@ -35,32 +35,6 @@
       "collectionGroup": "places",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "maintainerIds", "arrayConfig": "CONTAINS" },
-        { "fieldPath": "isArchived", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "places",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "maintainerIds", "arrayConfig": "CONTAINS" },
-        { "fieldPath": "isArchived", "order": "ASCENDING" },
-        { "fieldPath": "archivedAt", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "places",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "maintainerIds", "arrayConfig": "CONTAINS" },
-        { "fieldPath": "isArchived", "order": "ASCENDING" },
-        { "fieldPath": "archivedAt", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "places",
-      "queryScope": "COLLECTION",
-      "fields": [
         { "fieldPath": "isArchived", "order": "ASCENDING" },
         { "fieldPath": "expiresAt", "order": "ASCENDING" }
       ]
@@ -71,6 +45,26 @@
       "fields": [
         { "fieldPath": "createdByUserId", "order": "ASCENDING" },
         { "fieldPath": "isArchived", "order": "ASCENDING" },
+        { "fieldPath": "__name__", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "places",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "createdByUserId", "order": "ASCENDING" },
+        { "fieldPath": "isArchived", "order": "ASCENDING" },
+        { "fieldPath": "archivedAt", "order": "DESCENDING" },
+        { "fieldPath": "__name__", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "places",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "createdByUserId", "order": "ASCENDING" },
+        { "fieldPath": "isArchived", "order": "ASCENDING" },
+        { "fieldPath": "archivedAt", "order": "ASCENDING" },
         { "fieldPath": "__name__", "order": "ASCENDING" }
       ]
     },
@@ -238,6 +232,13 @@
     }
   ],
   "fieldOverrides": [
+    {
+      "collectionGroup": "administrators",
+      "fieldPath": "userId",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }
+      ]
+    },
     {
       "collectionGroup": "blockedUsers",
       "fieldPath": "expireAt",

@@ -674,6 +674,47 @@ describe(
         );
       });
 
+      test("lists only notes created by the authenticated user", async () => {
+        await Promise.all([
+          seedApplicationDocument("places/alice", activePublicPlace()),
+          seedApplicationDocument("places/bob", {
+            ...activePublicPlace(),
+            createdByUserId: "bob",
+            maintainerIds: ["bob"],
+          }),
+        ]);
+        const alice = requireApplicationRules().authenticatedContext("alice");
+        const places = alice.firestore().collection("places");
+
+        await assertSucceeds(
+          places
+            .where("createdByUserId", "==", "alice")
+            .where("isArchived", "==", false)
+            .get(),
+        );
+        await assertFails(places.where("isArchived", "==", false).get());
+        await assertFails(
+          places
+            .where("maintainerIds", "array-contains", "alice")
+            .where("isArchived", "==", false)
+            .get(),
+        );
+        await assertFails(
+          places
+            .where("createdByUserId", "==", "bob")
+            .where("isArchived", "==", false)
+            .get(),
+        );
+
+        const guest = requireApplicationRules().unauthenticatedContext();
+        await assertFails(
+          guest.firestore().collection("places")
+            .where("createdByUserId", "==", "alice")
+            .where("isArchived", "==", false)
+            .get(),
+        );
+      });
+
       test("allows an unrestricted maintainer to close a thread", async () => {
         await Promise.all([
           seedApplicationDocument("userHomes/alice", validUserHome()),
@@ -1055,7 +1096,6 @@ describe(
           const paths = [
             "noteAdministratorInvitations/test-invitation",
             "noteAdministratorInviteNotifications/test-notification",
-            "places/test-place/administrators/bob",
             "places/test-place/administratorAudits/test-audit",
           ];
           await Promise.all(paths.map((path) =>
@@ -1072,6 +1112,52 @@ describe(
             );
             await assertFails(alice.firestore().doc(path).delete());
           }
+        },
+      );
+
+      test(
+        "lists only the caller's delegated administrator records",
+        async () => {
+          await Promise.all([
+            seedApplicationDocument("places/first/administrators/alice", {
+              userId: "alice",
+              invitedByUid: "creator",
+              inviteId: "invite-alice",
+              grantedAt: firebase.firestore.Timestamp.now(),
+            }),
+            seedApplicationDocument("places/second/administrators/bob", {
+              userId: "bob",
+              invitedByUid: "creator",
+              inviteId: "invite-bob",
+              grantedAt: firebase.firestore.Timestamp.now(),
+            }),
+          ]);
+          const alice = requireApplicationRules().authenticatedContext("alice");
+          const administrators = alice.firestore()
+            .collectionGroup("administrators");
+
+          await assertSucceeds(
+            administrators.where("userId", "==", "alice").get(),
+          );
+          await assertFails(
+            administrators.where("userId", "==", "bob").get(),
+          );
+          await assertFails(administrators.get());
+          await assertSucceeds(
+            alice.firestore()
+              .doc("places/first/administrators/alice")
+              .get(),
+          );
+          await assertFails(
+            alice.firestore().doc("places/second/administrators/bob").get(),
+          );
+
+          const guest = requireApplicationRules().unauthenticatedContext();
+          await assertFails(
+            guest.firestore().collectionGroup("administrators")
+              .where("userId", "==", "alice")
+              .get(),
+          );
         },
       );
 

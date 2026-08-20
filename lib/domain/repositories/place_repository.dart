@@ -66,8 +66,9 @@ abstract class PlaceRepository {
 
   // ── Maintainer queries ────────────────────────────────────────────────────
 
-  /// Returns the number of active (non-archived) notes maintained by [userId].
-  /// Used to enforce free / premium creation limits before writing.
+  /// Returns the number of active notes created by [userId]. Used for the
+  /// free / premium creation-limit precheck; delegated notes do not consume
+  /// the caller's creation quota.
   Future<int> countUserActivePlaces(String userId);
 
   /// Active notes maintained by [userId], used by the My Notes view.
