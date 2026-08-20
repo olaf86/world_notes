@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:world_notes/l10n/app_locale.dart';
-import 'package:world_notes/l10n/app_localizations.dart';
+import 'package:world_notes/l10n/l10n.dart';
 import 'package:world_notes/l10n/localized_formatters.dart';
 import 'package:world_notes/l10n/presentation_labels.dart';
 
@@ -34,6 +34,11 @@ void main() {
         expect(
           l10n.reportReasonSpam,
           isNotEmpty,
+          reason: locale.toLanguageTag(),
+        );
+        expect(
+          l10n.proPlanName,
+          '${l10n.appName} PRO',
           reason: locale.toLanguageTag(),
         );
         for (final emptyStateLabel in [
@@ -74,6 +79,23 @@ void main() {
       expect(traditional.commonSave, '儲存');
       expect(simplified.appName, '世界日记');
       expect(traditional.appName, '世界日記');
+      expect(simplified.proPlanName, '世界日记 PRO');
+      expect(traditional.proPlanName, '世界日記 PRO');
+    });
+
+    test('PRO plan name uses each localized app name', () {
+      expect(
+        lookupAppLocalizations(const Locale('en')).proPlanName,
+        'World Notes PRO',
+      );
+      expect(
+        lookupAppLocalizations(const Locale('ja')).proPlanName,
+        'セカイノート PRO',
+      );
+      expect(
+        lookupAppLocalizations(const Locale('ko')).proPlanName,
+        '세계 일기 PRO',
+      );
     });
 
     test('screenshot locale parser accepts script tags', () {

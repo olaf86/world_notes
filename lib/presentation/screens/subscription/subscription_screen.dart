@@ -44,12 +44,12 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
       return Semantics(
         identifier: 'screen-subscription',
         child: Scaffold(
-          appBar: AppBar(title: const Text(AppConfig.proPlanName)),
+          appBar: AppBar(title: Text(l10n.proPlanName)),
           body: Center(
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: Text(
-                l10n.subscriptionUnavailableBuild(AppConfig.proPlanName),
+                l10n.subscriptionUnavailableBuild(l10n.proPlanName),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -63,7 +63,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
           return Scaffold(
-            appBar: AppBar(title: const Text(AppConfig.proPlanName)),
+            appBar: AppBar(title: Text(l10n.proPlanName)),
             body: const _PaywallSkeleton(),
           );
         }
@@ -147,7 +147,7 @@ class _ScreenshotProView extends StatelessWidget {
     return Semantics(
       identifier: 'screen-subscription',
       child: Scaffold(
-        appBar: AppBar(title: const Text(AppConfig.proPlanName)),
+        appBar: AppBar(title: Text(l10n.proPlanName)),
         body: DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -370,9 +370,7 @@ class _RevenueCatPaywall extends StatelessWidget {
         body: PaywallView(
           offering: offering,
           customVariables: {
-            'plan_name': const CustomVariableValue.string(
-              AppConfig.proPlanName,
-            ),
+            'plan_name': CustomVariableValue.string(context.l10n.proPlanName),
             'monthly_price': CustomVariableValue.string(
               AppConfig.proMonthlyPriceLabel,
             ),
@@ -425,7 +423,7 @@ class _SubscriptionSetupErrorView extends StatelessWidget {
     return Semantics(
       identifier: 'screen-subscription',
       child: Scaffold(
-        appBar: AppBar(title: const Text(AppConfig.proPlanName)),
+        appBar: AppBar(title: Text(l10n.proPlanName)),
         body: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
@@ -442,9 +440,7 @@ class _SubscriptionSetupErrorView extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    l10n.subscriptionTemporarilyUnavailable(
-                      AppConfig.proPlanName,
-                    ),
+                    l10n.subscriptionTemporarilyUnavailable(l10n.proPlanName),
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),

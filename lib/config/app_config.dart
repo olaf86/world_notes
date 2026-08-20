@@ -132,7 +132,6 @@ class AppConfig {
     defaultValue: '',
   );
 
-  static const String proPlanName = 'World Notes PRO';
   static const String proEntitlementId = 'pro';
   static const String proMonthlyProductId = 'world_notes_pro_monthly';
   static const String proYearlyProductId = 'world_notes_pro_yearly';

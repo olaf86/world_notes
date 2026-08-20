@@ -16,3 +16,11 @@ extension AppLocalizationsBuildContext on BuildContext {
 
   String get localeTag => Localizations.localeOf(this).toLanguageTag();
 }
+
+/// Localized display name for the PRO plan.
+///
+/// RevenueCat product identifiers stay language-independent, while every
+/// user-facing plan label follows the localized app name.
+extension AppLocalizationsProPlanName on AppLocalizations {
+  String get proPlanName => '$appName PRO';
+}
