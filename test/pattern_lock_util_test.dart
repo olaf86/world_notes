@@ -10,8 +10,8 @@ void main() {
 
     test('rejects non-neighbor jumps', () {
       expect(
-        PatternLockUtil.validate([0, 2]),
-        'Pattern can only connect neighboring dots.',
+        PatternLockUtil.validationError([0, 2]),
+        PatternLockValidationError.nonAdjacent,
       );
     });
 
@@ -19,8 +19,8 @@ void main() {
       final path = List<int>.filled(PatternLockUtil.maxLength + 1, 4);
 
       expect(
-        PatternLockUtil.validate(path),
-        'Pattern is too long. Use 30 nodes or fewer.',
+        PatternLockUtil.validationError(path),
+        PatternLockValidationError.tooLong,
       );
     });
   });

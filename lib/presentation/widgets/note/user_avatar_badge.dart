@@ -1,9 +1,9 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
-class UserAvatarBadge extends StatelessWidget {
-  static const defaultName = 'Creator';
+import '../../../l10n/l10n.dart';
 
+class UserAvatarBadge extends StatelessWidget {
   final String? name;
   final String? photoUrl;
   final int? photoVersion;
@@ -18,7 +18,7 @@ class UserAvatarBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final effectiveName = name ?? defaultName;
+    final effectiveName = name ?? context.l10n.noteCreatorLabel;
     final url = photoUrl?.trim();
     final cacheKey = url == null || url.isEmpty || photoVersion == null
         ? null

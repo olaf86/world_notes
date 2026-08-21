@@ -516,7 +516,7 @@ class _MapNotesLoadErrorView extends StatelessWidget {
           Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
           const SizedBox(height: 12),
           Text(
-            mapNotesLoadErrorMessage,
+            context.l10n.mapNotesLoadFailed,
             textAlign: TextAlign.center,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,

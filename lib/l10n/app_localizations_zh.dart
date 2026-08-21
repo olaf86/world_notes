@@ -560,6 +560,82 @@ class AppLocalizationsZh extends AppLocalizations {
   String get removeLock => '移除锁';
 
   @override
+  String get useLock => '使用锁定';
+
+  @override
+  String get updateAction => '更新';
+
+  @override
+  String get confirmPasswordLabel => '确认密码';
+
+  @override
+  String get patternSetupInstruction => '请连接相邻的点来绘制图案。';
+
+  @override
+  String get lockHintOptional => '提示（可选）';
+
+  @override
+  String get clearAction => '清除';
+
+  @override
+  String get passwordRequired => '请输入密码。';
+
+  @override
+  String passwordMaxLength(int maxLength) {
+    return '密码不得超过$maxLength个字符。';
+  }
+
+  @override
+  String get passwordConfirmationRequired => '请再次输入密码。';
+
+  @override
+  String get passwordsDoNotMatch => '两次输入的密码不一致。';
+
+  @override
+  String get patternRequired => '请绘制用于锁定此笔记的图案。';
+
+  @override
+  String patternTooLong(int maxLength) {
+    return '图案过长。请使用不超过$maxLength个点。';
+  }
+
+  @override
+  String get patternInvalidNode => '图案中包含无效的点。';
+
+  @override
+  String get patternNeighboringOnly => '图案只能连接相邻的点。';
+
+  @override
+  String get lockSavedPrivate => '锁定已保存。此笔记为私密笔记。';
+
+  @override
+  String get lockSaveFailed => '无法保存锁定。';
+
+  @override
+  String get appVerificationFailed => '无法验证此应用。请重试。';
+
+  @override
+  String get authenticationExpired => '身份验证失败。请重新登录。';
+
+  @override
+  String get lockCreatorOnly => '只有笔记创建者可以更改此锁定。';
+
+  @override
+  String get noteNotFound => '找不到笔记。';
+
+  @override
+  String get incorrectPattern => '图案不正确。';
+
+  @override
+  String get incorrectPassword => '密码不正确。';
+
+  @override
+  String get tooManyAttempts => '尝试次数过多。请稍后重试。';
+
+  @override
+  String get noteUnlockFailed => '无法解锁此笔记。';
+
+  @override
   String get noteThemeStandard => '标准';
 
   @override
@@ -1263,6 +1339,432 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get revokeInvitation => '撤销邀请';
+
+  @override
+  String get authEmailAlreadyRegistered => '此电子邮箱已注册。';
+
+  @override
+  String get invalidEmail => '请输入有效的电子邮箱地址。';
+
+  @override
+  String get authInvalidCredentials => '电子邮箱或密码不正确。';
+
+  @override
+  String get authOperationNotAllowed => '当前无法使用电子邮箱和密码登录。';
+
+  @override
+  String get authWeakPassword => '请选择更安全的密码。';
+
+  @override
+  String get authFailed => '身份验证失败。请重试。';
+
+  @override
+  String get authTagline => '用一则笔记，分享你的世界';
+
+  @override
+  String get emailLabel => '电子邮箱';
+
+  @override
+  String get requiredField => '必填';
+
+  @override
+  String minimumPasswordLength(int count) {
+    return '请至少输入$count个字符。';
+  }
+
+  @override
+  String get createAccount => '创建账户';
+
+  @override
+  String get alreadyHaveAccountSignIn => '已有账户？登录';
+
+  @override
+  String get newHereCreateAccount => '初次使用？创建账户';
+
+  @override
+  String get orDivider => '或';
+
+  @override
+  String get continueWithGoogle => '使用 Google 继续';
+
+  @override
+  String get webpUnsupported => '此设备不支持图片编码。';
+
+  @override
+  String messageImageUploadFailed(Object error) {
+    return '无法上传图片：$error';
+  }
+
+  @override
+  String messageSendFailed(Object error) {
+    return '无法发送消息：$error';
+  }
+
+  @override
+  String get messageContentHint => '这个地方发生了什么？';
+
+  @override
+  String get newMessageTitle => '新消息';
+
+  @override
+  String get sendAction => '发送';
+
+  @override
+  String get chooseFromLibrary => '从图库中选择';
+
+  @override
+  String get takePhoto => '拍照';
+
+  @override
+  String get postTime => '发布时间';
+
+  @override
+  String get thumbnailRenderFailed => '无法生成缩略图预览。';
+
+  @override
+  String get mapPinImageTitle => '地图图钉图片';
+
+  @override
+  String get mapPinCropInstruction => '拖动或双指缩放，选择图钉中显示的部分。';
+
+  @override
+  String get zoomOut => '缩小';
+
+  @override
+  String get zoomIn => '放大';
+
+  @override
+  String get resetAction => '重置';
+
+  @override
+  String get useImageAction => '使用图片';
+
+  @override
+  String pinImagePreparationFailed(Object error) {
+    return '无法准备图钉图片：$error';
+  }
+
+  @override
+  String get closeAction => '关闭';
+
+  @override
+  String notificationsLoadFailed(Object error) {
+    return '无法加载通知：$error';
+  }
+
+  @override
+  String get adPrivacyTitle => '广告隐私';
+
+  @override
+  String get managePrivacyChoices => '管理隐私选项';
+
+  @override
+  String get managePrivacyChoicesDescription => '查看或更改你的信息用于广告的方式。';
+
+  @override
+  String privacyChoicesOpenFailed(Object error) {
+    return '无法打开隐私选项：$error';
+  }
+
+  @override
+  String get followUpdateFailed => '无法更新关注设置。';
+
+  @override
+  String profileLoadFailed(Object error) {
+    return '无法加载个人资料：$error';
+  }
+
+  @override
+  String get profileNotFound => '找不到个人资料。';
+
+  @override
+  String followUnavailable(Object error) {
+    return '无法关注：$error';
+  }
+
+  @override
+  String get followAction => '关注';
+
+  @override
+  String get unfollowAction => '取消关注';
+
+  @override
+  String followListLoadFailed(Object error) {
+    return '无法加载列表：$error';
+  }
+
+  @override
+  String followerCountLabel(int count) {
+    return '$count位关注者';
+  }
+
+  @override
+  String get footprintsUpdateFailed => '无法更新足迹设置。';
+
+  @override
+  String get footprintsTitle => '足迹';
+
+  @override
+  String get sortLatest => '最新';
+
+  @override
+  String get visitsLabel => '访问次数';
+
+  @override
+  String footprintsLoadFailed(Object error) {
+    return '无法加载足迹：$error';
+  }
+
+  @override
+  String get newVisitsNotRecorded => '不会记录新的访问';
+
+  @override
+  String visitCountLabel(int count) {
+    return '访问$count次';
+  }
+
+  @override
+  String get cannotWriteHere => '你无法在这里发布内容。';
+
+  @override
+  String get cancelScheduledMessageTitle => '取消定时消息';
+
+  @override
+  String get deleteMessageTitle => '删除消息';
+
+  @override
+  String get cancelScheduledMessageConfirmation => '要取消这条定时消息吗？预留的名额将被释放。';
+
+  @override
+  String get deleteMessageConfirmation => '确定要删除这条消息吗？所有用户都会看到它已被删除。';
+
+  @override
+  String get cancelMessageAction => '取消消息';
+
+  @override
+  String get deleteAction => '删除';
+
+  @override
+  String messageDeleteFailed(Object error) {
+    return '无法删除消息：$error';
+  }
+
+  @override
+  String get threadCloseTitle => '关闭此讨论？';
+
+  @override
+  String get threadCloseConfirmation => '关闭后将无法发布新消息。现有消息仍可阅读，之后也可以重新打开。';
+
+  @override
+  String threadCloseFailed(Object error) {
+    return '无法关闭讨论：$error';
+  }
+
+  @override
+  String threadReopenFailed(Object error) {
+    return '无法重新打开讨论：$error';
+  }
+
+  @override
+  String get themeChangeFailed => '无法更改主题。';
+
+  @override
+  String viewUserProfile(String name) {
+    return '查看$name的个人资料';
+  }
+
+  @override
+  String get showFewerColors => '收起颜色';
+
+  @override
+  String get showMoreColors => '显示更多颜色';
+
+  @override
+  String get colorGreen => '绿色';
+
+  @override
+  String get colorBlue => '蓝色';
+
+  @override
+  String get colorRed => '红色';
+
+  @override
+  String get colorOrange => '橙色';
+
+  @override
+  String get colorPurple => '紫色';
+
+  @override
+  String get colorTeal => '青绿色';
+
+  @override
+  String get colorPink => '粉色';
+
+  @override
+  String get colorBrown => '棕色';
+
+  @override
+  String get colorIndigo => '靛蓝色';
+
+  @override
+  String get colorCyan => '青色';
+
+  @override
+  String get colorLime => '青柠色';
+
+  @override
+  String get colorAmber => '琥珀色';
+
+  @override
+  String get colorDeepOrange => '深橙色';
+
+  @override
+  String get colorBlueGrey => '蓝灰色';
+
+  @override
+  String get messageRemovedByAdministrator => '此消息已被管理员删除。';
+
+  @override
+  String get messageDeleted => '此消息已被删除。';
+
+  @override
+  String get sensitiveContent => '敏感内容';
+
+  @override
+  String get sensitiveMessageWarning => '此消息可能包含敏感内容。';
+
+  @override
+  String get showAnywayAction => '仍然显示';
+
+  @override
+  String get scheduledMessage => '定时消息';
+
+  @override
+  String get scheduledLabel => '已定时';
+
+  @override
+  String get likeMessage => '赞此消息';
+
+  @override
+  String get unlikeMessage => '取消赞此消息';
+
+  @override
+  String get showFewerIcons => '收起图标';
+
+  @override
+  String get showMoreIcons => '显示更多图标';
+
+  @override
+  String get pinIconPlace => '地点';
+
+  @override
+  String get pinIconRestaurant => '餐厅';
+
+  @override
+  String get pinIconPark => '公园';
+
+  @override
+  String get pinIconHome => '家';
+
+  @override
+  String get pinIconStar => '星标';
+
+  @override
+  String get pinIconPhoto => '照片';
+
+  @override
+  String get pinIconMusic => '音乐';
+
+  @override
+  String get pinIconCoffee => '咖啡';
+
+  @override
+  String get pinIconShopping => '购物';
+
+  @override
+  String get pinIconHotel => '酒店';
+
+  @override
+  String get pinIconDirections => '汽车';
+
+  @override
+  String get pinIconHiking => '徒步';
+
+  @override
+  String get pinIconPets => '宠物';
+
+  @override
+  String get pinIconWork => '工作';
+
+  @override
+  String get pinIconFavorite => '收藏';
+
+  @override
+  String get mapNotesLoadFailed => '无法加载附近的笔记。请重试。';
+
+  @override
+  String get mapNotesRefreshFailed => '无法刷新附近的笔记。请重试。';
+
+  @override
+  String get mapNoteOpenFailedNearby => '无法打开此笔记。请靠近后重试。';
+
+  @override
+  String get commonRefresh => '刷新';
+
+  @override
+  String get adminAccessRequired => '需要管理员权限。';
+
+  @override
+  String get moderationOpen => '待处理';
+
+  @override
+  String get moderationResolved => '已处理';
+
+  @override
+  String moderationMarkedAs(String action) {
+    return '已标记为$action。';
+  }
+
+  @override
+  String get reasonLabel => '原因';
+
+  @override
+  String get applyAction => '应用';
+
+  @override
+  String get emptyContent => '（无内容）';
+
+  @override
+  String reportCount(int count) {
+    return '$count次举报';
+  }
+
+  @override
+  String get moderationAllowAction => '允许';
+
+  @override
+  String get moderationSensitiveAction => '敏感';
+
+  @override
+  String get moderationHideAction => '隐藏';
+
+  @override
+  String get moderationAllowedStatus => '允许';
+
+  @override
+  String get moderationSensitiveStatus => '敏感';
+
+  @override
+  String get moderationHiddenStatus => '隐藏';
+
+  @override
+  String get moderationAllowTitle => '允许消息';
+
+  @override
+  String get moderationSensitiveTitle => '标记为敏感';
+
+  @override
+  String get moderationHideTitle => '隐藏消息';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -1821,6 +2323,82 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get removeLock => '移除锁';
 
   @override
+  String get useLock => '使用锁定';
+
+  @override
+  String get updateAction => '更新';
+
+  @override
+  String get confirmPasswordLabel => '确认密码';
+
+  @override
+  String get patternSetupInstruction => '请连接相邻的点来绘制图案。';
+
+  @override
+  String get lockHintOptional => '提示（可选）';
+
+  @override
+  String get clearAction => '清除';
+
+  @override
+  String get passwordRequired => '请输入密码。';
+
+  @override
+  String passwordMaxLength(int maxLength) {
+    return '密码不得超过$maxLength个字符。';
+  }
+
+  @override
+  String get passwordConfirmationRequired => '请再次输入密码。';
+
+  @override
+  String get passwordsDoNotMatch => '两次输入的密码不一致。';
+
+  @override
+  String get patternRequired => '请绘制用于锁定此笔记的图案。';
+
+  @override
+  String patternTooLong(int maxLength) {
+    return '图案过长。请使用不超过$maxLength个点。';
+  }
+
+  @override
+  String get patternInvalidNode => '图案中包含无效的点。';
+
+  @override
+  String get patternNeighboringOnly => '图案只能连接相邻的点。';
+
+  @override
+  String get lockSavedPrivate => '锁定已保存。此笔记为私密笔记。';
+
+  @override
+  String get lockSaveFailed => '无法保存锁定。';
+
+  @override
+  String get appVerificationFailed => '无法验证此应用。请重试。';
+
+  @override
+  String get authenticationExpired => '身份验证失败。请重新登录。';
+
+  @override
+  String get lockCreatorOnly => '只有笔记创建者可以更改此锁定。';
+
+  @override
+  String get noteNotFound => '找不到笔记。';
+
+  @override
+  String get incorrectPattern => '图案不正确。';
+
+  @override
+  String get incorrectPassword => '密码不正确。';
+
+  @override
+  String get tooManyAttempts => '尝试次数过多。请稍后重试。';
+
+  @override
+  String get noteUnlockFailed => '无法解锁此笔记。';
+
+  @override
   String get noteThemeStandard => '标准';
 
   @override
@@ -2524,6 +3102,432 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get revokeInvitation => '撤销邀请';
+
+  @override
+  String get authEmailAlreadyRegistered => '此电子邮箱已注册。';
+
+  @override
+  String get invalidEmail => '请输入有效的电子邮箱地址。';
+
+  @override
+  String get authInvalidCredentials => '电子邮箱或密码不正确。';
+
+  @override
+  String get authOperationNotAllowed => '当前无法使用电子邮箱和密码登录。';
+
+  @override
+  String get authWeakPassword => '请选择更安全的密码。';
+
+  @override
+  String get authFailed => '身份验证失败。请重试。';
+
+  @override
+  String get authTagline => '用一则笔记，分享你的世界';
+
+  @override
+  String get emailLabel => '电子邮箱';
+
+  @override
+  String get requiredField => '必填';
+
+  @override
+  String minimumPasswordLength(int count) {
+    return '请至少输入$count个字符。';
+  }
+
+  @override
+  String get createAccount => '创建账户';
+
+  @override
+  String get alreadyHaveAccountSignIn => '已有账户？登录';
+
+  @override
+  String get newHereCreateAccount => '初次使用？创建账户';
+
+  @override
+  String get orDivider => '或';
+
+  @override
+  String get continueWithGoogle => '使用 Google 继续';
+
+  @override
+  String get webpUnsupported => '此设备不支持图片编码。';
+
+  @override
+  String messageImageUploadFailed(Object error) {
+    return '无法上传图片：$error';
+  }
+
+  @override
+  String messageSendFailed(Object error) {
+    return '无法发送消息：$error';
+  }
+
+  @override
+  String get messageContentHint => '这个地方发生了什么？';
+
+  @override
+  String get newMessageTitle => '新消息';
+
+  @override
+  String get sendAction => '发送';
+
+  @override
+  String get chooseFromLibrary => '从图库中选择';
+
+  @override
+  String get takePhoto => '拍照';
+
+  @override
+  String get postTime => '发布时间';
+
+  @override
+  String get thumbnailRenderFailed => '无法生成缩略图预览。';
+
+  @override
+  String get mapPinImageTitle => '地图图钉图片';
+
+  @override
+  String get mapPinCropInstruction => '拖动或双指缩放，选择图钉中显示的部分。';
+
+  @override
+  String get zoomOut => '缩小';
+
+  @override
+  String get zoomIn => '放大';
+
+  @override
+  String get resetAction => '重置';
+
+  @override
+  String get useImageAction => '使用图片';
+
+  @override
+  String pinImagePreparationFailed(Object error) {
+    return '无法准备图钉图片：$error';
+  }
+
+  @override
+  String get closeAction => '关闭';
+
+  @override
+  String notificationsLoadFailed(Object error) {
+    return '无法加载通知：$error';
+  }
+
+  @override
+  String get adPrivacyTitle => '广告隐私';
+
+  @override
+  String get managePrivacyChoices => '管理隐私选项';
+
+  @override
+  String get managePrivacyChoicesDescription => '查看或更改你的信息用于广告的方式。';
+
+  @override
+  String privacyChoicesOpenFailed(Object error) {
+    return '无法打开隐私选项：$error';
+  }
+
+  @override
+  String get followUpdateFailed => '无法更新关注设置。';
+
+  @override
+  String profileLoadFailed(Object error) {
+    return '无法加载个人资料：$error';
+  }
+
+  @override
+  String get profileNotFound => '找不到个人资料。';
+
+  @override
+  String followUnavailable(Object error) {
+    return '无法关注：$error';
+  }
+
+  @override
+  String get followAction => '关注';
+
+  @override
+  String get unfollowAction => '取消关注';
+
+  @override
+  String followListLoadFailed(Object error) {
+    return '无法加载列表：$error';
+  }
+
+  @override
+  String followerCountLabel(int count) {
+    return '$count位关注者';
+  }
+
+  @override
+  String get footprintsUpdateFailed => '无法更新足迹设置。';
+
+  @override
+  String get footprintsTitle => '足迹';
+
+  @override
+  String get sortLatest => '最新';
+
+  @override
+  String get visitsLabel => '访问次数';
+
+  @override
+  String footprintsLoadFailed(Object error) {
+    return '无法加载足迹：$error';
+  }
+
+  @override
+  String get newVisitsNotRecorded => '不会记录新的访问';
+
+  @override
+  String visitCountLabel(int count) {
+    return '访问$count次';
+  }
+
+  @override
+  String get cannotWriteHere => '你无法在这里发布内容。';
+
+  @override
+  String get cancelScheduledMessageTitle => '取消定时消息';
+
+  @override
+  String get deleteMessageTitle => '删除消息';
+
+  @override
+  String get cancelScheduledMessageConfirmation => '要取消这条定时消息吗？预留的名额将被释放。';
+
+  @override
+  String get deleteMessageConfirmation => '确定要删除这条消息吗？所有用户都会看到它已被删除。';
+
+  @override
+  String get cancelMessageAction => '取消消息';
+
+  @override
+  String get deleteAction => '删除';
+
+  @override
+  String messageDeleteFailed(Object error) {
+    return '无法删除消息：$error';
+  }
+
+  @override
+  String get threadCloseTitle => '关闭此讨论？';
+
+  @override
+  String get threadCloseConfirmation => '关闭后将无法发布新消息。现有消息仍可阅读，之后也可以重新打开。';
+
+  @override
+  String threadCloseFailed(Object error) {
+    return '无法关闭讨论：$error';
+  }
+
+  @override
+  String threadReopenFailed(Object error) {
+    return '无法重新打开讨论：$error';
+  }
+
+  @override
+  String get themeChangeFailed => '无法更改主题。';
+
+  @override
+  String viewUserProfile(String name) {
+    return '查看$name的个人资料';
+  }
+
+  @override
+  String get showFewerColors => '收起颜色';
+
+  @override
+  String get showMoreColors => '显示更多颜色';
+
+  @override
+  String get colorGreen => '绿色';
+
+  @override
+  String get colorBlue => '蓝色';
+
+  @override
+  String get colorRed => '红色';
+
+  @override
+  String get colorOrange => '橙色';
+
+  @override
+  String get colorPurple => '紫色';
+
+  @override
+  String get colorTeal => '青绿色';
+
+  @override
+  String get colorPink => '粉色';
+
+  @override
+  String get colorBrown => '棕色';
+
+  @override
+  String get colorIndigo => '靛蓝色';
+
+  @override
+  String get colorCyan => '青色';
+
+  @override
+  String get colorLime => '青柠色';
+
+  @override
+  String get colorAmber => '琥珀色';
+
+  @override
+  String get colorDeepOrange => '深橙色';
+
+  @override
+  String get colorBlueGrey => '蓝灰色';
+
+  @override
+  String get messageRemovedByAdministrator => '此消息已被管理员删除。';
+
+  @override
+  String get messageDeleted => '此消息已被删除。';
+
+  @override
+  String get sensitiveContent => '敏感内容';
+
+  @override
+  String get sensitiveMessageWarning => '此消息可能包含敏感内容。';
+
+  @override
+  String get showAnywayAction => '仍然显示';
+
+  @override
+  String get scheduledMessage => '定时消息';
+
+  @override
+  String get scheduledLabel => '已定时';
+
+  @override
+  String get likeMessage => '赞此消息';
+
+  @override
+  String get unlikeMessage => '取消赞此消息';
+
+  @override
+  String get showFewerIcons => '收起图标';
+
+  @override
+  String get showMoreIcons => '显示更多图标';
+
+  @override
+  String get pinIconPlace => '地点';
+
+  @override
+  String get pinIconRestaurant => '餐厅';
+
+  @override
+  String get pinIconPark => '公园';
+
+  @override
+  String get pinIconHome => '家';
+
+  @override
+  String get pinIconStar => '星标';
+
+  @override
+  String get pinIconPhoto => '照片';
+
+  @override
+  String get pinIconMusic => '音乐';
+
+  @override
+  String get pinIconCoffee => '咖啡';
+
+  @override
+  String get pinIconShopping => '购物';
+
+  @override
+  String get pinIconHotel => '酒店';
+
+  @override
+  String get pinIconDirections => '汽车';
+
+  @override
+  String get pinIconHiking => '徒步';
+
+  @override
+  String get pinIconPets => '宠物';
+
+  @override
+  String get pinIconWork => '工作';
+
+  @override
+  String get pinIconFavorite => '收藏';
+
+  @override
+  String get mapNotesLoadFailed => '无法加载附近的笔记。请重试。';
+
+  @override
+  String get mapNotesRefreshFailed => '无法刷新附近的笔记。请重试。';
+
+  @override
+  String get mapNoteOpenFailedNearby => '无法打开此笔记。请靠近后重试。';
+
+  @override
+  String get commonRefresh => '刷新';
+
+  @override
+  String get adminAccessRequired => '需要管理员权限。';
+
+  @override
+  String get moderationOpen => '待处理';
+
+  @override
+  String get moderationResolved => '已处理';
+
+  @override
+  String moderationMarkedAs(String action) {
+    return '已标记为$action。';
+  }
+
+  @override
+  String get reasonLabel => '原因';
+
+  @override
+  String get applyAction => '应用';
+
+  @override
+  String get emptyContent => '（无内容）';
+
+  @override
+  String reportCount(int count) {
+    return '$count次举报';
+  }
+
+  @override
+  String get moderationAllowAction => '允许';
+
+  @override
+  String get moderationSensitiveAction => '敏感';
+
+  @override
+  String get moderationHideAction => '隐藏';
+
+  @override
+  String get moderationAllowedStatus => '允许';
+
+  @override
+  String get moderationSensitiveStatus => '敏感';
+
+  @override
+  String get moderationHiddenStatus => '隐藏';
+
+  @override
+  String get moderationAllowTitle => '允许消息';
+
+  @override
+  String get moderationSensitiveTitle => '标记为敏感';
+
+  @override
+  String get moderationHideTitle => '隐藏消息';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -3080,6 +4084,82 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get removeLock => '移除鎖';
+
+  @override
+  String get useLock => '使用鎖定';
+
+  @override
+  String get updateAction => '更新';
+
+  @override
+  String get confirmPasswordLabel => '確認密碼';
+
+  @override
+  String get patternSetupInstruction => '請連接相鄰的點來繪製圖形。';
+
+  @override
+  String get lockHintOptional => '提示（選填）';
+
+  @override
+  String get clearAction => '清除';
+
+  @override
+  String get passwordRequired => '請輸入密碼。';
+
+  @override
+  String passwordMaxLength(int maxLength) {
+    return '密碼不得超過$maxLength個字元。';
+  }
+
+  @override
+  String get passwordConfirmationRequired => '請再次輸入密碼。';
+
+  @override
+  String get passwordsDoNotMatch => '兩次輸入的密碼不一致。';
+
+  @override
+  String get patternRequired => '請繪製用於鎖定此筆記的圖形。';
+
+  @override
+  String patternTooLong(int maxLength) {
+    return '圖形過長。請使用不超過$maxLength個點。';
+  }
+
+  @override
+  String get patternInvalidNode => '圖形中包含無效的點。';
+
+  @override
+  String get patternNeighboringOnly => '圖形只能連接相鄰的點。';
+
+  @override
+  String get lockSavedPrivate => '鎖定已儲存。此筆記為私人筆記。';
+
+  @override
+  String get lockSaveFailed => '無法儲存鎖定。';
+
+  @override
+  String get appVerificationFailed => '無法驗證此應用程式。請再試一次。';
+
+  @override
+  String get authenticationExpired => '驗證失敗。請重新登入。';
+
+  @override
+  String get lockCreatorOnly => '只有筆記建立者可以變更此鎖定。';
+
+  @override
+  String get noteNotFound => '找不到筆記。';
+
+  @override
+  String get incorrectPattern => '圖形不正確。';
+
+  @override
+  String get incorrectPassword => '密碼不正確。';
+
+  @override
+  String get tooManyAttempts => '嘗試次數過多。請稍後再試。';
+
+  @override
+  String get noteUnlockFailed => '無法解鎖此筆記。';
 
   @override
   String get noteThemeStandard => '標準';
@@ -3786,4 +4866,430 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get revokeInvitation => '撤銷邀請';
+
+  @override
+  String get authEmailAlreadyRegistered => '此電子郵件已註冊。';
+
+  @override
+  String get invalidEmail => '請輸入有效的電子郵件地址。';
+
+  @override
+  String get authInvalidCredentials => '電子郵件或密碼不正確。';
+
+  @override
+  String get authOperationNotAllowed => '目前無法使用電子郵件和密碼登入。';
+
+  @override
+  String get authWeakPassword => '請選擇更安全的密碼。';
+
+  @override
+  String get authFailed => '驗證失敗。請再試一次。';
+
+  @override
+  String get authTagline => '用一則筆記，分享你的世界';
+
+  @override
+  String get emailLabel => '電子郵件';
+
+  @override
+  String get requiredField => '必填';
+
+  @override
+  String minimumPasswordLength(int count) {
+    return '請至少輸入$count個字元。';
+  }
+
+  @override
+  String get createAccount => '建立帳號';
+
+  @override
+  String get alreadyHaveAccountSignIn => '已有帳號？登入';
+
+  @override
+  String get newHereCreateAccount => '初次使用？建立帳號';
+
+  @override
+  String get orDivider => '或';
+
+  @override
+  String get continueWithGoogle => '使用 Google 繼續';
+
+  @override
+  String get webpUnsupported => '此裝置不支援圖片編碼。';
+
+  @override
+  String messageImageUploadFailed(Object error) {
+    return '無法上傳圖片：$error';
+  }
+
+  @override
+  String messageSendFailed(Object error) {
+    return '無法傳送訊息：$error';
+  }
+
+  @override
+  String get messageContentHint => '這個地方發生了什麼？';
+
+  @override
+  String get newMessageTitle => '新訊息';
+
+  @override
+  String get sendAction => '傳送';
+
+  @override
+  String get chooseFromLibrary => '從圖庫中選擇';
+
+  @override
+  String get takePhoto => '拍照';
+
+  @override
+  String get postTime => '發布時間';
+
+  @override
+  String get thumbnailRenderFailed => '無法產生縮圖預覽。';
+
+  @override
+  String get mapPinImageTitle => '地圖圖釘圖片';
+
+  @override
+  String get mapPinCropInstruction => '拖曳或雙指縮放，選擇圖釘中顯示的部分。';
+
+  @override
+  String get zoomOut => '縮小';
+
+  @override
+  String get zoomIn => '放大';
+
+  @override
+  String get resetAction => '重設';
+
+  @override
+  String get useImageAction => '使用圖片';
+
+  @override
+  String pinImagePreparationFailed(Object error) {
+    return '無法準備圖釘圖片：$error';
+  }
+
+  @override
+  String get closeAction => '關閉';
+
+  @override
+  String notificationsLoadFailed(Object error) {
+    return '無法載入通知：$error';
+  }
+
+  @override
+  String get adPrivacyTitle => '廣告隱私權';
+
+  @override
+  String get managePrivacyChoices => '管理隱私權選項';
+
+  @override
+  String get managePrivacyChoicesDescription => '查看或變更你的資訊用於廣告的方式。';
+
+  @override
+  String privacyChoicesOpenFailed(Object error) {
+    return '無法開啟隱私權選項：$error';
+  }
+
+  @override
+  String get followUpdateFailed => '無法更新追蹤設定。';
+
+  @override
+  String profileLoadFailed(Object error) {
+    return '無法載入個人檔案：$error';
+  }
+
+  @override
+  String get profileNotFound => '找不到個人檔案。';
+
+  @override
+  String followUnavailable(Object error) {
+    return '無法追蹤：$error';
+  }
+
+  @override
+  String get followAction => '追蹤';
+
+  @override
+  String get unfollowAction => '取消追蹤';
+
+  @override
+  String followListLoadFailed(Object error) {
+    return '無法載入清單：$error';
+  }
+
+  @override
+  String followerCountLabel(int count) {
+    return '$count位追蹤者';
+  }
+
+  @override
+  String get footprintsUpdateFailed => '無法更新足跡設定。';
+
+  @override
+  String get footprintsTitle => '足跡';
+
+  @override
+  String get sortLatest => '最新';
+
+  @override
+  String get visitsLabel => '造訪次數';
+
+  @override
+  String footprintsLoadFailed(Object error) {
+    return '無法載入足跡：$error';
+  }
+
+  @override
+  String get newVisitsNotRecorded => '不會記錄新的造訪';
+
+  @override
+  String visitCountLabel(int count) {
+    return '造訪$count次';
+  }
+
+  @override
+  String get cannotWriteHere => '你無法在這裡發布內容。';
+
+  @override
+  String get cancelScheduledMessageTitle => '取消排程訊息';
+
+  @override
+  String get deleteMessageTitle => '刪除訊息';
+
+  @override
+  String get cancelScheduledMessageConfirmation => '要取消這則排程訊息嗎？預留的名額將會釋出。';
+
+  @override
+  String get deleteMessageConfirmation => '確定要刪除這則訊息嗎？所有使用者都會看到它已被刪除。';
+
+  @override
+  String get cancelMessageAction => '取消訊息';
+
+  @override
+  String get deleteAction => '刪除';
+
+  @override
+  String messageDeleteFailed(Object error) {
+    return '無法刪除訊息：$error';
+  }
+
+  @override
+  String get threadCloseTitle => '關閉此討論？';
+
+  @override
+  String get threadCloseConfirmation => '關閉後將無法發布新訊息。現有訊息仍可閱讀，之後也可以重新開啟。';
+
+  @override
+  String threadCloseFailed(Object error) {
+    return '無法關閉討論：$error';
+  }
+
+  @override
+  String threadReopenFailed(Object error) {
+    return '無法重新開啟討論：$error';
+  }
+
+  @override
+  String get themeChangeFailed => '無法變更主題。';
+
+  @override
+  String viewUserProfile(String name) {
+    return '查看$name的個人檔案';
+  }
+
+  @override
+  String get showFewerColors => '收起顏色';
+
+  @override
+  String get showMoreColors => '顯示更多顏色';
+
+  @override
+  String get colorGreen => '綠色';
+
+  @override
+  String get colorBlue => '藍色';
+
+  @override
+  String get colorRed => '紅色';
+
+  @override
+  String get colorOrange => '橙色';
+
+  @override
+  String get colorPurple => '紫色';
+
+  @override
+  String get colorTeal => '藍綠色';
+
+  @override
+  String get colorPink => '粉紅色';
+
+  @override
+  String get colorBrown => '棕色';
+
+  @override
+  String get colorIndigo => '靛藍色';
+
+  @override
+  String get colorCyan => '青色';
+
+  @override
+  String get colorLime => '萊姆色';
+
+  @override
+  String get colorAmber => '琥珀色';
+
+  @override
+  String get colorDeepOrange => '深橙色';
+
+  @override
+  String get colorBlueGrey => '藍灰色';
+
+  @override
+  String get messageRemovedByAdministrator => '此訊息已被管理員刪除。';
+
+  @override
+  String get messageDeleted => '此訊息已被刪除。';
+
+  @override
+  String get sensitiveContent => '敏感內容';
+
+  @override
+  String get sensitiveMessageWarning => '此訊息可能包含敏感內容。';
+
+  @override
+  String get showAnywayAction => '仍然顯示';
+
+  @override
+  String get scheduledMessage => '排程訊息';
+
+  @override
+  String get scheduledLabel => '已排程';
+
+  @override
+  String get likeMessage => '對訊息按讚';
+
+  @override
+  String get unlikeMessage => '收回訊息讚';
+
+  @override
+  String get showFewerIcons => '收起圖示';
+
+  @override
+  String get showMoreIcons => '顯示更多圖示';
+
+  @override
+  String get pinIconPlace => '地點';
+
+  @override
+  String get pinIconRestaurant => '餐廳';
+
+  @override
+  String get pinIconPark => '公園';
+
+  @override
+  String get pinIconHome => '家';
+
+  @override
+  String get pinIconStar => '星號';
+
+  @override
+  String get pinIconPhoto => '照片';
+
+  @override
+  String get pinIconMusic => '音樂';
+
+  @override
+  String get pinIconCoffee => '咖啡';
+
+  @override
+  String get pinIconShopping => '購物';
+
+  @override
+  String get pinIconHotel => '飯店';
+
+  @override
+  String get pinIconDirections => '汽車';
+
+  @override
+  String get pinIconHiking => '健行';
+
+  @override
+  String get pinIconPets => '寵物';
+
+  @override
+  String get pinIconWork => '工作';
+
+  @override
+  String get pinIconFavorite => '最愛';
+
+  @override
+  String get mapNotesLoadFailed => '無法載入附近的筆記。請再試一次。';
+
+  @override
+  String get mapNotesRefreshFailed => '無法重新整理附近的筆記。請再試一次。';
+
+  @override
+  String get mapNoteOpenFailedNearby => '無法開啟此筆記。請靠近後再試一次。';
+
+  @override
+  String get commonRefresh => '重新整理';
+
+  @override
+  String get adminAccessRequired => '需要管理員權限。';
+
+  @override
+  String get moderationOpen => '待處理';
+
+  @override
+  String get moderationResolved => '已處理';
+
+  @override
+  String moderationMarkedAs(String action) {
+    return '已標記為$action。';
+  }
+
+  @override
+  String get reasonLabel => '原因';
+
+  @override
+  String get applyAction => '套用';
+
+  @override
+  String get emptyContent => '（無內容）';
+
+  @override
+  String reportCount(int count) {
+    return '$count次檢舉';
+  }
+
+  @override
+  String get moderationAllowAction => '允許';
+
+  @override
+  String get moderationSensitiveAction => '敏感';
+
+  @override
+  String get moderationHideAction => '隱藏';
+
+  @override
+  String get moderationAllowedStatus => '允許';
+
+  @override
+  String get moderationSensitiveStatus => '敏感';
+
+  @override
+  String get moderationHiddenStatus => '隱藏';
+
+  @override
+  String get moderationAllowTitle => '允許訊息';
+
+  @override
+  String get moderationSensitiveTitle => '標記為敏感';
+
+  @override
+  String get moderationHideTitle => '隱藏訊息';
 }

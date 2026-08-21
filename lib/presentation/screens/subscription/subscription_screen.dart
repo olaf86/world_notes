@@ -71,7 +71,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
         final offering = snapshot.data;
         if (snapshot.hasError || offering == null) {
           return _SubscriptionSetupErrorView(
-            message: _displayError(snapshot.error),
+            message: l10n.subscriptionTemporarilyUnavailable(l10n.proPlanName),
             onRetry: () {
               setState(() {
                 _offeringFuture = _loadCurrentOffering();

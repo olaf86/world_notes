@@ -38,7 +38,7 @@ class _AdminModerationScreenState extends ConsumerState<AdminModerationScreen> {
             ),
           ),
           IconButton(
-            tooltip: 'Refresh',
+            tooltip: context.l10n.commonRefresh,
             icon: const Icon(Icons.refresh),
             onPressed: () => ref.invalidate(adminModerationReviewsProvider),
           ),
@@ -52,7 +52,7 @@ class _AdminModerationScreenState extends ConsumerState<AdminModerationScreen> {
         ),
         data: (allowed) {
           if (!allowed) {
-            return const Center(child: Text('Admin access required.'));
+            return Center(child: Text(context.l10n.adminAccessRequired));
           }
           return Column(
             children: [
@@ -61,16 +61,16 @@ class _AdminModerationScreenState extends ConsumerState<AdminModerationScreen> {
                 child: SizedBox(
                   width: double.infinity,
                   child: SegmentedButton<AdminModerationReviewStatus>(
-                    segments: const [
+                    segments: [
                       ButtonSegment(
                         value: AdminModerationReviewStatus.open,
-                        icon: Icon(Icons.pending_actions_outlined),
-                        label: Text('Open'),
+                        icon: const Icon(Icons.pending_actions_outlined),
+                        label: Text(context.l10n.moderationOpen),
                       ),
                       ButtonSegment(
                         value: AdminModerationReviewStatus.resolved,
-                        icon: Icon(Icons.check_circle_outline),
-                        label: Text('Resolved'),
+                        icon: const Icon(Icons.check_circle_outline),
+                        label: Text(context.l10n.moderationResolved),
                       ),
                     ],
                     selected: {_status},
@@ -111,7 +111,13 @@ class _AdminModerationScreenState extends ConsumerState<AdminModerationScreen> {
       ref.invalidate(adminModerationReviewsProvider);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Marked as ${_actionLabel(action)}.')),
+        SnackBar(
+          content: Text(
+            context.l10n.moderationMarkedAs(
+              _actionStatusLabel(action, context.l10n),
+            ),
+          ),
+        ),
       );
     } catch (error) {
       if (!mounted) return;
@@ -128,7 +134,7 @@ class _AdminModerationScreenState extends ConsumerState<AdminModerationScreen> {
     final result = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(_actionTitle(action)),
+        title: Text(_actionTitle(action, context.l10n)),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -136,16 +142,16 @@ class _AdminModerationScreenState extends ConsumerState<AdminModerationScreen> {
           minLines: 2,
           maxLines: 4,
           textInputAction: TextInputAction.done,
-          decoration: const InputDecoration(labelText: 'Reason'),
+          decoration: InputDecoration(labelText: context.l10n.reasonLabel),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('Apply'),
+            child: Text(context.l10n.applyAction),
           ),
         ],
       ),
@@ -220,7 +226,9 @@ class _ReviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final content = review.content.trim().isEmpty ? '(empty)' : review.content;
+    final content = review.content.trim().isEmpty
+        ? context.l10n.emptyContent
+        : review.content;
 
     return Card(
       margin: EdgeInsets.zero,
@@ -254,15 +262,15 @@ class _ReviewCard extends StatelessWidget {
                     visualDensity: VisualDensity.compact,
                   ),
                 if (review.hasImages)
-                  const Chip(
-                    avatar: Icon(Icons.image_outlined, size: 16),
-                    label: Text('image'),
+                  Chip(
+                    avatar: const Icon(Icons.image_outlined, size: 16),
+                    label: Text(context.l10n.imageLabel),
                     visualDensity: VisualDensity.compact,
                   ),
                 if (review.reportCount != null && review.reportCount! > 0)
                   Chip(
                     avatar: const Icon(Icons.flag_outlined, size: 16),
-                    label: Text('${review.reportCount} report(s)'),
+                    label: Text(context.l10n.reportCount(review.reportCount!)),
                     visualDensity: VisualDensity.compact,
                   ),
               ],
@@ -319,7 +327,7 @@ class _ReviewCard extends StatelessWidget {
                     onPressed: () =>
                         onAction(review, AdminModerationAction.allow),
                     icon: const Icon(Icons.check_outlined),
-                    label: const Text('Allow'),
+                    label: Text(context.l10n.moderationAllowAction),
                   ),
                   const SizedBox(height: 8),
                   if (review.targetType ==
@@ -328,7 +336,7 @@ class _ReviewCard extends StatelessWidget {
                       onPressed: () =>
                           onAction(review, AdminModerationAction.sensitive),
                       icon: const Icon(Icons.visibility_off_outlined),
-                      label: const Text('Sensitive'),
+                      label: Text(context.l10n.moderationSensitiveAction),
                     ),
                     const SizedBox(height: 8),
                   ],
@@ -336,7 +344,7 @@ class _ReviewCard extends StatelessWidget {
                     onPressed: () =>
                         onAction(review, AdminModerationAction.hidden),
                     icon: const Icon(Icons.block_outlined),
-                    label: const Text('Hide'),
+                    label: Text(context.l10n.moderationHideAction),
                   ),
                 ],
               ),
@@ -398,7 +406,7 @@ class _ErrorView extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
+              label: Text(context.l10n.commonRetry),
             ),
           ],
         ),
@@ -407,19 +415,19 @@ class _ErrorView extends StatelessWidget {
   }
 }
 
-String _actionLabel(AdminModerationAction action) {
+String _actionStatusLabel(AdminModerationAction action, AppLocalizations l10n) {
   return switch (action) {
-    AdminModerationAction.allow => 'allowed',
-    AdminModerationAction.sensitive => 'sensitive',
-    AdminModerationAction.hidden => 'hidden',
+    AdminModerationAction.allow => l10n.moderationAllowedStatus,
+    AdminModerationAction.sensitive => l10n.moderationSensitiveStatus,
+    AdminModerationAction.hidden => l10n.moderationHiddenStatus,
   };
 }
 
-String _actionTitle(AdminModerationAction action) {
+String _actionTitle(AdminModerationAction action, AppLocalizations l10n) {
   return switch (action) {
-    AdminModerationAction.allow => 'Allow message',
-    AdminModerationAction.sensitive => 'Mark sensitive',
-    AdminModerationAction.hidden => 'Hide message',
+    AdminModerationAction.allow => l10n.moderationAllowTitle,
+    AdminModerationAction.sensitive => l10n.moderationSensitiveTitle,
+    AdminModerationAction.hidden => l10n.moderationHideTitle,
   };
 }
 

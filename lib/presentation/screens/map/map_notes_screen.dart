@@ -117,7 +117,7 @@ class _MapNotesList extends ConsumerWidget {
             identifier: 'action-show-map',
             button: true,
             child: IconButton(
-              tooltip: 'Map',
+              tooltip: context.l10n.navMap,
               icon: const Icon(Icons.map_outlined),
               onPressed: onShowMap,
             ),
@@ -140,7 +140,7 @@ class _MapNotesList extends ConsumerWidget {
               identifier: 'action-refresh-map-notes-list',
               button: true,
               child: IconButton(
-                tooltip: 'Refresh map notes',
+                tooltip: context.l10n.mapRefreshNotes,
                 icon: const Icon(Icons.refresh_outlined),
                 onPressed: anchor == null ? null : refresh,
               ),

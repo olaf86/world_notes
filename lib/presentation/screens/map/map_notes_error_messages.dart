@@ -1,17 +1,12 @@
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';
 
-const mapNotesLoadErrorMessage =
-    'Could not load nearby notes. Please try again.';
-const mapNotesRefreshErrorMessage =
-    'Could not refresh nearby notes. Please try again.';
-const mapNoteOpenErrorMessage =
-    'Could not open this note. Please try again when you are nearby.';
+import '../../../l10n/l10n.dart';
 
 void showMapNotesRefreshErrorSnackBar(BuildContext context) {
   ScaffoldMessenger.of(
     context,
-  ).showSnackBar(const SnackBar(content: Text(mapNotesRefreshErrorMessage)));
+  ).showSnackBar(SnackBar(content: Text(context.l10n.mapNotesRefreshFailed)));
 }
 
 Future<void> reportMapNotesError({

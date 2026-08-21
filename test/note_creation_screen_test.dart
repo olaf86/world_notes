@@ -190,7 +190,7 @@ void main() {
     await tester.ensureVisible(showMoreIcons);
     await tester.tap(showMoreIcons);
     await tester.pump(const Duration(milliseconds: 200));
-    expect(find.byTooltip('coffee'), findsOneWidget);
+    expect(find.byTooltip('Coffee'), findsOneWidget);
 
     final later = find.text('Later');
     await tester.ensureVisible(later);

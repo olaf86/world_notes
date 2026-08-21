@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
 import '../../../core/utils/image_upload_util.dart';
+import '../../../l10n/l10n.dart';
 
 class PinThumbnailCropDialog extends StatefulWidget {
   final Uint8List imageBytes;
@@ -31,6 +32,7 @@ class _PinThumbnailCropDialogState extends State<PinThumbnailCropDialog> {
 
   Future<void> _useCrop() async {
     if (_encoding) return;
+    final l10n = context.l10n;
     setState(() => _encoding = true);
     try {
       final boundary =
@@ -43,7 +45,7 @@ class _PinThumbnailCropDialogState extends State<PinThumbnailCropDialog> {
       final image = await boundary.toImage(pixelRatio: pixelRatio);
       final data = await image.toByteData(format: ui.ImageByteFormat.png);
       if (data == null) {
-        throw const FormatException('Could not render thumbnail preview.');
+        throw FormatException(l10n.thumbnailRenderFailed);
       }
       final thumbnail = await ImageUploadUtil.compressPinThumbnailToWebP(
         data.buffer.asUint8List(),
@@ -60,9 +62,9 @@ class _PinThumbnailCropDialogState extends State<PinThumbnailCropDialog> {
     } on UnsupportedError {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('WebP encoding is not supported on this device.'),
-          duration: Duration(seconds: 4),
+        SnackBar(
+          content: Text(l10n.webpUnsupported),
+          duration: const Duration(seconds: 4),
         ),
       );
     } finally {
@@ -94,8 +96,9 @@ class _PinThumbnailCropDialogState extends State<PinThumbnailCropDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
     return AlertDialog(
-      title: const Text('Map pin image'),
+      title: Text(l10n.mapPinImageTitle),
       contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 360),
@@ -144,19 +147,19 @@ class _PinThumbnailCropDialogState extends State<PinThumbnailCropDialog> {
               children: [
                 Expanded(
                   child: Text(
-                    'Drag and pinch to choose the part shown in the pin.',
+                    l10n.mapPinCropInstruction,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
                 IconButton(
-                  tooltip: 'Zoom out',
+                  tooltip: l10n.zoomOut,
                   onPressed: _encoding ? null : () => _zoomBy(0.8),
                   icon: const Icon(Icons.zoom_out),
                 ),
                 IconButton(
-                  tooltip: 'Zoom in',
+                  tooltip: l10n.zoomIn,
                   onPressed: _encoding ? null : () => _zoomBy(1.25),
                   icon: const Icon(Icons.zoom_in),
                 ),
@@ -168,11 +171,11 @@ class _PinThumbnailCropDialogState extends State<PinThumbnailCropDialog> {
       actions: [
         TextButton(
           onPressed: _encoding ? null : _resetCrop,
-          child: const Text('Reset'),
+          child: Text(l10n.resetAction),
         ),
         TextButton(
           onPressed: _encoding ? null : () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(l10n.commonCancel),
         ),
         FilledButton(
           onPressed: _encoding ? null : _useCrop,
@@ -182,7 +185,7 @@ class _PinThumbnailCropDialogState extends State<PinThumbnailCropDialog> {
                   height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Use Image'),
+              : Text(l10n.useImageAction),
         ),
       ],
     );

@@ -1,5 +1,7 @@
 import '../domain/entities/note_list_sort.dart';
 import '../domain/entities/note_theme.dart';
+import '../core/utils/password_util.dart';
+import '../core/utils/pattern_lock_util.dart';
 import 'app_locale.dart';
 import 'app_localizations.dart';
 
@@ -54,5 +56,29 @@ extension NoteThemePresentationLabel on NoteThemeId {
     NoteThemeId.botanical => l10n.noteThemeBotanicalDescription,
     NoteThemeId.neon => l10n.noteThemeNeonDescription,
     NoteThemeId.editorial => l10n.noteThemeEditorialDescription,
+  };
+}
+
+extension PasswordValidationErrorPresentationLabel on PasswordValidationError {
+  String localizedLabel(AppLocalizations l10n) => switch (this) {
+    PasswordValidationError.empty => l10n.passwordRequired,
+    PasswordValidationError.tooLong => l10n.passwordMaxLength(
+      PasswordUtil.maxLength,
+    ),
+    PasswordValidationError.confirmationEmpty =>
+      l10n.passwordConfirmationRequired,
+    PasswordValidationError.mismatch => l10n.passwordsDoNotMatch,
+  };
+}
+
+extension PatternLockValidationErrorPresentationLabel
+    on PatternLockValidationError {
+  String localizedLabel(AppLocalizations l10n) => switch (this) {
+    PatternLockValidationError.empty => l10n.patternRequired,
+    PatternLockValidationError.tooLong => l10n.patternTooLong(
+      PatternLockUtil.maxLength,
+    ),
+    PatternLockValidationError.invalidNode => l10n.patternInvalidNode,
+    PatternLockValidationError.nonAdjacent => l10n.patternNeighboringOnly,
   };
 }

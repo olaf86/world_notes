@@ -24,15 +24,16 @@ class _NoteVisitorsScreenState extends ConsumerState<NoteVisitorsScreen> {
 
   Future<void> _setFootprints(bool enabled) async {
     if (_settingBusy) return;
+    final failureMessage = context.l10n.footprintsUpdateFailed;
     setState(() => _settingBusy = true);
     try {
       await ref
           .read(placeRepositoryProvider)
           .setFootprintEnabled(placeId: widget.placeId, enabled: enabled);
-    } on FirebaseFunctionsException catch (e) {
-      _snack(e.message ?? 'Could not update footprints.');
-    } catch (e) {
-      _snack(e.toString());
+    } on FirebaseFunctionsException {
+      _snack(failureMessage);
+    } catch (_) {
+      _snack(failureMessage);
     } finally {
       if (mounted) setState(() => _settingBusy = false);
     }
@@ -66,7 +67,7 @@ class _NoteVisitorsScreenState extends ConsumerState<NoteVisitorsScreen> {
     );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Footprints')),
+      appBar: AppBar(title: Text(context.l10n.footprintsTitle)),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -80,16 +81,16 @@ class _NoteVisitorsScreenState extends ConsumerState<NoteVisitorsScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: SegmentedButton<NoteVisitorSort>(
-              segments: const [
+              segments: [
                 ButtonSegment(
                   value: NoteVisitorSort.latest,
-                  icon: Icon(Icons.schedule_outlined),
-                  label: Text('Latest'),
+                  icon: const Icon(Icons.schedule_outlined),
+                  label: Text(context.l10n.sortLatest),
                 ),
                 ButtonSegment(
                   value: NoteVisitorSort.visitCount,
-                  icon: Icon(Icons.repeat_outlined),
-                  label: Text('Visits'),
+                  icon: const Icon(Icons.repeat_outlined),
+                  label: Text(context.l10n.visitsLabel),
                 ),
               ],
               selected: {_sort},
@@ -104,7 +105,7 @@ class _NoteVisitorsScreenState extends ConsumerState<NoteVisitorsScreen> {
               error: (error, _) => Center(
                 child: Padding(
                   padding: const EdgeInsets.all(24),
-                  child: Text('Could not load footprints: $error'),
+                  child: Text(context.l10n.footprintsLoadFailed(error)),
                 ),
               ),
               data: (visitors) {
@@ -167,13 +168,15 @@ class _FootprintSettingsHeader extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    enabled ? 'Footprints are on' : 'Footprints are off',
+                    enabled
+                        ? context.l10n.footprintsOn
+                        : context.l10n.footprintsOff,
                     style: theme.textTheme.titleMedium,
                   ),
                   Text(
                     enabled
-                        ? _visitorCountLabel
-                        : 'New visits are not being recorded',
+                        ? context.l10n.footprintCount(visitorCount)
+                        : context.l10n.newVisitsNotRecorded,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -187,12 +190,6 @@ class _FootprintSettingsHeader extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String get _visitorCountLabel {
-    final noun = visitorCount == 1 ? 'visitor' : 'visitors';
-    final verb = visitorCount == 1 ? 'has' : 'have';
-    return '$visitorCount $noun $verb left footprints';
   }
 }
 
@@ -216,12 +213,14 @@ class _VisitorTile extends StatelessWidget {
         visitor.lastVisitedAt,
         locale: context.localeTag,
       ),
-      NoteVisitorSort.visitCount =>
-        '${visitor.visitCount} visit${visitor.visitCount == 1 ? '' : 's'}',
+      NoteVisitorSort.visitCount => context.l10n.visitCountLabel(
+        visitor.visitCount,
+      ),
     };
     final secondaryDetail = switch (sort) {
-      NoteVisitorSort.latest =>
-        '${visitor.visitCount} visit${visitor.visitCount == 1 ? '' : 's'}',
+      NoteVisitorSort.latest => context.l10n.visitCountLabel(
+        visitor.visitCount,
+      ),
       NoteVisitorSort.visitCount => formatNoteDateTime(
         visitor.lastVisitedAt,
         locale: context.localeTag,
@@ -254,7 +253,7 @@ class _VisitorTile extends StatelessWidget {
               ),
               if (visitor.isMaintainer)
                 Text(
-                  'Maintainer',
+                  context.l10n.noteAdministratorLabel,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.primary,
                   ),

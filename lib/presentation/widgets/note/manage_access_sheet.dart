@@ -280,7 +280,7 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
             const SizedBox(height: 8),
             members.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, _) => Text('$error'),
+              error: (error, _) => Text(context.l10n.commonError(error)),
               data: (values) => values.isEmpty
                   ? Text(context.l10n.noAccessMembers)
                   : Column(

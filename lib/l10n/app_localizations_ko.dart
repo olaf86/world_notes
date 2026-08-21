@@ -568,6 +568,82 @@ class AppLocalizationsKo extends AppLocalizations {
   String get removeLock => '잠금 해제';
 
   @override
+  String get useLock => '잠금 사용';
+
+  @override
+  String get updateAction => '업데이트';
+
+  @override
+  String get confirmPasswordLabel => '비밀번호 확인';
+
+  @override
+  String get patternSetupInstruction => '인접한 점을 이어 패턴을 그리세요.';
+
+  @override
+  String get lockHintOptional => '힌트(선택 사항)';
+
+  @override
+  String get clearAction => '지우기';
+
+  @override
+  String get passwordRequired => '비밀번호를 입력하세요.';
+
+  @override
+  String passwordMaxLength(int maxLength) {
+    return '비밀번호는 $maxLength자 이하여야 합니다.';
+  }
+
+  @override
+  String get passwordConfirmationRequired => '비밀번호를 다시 입력하세요.';
+
+  @override
+  String get passwordsDoNotMatch => '비밀번호가 일치하지 않습니다.';
+
+  @override
+  String get patternRequired => '이 노트를 잠글 패턴을 그리세요.';
+
+  @override
+  String patternTooLong(int maxLength) {
+    return '패턴이 너무 깁니다. 점을 $maxLength개 이하로 사용하세요.';
+  }
+
+  @override
+  String get patternInvalidNode => '패턴에 유효하지 않은 점이 포함되어 있습니다.';
+
+  @override
+  String get patternNeighboringOnly => '패턴은 인접한 점끼리만 연결할 수 있습니다.';
+
+  @override
+  String get lockSavedPrivate => '잠금을 저장했습니다. 이 노트는 비공개입니다.';
+
+  @override
+  String get lockSaveFailed => '잠금을 저장하지 못했습니다.';
+
+  @override
+  String get appVerificationFailed => '이 앱을 확인하지 못했습니다. 다시 시도하세요.';
+
+  @override
+  String get authenticationExpired => '인증에 실패했습니다. 다시 로그인하세요.';
+
+  @override
+  String get lockCreatorOnly => '노트 작성자만 이 잠금을 변경할 수 있습니다.';
+
+  @override
+  String get noteNotFound => '노트를 찾을 수 없습니다.';
+
+  @override
+  String get incorrectPattern => '패턴이 올바르지 않습니다.';
+
+  @override
+  String get incorrectPassword => '비밀번호가 올바르지 않습니다.';
+
+  @override
+  String get tooManyAttempts => '시도 횟수가 너무 많습니다. 나중에 다시 시도하세요.';
+
+  @override
+  String get noteUnlockFailed => '이 노트의 잠금을 해제하지 못했습니다.';
+
+  @override
   String get noteThemeStandard => '스탠다드';
 
   @override
@@ -1278,4 +1354,432 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get revokeInvitation => '초대 취소';
+
+  @override
+  String get authEmailAlreadyRegistered => '이미 등록된 이메일입니다.';
+
+  @override
+  String get invalidEmail => '올바른 이메일 주소를 입력하세요.';
+
+  @override
+  String get authInvalidCredentials => '이메일 또는 비밀번호가 올바르지 않습니다.';
+
+  @override
+  String get authOperationNotAllowed => '현재 이메일과 비밀번호로 로그인할 수 없습니다.';
+
+  @override
+  String get authWeakPassword => '더 강력한 비밀번호를 선택하세요.';
+
+  @override
+  String get authFailed => '인증에 실패했습니다. 다시 시도하세요.';
+
+  @override
+  String get authTagline => '세상을 한 장의 노트로 공유하세요';
+
+  @override
+  String get emailLabel => '이메일';
+
+  @override
+  String get requiredField => '필수 항목';
+
+  @override
+  String minimumPasswordLength(int count) {
+    return '$count자 이상 입력하세요.';
+  }
+
+  @override
+  String get createAccount => '계정 만들기';
+
+  @override
+  String get alreadyHaveAccountSignIn => '이미 계정이 있나요? 로그인';
+
+  @override
+  String get newHereCreateAccount => '처음이신가요? 계정 만들기';
+
+  @override
+  String get orDivider => '또는';
+
+  @override
+  String get continueWithGoogle => 'Google로 계속하기';
+
+  @override
+  String get webpUnsupported => '이 기기에서는 이미지 인코딩을 지원하지 않습니다.';
+
+  @override
+  String messageImageUploadFailed(Object error) {
+    return '이미지를 업로드하지 못했습니다: $error';
+  }
+
+  @override
+  String messageSendFailed(Object error) {
+    return '메시지를 보내지 못했습니다: $error';
+  }
+
+  @override
+  String get messageContentHint => '이 장소에서 무슨 일이 있었나요?';
+
+  @override
+  String get newMessageTitle => '새 메시지';
+
+  @override
+  String get sendAction => '보내기';
+
+  @override
+  String get chooseFromLibrary => '라이브러리에서 선택';
+
+  @override
+  String get takePhoto => '사진 촬영';
+
+  @override
+  String get postTime => '게시 시간';
+
+  @override
+  String get thumbnailRenderFailed => '썸네일 미리보기를 만들지 못했습니다.';
+
+  @override
+  String get mapPinImageTitle => '지도 핀 이미지';
+
+  @override
+  String get mapPinCropInstruction => '드래그하거나 손가락을 벌려 핀에 표시할 부분을 선택하세요.';
+
+  @override
+  String get zoomOut => '축소';
+
+  @override
+  String get zoomIn => '확대';
+
+  @override
+  String get resetAction => '초기화';
+
+  @override
+  String get useImageAction => '이미지 사용';
+
+  @override
+  String pinImagePreparationFailed(Object error) {
+    return '핀 이미지를 준비하지 못했습니다: $error';
+  }
+
+  @override
+  String get closeAction => '닫기';
+
+  @override
+  String notificationsLoadFailed(Object error) {
+    return '알림을 불러오지 못했습니다: $error';
+  }
+
+  @override
+  String get adPrivacyTitle => '광고 개인정보 보호';
+
+  @override
+  String get managePrivacyChoices => '개인정보 선택 관리';
+
+  @override
+  String get managePrivacyChoicesDescription => '광고에 정보가 사용되는 방식을 확인하거나 변경합니다.';
+
+  @override
+  String privacyChoicesOpenFailed(Object error) {
+    return '개인정보 선택을 열지 못했습니다: $error';
+  }
+
+  @override
+  String get followUpdateFailed => '팔로우 설정을 변경하지 못했습니다.';
+
+  @override
+  String profileLoadFailed(Object error) {
+    return '프로필을 불러오지 못했습니다: $error';
+  }
+
+  @override
+  String get profileNotFound => '프로필을 찾을 수 없습니다.';
+
+  @override
+  String followUnavailable(Object error) {
+    return '팔로우를 사용할 수 없습니다: $error';
+  }
+
+  @override
+  String get followAction => '팔로우';
+
+  @override
+  String get unfollowAction => '팔로우 취소';
+
+  @override
+  String followListLoadFailed(Object error) {
+    return '목록을 불러오지 못했습니다: $error';
+  }
+
+  @override
+  String followerCountLabel(int count) {
+    return '팔로워 $count명';
+  }
+
+  @override
+  String get footprintsUpdateFailed => '발자국 설정을 변경하지 못했습니다.';
+
+  @override
+  String get footprintsTitle => '발자국';
+
+  @override
+  String get sortLatest => '최신순';
+
+  @override
+  String get visitsLabel => '방문 횟수';
+
+  @override
+  String footprintsLoadFailed(Object error) {
+    return '발자국을 불러오지 못했습니다: $error';
+  }
+
+  @override
+  String get newVisitsNotRecorded => '새 방문은 기록되지 않습니다';
+
+  @override
+  String visitCountLabel(int count) {
+    return '$count회 방문';
+  }
+
+  @override
+  String get cannotWriteHere => '여기에는 작성할 수 없습니다.';
+
+  @override
+  String get cancelScheduledMessageTitle => '예약 메시지 취소';
+
+  @override
+  String get deleteMessageTitle => '메시지 삭제';
+
+  @override
+  String get cancelScheduledMessageConfirmation =>
+      '이 예약 메시지를 취소할까요? 확보된 슬롯이 해제됩니다.';
+
+  @override
+  String get deleteMessageConfirmation => '이 메시지를 삭제할까요? 모든 사용자에게 삭제됨으로 표시됩니다.';
+
+  @override
+  String get cancelMessageAction => '메시지 취소';
+
+  @override
+  String get deleteAction => '삭제';
+
+  @override
+  String messageDeleteFailed(Object error) {
+    return '메시지를 삭제하지 못했습니다: $error';
+  }
+
+  @override
+  String get threadCloseTitle => '스레드를 닫을까요?';
+
+  @override
+  String get threadCloseConfirmation =>
+      '닫은 후에는 새 메시지를 게시할 수 없습니다. 기존 메시지는 계속 읽을 수 있으며 나중에 다시 열 수 있습니다.';
+
+  @override
+  String threadCloseFailed(Object error) {
+    return '스레드를 닫지 못했습니다: $error';
+  }
+
+  @override
+  String threadReopenFailed(Object error) {
+    return '스레드를 다시 열지 못했습니다: $error';
+  }
+
+  @override
+  String get themeChangeFailed => '테마를 변경하지 못했습니다.';
+
+  @override
+  String viewUserProfile(String name) {
+    return '$name님의 프로필 보기';
+  }
+
+  @override
+  String get showFewerColors => '색상 적게 보기';
+
+  @override
+  String get showMoreColors => '색상 더 보기';
+
+  @override
+  String get colorGreen => '초록색';
+
+  @override
+  String get colorBlue => '파란색';
+
+  @override
+  String get colorRed => '빨간색';
+
+  @override
+  String get colorOrange => '주황색';
+
+  @override
+  String get colorPurple => '보라색';
+
+  @override
+  String get colorTeal => '청록색';
+
+  @override
+  String get colorPink => '분홍색';
+
+  @override
+  String get colorBrown => '갈색';
+
+  @override
+  String get colorIndigo => '남색';
+
+  @override
+  String get colorCyan => '시안색';
+
+  @override
+  String get colorLime => '라임색';
+
+  @override
+  String get colorAmber => '호박색';
+
+  @override
+  String get colorDeepOrange => '진한 주황색';
+
+  @override
+  String get colorBlueGrey => '청회색';
+
+  @override
+  String get messageRemovedByAdministrator => '관리자가 이 메시지를 삭제했습니다.';
+
+  @override
+  String get messageDeleted => '이 메시지는 삭제되었습니다.';
+
+  @override
+  String get sensitiveContent => '민감한 콘텐츠';
+
+  @override
+  String get sensitiveMessageWarning => '이 메시지에 민감한 콘텐츠가 포함되어 있을 수 있습니다.';
+
+  @override
+  String get showAnywayAction => '그래도 보기';
+
+  @override
+  String get scheduledMessage => '예약 메시지';
+
+  @override
+  String get scheduledLabel => '예약됨';
+
+  @override
+  String get likeMessage => '메시지 좋아요';
+
+  @override
+  String get unlikeMessage => '메시지 좋아요 취소';
+
+  @override
+  String get showFewerIcons => '아이콘 적게 보기';
+
+  @override
+  String get showMoreIcons => '아이콘 더 보기';
+
+  @override
+  String get pinIconPlace => '장소';
+
+  @override
+  String get pinIconRestaurant => '음식점';
+
+  @override
+  String get pinIconPark => '공원';
+
+  @override
+  String get pinIconHome => '집';
+
+  @override
+  String get pinIconStar => '별';
+
+  @override
+  String get pinIconPhoto => '사진';
+
+  @override
+  String get pinIconMusic => '음악';
+
+  @override
+  String get pinIconCoffee => '커피';
+
+  @override
+  String get pinIconShopping => '쇼핑';
+
+  @override
+  String get pinIconHotel => '호텔';
+
+  @override
+  String get pinIconDirections => '자동차';
+
+  @override
+  String get pinIconHiking => '하이킹';
+
+  @override
+  String get pinIconPets => '반려동물';
+
+  @override
+  String get pinIconWork => '직장';
+
+  @override
+  String get pinIconFavorite => '즐겨찾기';
+
+  @override
+  String get mapNotesLoadFailed => '주변 노트를 불러오지 못했습니다. 다시 시도하세요.';
+
+  @override
+  String get mapNotesRefreshFailed => '주변 노트를 새로 고치지 못했습니다. 다시 시도하세요.';
+
+  @override
+  String get mapNoteOpenFailedNearby => '이 노트를 열지 못했습니다. 가까이 이동한 후 다시 시도하세요.';
+
+  @override
+  String get commonRefresh => '새로 고침';
+
+  @override
+  String get adminAccessRequired => '관리자 권한이 필요합니다.';
+
+  @override
+  String get moderationOpen => '처리 대기';
+
+  @override
+  String get moderationResolved => '처리 완료';
+
+  @override
+  String moderationMarkedAs(String action) {
+    return '$action(으)로 설정했습니다.';
+  }
+
+  @override
+  String get reasonLabel => '사유';
+
+  @override
+  String get applyAction => '적용';
+
+  @override
+  String get emptyContent => '(내용 없음)';
+
+  @override
+  String reportCount(int count) {
+    return '신고 $count건';
+  }
+
+  @override
+  String get moderationAllowAction => '허용';
+
+  @override
+  String get moderationSensitiveAction => '민감함';
+
+  @override
+  String get moderationHideAction => '숨기기';
+
+  @override
+  String get moderationAllowedStatus => '허용됨';
+
+  @override
+  String get moderationSensitiveStatus => '민감함';
+
+  @override
+  String get moderationHiddenStatus => '숨김';
+
+  @override
+  String get moderationAllowTitle => '메시지 허용';
+
+  @override
+  String get moderationSensitiveTitle => '민감함으로 표시';
+
+  @override
+  String get moderationHideTitle => '메시지 숨기기';
 }

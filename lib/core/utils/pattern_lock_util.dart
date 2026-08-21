@@ -4,19 +4,21 @@ abstract class PatternLockUtil {
   static const int maxLength = 30;
   static const String prefix = 'pattern:v1:';
 
-  static String? validate(List<int> path) {
+  /// Returns a locale-independent error that the presentation layer converts
+  /// to user-facing copy, or null when [path] is valid.
+  static PatternLockValidationError? validationError(List<int> path) {
     if (path.isEmpty) {
-      return 'Draw a pattern to lock this note.';
+      return PatternLockValidationError.empty;
     }
     if (path.length > maxLength) {
-      return 'Pattern is too long. Use $maxLength nodes or fewer.';
+      return PatternLockValidationError.tooLong;
     }
     if (path.any((node) => node < 0 || node > 8)) {
-      return 'Pattern contains an invalid node.';
+      return PatternLockValidationError.invalidNode;
     }
     for (var i = 1; i < path.length; i++) {
       if (!areAdjacent(path[i - 1], path[i])) {
-        return 'Pattern can only connect neighboring dots.';
+        return PatternLockValidationError.nonAdjacent;
       }
     }
     return null;
@@ -32,7 +34,7 @@ abstract class PatternLockUtil {
   }
 
   static String encode(List<int> path) {
-    final error = validate(path);
+    final error = validationError(path);
     if (error != null) {
       throw ArgumentError(error);
     }
@@ -44,6 +46,8 @@ abstract class PatternLockUtil {
     final encodedPath = value.substring(prefix.length);
     if (!RegExp(r'^[0-8]{1,30}$').hasMatch(encodedPath)) return false;
     final path = encodedPath.split('').map(int.parse).toList();
-    return validate(path) == null;
+    return validationError(path) == null;
   }
 }
+
+enum PatternLockValidationError { empty, tooLong, invalidNode, nonAdjacent }

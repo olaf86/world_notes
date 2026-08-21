@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../domain/entities/note_visitor_entity.dart';
+import '../../../l10n/l10n.dart';
 import '../../providers/providers.dart';
 
 class VisitorMapOverlay extends ConsumerWidget {
@@ -35,7 +36,7 @@ class VisitorMapOverlay extends ConsumerWidget {
 
     return visitors.when(
       loading: () => _OverlayPreview(
-        title: _title,
+        title: _title(context),
         avatars: const [],
         trailing: const SizedBox.square(
           dimension: 12,
@@ -44,13 +45,13 @@ class VisitorMapOverlay extends ConsumerWidget {
         onTap: onTap,
       ),
       error: (_, _) => _OverlayPreview(
-        title: _title,
+        title: _title(context),
         avatars: const [],
         trailing: const Icon(Icons.chevron_right, size: 16),
         onTap: onTap,
       ),
       data: (items) => _OverlayPreview(
-        title: _title,
+        title: _title(context),
         avatars: footprintEnabled ? items.take(_avatarMax).toList() : const [],
         avatarSize: _avatarSize,
         avatarStep: _avatarStep,
@@ -60,10 +61,10 @@ class VisitorMapOverlay extends ConsumerWidget {
     );
   }
 
-  String get _title {
-    if (!footprintEnabled) return 'Footprints off';
-    if (visitorCount == 0) return 'No footprints';
-    return '$visitorCount footprint${visitorCount == 1 ? '' : 's'}';
+  String _title(BuildContext context) {
+    if (!footprintEnabled) return context.l10n.footprintsOff;
+    if (visitorCount == 0) return context.l10n.noFootprints;
+    return context.l10n.footprintCount(visitorCount);
   }
 }
 

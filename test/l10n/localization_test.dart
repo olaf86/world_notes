@@ -57,6 +57,21 @@ void main() {
         ]) {
           expect(emptyStateLabel, isNotEmpty, reason: locale.toLanguageTag());
         }
+        for (final newlyLocalizedLabel in [
+          l10n.confirmPasswordLabel,
+          l10n.patternSetupInstruction,
+          l10n.messageContentHint,
+          l10n.mapPinCropInstruction,
+          l10n.footprintsTitle,
+          l10n.sensitiveContent,
+          l10n.adminAccessRequired,
+        ]) {
+          expect(
+            newlyLocalizedLabel,
+            isNotEmpty,
+            reason: locale.toLanguageTag(),
+          );
+        }
         for (final preference in AppLanguagePreference.values) {
           expect(
             preference.localizedLabel(l10n),

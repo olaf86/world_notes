@@ -123,11 +123,11 @@ class _FollowListScreenState extends ConsumerState<FollowListScreen> {
     final title = widget.followers ? l10n.followers : l10n.following;
     return Scaffold(
       appBar: AppBar(title: Text(title)),
-      body: RefreshIndicator(onRefresh: _loadFirstPage, child: _body(title)),
+      body: RefreshIndicator(onRefresh: _loadFirstPage, child: _body()),
     );
   }
 
-  Widget _body(String title) {
+  Widget _body() {
     if (_initialLoading) {
       return const SkeletonView(child: SkeletonListView());
     }
@@ -138,7 +138,7 @@ class _FollowListScreenState extends ConsumerState<FollowListScreen> {
           Center(
             child: Padding(
               padding: const EdgeInsets.all(24),
-              child: Text('Could not load $title: $_error'),
+              child: Text(context.l10n.followListLoadFailed(_error!)),
             ),
           ),
         ],
@@ -186,7 +186,7 @@ class _FollowListTile extends StatelessWidget {
       leading: _ProfileAvatar(profile: profile),
       title: Text(profile.label, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(
-        '${profile.followerCount} followers',
+        context.l10n.followerCountLabel(profile.followerCount),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),

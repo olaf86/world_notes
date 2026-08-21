@@ -200,7 +200,7 @@ class _AdPrivacySectionState extends ConsumerState<_AdPrivacySection> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Ad Privacy',
+            context.l10n.adPrivacyTitle,
             style: Theme.of(
               context,
             ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
@@ -209,10 +209,8 @@ class _AdPrivacySectionState extends ConsumerState<_AdPrivacySection> {
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.privacy_tip_outlined),
-            title: const Text('Manage privacy choices'),
-            subtitle: const Text(
-              'Review or change how your information is used for ads.',
-            ),
+            title: Text(context.l10n.managePrivacyChoices),
+            subtitle: Text(context.l10n.managePrivacyChoicesDescription),
             trailing: _opening
                 ? const SizedBox.square(
                     dimension: 20,
@@ -233,7 +231,7 @@ class _AdPrivacySectionState extends ConsumerState<_AdPrivacySection> {
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not open privacy choices: $error')),
+        SnackBar(content: Text(context.l10n.privacyChoicesOpenFailed(error))),
       );
     } finally {
       if (mounted) setState(() => _opening = false);

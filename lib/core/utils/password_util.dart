@@ -1,4 +1,4 @@
-/// String password validation for note locks.
+/// Password validation for note locks.
 ///
 /// NOTE on hashing: password *verification* is performed server-side by a
 /// Cloud Function (Phase 3), which keeps the hash out of reach of clients —
@@ -13,30 +13,32 @@ abstract class PasswordUtil {
 
   static const int maxLength = 30;
 
-  /// Returns null if [password] meets configuration requirements, or a
-  /// human-readable error string if it does not.
-  static String? validate(String password) {
+  /// Returns a locale-independent error that the presentation layer converts
+  /// to user-facing copy, or null when [password] is valid.
+  static PasswordValidationError? validationError(String password) {
     if (password.isEmpty) {
-      return 'Enter a password.';
+      return PasswordValidationError.empty;
     }
     if (password.length > maxLength) {
-      return 'Password must be $maxLength characters or fewer.';
+      return PasswordValidationError.tooLong;
     }
-    return null; // valid
+    return null;
   }
 
-  static String? validateConfirmation({
+  static PasswordValidationError? confirmationValidationError({
     required String password,
     required String confirmation,
   }) {
-    final passwordError = validate(password);
+    final passwordError = validationError(password);
     if (passwordError != null) return passwordError;
     if (confirmation.isEmpty) {
-      return 'Re-enter the password.';
+      return PasswordValidationError.confirmationEmpty;
     }
     if (password != confirmation) {
-      return 'Passwords do not match.';
+      return PasswordValidationError.mismatch;
     }
     return null;
   }
 }
+
+enum PasswordValidationError { empty, tooLong, confirmationEmpty, mismatch }

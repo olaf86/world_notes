@@ -25,6 +25,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
 
   Future<void> _setFollowing(bool following) async {
     if (_busy) return;
+    final failureMessage = context.l10n.followUpdateFailed;
     setState(() => _busy = true);
     try {
       await ref
@@ -32,10 +33,10 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
           .setFollowing(targetUserId: widget.userId, following: following);
       if (mounted) setState(() => _optimisticFollowing = following);
       ref.invalidate(mapPinsProvider);
-    } on FirebaseFunctionsException catch (e) {
-      _snack(e.message ?? 'Could not update follow state.');
-    } catch (e) {
-      _snack(e.toString());
+    } on FirebaseFunctionsException {
+      _snack(failureMessage);
+    } catch (_) {
+      _snack(failureMessage);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -82,10 +83,10 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
       appBar: AppBar(title: Text(context.l10n.profileTitle)),
       body: profileAsync.when(
         loading: () => const _ProfileSkeleton(),
-        error: (e, _) => Center(child: Text('Could not load profile: $e')),
+        error: (e, _) => Center(child: Text(context.l10n.profileLoadFailed(e))),
         data: (profile) {
           if (profile == null) {
-            return const Center(child: Text('Profile not found.'));
+            return Center(child: Text(context.l10n.profileNotFound));
           }
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -124,7 +125,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                               error: (e, _) => OutlinedButton.icon(
                                 onPressed: null,
                                 icon: const Icon(Icons.error_outline),
-                                label: Text('Follow unavailable: $e'),
+                                label: Text(context.l10n.followUnavailable(e)),
                               ),
                               data: (following) => FilledButton.icon(
                                 onPressed: _busy
@@ -139,8 +140,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                                 ),
                                 label: Text(
                                   (_optimisticFollowing ?? following)
-                                      ? 'Unfollow'
-                                      : 'Follow',
+                                      ? context.l10n.unfollowAction
+                                      : context.l10n.followAction,
                                 ),
                               ),
                             ),
@@ -168,14 +169,14 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
               const Divider(),
               ListTile(
                 leading: const Icon(Icons.people_outline),
-                title: const Text('Followers'),
+                title: Text(context.l10n.followers),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => context.push('/users/${widget.userId}/followers'),
               ),
               const Divider(height: 1),
               ListTile(
                 leading: const Icon(Icons.person_search_outlined),
-                title: const Text('Following'),
+                title: Text(context.l10n.following),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => context.push('/users/${widget.userId}/following'),
               ),
@@ -267,9 +268,9 @@ class _SocialCounts extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _Count(label: 'Followers', value: profile.followerCount),
+        _Count(label: context.l10n.followers, value: profile.followerCount),
         const SizedBox(width: 32),
-        _Count(label: 'Following', value: profile.followingCount),
+        _Count(label: context.l10n.following, value: profile.followingCount),
       ],
     );
   }

@@ -180,9 +180,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
         stack: stack,
       );
       if (!mounted) return false;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text(mapNoteOpenErrorMessage)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.mapNoteOpenFailedNearby)),
+      );
       return false;
     }
   }

@@ -34,9 +34,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
 
   Future<void> _submitEmail() async {
     if (!_formKey.currentState!.validate()) return;
+    final l10n = context.l10n;
     if (_isSignUp &&
         _passwordController.text != _confirmPasswordController.text) {
-      setState(() => _error = 'Passwords do not match.');
+      setState(() => _error = l10n.passwordsDoNotMatch);
       return;
     }
     setState(() {
@@ -58,7 +59,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
         );
       }
     } on FirebaseAuthException catch (e) {
-      setState(() => _error = _authErrorMessage(e));
+      setState(() => _error = _authErrorMessage(e, l10n));
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {
@@ -67,6 +68,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   }
 
   Future<void> _signInWithGoogle() async {
+    final l10n = context.l10n;
     setState(() {
       _loading = true;
       _error = null;
@@ -74,7 +76,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     try {
       await ref.read(authRepositoryProvider).signInWithGoogle();
     } on FirebaseAuthException catch (e) {
-      setState(() => _error = _authErrorMessage(e));
+      setState(() => _error = _authErrorMessage(e, l10n));
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {
@@ -82,24 +84,24 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     }
   }
 
-  String _authErrorMessage(FirebaseAuthException error) {
+  String _authErrorMessage(FirebaseAuthException error, AppLocalizations l10n) {
     return switch (error.code) {
-      'email-already-in-use' => 'This email is already registered.',
-      'invalid-email' => 'Enter a valid email address.',
+      'email-already-in-use' => l10n.authEmailAlreadyRegistered,
+      'invalid-email' => l10n.invalidEmail,
       'invalid-credential' ||
       'user-not-found' ||
-      'wrong-password' => 'Email or password is incorrect.',
-      'operation-not-allowed' =>
-        'Email/password sign-in is not enabled in Firebase Authentication.',
-      'weak-password' => 'Choose a stronger password.',
-      'network-request-failed' => 'Network error. Check your connection.',
-      _ => error.message ?? 'Authentication failed. Please try again.',
+      'wrong-password' => l10n.authInvalidCredentials,
+      'operation-not-allowed' => l10n.authOperationNotAllowed,
+      'weak-password' => l10n.authWeakPassword,
+      'network-request-failed' => l10n.networkErrorTryAgain,
+      _ => l10n.authFailed,
     };
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
 
     return Semantics(
       identifier: 'screen-sign-in',
@@ -125,7 +127,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Share your world, one note at a time',
+                    l10n.authTagline,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -138,36 +140,36 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                         if (_isSignUp)
                           TextFormField(
                             controller: _nameController,
-                            decoration: const InputDecoration(
-                              labelText: 'Nickname',
-                              prefixIcon: Icon(Icons.person_outline),
+                            decoration: InputDecoration(
+                              labelText: l10n.nicknameLabel,
+                              prefixIcon: const Icon(Icons.person_outline),
                             ),
                             validator: (v) => v == null || v.trim().isEmpty
-                                ? 'Required'
+                                ? l10n.requiredField
                                 : null,
                           ),
                         if (_isSignUp) const SizedBox(height: 16),
                         TextFormField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
-                          decoration: const InputDecoration(
-                            labelText: 'Email',
-                            prefixIcon: Icon(Icons.email_outlined),
+                          decoration: InputDecoration(
+                            labelText: l10n.emailLabel,
+                            prefixIcon: const Icon(Icons.email_outlined),
                           ),
                           validator: (v) => v == null || !v.contains('@')
-                              ? 'Invalid email'
+                              ? l10n.invalidEmail
                               : null,
                         ),
                         const SizedBox(height: 16),
                         TextFormField(
                           controller: _passwordController,
                           obscureText: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Password',
-                            prefixIcon: Icon(Icons.lock_outline),
+                          decoration: InputDecoration(
+                            labelText: l10n.passwordLabel,
+                            prefixIcon: const Icon(Icons.lock_outline),
                           ),
                           validator: (v) => v == null || v.length < 6
-                              ? 'Min 6 characters'
+                              ? l10n.minimumPasswordLength(6)
                               : null,
                         ),
                         if (_isSignUp) ...[
@@ -177,16 +179,16 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                             obscureText: true,
                             enableSuggestions: false,
                             autocorrect: false,
-                            decoration: const InputDecoration(
-                              labelText: 'Confirm password',
-                              prefixIcon: Icon(Icons.lock_reset_outlined),
+                            decoration: InputDecoration(
+                              labelText: l10n.confirmPasswordLabel,
+                              prefixIcon: const Icon(Icons.lock_reset_outlined),
                             ),
                             validator: (v) {
                               if (v == null || v.isEmpty) {
-                                return 'Re-enter your password';
+                                return l10n.passwordConfirmationRequired;
                               }
                               if (v != _passwordController.text) {
-                                return 'Passwords do not match';
+                                return l10n.passwordsDoNotMatch;
                               }
                               return null;
                             },
@@ -210,7 +212,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : Text(_isSignUp ? 'Create Account' : 'Sign In'),
+                              : Text(
+                                  _isSignUp ? l10n.createAccount : l10n.signIn,
+                                ),
                         ),
                         const SizedBox(height: 12),
                         TextButton(
@@ -221,29 +225,29 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                           }),
                           child: Text(
                             _isSignUp
-                                ? 'Already have an account? Sign In'
-                                : 'New here? Create Account',
+                                ? l10n.alreadyHaveAccountSignIn
+                                : l10n.newHereCreateAccount,
                           ),
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const Row(
+                  Row(
                     children: [
-                      Expanded(child: Divider()),
+                      const Expanded(child: Divider()),
                       Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16),
-                        child: Text('or'),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(l10n.orDivider),
                       ),
-                      Expanded(child: Divider()),
+                      const Expanded(child: Divider()),
                     ],
                   ),
                   const SizedBox(height: 16),
                   OutlinedButton.icon(
                     onPressed: _loading ? null : _signInWithGoogle,
                     icon: const Icon(Icons.g_mobiledata, size: 24),
-                    label: const Text('Continue with Google'),
+                    label: Text(l10n.continueWithGoogle),
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size(double.infinity, 48),
                       shape: RoundedRectangleBorder(

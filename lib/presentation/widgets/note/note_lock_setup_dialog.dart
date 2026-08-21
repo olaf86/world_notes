@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../core/utils/password_util.dart';
 import '../../../core/utils/pattern_lock_util.dart';
 import '../../../domain/entities/place_entity.dart';
+import '../../../l10n/l10n.dart';
+import '../../../l10n/presentation_labels.dart';
 import '../pattern_lock/pattern_lock_input.dart';
 
 class NoteLockSetupValue {
@@ -34,7 +36,7 @@ extension NoteLockSetupMethodX on NoteLockSetupMethod {
 
 class NoteLockSetupDialog extends StatefulWidget {
   final String title;
-  final String submitLabel;
+  final String? submitLabel;
   final NoteLockType? initialLockType;
   final String? initialHint;
   final VoidCallback onPatternTooLong;
@@ -43,7 +45,7 @@ class NoteLockSetupDialog extends StatefulWidget {
   const NoteLockSetupDialog({
     super.key,
     required this.title,
-    this.submitLabel = 'Save',
+    this.submitLabel,
     this.initialLockType,
     this.initialHint,
     required this.onPatternTooLong,
@@ -79,11 +81,13 @@ class _NoteLockSetupDialogState extends State<NoteLockSetupDialog> {
   Future<void> _submit() async {
     if (_busy) return;
     final validation = switch (_method) {
-      NoteLockSetupMethod.password => PasswordUtil.validateConfirmation(
+      NoteLockSetupMethod.password => PasswordUtil.confirmationValidationError(
         password: _password,
         confirmation: _passwordConfirmation,
-      ),
-      NoteLockSetupMethod.pattern => PatternLockUtil.validate(_pattern),
+      )?.localizedLabel(context.l10n),
+      NoteLockSetupMethod.pattern => PatternLockUtil.validationError(
+        _pattern,
+      )?.localizedLabel(context.l10n),
     };
     if (validation != null) {
       setState(() => _error = validation);
@@ -124,6 +128,7 @@ class _NoteLockSetupDialogState extends State<NoteLockSetupDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return AlertDialog(
       title: Text(widget.title),
       content: SingleChildScrollView(
@@ -131,16 +136,16 @@ class _NoteLockSetupDialogState extends State<NoteLockSetupDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             SegmentedButton<NoteLockSetupMethod>(
-              segments: const [
+              segments: [
                 ButtonSegment(
                   value: NoteLockSetupMethod.password,
-                  icon: Icon(Icons.password_outlined),
-                  label: Text('Password'),
+                  icon: const Icon(Icons.password_outlined),
+                  label: Text(l10n.passwordLabel),
                 ),
                 ButtonSegment(
                   value: NoteLockSetupMethod.pattern,
-                  icon: Icon(Icons.grid_3x3),
-                  label: Text('Pattern'),
+                  icon: const Icon(Icons.grid_3x3),
+                  label: Text(l10n.patternLabel),
                 ),
               ],
               selected: {_method},
@@ -163,7 +168,7 @@ class _NoteLockSetupDialogState extends State<NoteLockSetupDialog> {
                 children: [
                   PasswordLockInput(
                     enabled: !_busy,
-                    labelText: 'Password',
+                    labelText: l10n.passwordLabel,
                     textInputAction: TextInputAction.next,
                     onChanged: (value) {
                       setState(() {
@@ -176,7 +181,7 @@ class _NoteLockSetupDialogState extends State<NoteLockSetupDialog> {
                   const SizedBox(height: 12),
                   PasswordLockInput(
                     enabled: !_busy,
-                    labelText: 'Confirm password',
+                    labelText: l10n.confirmPasswordLabel,
                     autofocus: false,
                     onChanged: (value) {
                       setState(() {
@@ -189,7 +194,7 @@ class _NoteLockSetupDialogState extends State<NoteLockSetupDialog> {
                 ],
               )
             else ...[
-              const Text('Draw a path between neighboring dots.'),
+              Text(l10n.patternSetupInstruction),
               const SizedBox(height: 12),
               PatternLockInputWithClear(
                 enabled: !_busy,
@@ -217,8 +222,8 @@ class _NoteLockSetupDialogState extends State<NoteLockSetupDialog> {
               controller: _hintController,
               enabled: !_busy,
               maxLength: 140,
-              decoration: const InputDecoration(
-                labelText: 'Hint (optional)',
+              decoration: InputDecoration(
+                labelText: l10n.lockHintOptional,
                 counterText: '',
               ),
             ),
@@ -228,7 +233,7 @@ class _NoteLockSetupDialogState extends State<NoteLockSetupDialog> {
       actions: [
         TextButton(
           onPressed: _busy ? null : () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(l10n.commonCancel),
         ),
         FilledButton(
           onPressed: _busy ? null : _submit,
@@ -238,7 +243,7 @@ class _NoteLockSetupDialogState extends State<NoteLockSetupDialog> {
                   height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : Text(widget.submitLabel),
+              : Text(widget.submitLabel ?? l10n.commonSave),
         ),
       ],
     );
@@ -248,7 +253,7 @@ class _NoteLockSetupDialogState extends State<NoteLockSetupDialog> {
 class PasswordLockInput extends StatefulWidget {
   final ValueChanged<String> onChanged;
   final VoidCallback onSubmitted;
-  final String labelText;
+  final String? labelText;
   final TextInputAction textInputAction;
   final bool enabled;
   final bool autofocus;
@@ -257,7 +262,7 @@ class PasswordLockInput extends StatefulWidget {
     super.key,
     required this.onChanged,
     required this.onSubmitted,
-    this.labelText = 'Password',
+    this.labelText,
     this.textInputAction = TextInputAction.done,
     this.enabled = true,
     this.autofocus = true,
@@ -289,7 +294,10 @@ class _PasswordLockInputState extends State<PasswordLockInput> {
       textInputAction: widget.textInputAction,
       onChanged: widget.onChanged,
       onSubmitted: (_) => widget.onSubmitted(),
-      decoration: InputDecoration(labelText: widget.labelText, counterText: ''),
+      decoration: InputDecoration(
+        labelText: widget.labelText ?? context.l10n.passwordLabel,
+        counterText: '',
+      ),
     );
   }
 }
@@ -334,6 +342,7 @@ class _PatternLockInputWithClearState extends State<PatternLockInputWithClear> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Column(
       children: [
         IgnorePointer(
@@ -351,7 +360,7 @@ class _PatternLockInputWithClearState extends State<PatternLockInputWithClear> {
           child: TextButton.icon(
             onPressed: widget.enabled && _hasPattern ? _clear : null,
             icon: const Icon(Icons.backspace_outlined),
-            label: const Text('Clear'),
+            label: Text(l10n.clearAction),
           ),
         ),
       ],

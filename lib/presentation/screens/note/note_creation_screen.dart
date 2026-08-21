@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../config/app_config.dart';
+import '../../../core/utils/pattern_lock_util.dart';
 import '../../../core/utils/place_icon.dart';
 import '../../../domain/entities/place_entity.dart';
 import '../../../domain/entities/note_theme.dart';
@@ -234,8 +235,8 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
 
   void _showPatternTooLongSnack() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Pattern is too long. Use 30 nodes or fewer.'),
+      SnackBar(
+        content: Text(context.l10n.patternTooLong(PatternLockUtil.maxLength)),
       ),
     );
   }
@@ -244,8 +245,12 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
     final value = await showDialog<NoteLockSetupValue>(
       context: context,
       builder: (_) => NoteLockSetupDialog(
-        title: _lockSetup == null ? 'Set lock' : 'Change lock',
-        submitLabel: _lockSetup == null ? 'Use lock' : 'Update',
+        title: _lockSetup == null
+            ? context.l10n.setLock
+            : context.l10n.changeLock,
+        submitLabel: _lockSetup == null
+            ? context.l10n.useLock
+            : context.l10n.updateAction,
         initialLockType: _lockSetup?.lockType,
         initialHint: _lockSetup?.lockHint,
         onPatternTooLong: _showPatternTooLongSnack,
@@ -285,7 +290,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Could not prepare the pin image: $error'),
+          content: Text(context.l10n.pinImagePreparationFailed(error)),
           duration: const Duration(seconds: 4),
         ),
       );

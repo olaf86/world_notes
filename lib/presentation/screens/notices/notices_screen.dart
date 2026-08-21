@@ -23,7 +23,7 @@ class NoticesScreen extends ConsumerWidget {
         error: (error, _) => Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
-            child: Text('Could not load notifications.\n$error'),
+            child: Text(context.l10n.notificationsLoadFailed(error)),
           ),
         ),
         data: (notices) => notices.isEmpty
@@ -85,7 +85,7 @@ class NoticesScreen extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Close'),
+            child: Text(dialogContext.l10n.closeAction),
           ),
         ],
       ),

@@ -1118,6 +1118,150 @@ abstract class AppLocalizations {
   /// **'Remove lock'**
   String get removeLock;
 
+  /// No description provided for @useLock.
+  ///
+  /// In en, this message translates to:
+  /// **'Use lock'**
+  String get useLock;
+
+  /// No description provided for @updateAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Update'**
+  String get updateAction;
+
+  /// No description provided for @confirmPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm password'**
+  String get confirmPasswordLabel;
+
+  /// No description provided for @patternSetupInstruction.
+  ///
+  /// In en, this message translates to:
+  /// **'Draw a path between neighboring dots.'**
+  String get patternSetupInstruction;
+
+  /// No description provided for @lockHintOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Hint (optional)'**
+  String get lockHintOptional;
+
+  /// No description provided for @clearAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get clearAction;
+
+  /// No description provided for @passwordRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a password.'**
+  String get passwordRequired;
+
+  /// No description provided for @passwordMaxLength.
+  ///
+  /// In en, this message translates to:
+  /// **'Password must be {maxLength} characters or fewer.'**
+  String passwordMaxLength(int maxLength);
+
+  /// No description provided for @passwordConfirmationRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-enter the password.'**
+  String get passwordConfirmationRequired;
+
+  /// No description provided for @passwordsDoNotMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Passwords do not match.'**
+  String get passwordsDoNotMatch;
+
+  /// No description provided for @patternRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Draw a pattern to lock this note.'**
+  String get patternRequired;
+
+  /// No description provided for @patternTooLong.
+  ///
+  /// In en, this message translates to:
+  /// **'Pattern is too long. Use {maxLength} nodes or fewer.'**
+  String patternTooLong(int maxLength);
+
+  /// No description provided for @patternInvalidNode.
+  ///
+  /// In en, this message translates to:
+  /// **'Pattern contains an invalid node.'**
+  String get patternInvalidNode;
+
+  /// No description provided for @patternNeighboringOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Pattern can only connect neighboring dots.'**
+  String get patternNeighboringOnly;
+
+  /// No description provided for @lockSavedPrivate.
+  ///
+  /// In en, this message translates to:
+  /// **'Lock saved. This note is private.'**
+  String get lockSavedPrivate;
+
+  /// No description provided for @lockSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to save the lock.'**
+  String get lockSaveFailed;
+
+  /// No description provided for @appVerificationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not verify this app. Please try again.'**
+  String get appVerificationFailed;
+
+  /// No description provided for @authenticationExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'Authentication failed. Please sign in again.'**
+  String get authenticationExpired;
+
+  /// No description provided for @lockCreatorOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Only the note creator can change this lock.'**
+  String get lockCreatorOnly;
+
+  /// No description provided for @noteNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Note not found.'**
+  String get noteNotFound;
+
+  /// No description provided for @incorrectPattern.
+  ///
+  /// In en, this message translates to:
+  /// **'Incorrect pattern.'**
+  String get incorrectPattern;
+
+  /// No description provided for @incorrectPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Incorrect password.'**
+  String get incorrectPassword;
+
+  /// No description provided for @tooManyAttempts.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many attempts. Please try again later.'**
+  String get tooManyAttempts;
+
+  /// No description provided for @noteUnlockFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not unlock this note.'**
+  String get noteUnlockFailed;
+
   /// No description provided for @noteThemeStandard.
   ///
   /// In en, this message translates to:
@@ -2413,6 +2557,786 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Revoke invitation'**
   String get revokeInvitation;
+
+  /// No description provided for @authEmailAlreadyRegistered.
+  ///
+  /// In en, this message translates to:
+  /// **'This email is already registered.'**
+  String get authEmailAlreadyRegistered;
+
+  /// No description provided for @invalidEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid email address.'**
+  String get invalidEmail;
+
+  /// No description provided for @authInvalidCredentials.
+  ///
+  /// In en, this message translates to:
+  /// **'Email or password is incorrect.'**
+  String get authInvalidCredentials;
+
+  /// No description provided for @authOperationNotAllowed.
+  ///
+  /// In en, this message translates to:
+  /// **'Email and password sign-in is currently unavailable.'**
+  String get authOperationNotAllowed;
+
+  /// No description provided for @authWeakPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a stronger password.'**
+  String get authWeakPassword;
+
+  /// No description provided for @authFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Authentication failed. Please try again.'**
+  String get authFailed;
+
+  /// No description provided for @authTagline.
+  ///
+  /// In en, this message translates to:
+  /// **'Share your world, one note at a time'**
+  String get authTagline;
+
+  /// No description provided for @emailLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get emailLabel;
+
+  /// No description provided for @requiredField.
+  ///
+  /// In en, this message translates to:
+  /// **'Required'**
+  String get requiredField;
+
+  /// No description provided for @minimumPasswordLength.
+  ///
+  /// In en, this message translates to:
+  /// **'Use at least {count} characters.'**
+  String minimumPasswordLength(int count);
+
+  /// No description provided for @createAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Account'**
+  String get createAccount;
+
+  /// No description provided for @alreadyHaveAccountSignIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Already have an account? Sign In'**
+  String get alreadyHaveAccountSignIn;
+
+  /// No description provided for @newHereCreateAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'New here? Create Account'**
+  String get newHereCreateAccount;
+
+  /// No description provided for @orDivider.
+  ///
+  /// In en, this message translates to:
+  /// **'or'**
+  String get orDivider;
+
+  /// No description provided for @continueWithGoogle.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with Google'**
+  String get continueWithGoogle;
+
+  /// No description provided for @webpUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Image encoding is not supported on this device.'**
+  String get webpUnsupported;
+
+  /// No description provided for @messageImageUploadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to upload the image: {error}'**
+  String messageImageUploadFailed(Object error);
+
+  /// No description provided for @messageSendFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to send the message: {error}'**
+  String messageSendFailed(Object error);
+
+  /// No description provided for @messageContentHint.
+  ///
+  /// In en, this message translates to:
+  /// **'What\'\'s happening at this place?'**
+  String get messageContentHint;
+
+  /// No description provided for @newMessageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New message'**
+  String get newMessageTitle;
+
+  /// No description provided for @sendAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get sendAction;
+
+  /// No description provided for @chooseFromLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose from library'**
+  String get chooseFromLibrary;
+
+  /// No description provided for @takePhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Take a photo'**
+  String get takePhoto;
+
+  /// No description provided for @postTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Post time'**
+  String get postTime;
+
+  /// No description provided for @thumbnailRenderFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not render the thumbnail preview.'**
+  String get thumbnailRenderFailed;
+
+  /// No description provided for @mapPinImageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Map pin image'**
+  String get mapPinImageTitle;
+
+  /// No description provided for @mapPinCropInstruction.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag and pinch to choose the part shown in the pin.'**
+  String get mapPinCropInstruction;
+
+  /// No description provided for @zoomOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom out'**
+  String get zoomOut;
+
+  /// No description provided for @zoomIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom in'**
+  String get zoomIn;
+
+  /// No description provided for @resetAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset'**
+  String get resetAction;
+
+  /// No description provided for @useImageAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Use Image'**
+  String get useImageAction;
+
+  /// No description provided for @pinImagePreparationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not prepare the pin image: {error}'**
+  String pinImagePreparationFailed(Object error);
+
+  /// No description provided for @closeAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get closeAction;
+
+  /// No description provided for @notificationsLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load notifications: {error}'**
+  String notificationsLoadFailed(Object error);
+
+  /// No description provided for @adPrivacyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Ad Privacy'**
+  String get adPrivacyTitle;
+
+  /// No description provided for @managePrivacyChoices.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage privacy choices'**
+  String get managePrivacyChoices;
+
+  /// No description provided for @managePrivacyChoicesDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Review or change how your information is used for ads.'**
+  String get managePrivacyChoicesDescription;
+
+  /// No description provided for @privacyChoicesOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open privacy choices: {error}'**
+  String privacyChoicesOpenFailed(Object error);
+
+  /// No description provided for @followUpdateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not update the follow setting.'**
+  String get followUpdateFailed;
+
+  /// No description provided for @profileLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load the profile: {error}'**
+  String profileLoadFailed(Object error);
+
+  /// No description provided for @profileNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile not found.'**
+  String get profileNotFound;
+
+  /// No description provided for @followUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow unavailable: {error}'**
+  String followUnavailable(Object error);
+
+  /// No description provided for @followAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow'**
+  String get followAction;
+
+  /// No description provided for @unfollowAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Unfollow'**
+  String get unfollowAction;
+
+  /// No description provided for @followListLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load the list: {error}'**
+  String followListLoadFailed(Object error);
+
+  /// No description provided for @followerCountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 follower} other{{count} followers}}'**
+  String followerCountLabel(int count);
+
+  /// No description provided for @footprintsUpdateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not update footprints.'**
+  String get footprintsUpdateFailed;
+
+  /// No description provided for @footprintsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Footprints'**
+  String get footprintsTitle;
+
+  /// No description provided for @sortLatest.
+  ///
+  /// In en, this message translates to:
+  /// **'Latest'**
+  String get sortLatest;
+
+  /// No description provided for @visitsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Visits'**
+  String get visitsLabel;
+
+  /// No description provided for @footprintsLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load footprints: {error}'**
+  String footprintsLoadFailed(Object error);
+
+  /// No description provided for @newVisitsNotRecorded.
+  ///
+  /// In en, this message translates to:
+  /// **'New visits are not being recorded'**
+  String get newVisitsNotRecorded;
+
+  /// No description provided for @visitCountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 visit} other{{count} visits}}'**
+  String visitCountLabel(int count);
+
+  /// No description provided for @cannotWriteHere.
+  ///
+  /// In en, this message translates to:
+  /// **'You cannot write here.'**
+  String get cannotWriteHere;
+
+  /// No description provided for @cancelScheduledMessageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel scheduled message'**
+  String get cancelScheduledMessageTitle;
+
+  /// No description provided for @deleteMessageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete message'**
+  String get deleteMessageTitle;
+
+  /// No description provided for @cancelScheduledMessageConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel this scheduled message? Its reserved slot will be freed.'**
+  String get cancelScheduledMessageConfirmation;
+
+  /// No description provided for @deleteMessageConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete this message? It will appear as deleted to all users.'**
+  String get deleteMessageConfirmation;
+
+  /// No description provided for @cancelMessageAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel message'**
+  String get cancelMessageAction;
+
+  /// No description provided for @deleteAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get deleteAction;
+
+  /// No description provided for @messageDeleteFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to delete the message: {error}'**
+  String messageDeleteFailed(Object error);
+
+  /// No description provided for @threadCloseTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Close this thread?'**
+  String get threadCloseTitle;
+
+  /// No description provided for @threadCloseConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'No new messages can be posted once closed. Existing messages stay readable, and you can re-open it later.'**
+  String get threadCloseConfirmation;
+
+  /// No description provided for @threadCloseFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to close the thread: {error}'**
+  String threadCloseFailed(Object error);
+
+  /// No description provided for @threadReopenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to re-open the thread: {error}'**
+  String threadReopenFailed(Object error);
+
+  /// No description provided for @themeChangeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not change the theme.'**
+  String get themeChangeFailed;
+
+  /// No description provided for @viewUserProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'View {name}\'\'s profile'**
+  String viewUserProfile(String name);
+
+  /// No description provided for @showFewerColors.
+  ///
+  /// In en, this message translates to:
+  /// **'Show fewer colors'**
+  String get showFewerColors;
+
+  /// No description provided for @showMoreColors.
+  ///
+  /// In en, this message translates to:
+  /// **'Show more colors'**
+  String get showMoreColors;
+
+  /// No description provided for @colorGreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Green'**
+  String get colorGreen;
+
+  /// No description provided for @colorBlue.
+  ///
+  /// In en, this message translates to:
+  /// **'Blue'**
+  String get colorBlue;
+
+  /// No description provided for @colorRed.
+  ///
+  /// In en, this message translates to:
+  /// **'Red'**
+  String get colorRed;
+
+  /// No description provided for @colorOrange.
+  ///
+  /// In en, this message translates to:
+  /// **'Orange'**
+  String get colorOrange;
+
+  /// No description provided for @colorPurple.
+  ///
+  /// In en, this message translates to:
+  /// **'Purple'**
+  String get colorPurple;
+
+  /// No description provided for @colorTeal.
+  ///
+  /// In en, this message translates to:
+  /// **'Teal'**
+  String get colorTeal;
+
+  /// No description provided for @colorPink.
+  ///
+  /// In en, this message translates to:
+  /// **'Pink'**
+  String get colorPink;
+
+  /// No description provided for @colorBrown.
+  ///
+  /// In en, this message translates to:
+  /// **'Brown'**
+  String get colorBrown;
+
+  /// No description provided for @colorIndigo.
+  ///
+  /// In en, this message translates to:
+  /// **'Indigo'**
+  String get colorIndigo;
+
+  /// No description provided for @colorCyan.
+  ///
+  /// In en, this message translates to:
+  /// **'Cyan'**
+  String get colorCyan;
+
+  /// No description provided for @colorLime.
+  ///
+  /// In en, this message translates to:
+  /// **'Lime'**
+  String get colorLime;
+
+  /// No description provided for @colorAmber.
+  ///
+  /// In en, this message translates to:
+  /// **'Amber'**
+  String get colorAmber;
+
+  /// No description provided for @colorDeepOrange.
+  ///
+  /// In en, this message translates to:
+  /// **'Deep orange'**
+  String get colorDeepOrange;
+
+  /// No description provided for @colorBlueGrey.
+  ///
+  /// In en, this message translates to:
+  /// **'Blue grey'**
+  String get colorBlueGrey;
+
+  /// No description provided for @messageRemovedByAdministrator.
+  ///
+  /// In en, this message translates to:
+  /// **'This message was removed by an administrator.'**
+  String get messageRemovedByAdministrator;
+
+  /// No description provided for @messageDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'This message has been deleted.'**
+  String get messageDeleted;
+
+  /// No description provided for @sensitiveContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Sensitive content'**
+  String get sensitiveContent;
+
+  /// No description provided for @sensitiveMessageWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This message may contain sensitive content.'**
+  String get sensitiveMessageWarning;
+
+  /// No description provided for @showAnywayAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Show anyway'**
+  String get showAnywayAction;
+
+  /// No description provided for @scheduledMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled message'**
+  String get scheduledMessage;
+
+  /// No description provided for @scheduledLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled'**
+  String get scheduledLabel;
+
+  /// No description provided for @likeMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Like message'**
+  String get likeMessage;
+
+  /// No description provided for @unlikeMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlike message'**
+  String get unlikeMessage;
+
+  /// No description provided for @showFewerIcons.
+  ///
+  /// In en, this message translates to:
+  /// **'Show fewer icons'**
+  String get showFewerIcons;
+
+  /// No description provided for @showMoreIcons.
+  ///
+  /// In en, this message translates to:
+  /// **'Show more icons'**
+  String get showMoreIcons;
+
+  /// No description provided for @pinIconPlace.
+  ///
+  /// In en, this message translates to:
+  /// **'Place'**
+  String get pinIconPlace;
+
+  /// No description provided for @pinIconRestaurant.
+  ///
+  /// In en, this message translates to:
+  /// **'Restaurant'**
+  String get pinIconRestaurant;
+
+  /// No description provided for @pinIconPark.
+  ///
+  /// In en, this message translates to:
+  /// **'Park'**
+  String get pinIconPark;
+
+  /// No description provided for @pinIconHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Home'**
+  String get pinIconHome;
+
+  /// No description provided for @pinIconStar.
+  ///
+  /// In en, this message translates to:
+  /// **'Star'**
+  String get pinIconStar;
+
+  /// No description provided for @pinIconPhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo'**
+  String get pinIconPhoto;
+
+  /// No description provided for @pinIconMusic.
+  ///
+  /// In en, this message translates to:
+  /// **'Music'**
+  String get pinIconMusic;
+
+  /// No description provided for @pinIconCoffee.
+  ///
+  /// In en, this message translates to:
+  /// **'Coffee'**
+  String get pinIconCoffee;
+
+  /// No description provided for @pinIconShopping.
+  ///
+  /// In en, this message translates to:
+  /// **'Shopping'**
+  String get pinIconShopping;
+
+  /// No description provided for @pinIconHotel.
+  ///
+  /// In en, this message translates to:
+  /// **'Hotel'**
+  String get pinIconHotel;
+
+  /// No description provided for @pinIconDirections.
+  ///
+  /// In en, this message translates to:
+  /// **'Car'**
+  String get pinIconDirections;
+
+  /// No description provided for @pinIconHiking.
+  ///
+  /// In en, this message translates to:
+  /// **'Hiking'**
+  String get pinIconHiking;
+
+  /// No description provided for @pinIconPets.
+  ///
+  /// In en, this message translates to:
+  /// **'Pets'**
+  String get pinIconPets;
+
+  /// No description provided for @pinIconWork.
+  ///
+  /// In en, this message translates to:
+  /// **'Work'**
+  String get pinIconWork;
+
+  /// No description provided for @pinIconFavorite.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorite'**
+  String get pinIconFavorite;
+
+  /// No description provided for @mapNotesLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load nearby notes. Please try again.'**
+  String get mapNotesLoadFailed;
+
+  /// No description provided for @mapNotesRefreshFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not refresh nearby notes. Please try again.'**
+  String get mapNotesRefreshFailed;
+
+  /// No description provided for @mapNoteOpenFailedNearby.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open this note. Please try again when you are nearby.'**
+  String get mapNoteOpenFailedNearby;
+
+  /// No description provided for @commonRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get commonRefresh;
+
+  /// No description provided for @adminAccessRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin access required.'**
+  String get adminAccessRequired;
+
+  /// No description provided for @moderationOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get moderationOpen;
+
+  /// No description provided for @moderationResolved.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolved'**
+  String get moderationResolved;
+
+  /// No description provided for @moderationMarkedAs.
+  ///
+  /// In en, this message translates to:
+  /// **'Marked as {action}.'**
+  String moderationMarkedAs(String action);
+
+  /// No description provided for @reasonLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason'**
+  String get reasonLabel;
+
+  /// No description provided for @applyAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get applyAction;
+
+  /// No description provided for @emptyContent.
+  ///
+  /// In en, this message translates to:
+  /// **'(empty)'**
+  String get emptyContent;
+
+  /// No description provided for @reportCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 report} other{{count} reports}}'**
+  String reportCount(int count);
+
+  /// No description provided for @moderationAllowAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow'**
+  String get moderationAllowAction;
+
+  /// No description provided for @moderationSensitiveAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Sensitive'**
+  String get moderationSensitiveAction;
+
+  /// No description provided for @moderationHideAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide'**
+  String get moderationHideAction;
+
+  /// No description provided for @moderationAllowedStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'allowed'**
+  String get moderationAllowedStatus;
+
+  /// No description provided for @moderationSensitiveStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'sensitive'**
+  String get moderationSensitiveStatus;
+
+  /// No description provided for @moderationHiddenStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'hidden'**
+  String get moderationHiddenStatus;
+
+  /// No description provided for @moderationAllowTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow message'**
+  String get moderationAllowTitle;
+
+  /// No description provided for @moderationSensitiveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark sensitive'**
+  String get moderationSensitiveTitle;
+
+  /// No description provided for @moderationHideTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide message'**
+  String get moderationHideTitle;
 }
 
 class _AppLocalizationsDelegate

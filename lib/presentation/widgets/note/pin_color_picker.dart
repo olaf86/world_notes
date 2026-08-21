@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../l10n/l10n.dart';
+
 /// Compact color selection with an expandable set of additional choices.
 class PinColorPicker extends StatelessWidget {
   final List<Color> colors;
@@ -43,7 +45,9 @@ class PinColorPicker extends StatelessWidget {
             ],
             const Spacer(),
             IconButton(
-              tooltip: showMore ? 'Show fewer colors' : 'Show more colors',
+              tooltip: showMore
+                  ? context.l10n.showFewerColors
+                  : context.l10n.showMoreColors,
               onPressed: onToggleMore,
               icon: Icon(showMore ? Icons.expand_less : Icons.expand_more),
             ),
@@ -93,7 +97,7 @@ class _ColorChoice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorLabel = _colorLabel(color);
+    final colorLabel = _colorLabel(context, color);
     return Tooltip(
       message: colorLabel,
       child: Semantics(
@@ -127,20 +131,21 @@ class _ColorChoice extends StatelessWidget {
   }
 }
 
-String _colorLabel(Color color) {
-  if (color == Colors.green) return 'Green';
-  if (color == Colors.blue) return 'Blue';
-  if (color == Colors.red) return 'Red';
-  if (color == Colors.orange) return 'Orange';
-  if (color == Colors.purple) return 'Purple';
-  if (color == Colors.teal) return 'Teal';
-  if (color == Colors.pink) return 'Pink';
-  if (color == Colors.brown) return 'Brown';
-  if (color == Colors.indigo) return 'Indigo';
-  if (color == Colors.cyan) return 'Cyan';
-  if (color == Colors.lime) return 'Lime';
-  if (color == Colors.amber) return 'Amber';
-  if (color == Colors.deepOrange) return 'Deep orange';
-  if (color == Colors.blueGrey) return 'Blue grey';
-  return 'Pin color';
+String _colorLabel(BuildContext context, Color color) {
+  final l10n = context.l10n;
+  if (color == Colors.green) return l10n.colorGreen;
+  if (color == Colors.blue) return l10n.colorBlue;
+  if (color == Colors.red) return l10n.colorRed;
+  if (color == Colors.orange) return l10n.colorOrange;
+  if (color == Colors.purple) return l10n.colorPurple;
+  if (color == Colors.teal) return l10n.colorTeal;
+  if (color == Colors.pink) return l10n.colorPink;
+  if (color == Colors.brown) return l10n.colorBrown;
+  if (color == Colors.indigo) return l10n.colorIndigo;
+  if (color == Colors.cyan) return l10n.colorCyan;
+  if (color == Colors.lime) return l10n.colorLime;
+  if (color == Colors.amber) return l10n.colorAmber;
+  if (color == Colors.deepOrange) return l10n.colorDeepOrange;
+  if (color == Colors.blueGrey) return l10n.colorBlueGrey;
+  return l10n.pinColorLabel;
 }

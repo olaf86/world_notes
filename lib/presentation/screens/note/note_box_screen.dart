@@ -16,6 +16,7 @@ import '../../../domain/entities/place_entity.dart';
 import '../../../domain/entities/note_theme.dart';
 import '../../../domain/policies/note_permissions.dart';
 import '../../../l10n/l10n.dart';
+import '../../../l10n/presentation_labels.dart';
 import '../../providers/providers.dart';
 import '../../utils/user_block_actions.dart';
 import '../../widgets/map/static_note_mini_map.dart';
@@ -184,7 +185,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Cannot write here: $e')));
+        ).showSnackBar(SnackBar(content: Text(context.l10n.cannotWriteHere)));
       }
     } finally {
       if (mounted) setState(() => _preparingMessageEditor = false);
@@ -211,25 +212,30 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(
-          isAwaitingPublication ? 'Cancel scheduled message' : 'Delete message',
+          isAwaitingPublication
+              ? ctx.l10n.cancelScheduledMessageTitle
+              : ctx.l10n.deleteMessageTitle,
         ),
         content: Text(
           isAwaitingPublication
-              ? 'Cancel this scheduled message? Its reserved slot will be freed.'
-              : 'Are you sure you want to delete this message? '
-                    'It will appear as deleted to all users.',
+              ? ctx.l10n.cancelScheduledMessageConfirmation
+              : ctx.l10n.deleteMessageConfirmation,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(ctx.l10n.commonCancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(
               foregroundColor: Theme.of(context).colorScheme.error,
             ),
-            child: Text(isAwaitingPublication ? 'Cancel message' : 'Delete'),
+            child: Text(
+              isAwaitingPublication
+                  ? ctx.l10n.cancelMessageAction
+                  : ctx.l10n.deleteAction,
+            ),
           ),
         ],
       ),
@@ -250,9 +256,9 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.messageDeleteFailed(e))),
+        );
       }
     }
   }
@@ -341,20 +347,18 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
             messageId: message.id,
             liked: liked,
           );
-    } on FirebaseFunctionsException catch (error) {
+    } on FirebaseFunctionsException {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.message ?? 'Could not update like.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.l10n.likeUnavailable)));
       }
       rethrow;
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not update like. Check your connection.'),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.l10n.likeUnavailable)));
       }
       rethrow;
     }
@@ -366,19 +370,16 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Close this thread?'),
-        content: const Text(
-          'No new messages can be posted once closed. Existing messages stay '
-          'readable, and you can re-open it later.',
-        ),
+        title: Text(ctx.l10n.threadCloseTitle),
+        content: Text(ctx.l10n.threadCloseConfirmation),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(ctx.l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Close thread'),
+            child: Text(ctx.l10n.closeThreadAction),
           ),
         ],
       ),
@@ -390,9 +391,9 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
           .closePlace(widget.placeId, reason: ClosedReason.owner);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to close: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.threadCloseFailed(e))),
+        );
       }
     }
   }
@@ -402,9 +403,9 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
       await ref.read(placeRepositoryProvider).reopenPlace(widget.placeId);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to re-open: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.threadReopenFailed(e))),
+        );
       }
     }
   }
@@ -413,20 +414,16 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Archive this note?'),
-        content: const Text(
-          'It will disappear from the map, become read-only, and free one '
-          'note slot. You cannot restore the archived note, but you can '
-          'create a new note from its title, description, and location later.',
-        ),
+        title: Text(dialogContext.l10n.archiveNoteTitle),
+        content: Text(dialogContext.l10n.archiveNoteMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
+            child: Text(dialogContext.l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Archive'),
+            child: Text(dialogContext.l10n.archiveAction),
           ),
         ],
       ),
@@ -438,9 +435,9 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
       if (mounted && context.canPop()) context.pop();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to archive note: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.archiveFailed(error))),
+      );
     }
   }
 
@@ -471,16 +468,16 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
       await ref
           .read(placeRepositoryProvider)
           .setNoteTheme(placeId: widget.placeId, themeId: themeId);
-    } on FirebaseFunctionsException catch (error) {
+    } on FirebaseFunctionsException {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message ?? 'Could not change theme.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.l10n.themeChangeFailed)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Could not change theme.')));
+      ).showSnackBar(SnackBar(content: Text(context.l10n.themeChangeFailed)));
     }
   }
 
@@ -524,19 +521,20 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
 
   void _showPatternTooLongSnack() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Pattern is too long. Use 30 nodes or fewer.'),
+      SnackBar(
+        content: Text(context.l10n.patternTooLong(PatternLockUtil.maxLength)),
       ),
     );
   }
 
   /// Creator: set or change the note lock (locks it as private).
   Future<void> _promptSetPassword({required bool isChange}) async {
+    final l10n = context.l10n;
     final place = ref.read(placeProvider(widget.placeId)).valueOrNull;
     final saved = await showDialog<NoteLockSetupValue>(
       context: context,
       builder: (_) => NoteLockSetupDialog(
-        title: isChange ? 'Change lock' : 'Set lock',
+        title: isChange ? l10n.changeLock : l10n.setLock,
         initialLockType: place?.lockType,
         initialHint: place?.lockHint,
         onPatternTooLong: _showPatternTooLongSnack,
@@ -561,36 +559,33 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
             }());
             final isSignedIn =
                 ref.read(firebaseAuthProvider).currentUser != null;
-            return _lockSaveErrorMessage(e, isSignedIn: isSignedIn);
+            return _lockSaveErrorMessage(e, l10n: l10n, isSignedIn: isSignedIn);
           } catch (_) {
-            return 'Failed to save the lock.';
+            return l10n.lockSaveFailed;
           }
         },
       ),
     );
     if (saved != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lock saved. This note is private.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.lockSavedPrivate)));
     }
   }
 
   String _lockSaveErrorMessage(
     FirebaseFunctionsException error, {
+    required AppLocalizations l10n,
     required bool isSignedIn,
   }) {
     return switch (error.code) {
       'unauthenticated' =>
-        isSignedIn
-            ? 'Could not verify this app. Please try again.'
-            : 'Authentication failed. Please sign in again.',
-      'permission-denied' => 'Only the note creator can change this lock.',
-      'not-found' => 'Note not found.',
-      'invalid-argument' ||
-      'failed-precondition' => error.message ?? 'Failed to save the lock.',
-      'unavailable' ||
-      'deadline-exceeded' => 'Network error. Check your connection.',
-      _ => error.message ?? 'Failed to save the lock.',
+        isSignedIn ? l10n.appVerificationFailed : l10n.authenticationExpired,
+      'permission-denied' => l10n.lockCreatorOnly,
+      'not-found' => l10n.noteNotFound,
+      'invalid-argument' || 'failed-precondition' => l10n.lockSaveFailed,
+      'unavailable' || 'deadline-exceeded' => l10n.networkErrorTryAgain,
+      _ => l10n.lockSaveFailed,
     };
   }
 
@@ -613,8 +608,12 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
             Future<void> submit() async {
               if (busy) return;
               final validation = switch (lockType) {
-                NoteLockType.password => PasswordUtil.validate(password),
-                NoteLockType.pattern => PatternLockUtil.validate(pattern),
+                NoteLockType.password => PasswordUtil.validationError(
+                  password,
+                )?.localizedLabel(ctx.l10n),
+                NoteLockType.pattern => PatternLockUtil.validationError(
+                  pattern,
+                )?.localizedLabel(ctx.l10n),
               };
               if (validation != null) {
                 setLocal(() => error = validation);
@@ -643,35 +642,34 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                   error = switch (e.code) {
                     'permission-denied' =>
                       lockType == NoteLockType.pattern
-                          ? 'Incorrect pattern.'
-                          : 'Incorrect password.',
-                    'resource-exhausted' =>
-                      'Too many attempts. Please try again later.',
-                    'unavailable' || 'deadline-exceeded' =>
-                      'Network error. Check your connection.',
-                    _ => e.message ?? 'Could not unlock this note.',
+                          ? ctx.l10n.incorrectPattern
+                          : ctx.l10n.incorrectPassword,
+                    'resource-exhausted' => ctx.l10n.tooManyAttempts,
+                    'unavailable' ||
+                    'deadline-exceeded' => ctx.l10n.networkErrorTryAgain,
+                    _ => ctx.l10n.noteUnlockFailed,
                   };
                 });
               } catch (_) {
                 setLocal(() {
                   busy = false;
-                  error = 'Could not unlock this note.';
+                  error = ctx.l10n.noteUnlockFailed;
                 });
               }
             }
 
             return AlertDialog(
-              title: const Text('Unlock note'),
+              title: Text(ctx.l10n.unlockAction),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text('This note is private.'),
+                    Text(ctx.l10n.notePrivateTitle),
                     if (place?.lockHint case final hint?
                         when hint.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Text(
-                        'Hint: $hint',
+                        ctx.l10n.noteLockHint(hint),
                         style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
                           color: Theme.of(ctx).colorScheme.onSurfaceVariant,
                         ),
@@ -716,7 +714,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
               actions: [
                 TextButton(
                   onPressed: busy ? null : () => Navigator.pop(ctx),
-                  child: const Text('Cancel'),
+                  child: Text(ctx.l10n.commonCancel),
                 ),
                 FilledButton(
                   onPressed: busy ? null : submit,
@@ -726,7 +724,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                           height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Unlock'),
+                      : Text(ctx.l10n.unlockAction),
                 ),
               ],
             );
@@ -1205,11 +1203,11 @@ class _CreatorMapOverlay extends StatelessWidget {
     final theme = Theme.of(context);
     final displayName = name?.trim().isNotEmpty == true
         ? name!.trim()
-        : UserAvatarBadge.defaultName;
+        : context.l10n.noteCreatorLabel;
 
     return Semantics(
       button: true,
-      label: 'View $displayName\'s profile',
+      label: context.l10n.viewUserProfile(displayName),
       child: Material(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(8),
@@ -1384,12 +1382,12 @@ class _NoteLikeRowState extends ConsumerState<_NoteLikeRow> {
         _flushAfterSend = false;
         _scheduleFlush();
       }
-    } on FirebaseFunctionsException catch (error) {
+    } on FirebaseFunctionsException {
       if (!mounted) return;
-      _showFailure(error.message ?? 'Could not update like.');
+      _showFailure(context.l10n.likeUnavailable);
     } catch (_) {
       if (!mounted) return;
-      _showFailure('Could not update like. Check your connection.');
+      _showFailure(context.l10n.likeUnavailable);
     }
   }
 

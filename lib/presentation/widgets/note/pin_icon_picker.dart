@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../l10n/l10n.dart';
+
 /// A map-pin icon option that can be persisted using [id].
 class PinIconOption {
   final String id;
@@ -58,7 +60,9 @@ class PinIconPicker extends StatelessWidget {
             ],
             const Spacer(),
             IconButton(
-              tooltip: showMore ? 'Show fewer icons' : 'Show more icons',
+              tooltip: showMore
+                  ? context.l10n.showFewerIcons
+                  : context.l10n.showMoreIcons,
               onPressed: onToggleMore,
               icon: Icon(showMore ? Icons.expand_less : Icons.expand_more),
             ),
@@ -111,12 +115,13 @@ class _IconChoice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final label = _localizedIconLabel(context, icon.id);
     return Tooltip(
-      message: icon.id,
+      message: label,
       child: Semantics(
         button: true,
         selected: selected,
-        label: icon.id,
+        label: label,
         child: InkWell(
           borderRadius: BorderRadius.circular(10),
           onTap: onTap,
@@ -143,3 +148,22 @@ class _IconChoice extends StatelessWidget {
     );
   }
 }
+
+String _localizedIconLabel(BuildContext context, String id) => switch (id) {
+  'place' => context.l10n.pinIconPlace,
+  'restaurant' => context.l10n.pinIconRestaurant,
+  'park' => context.l10n.pinIconPark,
+  'home' => context.l10n.pinIconHome,
+  'star' => context.l10n.pinIconStar,
+  'photo' => context.l10n.pinIconPhoto,
+  'music' => context.l10n.pinIconMusic,
+  'coffee' => context.l10n.pinIconCoffee,
+  'shopping' => context.l10n.pinIconShopping,
+  'hotel' => context.l10n.pinIconHotel,
+  'directions' => context.l10n.pinIconDirections,
+  'hiking' => context.l10n.pinIconHiking,
+  'pets' => context.l10n.pinIconPets,
+  'work' => context.l10n.pinIconWork,
+  'favorite' => context.l10n.pinIconFavorite,
+  _ => context.l10n.iconLabel,
+};

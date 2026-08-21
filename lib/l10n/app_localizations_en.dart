@@ -619,6 +619,85 @@ class AppLocalizationsEn extends AppLocalizations {
   String get removeLock => 'Remove lock';
 
   @override
+  String get useLock => 'Use lock';
+
+  @override
+  String get updateAction => 'Update';
+
+  @override
+  String get confirmPasswordLabel => 'Confirm password';
+
+  @override
+  String get patternSetupInstruction => 'Draw a path between neighboring dots.';
+
+  @override
+  String get lockHintOptional => 'Hint (optional)';
+
+  @override
+  String get clearAction => 'Clear';
+
+  @override
+  String get passwordRequired => 'Enter a password.';
+
+  @override
+  String passwordMaxLength(int maxLength) {
+    return 'Password must be $maxLength characters or fewer.';
+  }
+
+  @override
+  String get passwordConfirmationRequired => 'Re-enter the password.';
+
+  @override
+  String get passwordsDoNotMatch => 'Passwords do not match.';
+
+  @override
+  String get patternRequired => 'Draw a pattern to lock this note.';
+
+  @override
+  String patternTooLong(int maxLength) {
+    return 'Pattern is too long. Use $maxLength nodes or fewer.';
+  }
+
+  @override
+  String get patternInvalidNode => 'Pattern contains an invalid node.';
+
+  @override
+  String get patternNeighboringOnly =>
+      'Pattern can only connect neighboring dots.';
+
+  @override
+  String get lockSavedPrivate => 'Lock saved. This note is private.';
+
+  @override
+  String get lockSaveFailed => 'Failed to save the lock.';
+
+  @override
+  String get appVerificationFailed =>
+      'Could not verify this app. Please try again.';
+
+  @override
+  String get authenticationExpired =>
+      'Authentication failed. Please sign in again.';
+
+  @override
+  String get lockCreatorOnly => 'Only the note creator can change this lock.';
+
+  @override
+  String get noteNotFound => 'Note not found.';
+
+  @override
+  String get incorrectPattern => 'Incorrect pattern.';
+
+  @override
+  String get incorrectPassword => 'Incorrect password.';
+
+  @override
+  String get tooManyAttempts => 'Too many attempts. Please try again later.';
+
+  @override
+  String get noteUnlockFailed => 'Could not unlock this note.';
+
+  @override
   String get noteThemeStandard => 'Standard';
 
   @override
@@ -1374,4 +1453,460 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get revokeInvitation => 'Revoke invitation';
+
+  @override
+  String get authEmailAlreadyRegistered => 'This email is already registered.';
+
+  @override
+  String get invalidEmail => 'Enter a valid email address.';
+
+  @override
+  String get authInvalidCredentials => 'Email or password is incorrect.';
+
+  @override
+  String get authOperationNotAllowed =>
+      'Email and password sign-in is currently unavailable.';
+
+  @override
+  String get authWeakPassword => 'Choose a stronger password.';
+
+  @override
+  String get authFailed => 'Authentication failed. Please try again.';
+
+  @override
+  String get authTagline => 'Share your world, one note at a time';
+
+  @override
+  String get emailLabel => 'Email';
+
+  @override
+  String get requiredField => 'Required';
+
+  @override
+  String minimumPasswordLength(int count) {
+    return 'Use at least $count characters.';
+  }
+
+  @override
+  String get createAccount => 'Create Account';
+
+  @override
+  String get alreadyHaveAccountSignIn => 'Already have an account? Sign In';
+
+  @override
+  String get newHereCreateAccount => 'New here? Create Account';
+
+  @override
+  String get orDivider => 'or';
+
+  @override
+  String get continueWithGoogle => 'Continue with Google';
+
+  @override
+  String get webpUnsupported =>
+      'Image encoding is not supported on this device.';
+
+  @override
+  String messageImageUploadFailed(Object error) {
+    return 'Failed to upload the image: $error';
+  }
+
+  @override
+  String messageSendFailed(Object error) {
+    return 'Failed to send the message: $error';
+  }
+
+  @override
+  String get messageContentHint => 'What\'s happening at this place?';
+
+  @override
+  String get newMessageTitle => 'New message';
+
+  @override
+  String get sendAction => 'Send';
+
+  @override
+  String get chooseFromLibrary => 'Choose from library';
+
+  @override
+  String get takePhoto => 'Take a photo';
+
+  @override
+  String get postTime => 'Post time';
+
+  @override
+  String get thumbnailRenderFailed => 'Could not render the thumbnail preview.';
+
+  @override
+  String get mapPinImageTitle => 'Map pin image';
+
+  @override
+  String get mapPinCropInstruction =>
+      'Drag and pinch to choose the part shown in the pin.';
+
+  @override
+  String get zoomOut => 'Zoom out';
+
+  @override
+  String get zoomIn => 'Zoom in';
+
+  @override
+  String get resetAction => 'Reset';
+
+  @override
+  String get useImageAction => 'Use Image';
+
+  @override
+  String pinImagePreparationFailed(Object error) {
+    return 'Could not prepare the pin image: $error';
+  }
+
+  @override
+  String get closeAction => 'Close';
+
+  @override
+  String notificationsLoadFailed(Object error) {
+    return 'Could not load notifications: $error';
+  }
+
+  @override
+  String get adPrivacyTitle => 'Ad Privacy';
+
+  @override
+  String get managePrivacyChoices => 'Manage privacy choices';
+
+  @override
+  String get managePrivacyChoicesDescription =>
+      'Review or change how your information is used for ads.';
+
+  @override
+  String privacyChoicesOpenFailed(Object error) {
+    return 'Could not open privacy choices: $error';
+  }
+
+  @override
+  String get followUpdateFailed => 'Could not update the follow setting.';
+
+  @override
+  String profileLoadFailed(Object error) {
+    return 'Could not load the profile: $error';
+  }
+
+  @override
+  String get profileNotFound => 'Profile not found.';
+
+  @override
+  String followUnavailable(Object error) {
+    return 'Follow unavailable: $error';
+  }
+
+  @override
+  String get followAction => 'Follow';
+
+  @override
+  String get unfollowAction => 'Unfollow';
+
+  @override
+  String followListLoadFailed(Object error) {
+    return 'Could not load the list: $error';
+  }
+
+  @override
+  String followerCountLabel(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count followers',
+      one: '1 follower',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get footprintsUpdateFailed => 'Could not update footprints.';
+
+  @override
+  String get footprintsTitle => 'Footprints';
+
+  @override
+  String get sortLatest => 'Latest';
+
+  @override
+  String get visitsLabel => 'Visits';
+
+  @override
+  String footprintsLoadFailed(Object error) {
+    return 'Could not load footprints: $error';
+  }
+
+  @override
+  String get newVisitsNotRecorded => 'New visits are not being recorded';
+
+  @override
+  String visitCountLabel(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count visits',
+      one: '1 visit',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get cannotWriteHere => 'You cannot write here.';
+
+  @override
+  String get cancelScheduledMessageTitle => 'Cancel scheduled message';
+
+  @override
+  String get deleteMessageTitle => 'Delete message';
+
+  @override
+  String get cancelScheduledMessageConfirmation =>
+      'Cancel this scheduled message? Its reserved slot will be freed.';
+
+  @override
+  String get deleteMessageConfirmation =>
+      'Are you sure you want to delete this message? It will appear as deleted to all users.';
+
+  @override
+  String get cancelMessageAction => 'Cancel message';
+
+  @override
+  String get deleteAction => 'Delete';
+
+  @override
+  String messageDeleteFailed(Object error) {
+    return 'Failed to delete the message: $error';
+  }
+
+  @override
+  String get threadCloseTitle => 'Close this thread?';
+
+  @override
+  String get threadCloseConfirmation =>
+      'No new messages can be posted once closed. Existing messages stay readable, and you can re-open it later.';
+
+  @override
+  String threadCloseFailed(Object error) {
+    return 'Failed to close the thread: $error';
+  }
+
+  @override
+  String threadReopenFailed(Object error) {
+    return 'Failed to re-open the thread: $error';
+  }
+
+  @override
+  String get themeChangeFailed => 'Could not change the theme.';
+
+  @override
+  String viewUserProfile(String name) {
+    return 'View $name\'s profile';
+  }
+
+  @override
+  String get showFewerColors => 'Show fewer colors';
+
+  @override
+  String get showMoreColors => 'Show more colors';
+
+  @override
+  String get colorGreen => 'Green';
+
+  @override
+  String get colorBlue => 'Blue';
+
+  @override
+  String get colorRed => 'Red';
+
+  @override
+  String get colorOrange => 'Orange';
+
+  @override
+  String get colorPurple => 'Purple';
+
+  @override
+  String get colorTeal => 'Teal';
+
+  @override
+  String get colorPink => 'Pink';
+
+  @override
+  String get colorBrown => 'Brown';
+
+  @override
+  String get colorIndigo => 'Indigo';
+
+  @override
+  String get colorCyan => 'Cyan';
+
+  @override
+  String get colorLime => 'Lime';
+
+  @override
+  String get colorAmber => 'Amber';
+
+  @override
+  String get colorDeepOrange => 'Deep orange';
+
+  @override
+  String get colorBlueGrey => 'Blue grey';
+
+  @override
+  String get messageRemovedByAdministrator =>
+      'This message was removed by an administrator.';
+
+  @override
+  String get messageDeleted => 'This message has been deleted.';
+
+  @override
+  String get sensitiveContent => 'Sensitive content';
+
+  @override
+  String get sensitiveMessageWarning =>
+      'This message may contain sensitive content.';
+
+  @override
+  String get showAnywayAction => 'Show anyway';
+
+  @override
+  String get scheduledMessage => 'Scheduled message';
+
+  @override
+  String get scheduledLabel => 'Scheduled';
+
+  @override
+  String get likeMessage => 'Like message';
+
+  @override
+  String get unlikeMessage => 'Unlike message';
+
+  @override
+  String get showFewerIcons => 'Show fewer icons';
+
+  @override
+  String get showMoreIcons => 'Show more icons';
+
+  @override
+  String get pinIconPlace => 'Place';
+
+  @override
+  String get pinIconRestaurant => 'Restaurant';
+
+  @override
+  String get pinIconPark => 'Park';
+
+  @override
+  String get pinIconHome => 'Home';
+
+  @override
+  String get pinIconStar => 'Star';
+
+  @override
+  String get pinIconPhoto => 'Photo';
+
+  @override
+  String get pinIconMusic => 'Music';
+
+  @override
+  String get pinIconCoffee => 'Coffee';
+
+  @override
+  String get pinIconShopping => 'Shopping';
+
+  @override
+  String get pinIconHotel => 'Hotel';
+
+  @override
+  String get pinIconDirections => 'Car';
+
+  @override
+  String get pinIconHiking => 'Hiking';
+
+  @override
+  String get pinIconPets => 'Pets';
+
+  @override
+  String get pinIconWork => 'Work';
+
+  @override
+  String get pinIconFavorite => 'Favorite';
+
+  @override
+  String get mapNotesLoadFailed =>
+      'Could not load nearby notes. Please try again.';
+
+  @override
+  String get mapNotesRefreshFailed =>
+      'Could not refresh nearby notes. Please try again.';
+
+  @override
+  String get mapNoteOpenFailedNearby =>
+      'Could not open this note. Please try again when you are nearby.';
+
+  @override
+  String get commonRefresh => 'Refresh';
+
+  @override
+  String get adminAccessRequired => 'Admin access required.';
+
+  @override
+  String get moderationOpen => 'Open';
+
+  @override
+  String get moderationResolved => 'Resolved';
+
+  @override
+  String moderationMarkedAs(String action) {
+    return 'Marked as $action.';
+  }
+
+  @override
+  String get reasonLabel => 'Reason';
+
+  @override
+  String get applyAction => 'Apply';
+
+  @override
+  String get emptyContent => '(empty)';
+
+  @override
+  String reportCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count reports',
+      one: '1 report',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get moderationAllowAction => 'Allow';
+
+  @override
+  String get moderationSensitiveAction => 'Sensitive';
+
+  @override
+  String get moderationHideAction => 'Hide';
+
+  @override
+  String get moderationAllowedStatus => 'allowed';
+
+  @override
+  String get moderationSensitiveStatus => 'sensitive';
+
+  @override
+  String get moderationHiddenStatus => 'hidden';
+
+  @override
+  String get moderationAllowTitle => 'Allow message';
+
+  @override
+  String get moderationSensitiveTitle => 'Mark sensitive';
+
+  @override
+  String get moderationHideTitle => 'Hide message';
 }

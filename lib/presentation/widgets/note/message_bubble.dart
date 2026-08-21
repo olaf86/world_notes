@@ -131,7 +131,7 @@ class _MessageBubbleState extends State<MessageBubble> {
               right: 4,
               child: IconButton(
                 icon: const Icon(Icons.close, color: Colors.white),
-                tooltip: 'Close',
+                tooltip: ctx.l10n.closeAction,
                 onPressed: () => Navigator.pop(ctx),
               ),
             ),
@@ -174,8 +174,8 @@ class _MessageBubbleState extends State<MessageBubble> {
                 leading: const Icon(Icons.delete_outline),
                 title: Text(
                   widget.message.isPublished
-                      ? 'Delete message'
-                      : 'Cancel scheduled message',
+                      ? context.l10n.deleteMessageTitle
+                      : context.l10n.cancelScheduledMessageTitle,
                 ),
                 textColor: Theme.of(context).colorScheme.error,
                 iconColor: Theme.of(context).colorScheme.error,
@@ -313,8 +313,8 @@ class _MessageBubbleState extends State<MessageBubble> {
     // ── Deleted tombstone ─────────────────────────────────────────────────
     if (message.isDeleted) {
       final tombstoneText = message.deletedReason == 'moderation'
-          ? 'This message was removed by an administrator.'
-          : 'This message has been deleted.';
+          ? l10n.messageRemovedByAdministrator
+          : l10n.messageDeleted;
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
         child: Row(
@@ -363,7 +363,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      'Sensitive content',
+                      l10n.sensitiveContent,
                       style: theme.textTheme.labelMedium?.copyWith(
                         color: theme.colorScheme.tertiary,
                         fontWeight: FontWeight.w600,
@@ -373,7 +373,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'This message may contain sensitive content.',
+                  l10n.sensitiveMessageWarning,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
@@ -382,7 +382,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                 GestureDetector(
                   onTap: () => setState(() => _flaggedContentRevealed = true),
                   child: Text(
-                    'Show anyway',
+                    l10n.showAnywayAction,
                     style: theme.textTheme.labelMedium?.copyWith(
                       color: theme.colorScheme.primary,
                       decoration: TextDecoration.underline,
@@ -604,7 +604,7 @@ class _ScheduledMessageBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Semantics(
-      label: 'Scheduled message',
+      label: context.l10n.scheduledMessage,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
         decoration: BoxDecoration(
@@ -621,7 +621,7 @@ class _ScheduledMessageBadge extends StatelessWidget {
             ),
             const SizedBox(width: 4),
             Text(
-              'Scheduled',
+              context.l10n.scheduledLabel,
               style: theme.textTheme.labelSmall?.copyWith(
                 color: theme.colorScheme.onTertiaryContainer,
                 fontWeight: FontWeight.w700,
@@ -666,7 +666,9 @@ class _MessageActionRow extends StatelessWidget {
           button: true,
           toggled: liked,
           child: IconButton(
-            tooltip: liked ? 'Unlike message' : 'Like message',
+            tooltip: liked
+                ? context.l10n.unlikeMessage
+                : context.l10n.likeMessage,
             visualDensity: VisualDensity.compact,
             constraints: const BoxConstraints.tightFor(width: 32, height: 32),
             padding: EdgeInsets.zero,

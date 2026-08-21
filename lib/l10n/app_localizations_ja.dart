@@ -566,6 +566,82 @@ class AppLocalizationsJa extends AppLocalizations {
   String get removeLock => 'ロックを解除';
 
   @override
+  String get useLock => 'ロックを使用';
+
+  @override
+  String get updateAction => '更新';
+
+  @override
+  String get confirmPasswordLabel => 'パスワード（確認）';
+
+  @override
+  String get patternSetupInstruction => '隣り合う点をつないでパターンを描いてください。';
+
+  @override
+  String get lockHintOptional => 'ヒント（任意）';
+
+  @override
+  String get clearAction => 'クリア';
+
+  @override
+  String get passwordRequired => 'パスワードを入力してください。';
+
+  @override
+  String passwordMaxLength(int maxLength) {
+    return 'パスワードは$maxLength文字以内で入力してください。';
+  }
+
+  @override
+  String get passwordConfirmationRequired => '確認のためパスワードをもう一度入力してください。';
+
+  @override
+  String get passwordsDoNotMatch => 'パスワードが一致しません。';
+
+  @override
+  String get patternRequired => 'ノートをロックするパターンを描いてください。';
+
+  @override
+  String patternTooLong(int maxLength) {
+    return 'パターンが長すぎます。$maxLength個以下の点を使用してください。';
+  }
+
+  @override
+  String get patternInvalidNode => 'パターンに無効な点が含まれています。';
+
+  @override
+  String get patternNeighboringOnly => 'パターンは隣り合う点のみ接続できます。';
+
+  @override
+  String get lockSavedPrivate => 'ロックを保存しました。このノートは非公開です。';
+
+  @override
+  String get lockSaveFailed => 'ロックを保存できませんでした。';
+
+  @override
+  String get appVerificationFailed => 'このアプリを確認できませんでした。もう一度お試しください。';
+
+  @override
+  String get authenticationExpired => '認証に失敗しました。もう一度サインインしてください。';
+
+  @override
+  String get lockCreatorOnly => 'ロックを変更できるのはノートの作成者だけです。';
+
+  @override
+  String get noteNotFound => 'ノートが見つかりません。';
+
+  @override
+  String get incorrectPattern => 'パターンが正しくありません。';
+
+  @override
+  String get incorrectPassword => 'パスワードが正しくありません。';
+
+  @override
+  String get tooManyAttempts => '試行回数が多すぎます。しばらくしてからもう一度お試しください。';
+
+  @override
+  String get noteUnlockFailed => 'このノートのロックを解除できませんでした。';
+
+  @override
   String get noteThemeStandard => 'スタンダード';
 
   @override
@@ -1278,4 +1354,433 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get revokeInvitation => '招待を取り消す';
+
+  @override
+  String get authEmailAlreadyRegistered => 'このメールアドレスはすでに登録されています。';
+
+  @override
+  String get invalidEmail => '有効なメールアドレスを入力してください。';
+
+  @override
+  String get authInvalidCredentials => 'メールアドレスまたはパスワードが正しくありません。';
+
+  @override
+  String get authOperationNotAllowed => '現在、メールアドレスとパスワードでのサインインは利用できません。';
+
+  @override
+  String get authWeakPassword => 'より安全なパスワードを設定してください。';
+
+  @override
+  String get authFailed => '認証に失敗しました。もう一度お試しください。';
+
+  @override
+  String get authTagline => '世界のひとコマを、ひとつのノートに';
+
+  @override
+  String get emailLabel => 'メールアドレス';
+
+  @override
+  String get requiredField => '必須項目です';
+
+  @override
+  String minimumPasswordLength(int count) {
+    return '$count文字以上で入力してください。';
+  }
+
+  @override
+  String get createAccount => 'アカウントを作成';
+
+  @override
+  String get alreadyHaveAccountSignIn => 'アカウントをお持ちですか？ サインイン';
+
+  @override
+  String get newHereCreateAccount => '初めてですか？ アカウントを作成';
+
+  @override
+  String get orDivider => 'または';
+
+  @override
+  String get continueWithGoogle => 'Googleで続ける';
+
+  @override
+  String get webpUnsupported => 'この端末では画像のエンコードに対応していません。';
+
+  @override
+  String messageImageUploadFailed(Object error) {
+    return '画像をアップロードできませんでした: $error';
+  }
+
+  @override
+  String messageSendFailed(Object error) {
+    return 'メッセージを送信できませんでした: $error';
+  }
+
+  @override
+  String get messageContentHint => 'この場所で何がありましたか？';
+
+  @override
+  String get newMessageTitle => '新しいメッセージ';
+
+  @override
+  String get sendAction => '送信';
+
+  @override
+  String get chooseFromLibrary => 'ライブラリから選択';
+
+  @override
+  String get takePhoto => '写真を撮る';
+
+  @override
+  String get postTime => '投稿日時';
+
+  @override
+  String get thumbnailRenderFailed => 'サムネイルのプレビューを作成できませんでした。';
+
+  @override
+  String get mapPinImageTitle => 'マップピンの画像';
+
+  @override
+  String get mapPinCropInstruction => 'ドラッグやピンチ操作でピンに表示する範囲を選んでください。';
+
+  @override
+  String get zoomOut => '縮小';
+
+  @override
+  String get zoomIn => '拡大';
+
+  @override
+  String get resetAction => 'リセット';
+
+  @override
+  String get useImageAction => 'この画像を使用';
+
+  @override
+  String pinImagePreparationFailed(Object error) {
+    return 'ピン画像を準備できませんでした: $error';
+  }
+
+  @override
+  String get closeAction => '閉じる';
+
+  @override
+  String notificationsLoadFailed(Object error) {
+    return 'お知らせを読み込めませんでした: $error';
+  }
+
+  @override
+  String get adPrivacyTitle => '広告のプライバシー';
+
+  @override
+  String get managePrivacyChoices => 'プライバシー設定を管理';
+
+  @override
+  String get managePrivacyChoicesDescription => '広告での情報の利用方法を確認または変更します。';
+
+  @override
+  String privacyChoicesOpenFailed(Object error) {
+    return 'プライバシー設定を開けませんでした: $error';
+  }
+
+  @override
+  String get followUpdateFailed => 'フォロー設定を更新できませんでした。';
+
+  @override
+  String profileLoadFailed(Object error) {
+    return 'プロフィールを読み込めませんでした: $error';
+  }
+
+  @override
+  String get profileNotFound => 'プロフィールが見つかりません。';
+
+  @override
+  String followUnavailable(Object error) {
+    return 'フォローを利用できません: $error';
+  }
+
+  @override
+  String get followAction => 'フォロー';
+
+  @override
+  String get unfollowAction => 'フォロー解除';
+
+  @override
+  String followListLoadFailed(Object error) {
+    return '一覧を読み込めませんでした: $error';
+  }
+
+  @override
+  String followerCountLabel(int count) {
+    return '$count人のフォロワー';
+  }
+
+  @override
+  String get footprintsUpdateFailed => '足あと設定を更新できませんでした。';
+
+  @override
+  String get footprintsTitle => '足あと';
+
+  @override
+  String get sortLatest => '新しい順';
+
+  @override
+  String get visitsLabel => '訪問回数';
+
+  @override
+  String footprintsLoadFailed(Object error) {
+    return '足あとを読み込めませんでした: $error';
+  }
+
+  @override
+  String get newVisitsNotRecorded => '新しい訪問は記録されません';
+
+  @override
+  String visitCountLabel(int count) {
+    return '$count回訪問';
+  }
+
+  @override
+  String get cannotWriteHere => 'ここには投稿できません。';
+
+  @override
+  String get cancelScheduledMessageTitle => '予約メッセージを取り消す';
+
+  @override
+  String get deleteMessageTitle => 'メッセージを削除';
+
+  @override
+  String get cancelScheduledMessageConfirmation =>
+      'この予約メッセージを取り消しますか？ 確保されていた枠は解放されます。';
+
+  @override
+  String get deleteMessageConfirmation =>
+      'このメッセージを削除しますか？ すべてのユーザーに削除済みとして表示されます。';
+
+  @override
+  String get cancelMessageAction => 'メッセージを取り消す';
+
+  @override
+  String get deleteAction => '削除';
+
+  @override
+  String messageDeleteFailed(Object error) {
+    return 'メッセージを削除できませんでした: $error';
+  }
+
+  @override
+  String get threadCloseTitle => 'スレッドを終了しますか？';
+
+  @override
+  String get threadCloseConfirmation =>
+      '終了すると新しいメッセージは投稿できません。既存のメッセージは引き続き閲覧でき、あとで再開できます。';
+
+  @override
+  String threadCloseFailed(Object error) {
+    return 'スレッドを終了できませんでした: $error';
+  }
+
+  @override
+  String threadReopenFailed(Object error) {
+    return 'スレッドを再開できませんでした: $error';
+  }
+
+  @override
+  String get themeChangeFailed => 'テーマを変更できませんでした。';
+
+  @override
+  String viewUserProfile(String name) {
+    return '$nameさんのプロフィールを表示';
+  }
+
+  @override
+  String get showFewerColors => '色を少なく表示';
+
+  @override
+  String get showMoreColors => '色をもっと表示';
+
+  @override
+  String get colorGreen => '緑';
+
+  @override
+  String get colorBlue => '青';
+
+  @override
+  String get colorRed => '赤';
+
+  @override
+  String get colorOrange => 'オレンジ';
+
+  @override
+  String get colorPurple => '紫';
+
+  @override
+  String get colorTeal => 'ティール';
+
+  @override
+  String get colorPink => 'ピンク';
+
+  @override
+  String get colorBrown => '茶色';
+
+  @override
+  String get colorIndigo => '藍色';
+
+  @override
+  String get colorCyan => 'シアン';
+
+  @override
+  String get colorLime => 'ライム';
+
+  @override
+  String get colorAmber => 'アンバー';
+
+  @override
+  String get colorDeepOrange => '濃いオレンジ';
+
+  @override
+  String get colorBlueGrey => 'ブルーグレー';
+
+  @override
+  String get messageRemovedByAdministrator => 'このメッセージは管理者によって削除されました。';
+
+  @override
+  String get messageDeleted => 'このメッセージは削除されました。';
+
+  @override
+  String get sensitiveContent => 'センシティブな内容';
+
+  @override
+  String get sensitiveMessageWarning => 'このメッセージにはセンシティブな内容が含まれている可能性があります。';
+
+  @override
+  String get showAnywayAction => '表示する';
+
+  @override
+  String get scheduledMessage => '予約メッセージ';
+
+  @override
+  String get scheduledLabel => '予約済み';
+
+  @override
+  String get likeMessage => 'メッセージにいいね';
+
+  @override
+  String get unlikeMessage => 'メッセージのいいねを解除';
+
+  @override
+  String get showFewerIcons => 'アイコンを少なく表示';
+
+  @override
+  String get showMoreIcons => 'アイコンをもっと表示';
+
+  @override
+  String get pinIconPlace => '場所';
+
+  @override
+  String get pinIconRestaurant => 'レストラン';
+
+  @override
+  String get pinIconPark => '公園';
+
+  @override
+  String get pinIconHome => '家';
+
+  @override
+  String get pinIconStar => '星';
+
+  @override
+  String get pinIconPhoto => '写真';
+
+  @override
+  String get pinIconMusic => '音楽';
+
+  @override
+  String get pinIconCoffee => 'コーヒー';
+
+  @override
+  String get pinIconShopping => 'ショッピング';
+
+  @override
+  String get pinIconHotel => 'ホテル';
+
+  @override
+  String get pinIconDirections => '車';
+
+  @override
+  String get pinIconHiking => 'ハイキング';
+
+  @override
+  String get pinIconPets => 'ペット';
+
+  @override
+  String get pinIconWork => '仕事';
+
+  @override
+  String get pinIconFavorite => 'お気に入り';
+
+  @override
+  String get mapNotesLoadFailed => '周辺のノートを読み込めませんでした。もう一度お試しください。';
+
+  @override
+  String get mapNotesRefreshFailed => '周辺のノートを更新できませんでした。もう一度お試しください。';
+
+  @override
+  String get mapNoteOpenFailedNearby => 'ノートを開けませんでした。近くに移動してもう一度お試しください。';
+
+  @override
+  String get commonRefresh => '更新';
+
+  @override
+  String get adminAccessRequired => '管理者権限が必要です。';
+
+  @override
+  String get moderationOpen => '未対応';
+
+  @override
+  String get moderationResolved => '対応済み';
+
+  @override
+  String moderationMarkedAs(String action) {
+    return '$actionに設定しました。';
+  }
+
+  @override
+  String get reasonLabel => '理由';
+
+  @override
+  String get applyAction => '適用';
+
+  @override
+  String get emptyContent => '（内容なし）';
+
+  @override
+  String reportCount(int count) {
+    return '通報$count件';
+  }
+
+  @override
+  String get moderationAllowAction => '許可';
+
+  @override
+  String get moderationSensitiveAction => 'センシティブ';
+
+  @override
+  String get moderationHideAction => '非表示';
+
+  @override
+  String get moderationAllowedStatus => '許可済み';
+
+  @override
+  String get moderationSensitiveStatus => 'センシティブ';
+
+  @override
+  String get moderationHiddenStatus => '非表示';
+
+  @override
+  String get moderationAllowTitle => 'メッセージを許可';
+
+  @override
+  String get moderationSensitiveTitle => 'センシティブに設定';
+
+  @override
+  String get moderationHideTitle => 'メッセージを非表示';
 }

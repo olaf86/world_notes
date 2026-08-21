@@ -13,17 +13,16 @@ import '../../providers/providers.dart';
 import 'image_grid_layout.dart';
 
 enum _MessagePublishPreset {
-  now('Now', null),
-  in15Minutes('15 minutes', Duration(minutes: 15)),
-  in30Minutes('30 minutes', Duration(minutes: 30)),
-  in1Hour('1 hour', Duration(hours: 1)),
-  in3Hours('3 hours', Duration(hours: 3)),
-  custom('Custom', null);
+  now(null),
+  in15Minutes(Duration(minutes: 15)),
+  in30Minutes(Duration(minutes: 30)),
+  in1Hour(Duration(hours: 1)),
+  in3Hours(Duration(hours: 3)),
+  custom(null);
 
-  final String label;
   final Duration? delay;
 
-  const _MessagePublishPreset(this.label, this.delay);
+  const _MessagePublishPreset(this.delay);
 }
 
 /// Full-screen "new message" editor rendered as an **overlay inside
@@ -167,9 +166,9 @@ class _MessageCreationOverlayState
     } on UnsupportedError {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('WebP encoding is not supported on this device.'),
-          duration: Duration(seconds: 4),
+        SnackBar(
+          content: Text(context.l10n.webpUnsupported),
+          duration: const Duration(seconds: 4),
         ),
       );
     } finally {
@@ -201,9 +200,9 @@ class _MessageCreationOverlayState
     } on UnsupportedError {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('WebP encoding is not supported on this device.'),
-          duration: Duration(seconds: 4),
+        SnackBar(
+          content: Text(context.l10n.webpUnsupported),
+          duration: const Duration(seconds: 4),
         ),
       );
     } finally {
@@ -240,9 +239,11 @@ class _MessageCreationOverlayState
   bool get _isScheduled => _publishPreset != _MessagePublishPreset.now;
 
   String _publishLabel() {
-    if (_publishPreset == _MessagePublishPreset.now) return 'Now';
+    if (_publishPreset == _MessagePublishPreset.now) {
+      return context.l10n.publishNow;
+    }
     if (_publishPreset != _MessagePublishPreset.custom) {
-      return _publishPreset.label;
+      return _publishPresetLabel(_publishPreset);
     }
     final value = _customPublishAt ?? _defaultCustomPublishAt();
     return formatMessageDateTime(
@@ -251,6 +252,15 @@ class _MessageCreationOverlayState
       includeDate: true,
     );
   }
+
+  String _publishPresetLabel(_MessagePublishPreset preset) => switch (preset) {
+    _MessagePublishPreset.now => context.l10n.publishNow,
+    _MessagePublishPreset.in15Minutes => context.l10n.publishIn15Minutes,
+    _MessagePublishPreset.in30Minutes => context.l10n.publishIn30Minutes,
+    _MessagePublishPreset.in1Hour => context.l10n.publishIn1Hour,
+    _MessagePublishPreset.in3Hours => context.l10n.publishIn3Hours,
+    _MessagePublishPreset.custom => context.l10n.publishCustom,
+  };
 
   Future<void> _pickCustomPublishTime() async {
     final initial = _customPublishAt ?? _defaultCustomPublishAt();
@@ -325,8 +335,8 @@ class _MessageCreationOverlayState
         'moderation_unavailable' => context.l10n.contentModerationUnavailable,
         _ =>
           _imageBytesList.isNotEmpty
-              ? 'Failed to upload image: $e'
-              : 'Failed to send: $e',
+              ? context.l10n.messageImageUploadFailed(e)
+              : context.l10n.messageSendFailed(e),
       };
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message), duration: const Duration(seconds: 6)),
@@ -335,9 +345,8 @@ class _MessageCreationOverlayState
       if (!mounted) return;
       setState(() => _isSending = false);
       final message = _imageBytesList.isNotEmpty
-          ? 'Failed to upload image. '
-                'Check that Firebase Storage is enabled and security rules allow writes.\n$e'
-          : 'Failed to send: $e';
+          ? context.l10n.messageImageUploadFailed(e)
+          : context.l10n.messageSendFailed(e);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message), duration: const Duration(seconds: 6)),
       );
@@ -400,8 +409,8 @@ class _MessageCreationOverlayState
                     inputFormatters: [
                       LengthLimitingTextInputFormatter(_maxChars),
                     ],
-                    decoration: const InputDecoration(
-                      hintText: "What's happening at this place?",
+                    decoration: InputDecoration(
+                      hintText: context.l10n.messageContentHint,
                       // Remove Material 3's default filled look (grey tinted
                       // background + rounded corners).  The editor lives
                       // inside a plain white/surface Material already.
@@ -498,12 +507,15 @@ class _Header extends StatelessWidget {
       child: Row(
         children: [
           IconButton(
-            tooltip: 'Cancel',
+            tooltip: context.l10n.commonCancel,
             icon: const Icon(Icons.close),
             onPressed: isSending ? null : onClose,
           ),
           Expanded(
-            child: Text('New message', style: theme.textTheme.titleMedium),
+            child: Text(
+              context.l10n.newMessageTitle,
+              style: theme.textTheme.titleMedium,
+            ),
           ),
           Padding(
             padding: const EdgeInsets.only(right: 8),
@@ -530,7 +542,7 @@ class _Header extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                    child: const Text('Send'),
+                    child: Text(context.l10n.sendAction),
                   ),
           ),
         ],
@@ -630,13 +642,13 @@ class _AttachmentToolbar extends StatelessWidget {
       child: Row(
         children: [
           IconButton(
-            tooltip: 'Choose from library',
+            tooltip: context.l10n.chooseFromLibrary,
             icon: const Icon(Icons.image_outlined),
             color: theme.colorScheme.primary,
             onPressed: picking || !canAddImages ? null : onPickGallery,
           ),
           IconButton(
-            tooltip: 'Take a photo',
+            tooltip: context.l10n.takePhoto,
             icon: const Icon(Icons.camera_alt_outlined),
             color: theme.colorScheme.primary,
             onPressed: picking || !canAddImages ? null : onPickCamera,
@@ -701,7 +713,10 @@ class _ScheduleOptions extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text('Post time', style: theme.textTheme.titleSmall),
+                  child: Text(
+                    context.l10n.postTime,
+                    style: theme.textTheme.titleSmall,
+                  ),
                 ),
                 Text(
                   label,
@@ -717,7 +732,7 @@ class _ScheduleOptions extends StatelessWidget {
               runSpacing: 8,
               children: _MessagePublishPreset.values.map((preset) {
                 return ChoiceChip(
-                  label: Text(preset.label),
+                  label: Text(_localizedPresetLabel(context, preset)),
                   selected: selected == preset,
                   onSelected: isSending
                       ? null
@@ -744,3 +759,15 @@ class _ScheduleOptions extends StatelessWidget {
     );
   }
 }
+
+String _localizedPresetLabel(
+  BuildContext context,
+  _MessagePublishPreset preset,
+) => switch (preset) {
+  _MessagePublishPreset.now => context.l10n.publishNow,
+  _MessagePublishPreset.in15Minutes => context.l10n.publishIn15Minutes,
+  _MessagePublishPreset.in30Minutes => context.l10n.publishIn30Minutes,
+  _MessagePublishPreset.in1Hour => context.l10n.publishIn1Hour,
+  _MessagePublishPreset.in3Hours => context.l10n.publishIn3Hours,
+  _MessagePublishPreset.custom => context.l10n.publishCustom,
+};
