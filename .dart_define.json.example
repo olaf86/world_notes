@@ -1,5 +1,5 @@
 {
-  "STADIA_API_KEY": "your_stadia_api_key_here",
+  "GOOGLE_MAPS_API_KEY": "your_google_maps_api_key_here",
   "REVENUECAT_API_KEY_IOS": "your_revenuecat_ios_key_here",
   "REVENUECAT_API_KEY_ANDROID": "your_revenuecat_android_key_here",
   "BANNER_AD_UNIT_ID": "ca-app-pub-xxxxxxxxxxxxxxxx/xxxxxxxxxx"

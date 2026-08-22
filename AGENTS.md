@@ -7,7 +7,7 @@ A location-based diary app. Users drop notes on a map at specific places and sha
 
 | Role | Library |
 |------|---------|
-| Map | `maplibre_gl` + Stadia Maps |
+| Map | Google Maps SDK (Android) + MapKit (iOS) |
 | Backend | Firebase Auth / Firestore / Storage |
 | State management | Riverpod (`flutter_riverpod` + `riverpod_annotation`) |
 | Navigation | GoRouter |
@@ -59,11 +59,10 @@ flutter pub get
 dart run build_runner build --delete-conflicting-outputs
 
 # Run on iOS
-flutter run --dart-define=STADIA_API_KEY=xxx \
-            --dart-define=REVENUECAT_API_KEY_IOS=xxx
+flutter run --dart-define=REVENUECAT_API_KEY_IOS=xxx
 
 # Run on Android
-flutter run --dart-define=STADIA_API_KEY=xxx \
+flutter run --dart-define=GOOGLE_MAPS_API_KEY=xxx \
             --dart-define=REVENUECAT_API_KEY_ANDROID=xxx
 
 # Lint
@@ -83,7 +82,7 @@ flutter test
 
 | Key | Description | Default |
 |-----|-------------|---------|
-| `STADIA_API_KEY` | Stadia Maps API key | empty (omit for dev) |
+| `GOOGLE_MAPS_API_KEY` | Maps SDK for Android API key | empty (map unavailable) |
 | `REVENUECAT_API_KEY_IOS` | RevenueCat iOS key | empty |
 | `REVENUECAT_API_KEY_ANDROID` | RevenueCat Android key | empty |
 | `BANNER_AD_UNIT_ID` | Platform production banner ad unit ID | empty (release ads disabled) |
@@ -168,7 +167,7 @@ Add to `ios/Runner/Info.plist`:
 ## Remaining Setup
 
 1. Create Firebase project → `flutterfire configure`
-2. Obtain Stadia Maps API key
+2. Enable Maps SDK for Android and obtain a restricted Google Maps API key
 3. Configure RevenueCat products in App Store Connect / Google Play
 4. Add location permission strings to iOS Info.plist
 5. Write Firestore security rules

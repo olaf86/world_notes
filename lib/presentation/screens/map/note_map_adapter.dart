@@ -21,7 +21,6 @@ abstract class NoteMapAdapter {
     required Position anchor,
     required ColorScheme colorScheme,
     required MapStyle mapStyle,
-    required String styleUrl,
     required ValueChanged<MapCameraSnapshot> onCameraIdle,
   });
 
@@ -36,7 +35,7 @@ abstract class NoteMapAdapter {
 
   Future<void> setTrackingEnabled(bool enabled);
 
-  Future<void> changeStyle(MapStyle style, String apiKey);
+  Future<void> changeStyle(MapStyle style);
 
   void dispose();
 }

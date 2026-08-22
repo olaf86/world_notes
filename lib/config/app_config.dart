@@ -5,20 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'runtime_mode.dart';
 
 class AppConfig {
-  static const stadiaApiKey = String.fromEnvironment(
-    'STADIA_API_KEY',
-    defaultValue: '',
-  );
-
-  // MapLibre style using Stadia Maps (free tier)
-  static const mapStyleUrl =
-      'https://tiles.stadiamaps.com/styles/alidade_smooth.json';
-
-  static String mapStyleUrlWithKey(String apiKey) {
-    if (apiKey.isEmpty) return mapStyleUrl;
-    return '$mapStyleUrl?api_key=$apiKey';
-  }
-
   static const double defaultLatitude = 35.6812;
   static const double defaultLongitude = 139.7671;
   static const double defaultZoom = 14.0;

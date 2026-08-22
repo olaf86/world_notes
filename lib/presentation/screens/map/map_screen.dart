@@ -35,9 +35,9 @@ import 'note_map_adapter_factory.dart';
 /// makes the state independent of widget lifecycle and accessible from
 /// other screens (e.g. a "follow me" indicator in the bottom nav).
 ///
-/// Everything about MapLibre itself — source/layer setup, clustering,
+/// Everything about the platform map — clustering,
 /// marker images, the selection-overlay animation — lives behind the
-/// controller's interface in [NoteMapController]. UI fragments that don't
+/// controller's [NoteMapAdapter] interface. UI fragments that don't
 /// touch the map (permission denied, GPS spinner) live in their own widgets
 /// in `widgets/map/`.
 class MapScreen extends ConsumerStatefulWidget {
@@ -49,8 +49,7 @@ class MapScreen extends ConsumerStatefulWidget {
   ConsumerState<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends ConsumerState<MapScreen>
-    with SingleTickerProviderStateMixin, RouteAware {
+class _MapScreenState extends ConsumerState<MapScreen> with RouteAware {
   late final NoteMapAdapter _mapAdapter;
   PageRoute<dynamic>? _observedRoute;
   bool _refreshingMapNotes = false;
@@ -61,7 +60,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
     super.initState();
     logMapDiagnostics('MapScreen.initState');
     _mapAdapter = createNoteMapAdapter(
-      vsync: this,
       onPinSelected: _showPinPreview,
       onResolveMarkerImage: _loadPinMarkerImage,
     );
@@ -366,10 +364,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
     if (_mapAdapter.supportsMapStyle) {
       ref.listen<MapStyle>(mapStyleProvider, (_, next) {
-        _mapAdapter.changeStyle(
-          next.effectiveForCurrentPlatform,
-          AppConfig.stadiaApiKey,
-        );
+        _mapAdapter.changeStyle(next.effectiveForCurrentPlatform);
       });
     }
 
@@ -451,7 +446,6 @@ class _MapView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mapStyle = ref.watch(mapStyleProvider).effectiveForCurrentPlatform;
-    final styleUrl = mapStyle.styleUrl(AppConfig.stadiaApiKey);
     final colorScheme = Theme.of(context).colorScheme;
     unawaited(
       mapAdapter.updateAccessArea(
@@ -472,7 +466,6 @@ class _MapView extends ConsumerWidget {
               anchor: anchor,
               colorScheme: colorScheme,
               mapStyle: mapStyle,
-              styleUrl: styleUrl,
               onCameraIdle: onCameraIdle,
             ),
           ),

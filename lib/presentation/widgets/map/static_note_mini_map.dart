@@ -4,9 +4,8 @@ import 'package:apple_maps_flutter/apple_maps_flutter.dart' as apple;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:maplibre_gl/maplibre_gl.dart' as maplibre;
+import 'package:google_maps_flutter/google_maps_flutter.dart' as google;
 
-import '../../../config/app_config.dart';
 import '../../../core/map_style.dart';
 import '../../../core/utils/marker_image.dart';
 import '../../../core/utils/place_icon.dart';
@@ -32,12 +31,12 @@ class StaticNoteMiniMap extends ConsumerStatefulWidget {
 }
 
 class _StaticNoteMiniMapState extends ConsumerState<StaticNoteMiniMap> {
-  static const double _markerIconSize = 1.3;
+  static const double _googleMarkerWidth = 62;
 
-  maplibre.MapLibreMapController? _map;
   apple.BitmapDescriptor? _appleMarkerIcon;
-  bool _styleLoaded = false;
+  google.BitmapDescriptor? _googleMarkerIcon;
   int _appleMarkerRevision = 0;
+  int _googleMarkerRevision = 0;
 
   bool get _usesAppleMaps =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
@@ -47,6 +46,8 @@ class _StaticNoteMiniMapState extends ConsumerState<StaticNoteMiniMap> {
     super.initState();
     if (_usesAppleMaps) {
       unawaited(_renderAppleMarker());
+    } else {
+      unawaited(_renderGoogleMarker());
     }
   }
 
@@ -62,44 +63,28 @@ class _StaticNoteMiniMapState extends ConsumerState<StaticNoteMiniMap> {
       if (_usesAppleMaps) {
         unawaited(_renderAppleMarker());
       } else {
-        unawaited(_renderMapLibreMarker());
+        unawaited(_renderGoogleMarker());
       }
     }
   }
 
-  void _onMapCreated(maplibre.MapLibreMapController controller) {
-    _map = controller;
-  }
-
-  Future<void> _onStyleLoaded() async {
-    _styleLoaded = true;
-    await _renderMapLibreMarker();
-  }
-
-  Future<void> _renderMapLibreMarker() async {
-    final map = _map;
-    if (!_styleLoaded || map == null) return;
-
+  Future<void> _renderGoogleMarker() async {
+    final revision = ++_googleMarkerRevision;
     final place = widget.place;
-    final color = parsePlaceColor(place.colorHex);
-    final imageName = _markerImageId(place);
     final imageBytes = await _pinImageBytes(place.pinImageStoragePath);
     final markerBytes = await MarkerImage.render(
       iconData: placeIconData(place.icon),
-      color: color,
+      color: parsePlaceColor(place.colorHex),
       imageBytes: imageBytes,
     );
+    if (!mounted || revision != _googleMarkerRevision) return;
 
-    await map.clearSymbols();
-    await map.addImage(imageName, markerBytes);
-    await map.addSymbol(
-      maplibre.SymbolOptions(
-        geometry: maplibre.LatLng(place.latitude, place.longitude),
-        iconImage: imageName,
-        iconSize: _markerIconSize,
-        iconAnchor: 'center',
-      ),
-    );
+    setState(() {
+      _googleMarkerIcon = google.BitmapDescriptor.bytes(
+        markerBytes,
+        width: _googleMarkerWidth,
+      );
+    });
   }
 
   Future<void> _renderAppleMarker() async {
@@ -116,15 +101,6 @@ class _StaticNoteMiniMapState extends ConsumerState<StaticNoteMiniMap> {
     setState(() {
       _appleMarkerIcon = apple.BitmapDescriptor.fromBytes(markerBytes);
     });
-  }
-
-  String _markerImageId(PlaceEntity place) {
-    return MarkerImage.cacheKey(
-      namespace: 'selected_note_pin_${place.id}',
-      iconName: place.icon,
-      colorHex: place.colorHex,
-      imageStoragePath: place.pinImageStoragePath,
-    );
   }
 
   Future<Uint8List?> _pinImageBytes(String? storagePath) async {
@@ -150,7 +126,6 @@ class _StaticNoteMiniMapState extends ConsumerState<StaticNoteMiniMap> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final mapStyle = ref.watch(mapStyleProvider).effectiveForCurrentPlatform;
-    final styleUrl = mapStyle.styleUrl(AppConfig.stadiaApiKey);
     final place = widget.place;
 
     return Padding(
@@ -193,24 +168,37 @@ class _StaticNoteMiniMapState extends ConsumerState<StaticNoteMiniMap> {
                   myLocationButtonEnabled: false,
                 )
               else
-                maplibre.MapLibreMap(
-                  key: ValueKey(styleUrl),
-                  styleString: styleUrl,
-                  initialCameraPosition: maplibre.CameraPosition(
-                    target: maplibre.LatLng(place.latitude, place.longitude),
+                google.GoogleMap(
+                  initialCameraPosition: google.CameraPosition(
+                    target: google.LatLng(place.latitude, place.longitude),
                     zoom: 14,
                   ),
+                  style: mapStyle.googleMapStyleJson,
+                  markers: _googleMarkerIcon == null
+                      ? const <google.Marker>{}
+                      : {
+                          google.Marker(
+                            markerId: google.MarkerId(
+                              'selected-note-pin-${place.id}',
+                            ),
+                            position: google.LatLng(
+                              place.latitude,
+                              place.longitude,
+                            ),
+                            anchor: const Offset(0.5, 0.5),
+                            icon: _googleMarkerIcon!,
+                            infoWindow: google.InfoWindow.noText,
+                          ),
+                        },
                   compassEnabled: false,
                   rotateGesturesEnabled: false,
                   scrollGesturesEnabled: false,
                   zoomGesturesEnabled: false,
                   tiltGesturesEnabled: false,
-                  doubleClickZoomEnabled: false,
-                  dragEnabled: false,
                   myLocationEnabled: false,
-                  logoEnabled: false,
-                  onMapCreated: _onMapCreated,
-                  onStyleLoadedCallback: _onStyleLoaded,
+                  myLocationButtonEnabled: false,
+                  zoomControlsEnabled: false,
+                  mapToolbarEnabled: false,
                 ),
               if (widget.showTopLeftConnector)
                 IgnorePointer(
@@ -249,7 +237,7 @@ class _StaticNoteMiniMapState extends ConsumerState<StaticNoteMiniMap> {
 /// Links the creator label in the upper left to the stationary map pin.
 ///
 /// The map remains a native platform view, so the line is drawn in Flutter
-/// above it and stays consistent on both the Apple Maps and MapLibre paths.
+/// above it and stays consistent on both the Apple Maps and Google Maps paths.
 class _TopLeftConnectorPainter extends CustomPainter {
   final Color color;
 

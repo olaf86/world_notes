@@ -1,3 +1,5 @@
+import java.util.Base64
+
 plugins {
     id("com.android.application")
     // START: FlutterFire Configuration
@@ -8,6 +10,25 @@ plugins {
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+fun dartDefine(name: String): String? {
+    val encodedDefines = project.findProperty("dart-defines")?.toString()
+        ?: return null
+    return encodedDefines
+        .split(',')
+        .mapNotNull { encoded ->
+            runCatching {
+                String(Base64.getDecoder().decode(encoded), Charsets.UTF_8)
+            }.getOrNull()
+        }
+        .firstOrNull { it.startsWith("$name=") }
+        ?.substringAfter('=')
+        ?.takeIf { it.isNotBlank() }
+}
+
+val googleMapsApiKey = dartDefine("GOOGLE_MAPS_API_KEY")
+    ?: System.getenv("GOOGLE_MAPS_API_KEY")?.takeIf { it.isNotBlank() }
+    ?: ""
 
 android {
     namespace = "dev.asobo.worldnotes"
@@ -33,6 +54,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["googleMapsApiKey"] = googleMapsApiKey
         manifestPlaceholders["admobAppId"] =
             "ca-app-pub-3940256099942544~3347511713"
     }

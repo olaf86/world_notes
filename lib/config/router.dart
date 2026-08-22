@@ -85,7 +85,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       // StatefulShellRoute keeps every branch mounted in an IndexedStack, so
       // switching tabs no longer disposes the previous screen. MapNotesScreen's
-      // tracking toggle, anchor position, and MapLibre native camera state
+      // tracking toggle, anchor position, and native map camera state
       // (zoom / bearing / target) all survive a round-trip to other tabs.
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>

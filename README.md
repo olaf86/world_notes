@@ -4,7 +4,7 @@ A location-based diary app built with Flutter. Drop notes on a map, revisit them
 
 ## Features
 
-- Interactive map powered by MapLibre GL + Stadia Maps
+- Native maps powered by Google Maps SDK on Android and MapKit on iOS
 - Drop notes at any location with a title, content, and color
 - Message board at each note — visible to anyone who visits the spot
 - Google Sign-In via Firebase Auth
@@ -15,8 +15,8 @@ A location-based diary app built with Flutter. Drop notes on a map, revisit them
 
 - **Flutter** (Dart)
 - **Firebase** — Auth, Firestore, Storage
-- **MapLibre GL** — map rendering
-- **Stadia Maps** — map tiles
+- **Google Maps SDK** — Android map rendering
+- **MapKit** — iOS map rendering
 - **Riverpod** — state management
 - **GoRouter** — navigation
 - **RevenueCat** — in-app subscriptions
@@ -28,7 +28,7 @@ A location-based diary app built with Flutter. Drop notes on a map, revisit them
 
 - Flutter SDK `^3.11.0`
 - Firebase project with Auth and Firestore enabled
-- Stadia Maps API key
+- Google Cloud project with billing and Maps SDK for Android enabled
 - RevenueCat account (optional for development)
 
 ### Setup
@@ -60,13 +60,18 @@ A location-based diary app built with Flutter. Drop notes on a map, revisit them
 
    ```bash
    # iOS
-   flutter run --dart-define=STADIA_API_KEY=your_key \
-               --dart-define=REVENUECAT_API_KEY_IOS=your_key
+   flutter run --dart-define=REVENUECAT_API_KEY_IOS=your_key
 
    # Android
-   flutter run --dart-define=STADIA_API_KEY=your_key \
+   flutter run --dart-define=GOOGLE_MAPS_API_KEY=your_key \
                --dart-define=REVENUECAT_API_KEY_ANDROID=your_key
    ```
+
+   Restrict the Android key to the app's package name and signing certificate.
+   The app intentionally does not configure a Google Map ID. Under the current
+   Google Maps Platform pricing, native Maps SDK loads without a Map ID have an
+   unlimited free usage cap; billing must still be enabled. Street View, Places,
+   and other separately billed APIs are not used by the map rendering layer.
 
 ### Android CI
 
@@ -86,7 +91,7 @@ Optional repository secrets:
 
 | Secret | Description |
 |--------|-------------|
-| `STADIA_API_KEY` | Stadia Maps API key |
+| `GOOGLE_MAPS_API_KEY` | Maps SDK for Android API key |
 | `REVENUECAT_API_KEY_ANDROID` | RevenueCat Android public key |
 | `ADMOB_ANDROID_APP_ID_PROD` | Production AdMob Android app ID |
 | `ADMOB_ANDROID_BANNER_AD_UNIT_ID_PROD` | Production Android banner unit ID |
@@ -118,7 +123,7 @@ settings.
 
 | Key | Description |
 |-----|-------------|
-| `STADIA_API_KEY` | Stadia Maps API key |
+| `GOOGLE_MAPS_API_KEY` | Maps SDK for Android API key |
 | `REVENUECAT_API_KEY_IOS` | RevenueCat iOS public key |
 | `REVENUECAT_API_KEY_ANDROID` | RevenueCat Android public key |
 | `BANNER_AD_UNIT_ID` | Platform production banner unit ID (release only) |

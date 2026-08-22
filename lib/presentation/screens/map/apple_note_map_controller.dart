@@ -76,7 +76,6 @@ class AppleNoteMapController implements NoteMapAdapter {
     required Position anchor,
     required ColorScheme colorScheme,
     required MapStyle mapStyle,
-    required String styleUrl,
     required ValueChanged<MapCameraSnapshot> onCameraIdle,
   }) {
     _appearanceMode = _appearanceModeFor(mapStyle);
@@ -170,7 +169,7 @@ class AppleNoteMapController implements NoteMapAdapter {
   }
 
   @override
-  Future<void> changeStyle(MapStyle style, String apiKey) async {
+  Future<void> changeStyle(MapStyle style) async {
     final mode = _appearanceModeFor(style);
     _appearanceMode = mode;
     await _applyAppearanceMode(mode);

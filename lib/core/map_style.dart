@@ -38,18 +38,13 @@ enum MapStyle {
     MapStyle.pop => 'Bright & colourful',
   };
 
-  /// Stadia Maps style identifier.
-  String get _styleId => switch (this) {
-    MapStyle.auto || MapStyle.standard => 'alidade_smooth',
-    MapStyle.dark => 'alidade_smooth_dark',
-    MapStyle.pop => 'osm_bright',
+  /// Client-side Google Maps style JSON. These styles do not require a Map ID,
+  /// so Android map loads remain on the unlimited-free Maps SDK SKU.
+  String? get googleMapStyleJson => switch (this) {
+    MapStyle.auto || MapStyle.standard => null,
+    MapStyle.dark => _googleDarkStyle,
+    MapStyle.pop => _googlePopStyle,
   };
-
-  /// Full style URL, optionally including the API key.
-  String styleUrl([String apiKey = '']) {
-    final base = 'https://tiles.stadiamaps.com/styles/$_styleId.json';
-    return apiKey.isEmpty ? base : '$base?api_key=$apiKey';
-  }
 
   /// Representative colour used for the preview swatch in the UI.
   Color get previewColor => switch (this) {
@@ -67,3 +62,32 @@ enum MapStyle {
     MapStyle.pop => Icons.palette_outlined,
   };
 }
+
+const _googleDarkStyle = '''
+[
+  {"elementType":"geometry","stylers":[{"color":"#242f3e"}]},
+  {"elementType":"labels.text.fill","stylers":[{"color":"#d4dbe3"}]},
+  {"elementType":"labels.text.stroke","stylers":[{"color":"#242f3e"}]},
+  {"featureType":"administrative.locality","elementType":"labels.text.fill","stylers":[{"color":"#f5c77a"}]},
+  {"featureType":"poi","elementType":"labels.text.fill","stylers":[{"color":"#d4dbe3"}]},
+  {"featureType":"poi.park","elementType":"geometry","stylers":[{"color":"#263c3f"}]},
+  {"featureType":"road","elementType":"geometry","stylers":[{"color":"#38414e"}]},
+  {"featureType":"road","elementType":"geometry.stroke","stylers":[{"color":"#1f2835"}]},
+  {"featureType":"road.highway","elementType":"geometry","stylers":[{"color":"#6b5b45"}]},
+  {"featureType":"transit","elementType":"geometry","stylers":[{"color":"#2f3948"}]},
+  {"featureType":"water","elementType":"geometry","stylers":[{"color":"#17263c"}]},
+  {"featureType":"water","elementType":"labels.text.fill","stylers":[{"color":"#8ea6bd"}]}
+]
+''';
+
+const _googlePopStyle = '''
+[
+  {"elementType":"geometry","stylers":[{"color":"#f6f3e8"}]},
+  {"elementType":"labels.text.fill","stylers":[{"color":"#37474f"}]},
+  {"featureType":"poi.park","elementType":"geometry","stylers":[{"color":"#bfe8bf"}]},
+  {"featureType":"road","elementType":"geometry","stylers":[{"color":"#ffffff"}]},
+  {"featureType":"road.highway","elementType":"geometry","stylers":[{"color":"#ffd180"}]},
+  {"featureType":"transit.line","elementType":"geometry","stylers":[{"color":"#90caf9"}]},
+  {"featureType":"water","elementType":"geometry","stylers":[{"color":"#90caf9"}]}
+]
+''';

@@ -78,8 +78,7 @@ require_env IOS_ADMOB_APP_ID_PROD
 require_env ADMOB_IOS_BANNER_AD_UNIT_ID_PROD
 require_env ADMOB_IOS_INTERSTITIAL_AD_UNIT_ID_PROD
 
-DART_DEFINES="$(encode "STADIA_API_KEY=$STADIA_API_KEY")\
-,$(encode "REVENUECAT_API_KEY_IOS=$REVENUECAT_API_KEY_IOS")\
+DART_DEFINES="$(encode "REVENUECAT_API_KEY_IOS=$REVENUECAT_API_KEY_IOS")\
 ,$(encode "BANNER_AD_UNIT_ID=$ADMOB_IOS_BANNER_AD_UNIT_ID_PROD")\
 ,$(encode "INTERSTITIAL_AD_UNIT_ID=$ADMOB_IOS_INTERSTITIAL_AD_UNIT_ID_PROD")"
 
@@ -92,7 +91,7 @@ echo "ADMOB_APP_ID=$IOS_ADMOB_APP_ID_PROD" \
 # Clear SwiftPM binary artifact cache before Xcode Cloud starts archive/test.
 # Xcode Cloud can restore a stale or partially-created artifact directory, and
 # SwiftPM then fails with "already exists in file system" while downloading
-# binary targets such as MapLibre.dynamic.xcframework.zip.
+# binary targets.
 # ---------------------------------------------------------------------------
 SWIFTPM_ARTIFACTS_CACHE="$HOME/Library/Caches/org.swift.swiftpm/artifacts"
 

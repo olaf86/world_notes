@@ -5,14 +5,10 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 /// Renders a teardrop-style map marker (colored pin with a white icon glyph)
-/// to a PNG byte array suitable for [MapLibreMapController.addImage].
-///
-/// Stadia Maps' default sprite sheet doesn't ship a generic "marker" icon,
-/// so we build our own per (icon, color) combination and register it with
-/// the map controller on demand.
+/// to a PNG byte array suitable for the native map SDKs.
 class MarkerImage {
   /// Bitmap dimensions (device pixels). High-DPI so the result stays crisp
-  /// when MapLibre scales via [SymbolOptions.iconSize].
+  /// when a platform map scales the bitmap.
   static const double _width = 96;
   static const double _height = 120;
   static const double _circleRadius = 36;

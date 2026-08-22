@@ -1,5 +1,5 @@
 name: world_notes
-description: "World Notes - location-based diary app with MapLibre & Firebase"
+description: "World Notes - location-based diary app with native maps & Firebase"
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -16,7 +16,7 @@ dependencies:
   cupertino_icons: ^1.0.8
 
   # Map
-  maplibre_gl: ^0.26.1
+  google_maps_flutter: ^2.18.0
   apple_maps_flutter:
     git:
       url: https://github.com/olaf86/apple_maps_flutter.git
