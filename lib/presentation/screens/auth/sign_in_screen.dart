@@ -149,28 +149,34 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                                 : null,
                           ),
                         if (_isSignUp) const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          decoration: InputDecoration(
-                            labelText: l10n.emailLabel,
-                            prefixIcon: const Icon(Icons.email_outlined),
+                        Semantics(
+                          identifier: 'field-auth-email',
+                          child: TextFormField(
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            decoration: InputDecoration(
+                              labelText: l10n.emailLabel,
+                              prefixIcon: const Icon(Icons.email_outlined),
+                            ),
+                            validator: (v) => v == null || !v.contains('@')
+                                ? l10n.invalidEmail
+                                : null,
                           ),
-                          validator: (v) => v == null || !v.contains('@')
-                              ? l10n.invalidEmail
-                              : null,
                         ),
                         const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _passwordController,
-                          obscureText: true,
-                          decoration: InputDecoration(
-                            labelText: l10n.passwordLabel,
-                            prefixIcon: const Icon(Icons.lock_outline),
+                        Semantics(
+                          identifier: 'field-auth-password',
+                          child: TextFormField(
+                            controller: _passwordController,
+                            obscureText: true,
+                            decoration: InputDecoration(
+                              labelText: l10n.passwordLabel,
+                              prefixIcon: const Icon(Icons.lock_outline),
+                            ),
+                            validator: (v) => v == null || v.length < 6
+                                ? l10n.minimumPasswordLength(6)
+                                : null,
                           ),
-                          validator: (v) => v == null || v.length < 6
-                              ? l10n.minimumPasswordLength(6)
-                              : null,
                         ),
                         if (_isSignUp) ...[
                           const SizedBox(height: 16),
@@ -202,19 +208,24 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                           ),
                         ],
                         const SizedBox(height: 24),
-                        FilledButton(
-                          onPressed: _loading ? null : _submitEmail,
-                          child: _loading
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
+                        Semantics(
+                          identifier: 'action-auth-submit',
+                          child: FilledButton(
+                            onPressed: _loading ? null : _submitEmail,
+                            child: _loading
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : Text(
+                                    _isSignUp
+                                        ? l10n.createAccount
+                                        : l10n.signIn,
                                   ),
-                                )
-                              : Text(
-                                  _isSignUp ? l10n.createAccount : l10n.signIn,
-                                ),
+                          ),
                         ),
                         const SizedBox(height: 12),
                         TextButton(

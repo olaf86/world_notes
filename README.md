@@ -97,13 +97,36 @@ Optional repository secrets:
 | `ADMOB_ANDROID_BANNER_AD_UNIT_ID_PROD` | Production Android banner unit ID |
 | `ADMOB_ANDROID_INTERSTITIAL_AD_UNIT_ID_PROD` | Production Android interstitial unit ID |
 
-### Maestro UI Testing and Screenshots
+### Maestro Acceptance Tests
 
-Maestro flows live in `maestro/flows/`.
+Acceptance flows and store-screenshot flows are separate Maestro workspaces.
+The acceptance suite exercises normal sign-in against Firebase Emulator data;
+it does not use `SCREENSHOT_MODE`.
 
 ```bash
-# Smoke test after launching the app in screenshot mode
-maestro test maestro/flows/smoke.yaml
+# Launch the app in acceptance mode in one terminal
+flutter run \
+  --dart-define=USE_FIREBASE_EMULATORS=true \
+  --dart-define=ACCEPTANCE_TEST_MODE=true
+
+# Seed the acceptance account and run P0 smoke flows in another terminal
+./scripts/run_acceptance_tests.sh
+```
+
+JUnit reports, failure screenshots, and logs are written under
+`artifacts/acceptance/`. See
+[`internal-docs/acceptance/test-policy.md`](internal-docs/acceptance/test-policy.md)
+for priorities, coverage, and manual-test boundaries.
+
+### Store Screenshots
+
+Screenshot flows use the isolated `maestro/screenshots/` workspace and
+`SCREENSHOT_MODE=true`.
+
+```bash
+# Screenshot-environment smoke check
+maestro test --config=maestro/screenshots/config.yaml \
+  maestro/screenshots/flows/smoke.yaml
 
 # Store screenshots after Firebase Emulator + flutter run are active
 ./scripts/run_screenshots_ios.sh

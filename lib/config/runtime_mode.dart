@@ -10,6 +10,11 @@ const bool screenshotMode = bool.fromEnvironment(
   defaultValue: false,
 );
 
+const bool _acceptanceTestModeRequested = bool.fromEnvironment(
+  'ACCEPTANCE_TEST_MODE',
+  defaultValue: false,
+);
+
 const String screenshotAuthEmail = String.fromEnvironment(
   'SCREENSHOT_AUTH_EMAIL',
   defaultValue: 'screenshot@example.com',
@@ -42,6 +47,13 @@ double get screenshotLongitude =>
     double.tryParse(_screenshotLongitudeValue) ?? 139.7671;
 
 bool get shouldUseFirebaseEmulators => useFirebaseEmulators && kDebugMode;
+
+/// Whether acceptance-test isolation is active for this app process.
+///
+/// The compile-time request is honored only in debug emulator builds so the
+/// isolation behavior cannot accidentally reach a production backend.
+bool get acceptanceTestMode =>
+    shouldUseFirebaseEmulators && _acceptanceTestModeRequested;
 
 String firebaseEmulatorHost() {
   if (kIsWeb) return 'localhost';

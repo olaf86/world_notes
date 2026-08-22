@@ -1,4 +1,9 @@
 appId: dev.asobo.worldnotes
+name: iPad store screenshots
+tags:
+  - screenshots
+  - ios
+  - ipad
 ---
 - launchApp:
     clearState: true

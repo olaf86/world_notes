@@ -1,0 +1,60 @@
+appId: dev.asobo.worldnotes
+name: AT-001 Sign in and open the map
+tags:
+  - acceptance
+  - smoke
+  - p0
+  - auth
+  - map
+properties:
+  testCaseId: AT-001
+  priority: P0
+  platforms: ios,android
+---
+- launchApp:
+    clearState: true
+    permissions:
+      location: inuse
+
+- extendedWaitUntil:
+    visible:
+      id: "screen-sign-in"
+    timeout: 20000
+
+- tapOn:
+    id: "field-auth-email"
+- inputText: "${ACCEPTANCE_AUTH_EMAIL}"
+
+- tapOn:
+    id: "field-auth-password"
+- inputText: "${ACCEPTANCE_AUTH_PASSWORD}"
+- hideKeyboard
+
+- tapOn:
+    id: "action-auth-submit"
+
+- extendedWaitUntil:
+    visible:
+      id: "screen-map"
+    timeout: 30000
+
+- tapOn:
+    id: "action-show-map-notes-list"
+- extendedWaitUntil:
+    visible:
+      id: "screen-map-notes-list"
+    timeout: 15000
+
+- tapOn:
+    id: "action-show-map"
+- extendedWaitUntil:
+    visible:
+      id: "screen-map"
+    timeout: 15000
+
+- tapOn:
+    id: "nav-profile"
+- extendedWaitUntil:
+    visible:
+      id: "screen-profile"
+    timeout: 15000

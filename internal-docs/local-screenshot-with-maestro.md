@@ -4,11 +4,11 @@
 
 - Capture App Store Connect and Google Play screenshots from stable local data.
 - Keep screenshot data isolated from production Firebase.
-- Reuse the same Maestro setup as a lightweight E2E smoke-test foundation.
+- Keep store-image generation separate from the acceptance-test workspace.
 
 ## Structure
 
-- UI automation: Maestro
+- UI automation: Maestro (`maestro/screenshots/` workspace)
 - Data source: Firebase Emulator (Auth / Firestore / Functions / Storage)
 - App mode: `flutter run` with `USE_FIREBASE_EMULATORS=true` and `SCREENSHOT_MODE=true`
 - Screenshot output:
@@ -168,7 +168,8 @@ flutter pub get
 After the app is running in screenshot mode and seed data exists:
 
 ```bash
-maestro test maestro/flows/smoke.yaml
+maestro test --config=maestro/screenshots/config.yaml \
+  maestro/screenshots/flows/smoke.yaml
 ```
 
 ## Notes

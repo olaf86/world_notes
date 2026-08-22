@@ -1,0 +1,5 @@
+appId: dev.asobo.worldnotes
+flows:
+  - "flows/smoke.yaml"
+  - "flows/android/*.yaml"
+  - "flows/ios/*.yaml"

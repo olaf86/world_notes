@@ -46,6 +46,6 @@ echo "[2/2] Running Maestro flow (iOS)..."
 mkdir -p "$SCREENSHOT_OUTPUT_DIR"
 maestro test \
   -e SCREENSHOT_OUTPUT_DIR="$SCREENSHOT_OUTPUT_DIR" \
-  maestro/flows/ios/store_screenshots.yaml
+  maestro/screenshots/flows/ios/store_screenshots.yaml
 
 echo "Done: $SCREENSHOT_OUTPUT_DIR/"

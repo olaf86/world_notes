@@ -29,6 +29,6 @@ echo "[2/2] Running Maestro flow (Android)..."
 mkdir -p "$SCREENSHOT_OUTPUT_DIR"
 maestro test \
   -e SCREENSHOT_OUTPUT_DIR="$SCREENSHOT_OUTPUT_DIR" \
-  maestro/flows/android/store_screenshots.yaml
+  maestro/screenshots/flows/android/store_screenshots.yaml
 
 echo "Done: $SCREENSHOT_OUTPUT_DIR/"

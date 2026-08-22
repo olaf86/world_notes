@@ -1,4 +1,8 @@
 appId: dev.asobo.worldnotes
+name: Screenshot environment smoke check
+tags:
+  - screenshots
+  - smoke
 ---
 - launchApp:
     clearState: true
@@ -18,7 +22,8 @@ appId: dev.asobo.worldnotes
     visible:
       id: "screen-map"
     timeout: 15000
-- tapOn: "Profile"
+- tapOn:
+    id: "nav-profile"
 - extendedWaitUntil:
     visible:
       id: "screen-profile"

@@ -1,0 +1,3 @@
+appId: dev.asobo.worldnotes
+flows:
+  - "flows/**/*.yaml"

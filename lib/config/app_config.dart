@@ -53,7 +53,7 @@ class AppConfig {
   }
 
   static bool get supportsMobileAds {
-    if (screenshotMode) return false;
+    if (screenshotMode || acceptanceTestMode) return false;
     if (kIsWeb) return false;
     return switch (defaultTargetPlatform) {
       TargetPlatform.android || TargetPlatform.iOS => true,

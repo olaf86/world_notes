@@ -40,6 +40,9 @@ skills-lock.json
 # Generated store screenshots
 artifacts/store_screenshots/
 
+# Generated acceptance-test reports and debug artifacts
+artifacts/acceptance/
+
 # CocoaPods lock — reproducibility is guaranteed by pubspec.lock + Podfile.
 # Flutter plugin pods are path-only (not on CDN trunk), so committing
 # Podfile.lock causes checksum mismatches in clean CI environments.

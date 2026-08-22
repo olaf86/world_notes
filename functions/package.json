@@ -23,6 +23,7 @@
     "inventory:activation-data": "npm run build && node lib/scripts/inventoryActivationData.js",
     "smoke:mirror-only-world": "npm run build && node lib/scripts/smokeMirrorOnlyWorld.js",
     "seed:screenshot": "npm run build && node lib/scripts/seedScreenshotData.js",
+    "seed:acceptance": "npm run build && node lib/scripts/seedAcceptanceData.js",
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",

@@ -28,6 +28,7 @@ void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   await _configureFirebaseServices();
+  await _resetAcceptanceTestSessionIfNeeded();
   await _signInScreenshotUserIfNeeded();
 
   final crashlytics = FirebaseCrashlytics.instance;
@@ -107,6 +108,12 @@ Future<void> _signInScreenshotUserIfNeeded() async {
   }
 }
 
+Future<void> _resetAcceptanceTestSessionIfNeeded() async {
+  if (!acceptanceTestMode) return;
+  await FirebaseAuth.instance.signOut();
+  debugPrint('Reset authentication for acceptance test flow.');
+}
+
 class WorldNotesApp extends ConsumerStatefulWidget {
   const WorldNotesApp({super.key});
 
@@ -123,7 +130,7 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp>
   @override
   void initState() {
     super.initState();
-    if (screenshotMode) return;
+    if (screenshotMode || acceptanceTestMode) return;
     WidgetsBinding.instance.addObserver(this);
   }
 
@@ -137,7 +144,11 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state != AppLifecycleState.resumed || screenshotMode) return;
+    if (state != AppLifecycleState.resumed ||
+        screenshotMode ||
+        acceptanceTestMode) {
+      return;
+    }
     final privacyStatus = ref.read(adPrivacyStatusProvider);
     if (privacyStatus.hasError ||
         privacyStatus.valueOrNull?.shouldRetry == true) {
@@ -172,7 +183,9 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp>
   }
 
   Future<void> _bindNotificationServices(HomeAssignment assignment) async {
-    if (!mounted || _boundAssignment == assignment) return;
+    if (acceptanceTestMode || !mounted || _boundAssignment == assignment) {
+      return;
+    }
     _boundAssignment = assignment;
     await _notificationOpenSubscription?.cancel();
     await _noticeOpenSubscription?.cancel();
@@ -208,6 +221,7 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp>
     });
     final currentAssignment = ref.watch(homeAssignmentProvider).valueOrNull;
     if (!screenshotMode &&
+        !acceptanceTestMode &&
         currentAssignment != null &&
         _boundAssignment != currentAssignment) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
