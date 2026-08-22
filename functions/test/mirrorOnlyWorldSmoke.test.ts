@@ -21,19 +21,15 @@ test("mirror-only smoke requires exact project and world confirmation", () => {
     "--confirm-project", "world-notes-prod",
     "--confirm-world", "northAmerica",
   ]));
-  assert.deepEqual(parseMirrorOnlySmokeArgs([
+  assert.throws(() => parseMirrorOnlySmokeArgs([
     ...BASE,
     "--confirm-project", "world-notes-prod",
     "--confirm-world", "europe",
-  ]), {
-    projectId: "world-notes-prod",
-    worldId: "europe",
-    reportPath: "/tmp/europe-smoke.json",
-  });
+  ]), /not closed in mirror-only state/);
 });
 
-test("mirror-only smoke accepts only closed non-Asia catalog worlds", () => {
-  assert.equal(requireMirrorOnlyTarget("europe").databaseId, "europe");
+test("mirror-only smoke rejects every currently activated world", () => {
+  assert.throws(() => requireMirrorOnlyTarget("europe"));
   assert.throws(() => requireMirrorOnlyTarget("northAmerica"));
   assert.throws(() => requireMirrorOnlyTarget("asia"));
   assert.throws(() => requireMirrorOnlyTarget("missing"));

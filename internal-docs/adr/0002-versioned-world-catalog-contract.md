@@ -98,7 +98,9 @@ The initial checked-in contract used `schemaVersion: 1` and
 `catalogVersion: 1`. Every schema-version-1 entry requires a bucket route.
 After the North America mirror-only production gate passed, catalog version 2
 advanced North America to `contentEnabled` without changing the wire schema or
-enabling home assignment. Europe remains `mirrorOnly`.
+enabling home assignment. After the Europe mirror-only production gate passed,
+catalog version 3 advanced Europe to `contentEnabled` under the same constraint.
+Asia remains the only `homeEnabled` world.
 
 All three buckets use the same physical settings, differing only by immutable
 regional location:
@@ -106,15 +108,16 @@ regional location:
 | Setting | Value |
 | --- | --- |
 | Storage class | `REGIONAL` |
-| Uniform bucket-level access | disabled |
-| Public Access Prevention | inherited |
+| Uniform bucket-level access | enabled |
+| Public Access Prevention | enforced |
 | Soft delete | 7 days |
 | Object versioning | disabled |
 | CORS / lifecycle | none |
 
 All three are linked to Firebase Storage and have independent Firebase CLI
-deploy targets. Asia retains `storage.rules`; North America and Europe use
-`storage.named.locked.rules` until activation.
+deploy targets. Every content-enabled world uses the shared `storage.rules`;
+future provisioning or mirror-only worlds use `storage.named.locked.rules`
+until activation.
 
 ## Contract verification
 

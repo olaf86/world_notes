@@ -9,7 +9,7 @@ const WorldId asiaWorldId = WorldId('asia');
 /// drift between the two copies.
 const Map<String, Object?> bootstrapWorldCatalogData = {
   'schemaVersion': 1,
-  'catalogVersion': 2,
+  'catalogVersion': 3,
   'worlds': <Object?>[
     <String, Object?>{
       'worldId': 'asia',
@@ -40,9 +40,9 @@ const Map<String, Object?> bootstrapWorldCatalogData = {
       'functionsRegion': 'europe-west1',
       'bucketName': 'world-notes-prod-europe',
       'displayNameKey': 'world.europe',
-      'catalogState': 'mirrorOnly',
+      'catalogState': 'contentEnabled',
       'homeAssignmentEnabled': false,
-      'contentAccessEnabled': false,
+      'contentAccessEnabled': true,
     },
   ],
 };

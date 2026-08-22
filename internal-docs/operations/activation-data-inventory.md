@@ -54,4 +54,4 @@ The report was collected at `2026-08-13T11:00:33.738Z`. The P21 data gate is
 complete. Later inventory runs derive the private-authority gate from home
 assignment and the usage/place gates from content access. North America content
 and its local usage counter therefore do not create a false failure during P22,
-while Europe remains required to stay empty.
+and the same applies to Europe after its catalog-version-3 content activation.

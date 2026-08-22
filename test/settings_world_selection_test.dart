@@ -61,20 +61,17 @@ void main() {
 
     expect(find.text('Asia'), findsOneWidget);
     expect(find.text('North America'), findsOneWidget);
-    expect(find.text('Europe'), findsNothing);
+    expect(find.text('Europe'), findsOneWidget);
     expect(
       find.textContaining('permanent home world will not change'),
       findsOneWidget,
     );
 
-    await tester.tap(find.text('North America'));
+    await tester.tap(find.text('Europe'));
     await tester.pumpAndSettle();
 
     expect(container.read(homeWorldProvider), asiaWorldId);
-    expect(
-      container.read(selectedWorldProvider),
-      const WorldId('northAmerica'),
-    );
-    expect(find.textContaining('North America ·'), findsOneWidget);
+    expect(container.read(selectedWorldProvider), const WorldId('europe'));
+    expect(find.textContaining('Europe ·'), findsOneWidget);
   });
 }

@@ -12,7 +12,7 @@
     },
     {
       "database": "europe",
-      "rules": "firestore.named.locked.rules",
+      "rules": "firestore.rules",
       "indexes": "firestore.indexes.json"
     }
   ],
@@ -27,7 +27,7 @@
     },
     {
       "target": "europe",
-      "rules": "storage.named.locked.rules"
+      "rules": "storage.rules"
     }
   ],
   "hosting": {

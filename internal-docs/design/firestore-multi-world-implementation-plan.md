@@ -1377,6 +1377,12 @@ inventory keeps private-user emptiness tied to home assignment and keeps local
 usage/place emptiness tied to content access. It therefore continues to protect
 Europe while allowing the intended North America test content and quota state.
 
+Implementation note (2026-08-22): Europe passed its mirror-only activation
+inventory and all 23 target-bound production smoke checks with no residual
+temporary document. Catalog version 3 advances Europe to `contentEnabled`,
+maps its Firestore and Storage targets to the shared reviewed Rules, and keeps
+home assignment disabled. Asia remains the only home-authority world.
+
 Activation sequence for each new world:
 
 1. provision protected empty resources;

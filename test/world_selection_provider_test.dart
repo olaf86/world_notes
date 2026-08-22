@@ -24,9 +24,12 @@ void main() {
     );
   });
 
-  test('rejects selection of a content-disabled world', () async {
+  test('rejects selection of a world disabled by the active catalog', () async {
     final container = ProviderContainer(
       overrides: [
+        worldCatalogProvider.overrideWithValue(
+          WorldCatalog.fromJson(_disabledEuropeCatalog),
+        ),
         homeAssignmentProvider.overrideWith((ref) => Stream.value(null)),
       ],
     );
@@ -112,6 +115,35 @@ const Map<String, Object?> _enabledEuropeCatalog = {
       'catalogState': 'contentEnabled',
       'homeAssignmentEnabled': false,
       'contentAccessEnabled': true,
+    },
+  ],
+};
+
+const Map<String, Object?> _disabledEuropeCatalog = {
+  'schemaVersion': 1,
+  'catalogVersion': 1,
+  'worlds': <Object?>[
+    <String, Object?>{
+      'worldId': 'asia',
+      'databaseId': '(default)',
+      'firestoreLocation': 'asia-northeast1',
+      'functionsRegion': 'asia-northeast1',
+      'bucketName': 'world-notes-prod.firebasestorage.app',
+      'displayNameKey': 'world.asia',
+      'catalogState': 'homeEnabled',
+      'homeAssignmentEnabled': true,
+      'contentAccessEnabled': true,
+    },
+    <String, Object?>{
+      'worldId': 'europe',
+      'databaseId': 'europe',
+      'firestoreLocation': 'europe-west1',
+      'functionsRegion': 'europe-west1',
+      'bucketName': 'world-notes-prod-europe',
+      'displayNameKey': 'world.europe',
+      'catalogState': 'mirrorOnly',
+      'homeAssignmentEnabled': false,
+      'contentAccessEnabled': false,
     },
   ],
 };

@@ -1,7 +1,7 @@
 # One-world activation
 
-P22 activates one already provisioned world at a time. North America is first;
-Europe remains unchanged until North America completes every stage.
+P22 activates one already provisioned world at a time. North America was first;
+Europe follows only after the North America content stage completed.
 
 ## Mirror-only smoke
 
@@ -56,7 +56,8 @@ deleted. The report was collected at `2026-08-13T10:33:14.906Z`.
 Catalog version 2 advances only North America to `contentEnabled`. It keeps
 `homeAssignmentEnabled: false`, so Asia remains the authority world for all
 existing accounts and no new account can acquire North America as an immutable
-home. Europe remains `mirrorOnly` with deny-all client Rules.
+home. At catalog version 2, Europe remained `mirrorOnly` with deny-all client
+Rules.
 
 The North America Firestore database and Storage bucket use the same reviewed
 Rules files as Asia. Deploy the Rules before Functions and before distributing
@@ -113,3 +114,36 @@ Before `homeEnabled`, rollback is still reversible: restore North America to
 `mirrorOnly`, set `contentAccessEnabled: false`, remap its Firestore and Storage
 targets to the locked Rules, deploy those gates, and let regional workers drain
 already accepted work. Do not delete regional data as part of rollback.
+
+## Europe content access
+
+Catalog version 3 advances Europe to `contentEnabled` while keeping
+`homeAssignmentEnabled: false`. Europe uses the same reviewed Firestore and
+Storage Rules as Asia and North America, so this change opens the existing
+regional client route without introducing a Europe-specific authorization
+policy.
+
+The pre-activation inventory collected at `2026-08-22T01:22:09.658Z` passed:
+Europe had zero places, zero local usage authorities, zero private account
+authorities, and zero pending or failed global operations. The target-bound
+mirror-only smoke collected at `2026-08-22T01:22:23.683Z` then passed all 23
+checks, including the production composite index, Admin transaction round
+trip, and transient-document cleanup.
+
+Deploy the Europe Firestore and Storage Rules before Functions and before
+distributing the catalog-version-3 app. After deployment, rerun production
+preflight and activation inventory. Internal content observation should cover
+the same note, message, image, and archive flows listed for North America.
+
+Before Europe becomes `homeEnabled`, rollback remains reversible: restore it
+to `mirrorOnly`, set `contentAccessEnabled: false`, remap Europe Firestore and
+Storage to the locked Rules, deploy those gates, and drain already accepted
+regional work. Do not delete regional data during rollback.
+
+Production result (2026-08-22): the Europe Firestore and Storage targets were
+mapped to the shared Rules, and catalog-version-3 Functions were deployed in
+all three regions. The post-deploy preflight collected at
+`2026-08-22T01:40:31.724Z` passed with zero failures and zero warnings. The
+activation inventory collected at `2026-08-22T01:39:07.348Z` also passed with
+zero pending or failed global operations; Europe remained ready for its first
+local content with zero private account authorities.

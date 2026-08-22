@@ -11,7 +11,7 @@ import {
 
 test("loads the current versioned world catalog", () => {
   assert.equal(WORLD_CATALOG.schemaVersion, 1);
-  assert.equal(WORLD_CATALOG.catalogVersion, 2);
+  assert.equal(WORLD_CATALOG.catalogVersion, 3);
   assert.deepEqual(
     WORLD_CATALOG.worlds.map((world) => ({
       worldId: world.worldId,
@@ -32,7 +32,7 @@ test("loads the current versioned world catalog", () => {
       {
         worldId: "europe",
         databaseId: "europe",
-        state: "mirrorOnly",
+        state: "contentEnabled",
       },
     ],
   );
@@ -88,6 +88,7 @@ test("rejects missing buckets and premature lifecycle flags", () => {
   );
 
   const earlyContent = mutableCatalog();
+  earlyContent.worlds[2].catalogState = "mirrorOnly";
   earlyContent.worlds[2].contentAccessEnabled = true;
   assert.throws(
     () => parseWorldCatalog(earlyContent),
@@ -105,10 +106,13 @@ test("rejects missing buckets and premature lifecycle flags", () => {
 test("exposes only explicitly home-enabled worlds for assignment", () => {
   const asia = WORLD_CATALOG.worlds[0];
   const northAmerica = WORLD_CATALOG.worlds[1];
+  const europe = WORLD_CATALOG.worlds[2];
 
   assert.equal(asia.homeAssignmentEnabled, true);
   assert.equal(northAmerica.homeAssignmentEnabled, false);
   assert.equal(northAmerica.contentAccessEnabled, true);
+  assert.equal(europe.homeAssignmentEnabled, false);
+  assert.equal(europe.contentAccessEnabled, true);
 });
 
 test("rejects unsupported schema versions", () => {

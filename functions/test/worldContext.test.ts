@@ -27,7 +27,10 @@ import {
   WorldBucket,
   WorldBucketProvider,
 } from "../src/platform/worldBucketProvider";
-import {WORLD_CATALOG} from "../src/platform/worldCatalog";
+import {
+  parseWorldCatalog,
+  WORLD_CATALOG,
+} from "../src/platform/worldCatalog";
 import {WorldContextProvider} from "../src/platform/worldContext";
 import {
   WorldDatabaseConfig,
@@ -44,6 +47,18 @@ const worldDatabases = WORLD_CATALOG.worlds.map((world) => ({
   worldId: world.worldId,
   databaseId: world.databaseId as WorldFirestoreDatabaseId,
 })) satisfies readonly WorldDatabaseConfig[];
+
+/**
+ * Builds a closed Europe fixture for lifecycle guard tests.
+ *
+ * @return {WorldRegistry} Registry with Europe in mirror-only state.
+ */
+function registryWithEuropeDisabled(): WorldRegistry {
+  const catalog = JSON.parse(JSON.stringify(WORLD_CATALOG));
+  catalog.worlds[2].catalogState = "mirrorOnly";
+  catalog.worlds[2].contentAccessEnabled = false;
+  return new WorldRegistry(parseWorldCatalog(catalog));
+}
 
 /**
  * Produces the minimum Firestore shape used by the context provider.
@@ -103,9 +118,10 @@ test("resolves one aligned Asia context and caches it", () => {
 });
 
 test("rejects a content-disabled world before client creation", () => {
+  const disabledRegistry = registryWithEuropeDisabled();
   let firestoreFactoryCalls = 0;
   let bucketFactoryCalls = 0;
-  const provider = new WorldContextProvider(registry, {
+  const provider = new WorldContextProvider(disabledRegistry, {
     firestoreProvider: new WorldFirestoreProvider(worldDatabases, {
       appProvider: () => ({} as App),
       clientFactory: (_app, databaseId) => {
@@ -113,7 +129,7 @@ test("rejects a content-disabled world before client creation", () => {
         return fakeFirestore(databaseId);
       },
     }),
-    bucketProvider: new WorldBucketProvider(registry, {
+    bucketProvider: new WorldBucketProvider(disabledRegistry, {
       appProvider: () => ({} as App),
       bucketFactory: (_app, bucketName) => {
         bucketFactoryCalls += 1;
@@ -131,12 +147,13 @@ test("rejects a content-disabled world before client creation", () => {
 });
 
 test("regional workers can resolve a content-disabled catalog world", () => {
-  const provider = new WorldContextProvider(registry, {
+  const disabledRegistry = registryWithEuropeDisabled();
+  const provider = new WorldContextProvider(disabledRegistry, {
     firestoreProvider: new WorldFirestoreProvider(worldDatabases, {
       appProvider: () => ({} as App),
       clientFactory: (_app, databaseId) => fakeFirestore(databaseId),
     }),
-    bucketProvider: new WorldBucketProvider(registry, {
+    bucketProvider: new WorldBucketProvider(disabledRegistry, {
       appProvider: () => ({} as App),
       bucketFactory: (_app, bucketName) => fakeBucket(bucketName),
     }),
@@ -206,8 +223,17 @@ test("validates content routes for multi-region callables", () => {
   const validator = new CallableRouteValidator(registry);
 
   assert.equal(validator.requireContentWorld("asia").databaseId, "(default)");
+  assert.equal(
+    validator.requireContentWorld("northAmerica").databaseId,
+    "north-america",
+  );
+  assert.equal(validator.requireContentWorld("europe").databaseId, "europe");
+
+  const disabledValidator = new CallableRouteValidator(
+    registryWithEuropeDisabled(),
+  );
   assert.throws(
-    () => validator.requireContentWorld("europe"),
+    () => disabledValidator.requireContentWorld("europe"),
     (error: unknown) =>
       error instanceof HttpsError && error.code === "failed-precondition",
   );

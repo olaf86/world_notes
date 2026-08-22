@@ -28,6 +28,8 @@ import {
   signInAnonymously,
 } from "firebase/auth";
 
+import {WORLD_CATALOG} from "../src/platform/worldCatalog";
+
 const RUN_EMULATOR_TESTS =
   process.env.RUN_FUNCTIONS_EMULATOR_TESTS === "1";
 const PROJECT_ID = "demo-world-notes-functions";
@@ -590,7 +592,10 @@ describe(
       assert.equal(operation.get("status"), "complete");
       assert.deepEqual(operation.get("requiredWorlds"), ["asia"]);
       assert.equal(operation.get("worldAcks.asia.revision"), 1);
-      assert.equal(operation.get("worldCatalogVersion"), 1);
+      assert.equal(
+        operation.get("worldCatalogVersion"),
+        WORLD_CATALOG.catalogVersion,
+      );
       assert.match(operation.get("payloadHash") as string, /^[0-9a-f]{64}$/);
       assert.notEqual(operation.get("completedAt"), undefined);
       assert.notEqual(operation.get("expireAt"), undefined);
