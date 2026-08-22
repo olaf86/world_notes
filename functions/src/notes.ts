@@ -393,7 +393,6 @@ export const createNote = onCall<CreateNoteData>(
         creatorPhotoUrl,
         creatorPhotoVersion,
         creatorProfileRevision,
-        maintainerIds: [uid],
         administratorCount: 0,
         pendingAdministratorInviteCount: 0,
         createdAt: FieldValue.serverTimestamp(),
@@ -497,6 +496,7 @@ export const setNotePinImage = onCall<SetNotePinImageData>(
 
     const db = world.firestore;
     const placeRef = db.collection("places").doc(placeId);
+    const administratorRef = placeRef.collection("administrators").doc(uid);
     const changedAt = Timestamp.now();
     const nextCandidate = newPinImageCandidate({
       storagePath: pinImageStoragePath,
@@ -528,7 +528,10 @@ export const setNotePinImage = onCall<SetNotePinImageData>(
       );
     }
     const accepted = await db.runTransaction(async (tx) => {
-      const place = await tx.get(placeRef);
+      const [place, administrator] = await Promise.all([
+        tx.get(placeRef),
+        tx.get(administratorRef),
+      ]);
       await assertAccountSafetyAllows(
         tx,
         db,
@@ -553,7 +556,7 @@ export const setNotePinImage = onCall<SetNotePinImageData>(
           {reason: "user_blocked"},
         );
       }
-      if (!canMaintainNote(place, uid)) {
+      if (!canMaintainNote(place, administrator, uid)) {
         throw new HttpsError(
           "permission-denied",
           "You cannot change this note.",
@@ -638,6 +641,7 @@ function validateReportNoteInput(
  * Returns whether the caller can report the current note snapshot.
  *
  * @param {DocumentSnapshot} placeSnap Note document.
+ * @param {DocumentSnapshot} administratorSnap Caller administrator document.
  * @param {DocumentSnapshot} memberSnap Caller membership document.
  * @param {string} uid Caller user id.
  * @param {number} nowMs Current time in milliseconds.
@@ -645,12 +649,13 @@ function validateReportNoteInput(
  */
 function canReportNote(
   placeSnap: DocumentSnapshot,
+  administratorSnap: DocumentSnapshot,
   memberSnap: DocumentSnapshot,
   uid: string,
   nowMs: number,
 ): boolean {
   if (!isPublishedReadablePlace(placeSnap, nowMs)) return false;
-  if (canMaintainNote(placeSnap, uid)) return false;
+  if (canMaintainNote(placeSnap, administratorSnap, uid)) return false;
   if (placeSnap.get("visibility") !== "private") return true;
   return hasValidMembership(placeSnap, memberSnap);
 }
@@ -667,6 +672,7 @@ export const reportNote = onCall<ReportNoteData>(
     const db = world.firestore;
     const placeRef = db.collection("places").doc(input.placeId);
     const memberRef = placeRef.collection("members").doc(uid);
+    const administratorRef = placeRef.collection("administrators").doc(uid);
     const reportRef = db.collection("reports").doc();
     const reviewRef = db
       .collection("moderationReviews")
@@ -679,9 +685,16 @@ export const reportNote = onCall<ReportNoteData>(
     const reportCreatedAt = Timestamp.now();
 
     await db.runTransaction(async (tx) => {
-      const [placeSnap, memberSnap, reviewSnap, rateLimitSnap] =
+      const [
+        placeSnap,
+        administratorSnap,
+        memberSnap,
+        reviewSnap,
+        rateLimitSnap,
+      ] =
         await Promise.all([
           tx.get(placeRef),
+          tx.get(administratorRef),
           tx.get(memberRef),
           tx.get(reviewRef),
           tx.get(rateLimitRef),
@@ -692,7 +705,7 @@ export const reportNote = onCall<ReportNoteData>(
       }
       if (
         placeSnap.get("createdByUserId") === uid ||
-        canMaintainNote(placeSnap, uid)
+        canMaintainNote(placeSnap, administratorSnap, uid)
       ) {
         throw new HttpsError(
           "failed-precondition",
@@ -701,7 +714,13 @@ export const reportNote = onCall<ReportNoteData>(
         );
       }
       if (
-        !canReportNote(placeSnap, memberSnap, uid, reportCreatedAt.toMillis())
+        !canReportNote(
+          placeSnap,
+          administratorSnap,
+          memberSnap,
+          uid,
+          reportCreatedAt.toMillis(),
+        )
       ) {
         throw new HttpsError(
           "permission-denied",
@@ -790,8 +809,12 @@ export const setNoteTheme = onCall<SetNoteThemeData>(
 
     const db = world.firestore;
     const placeRef = db.collection("places").doc(placeId);
+    const administratorRef = placeRef.collection("administrators").doc(uid);
     await db.runTransaction(async (tx) => {
-      const placeSnap = await tx.get(placeRef);
+      const [placeSnap, administratorSnap] = await Promise.all([
+        tx.get(placeRef),
+        tx.get(administratorRef),
+      ]);
       await assertAccountSafetyAllows(
         tx,
         db,
@@ -814,7 +837,7 @@ export const setNoteTheme = onCall<SetNoteThemeData>(
           {reason: "user_blocked"},
         );
       }
-      if (!canMaintainNote(placeSnap, uid)) {
+      if (!canMaintainNote(placeSnap, administratorSnap, uid)) {
         throw new HttpsError(
           "permission-denied",
           "You cannot change this note's theme.",

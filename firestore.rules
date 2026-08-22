@@ -168,12 +168,14 @@ service cloud.firestore {
                 );
     }
 
-    function isPlaceMaintainer(place) {
+    function isPlaceMaintainer(placeId, place) {
+      let administratorPath = /databases/$(database)/documents/places/$(placeId)/administrators/$(request.auth.uid);
       return isSignedIn()
              && canInteractWithPlaceCreator(place)
              && (place.createdByUserId == request.auth.uid
-                 || (place.maintainerIds is list
-                     && request.auth.uid in place.maintainerIds));
+                 || (exists(administratorPath)
+                     && get(administratorPath).data.userId
+                        == request.auth.uid));
     }
 
     // Returns the data map of a place document.
@@ -198,7 +200,7 @@ service cloud.firestore {
       let place = getPlace(placeId);
       return isSignedIn()
              && canInteractWithPlaceCreator(place)
-             && (isPlaceMaintainer(place)
+             && (isPlaceMaintainer(placeId, place)
                  || (place.visibility == 'public'
                      && isPubliclyReadablePlace(place))
                  || (place.visibility == 'private'
@@ -215,9 +217,10 @@ service cloud.firestore {
     // A signed-in visitor must read an active private note's display metadata
     // (title, lock type, and hint) before they can unlock it. Message content
     // remains protected separately by canAccessNote/canReadMessage.
-    function canGetPlace(place) {
+    function canGetPlace(placeId, place) {
       return canInteractWithPlaceCreator(place)
-             && (isPlaceMaintainer(place) || isPubliclyReadablePlace(place));
+             && (isPlaceMaintainer(placeId, place)
+                 || isPubliclyReadablePlace(place));
     }
 
     function canListCreatedPlace(place) {
@@ -396,7 +399,7 @@ service cloud.firestore {
 
     // ── places ────────────────────────────────────────────────────────────────
     match /places/{placeId} {
-      allow get: if isSignedIn() && canGetPlace(resource.data);
+      allow get: if isSignedIn() && canGetPlace(placeId, resource.data);
       // Creator-owned notes use a scalar equality query that Rules can prove.
       // Delegated notes are discovered through the caller's server-written
       // administrators records and then read individually through `get`.
@@ -413,7 +416,7 @@ service cloud.firestore {
       //   • Re-opening (isOpen → true) is allowed ONLY when the thread was
       //     closed manually by a maintainer; message-limit closes are
       //     permanent.
-      allow update: if isPlaceMaintainer(resource.data)
+      allow update: if isPlaceMaintainer(placeId, resource.data)
                     && hasReadyAccount()
                     && canPerformContentWrite()
                     && isValidClientThreadStateTransition();
@@ -446,13 +449,21 @@ service cloud.firestore {
       match /members/{memberUid} {
         allow read: if isSignedIn()
                     && (request.auth.uid == memberUid
-                        || isPlaceMaintainer(getPlace(placeId)));
+                        || isPlaceMaintainer(placeId, getPlace(placeId)));
         allow write: if false;
       }
 
       // Immutable administrator invitation and membership audit events.
       match /administratorAudits/{auditId} {
         allow read, write: if false;
+      }
+
+      // Exact owner-scoped reads also allow a missing relationship to resolve
+      // as `exists == false` in the Flutter authority stream. Collection-group
+      // discovery remains constrained by the global rule below.
+      match /administrators/{administratorUid} {
+        allow get: if isCurrentUser(administratorUid);
+        allow list, create, update, delete: if false;
       }
 
       // Server-only counters used by Cloud Functions. In particular,

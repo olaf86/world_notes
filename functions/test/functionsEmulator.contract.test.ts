@@ -401,7 +401,6 @@ describe(
         const now = Date.now();
         await placeRef.set({
           createdByUserId: "creator",
-          maintainerIds: ["creator"],
           visibility: "public",
           isArchived: false,
           isModerationHidden: false,
@@ -438,6 +437,81 @@ describe(
         assert.equal(state.get("userId"), uid);
         assert.equal(state.get("placeId"), placeRef.id);
         assert.equal(message.get("likeCount"), 0);
+      },
+    );
+
+    test(
+      "authorizes a private-note delegate through its administrator record",
+      async () => {
+        const credential = await signInAnonymously(requireAuth());
+        const uid = credential.user.uid;
+        const idToken = await credential.user.getIdToken();
+        const db = requireFirestore();
+        const placeRef = db
+          .collection("places")
+          .doc(`delegate-${randomUUID()}`);
+        const administratorRef = placeRef.collection("administrators").doc(uid);
+        const messageRef = placeRef.collection("messages").doc("message-1");
+        const stateRef = placeRef.collection("likedMessages").doc(uid);
+        cleanupReferences.push(
+          db.collection("userHomes").doc(uid),
+          db.collection("users").doc(uid),
+          db.collection("publicProfiles").doc(uid),
+          db.collection("userEntitlements").doc(uid),
+          db.collection("userUsage").doc(uid),
+          db.collection("accountSafety").doc(uid),
+          stateRef,
+          messageRef,
+          administratorRef,
+          placeRef,
+        );
+        const bootstrap = await callFunction(
+          "assignHomeWorld",
+          {worldId: "asia", homeWorld: "asia"},
+          idToken,
+        );
+        assert.equal(bootstrap.status, 200);
+        const now = Date.now();
+        await Promise.all([
+          placeRef.set({
+            createdByUserId: "creator",
+            visibility: "private",
+            passwordVersion: 1,
+            isArchived: false,
+            isModerationHidden: false,
+            publishAt: Timestamp.fromMillis(now - 60_000),
+            expiresAt: Timestamp.fromMillis(now + 60_000),
+          }),
+          administratorRef.set({
+            userId: uid,
+            invitedByUid: "creator",
+            inviteId: "test-invite",
+            grantedAt: Timestamp.now(),
+          }),
+          messageRef.set({
+            userId: "author",
+            isVisible: true,
+            isPubliclyVisible: true,
+            isDeleted: false,
+            likeCount: 0,
+          }),
+        ]);
+
+        const response = await callFunction(
+          "setMessageLike",
+          {
+            worldId: "asia",
+            placeId: placeRef.id,
+            messageId: messageRef.id,
+            liked: true,
+          },
+          idToken,
+        );
+
+        assert.equal(response.status, 200);
+        assert.deepEqual((await stateRef.get()).get("messageIds"), [
+          messageRef.id,
+        ]);
       },
     );
 

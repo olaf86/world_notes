@@ -54,16 +54,21 @@ test("parses only canonical immutable image paths", () => {
 test("allows an active public pin only when the note references it", () => {
   const place = snapshot(activePlace({pinImageStoragePath: PIN_PATH}));
   assert.equal(
-    canAccessPlaceImage(place, null, "viewer", NOW.toMillis(), false),
+    canAccessPlaceImage(
+      place, snapshot(null), null, "viewer", NOW.toMillis(), false,
+    ),
     true,
   );
   assert.equal(
-    canAccessPlaceImage(place, null, "viewer", NOW.toMillis(), true),
+    canAccessPlaceImage(
+      place, snapshot(null), null, "viewer", NOW.toMillis(), true,
+    ),
     false,
   );
   assert.equal(
     canAccessPlaceImage(
       snapshot(activePlace({isModerationHidden: true})),
+      snapshot(null),
       null,
       "viewer",
       NOW.toMillis(),
@@ -92,12 +97,20 @@ test("treats a valid pending pin candidate as the current image", () => {
 test("requires membership or maintenance for private note images", () => {
   const place = snapshot(activePlace({visibility: "private"}));
   assert.equal(
-    canAccessPlaceImage(place, snapshot(null), "viewer", NOW.toMillis(), false),
+    canAccessPlaceImage(
+      place,
+      snapshot(null),
+      snapshot(null),
+      "viewer",
+      NOW.toMillis(),
+      false,
+    ),
     false,
   );
   assert.equal(
     canAccessPlaceImage(
       place,
+      snapshot(null),
       snapshot({viaPasswordVersion: 1}),
       "viewer",
       NOW.toMillis(),
@@ -106,7 +119,20 @@ test("requires membership or maintenance for private note images", () => {
     true,
   );
   assert.equal(
-    canAccessPlaceImage(place, null, "alice", NOW.toMillis(), false),
+    canAccessPlaceImage(
+      place, snapshot(null), null, "alice", NOW.toMillis(), false,
+    ),
+    true,
+  );
+  assert.equal(
+    canAccessPlaceImage(
+      place,
+      snapshot({userId: "viewer"}, "viewer"),
+      null,
+      "viewer",
+      NOW.toMillis(),
+      false,
+    ),
     true,
   );
 });
@@ -122,6 +148,7 @@ test(
     assert.equal(
       canAccessMessageImage(
         place,
+        snapshot(null),
         null,
         publicMessage,
         route,
@@ -135,6 +162,7 @@ test(
     assert.equal(
       canAccessMessageImage(
         place,
+        snapshot(null),
         null,
         snapshot(messageData({isPubliclyVisible: false})),
         route,
@@ -148,6 +176,7 @@ test(
     assert.equal(
       canAccessMessageImage(
         place,
+        snapshot(null),
         null,
         snapshot(messageData({isPubliclyVisible: false})),
         route,
@@ -161,6 +190,7 @@ test(
     assert.equal(
       canAccessMessageImage(
         place,
+        snapshot(null),
         null,
         snapshot(messageData({moderationAction: "hidden"})),
         route,
@@ -174,6 +204,7 @@ test(
     assert.equal(
       canAccessMessageImage(
         place,
+        snapshot(null),
         null,
         publicMessage,
         {...route, storagePath: MESSAGE_PATH.replace("0.webp", "1.webp")},
@@ -207,7 +238,6 @@ test(
 function activePlace(overrides: Record<string, unknown> = {}) {
   return {
     createdByUserId: "alice",
-    maintainerIds: ["alice"],
     visibility: "public",
     passwordVersion: 1,
     isArchived: false,
@@ -230,8 +260,12 @@ function messageData(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function snapshot(data: Record<string, unknown> | null): DocumentSnapshot {
+function snapshot(
+  data: Record<string, unknown> | null,
+  id = "test",
+): DocumentSnapshot {
   return {
+    id,
     exists: data !== null,
     get: (field: string) => data?.[field],
   } as unknown as DocumentSnapshot;

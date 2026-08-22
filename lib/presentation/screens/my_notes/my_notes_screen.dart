@@ -143,6 +143,7 @@ class _MyNotesListView extends ConsumerWidget {
                     final permissions = place.permissionsFor(
                       uid: currentUser?.id,
                       membership: null,
+                      isAdministrator: place.createdByUserId != currentUser?.id,
                       readOnly: true,
                       now: DateTime.now(),
                     );

@@ -51,12 +51,18 @@ class _NoteVisitorsScreenState extends ConsumerState<NoteVisitorsScreen> {
     final placeAsync = ref.watch(placeProvider(widget.placeId));
     final place = placeAsync.valueOrNull;
     final currentUser = ref.watch(authStateProvider).valueOrNull;
+    final isAdministrator =
+        ref
+            .watch(noteAdministratorAuthorityProvider(widget.placeId))
+            .valueOrNull ??
+        false;
     final membership = place?.isPrivate == true
         ? ref.watch(noteMembershipProvider(widget.placeId)).valueOrNull
         : null;
     final permissions = place?.permissionsFor(
       uid: currentUser?.id,
       membership: membership,
+      isAdministrator: isAdministrator,
       readOnly: false,
       now: DateTime.now(),
     );

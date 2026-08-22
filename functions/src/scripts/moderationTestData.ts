@@ -295,7 +295,6 @@ function placeData(runId: string, authorId: string, now: Timestamp): DocumentDat
     creatorPhotoUrl: null,
     creatorPhotoVersion: 1,
     creatorProfileRevision: 1,
-    maintainerIds: [authorId],
     createdAt: now,
     publishAt: now,
     messageCount: fixtures.length,

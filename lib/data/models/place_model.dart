@@ -17,7 +17,6 @@ class PlaceModel {
   final String creatorName;
   final String? creatorPhotoUrl;
   final int creatorPhotoVersion;
-  final List<String> maintainerIds;
   final DateTime createdAt;
   final DateTime publishAt;
   final int messageCount;
@@ -52,7 +51,6 @@ class PlaceModel {
     required this.creatorName,
     this.creatorPhotoUrl,
     required this.creatorPhotoVersion,
-    this.maintainerIds = const [],
     required this.createdAt,
     required this.publishAt,
     required this.expiresAt,
@@ -72,18 +70,6 @@ class PlaceModel {
     this.visitorCount = 0,
     required this.isModerationHidden,
   });
-
-  static List<String> _maintainerIdsFromData(Map<String, dynamic> data) {
-    final createdByUserId = data['createdByUserId'] as String;
-    final maintainerIds = (data['maintainerIds'] as List<dynamic>?)
-        ?.whereType<String>()
-        .toList();
-    if (maintainerIds == null || maintainerIds.isEmpty) {
-      return [createdByUserId];
-    }
-    if (maintainerIds.contains(createdByUserId)) return maintainerIds;
-    return [createdByUserId, ...maintainerIds];
-  }
 
   factory PlaceModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
@@ -107,7 +93,6 @@ class PlaceModel {
       creatorName: data['creatorName'] as String,
       creatorPhotoUrl: data['creatorPhotoUrl'] as String?,
       creatorPhotoVersion: data['creatorPhotoVersion'] as int,
-      maintainerIds: _maintainerIdsFromData(data),
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       publishAt: (data['publishAt'] as Timestamp).toDate(),
       messageCount: data['messageCount'] as int,
@@ -145,9 +130,6 @@ class PlaceModel {
       'creatorName': creatorName,
       if (creatorPhotoUrl != null) 'creatorPhotoUrl': creatorPhotoUrl,
       'creatorPhotoVersion': creatorPhotoVersion,
-      'maintainerIds': maintainerIds.isEmpty
-          ? [createdByUserId]
-          : maintainerIds,
       'createdAt': FieldValue.serverTimestamp(),
       'publishAt': Timestamp.fromDate(publishAt),
       'messageCount': messageCount,
@@ -186,7 +168,6 @@ class PlaceModel {
     creatorName: creatorName,
     creatorPhotoUrl: creatorPhotoUrl,
     creatorPhotoVersion: creatorPhotoVersion,
-    maintainerIds: maintainerIds,
     createdAt: createdAt,
     publishAt: publishAt,
     messageCount: messageCount,

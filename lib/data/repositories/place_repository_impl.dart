@@ -212,17 +212,19 @@ class PlaceRepositoryImpl implements PlaceRepository {
   ) async {
     final placeIds = _administratorPlaceIds(administratorRecords);
     if (placeIds.isEmpty) return const [];
-    final documents = await Future.wait(placeIds.map((placeId) async {
-      try {
-        return await _places.doc(placeId).get();
-      } on FirebaseException catch (error) {
-        // A block is enforced before its asynchronous relationship cleanup.
-        // During that short window the relationship is discoverable, while
-        // the parent note correctly denies an exact read. Treat it as absent.
-        if (error.code == 'permission-denied') return null;
-        rethrow;
-      }
-    }));
+    final documents = await Future.wait(
+      placeIds.map((placeId) async {
+        try {
+          return await _places.doc(placeId).get();
+        } on FirebaseException catch (error) {
+          // A block is enforced before its asynchronous relationship cleanup.
+          // During that short window the relationship is discoverable, while
+          // the parent note correctly denies an exact read. Treat it as absent.
+          if (error.code == 'permission-denied') return null;
+          rethrow;
+        }
+      }),
+    );
     return documents.whereType<DocumentSnapshot>().toList();
   }
 
@@ -594,6 +596,21 @@ class PlaceRepositoryImpl implements PlaceRepository {
   }
 
   // ── Note administrators ──────────────────────────────────────────────────
+
+  @override
+  Stream<bool> watchNoteAdministratorAuthority({
+    required String placeId,
+    required String userId,
+  }) {
+    return _places
+        .doc(placeId)
+        .collection('administrators')
+        .doc(userId)
+        .snapshots()
+        .map(
+          (document) => document.exists && document.data()?['userId'] == userId,
+        );
+  }
 
   @override
   Future<NoteAdministratorInvitationResult> createNoteAdministratorInvitation({

@@ -50,26 +50,39 @@ extension NotePermissionPolicy on PlaceEntity {
   NoteRole roleFor({
     required String? uid,
     required NoteMembership? membership,
+    required bool isAdministrator,
   }) {
     if (uid == null) return NoteRole.signedOut;
     if (uid == createdByUserId) return NoteRole.creator;
-    if (maintainerIds.contains(uid)) return NoteRole.maintainer;
-    if (isPrivate && isAccessibleBy(uid, membership)) return NoteRole.member;
+    if (isAdministrator) return NoteRole.maintainer;
+    if (isPrivate &&
+        isAccessibleBy(uid, membership, isAdministrator: isAdministrator)) {
+      return NoteRole.member;
+    }
     return NoteRole.visitor;
   }
 
   NotePermissions permissionsFor({
     required String? uid,
     required NoteMembership? membership,
+    required bool isAdministrator,
     required bool readOnly,
     required DateTime now,
   }) {
-    final role = roleFor(uid: uid, membership: membership);
+    final role = roleFor(
+      uid: uid,
+      membership: membership,
+      isAdministrator: isAdministrator,
+    );
     final hasUser = uid != null;
     final isCreator = role == NoteRole.creator;
     final isMaintainer =
         role == NoteRole.creator || role == NoteRole.maintainer;
-    final canReadContent = isAccessibleBy(uid, membership);
+    final canReadContent = isAccessibleBy(
+      uid,
+      membership,
+      isAdministrator: isAdministrator,
+    );
     final canAcceptMessages = canAcceptMessagesAt(now);
     final canLikeMessages =
         hasUser &&

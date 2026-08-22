@@ -263,7 +263,6 @@ function placeData(
     creatorPhotoUrl: null,
     creatorPhotoVersion: 1,
     creatorProfileRevision: 1,
-    maintainerIds: [user.uid],
     administratorCount: 0,
     pendingAdministratorInviteCount: 0,
     createdAt: timestamp(hoursBefore(now, place.createdHoursAgo)),

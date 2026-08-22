@@ -8,7 +8,6 @@ void main() {
 
     PlaceEntity place({
       PlaceVisibility visibility = PlaceVisibility.private,
-      List<String> maintainerIds = const ['creator-1', 'maintainer-1'],
       bool isOpen = true,
       bool isArchived = false,
       ClosedReason? closedReason,
@@ -24,7 +23,6 @@ void main() {
         createdByUserId: 'creator-1',
         creatorName: 'Creator',
         creatorPhotoVersion: 1,
-        maintainerIds: maintainerIds,
         createdAt: now.subtract(const Duration(days: 1)),
         publishAt: now.subtract(const Duration(hours: 1)),
         expiresAt: now.add(const Duration(days: 1)),
@@ -41,6 +39,7 @@ void main() {
       final permissions = place().permissionsFor(
         uid: 'creator-1',
         membership: null,
+        isAdministrator: false,
         readOnly: false,
         now: now,
       );
@@ -58,6 +57,7 @@ void main() {
       final permissions = place().permissionsFor(
         uid: 'maintainer-1',
         membership: null,
+        isAdministrator: true,
         readOnly: false,
         now: now,
       );
@@ -77,6 +77,7 @@ void main() {
       final permissions = place().permissionsFor(
         uid: 'member-1',
         membership: const NoteMembership(viaPasswordVersion: 0),
+        isAdministrator: false,
         readOnly: false,
         now: now,
       );
@@ -94,6 +95,7 @@ void main() {
           .permissionsFor(
             uid: 'visitor-1',
             membership: null,
+            isAdministrator: false,
             readOnly: false,
             now: now,
           );
@@ -109,6 +111,7 @@ void main() {
       final permissions = place().permissionsFor(
         uid: 'maintainer-1',
         membership: null,
+        isAdministrator: true,
         readOnly: true,
         now: now,
       );
@@ -144,6 +147,7 @@ void main() {
             .permissionsFor(
               uid: 'visitor-1',
               membership: null,
+              isAdministrator: false,
               readOnly: false,
               now: now,
             )
@@ -155,6 +159,7 @@ void main() {
             .permissionsFor(
               uid: 'visitor-1',
               membership: null,
+              isAdministrator: false,
               readOnly: false,
               now: now,
             )

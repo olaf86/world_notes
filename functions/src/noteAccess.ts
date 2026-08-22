@@ -23,11 +23,21 @@ export const revokeNoteAccess = onCall<{
     const placeId = requireValue(request.data?.placeId, "placeId");
     const userId = requireValue(request.data?.userId, "userId");
     const placeRef = world.firestore.collection("places").doc(placeId);
-    const place = await placeRef.get();
+    const actorAdministratorRef = placeRef
+      .collection("administrators")
+      .doc(actorUid);
+    const targetAdministratorRef = placeRef
+      .collection("administrators")
+      .doc(userId);
+    const [place, actorAdministrator, targetAdministrator] = await Promise.all([
+      placeRef.get(),
+      actorAdministratorRef.get(),
+      targetAdministratorRef.get(),
+    ]);
     if (!isActiveNoteForAdministration(place, Date.now())) {
       throw new HttpsError("not-found", "Note not found.");
     }
-    if (!canMaintainNote(place, actorUid)) {
+    if (!canMaintainNote(place, actorAdministrator, actorUid)) {
       throw new HttpsError(
         "permission-denied",
         "Only a note administrator can remove access.",
@@ -46,7 +56,7 @@ export const revokeNoteAccess = onCall<{
         {reason: "user_blocked"},
       );
     }
-    if (isNoteMaintainer(place, userId)) {
+    if (isNoteMaintainer(place, targetAdministrator, userId)) {
       throw new HttpsError(
         "failed-precondition",
         "Remove administrator authority before ordinary access.",

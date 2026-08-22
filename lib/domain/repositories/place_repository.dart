@@ -162,6 +162,13 @@ abstract class PlaceRepository {
 
   Future<NoteAdministratorAccess> getNoteAdministratorAccess(String placeId);
 
+  /// Whether [userId] has the server-managed delegated administrator
+  /// relationship for [placeId]. Creator authority remains on the place.
+  Stream<bool> watchNoteAdministratorAuthority({
+    required String placeId,
+    required String userId,
+  });
+
   /// Maintainer-only: removes a single regular member's access grant.
   Future<void> revokeNoteAccess({
     required String placeId,

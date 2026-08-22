@@ -92,7 +92,10 @@ export async function publishScheduledMessagesForWorld(
             return {processed: false, published: false};
           }
 
-          const place = await transaction.get(placeRef);
+          const [place, administrators] = await Promise.all([
+            transaction.get(placeRef),
+            transaction.get(placeRef.collection("administrators")),
+          ]);
           if (!place.exists) return {processed: false, published: false};
           const senderId = message.get("userId") as string | undefined;
           const creatorUid =
@@ -178,6 +181,9 @@ export async function publishScheduledMessagesForWorld(
             enqueueMyNotesMessageNotification(transaction, db, {
               sourceWorld: worldId,
               place,
+              administratorUids: administrators.docs
+                .filter((document) => document.get("userId") === document.id)
+                .map((document) => document.id),
               messageId: messageDocument.id,
               senderId,
               createdAt: now,

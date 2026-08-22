@@ -32,6 +32,7 @@ function assertPlaceId(value: unknown): string {
 
 function canLikeNote(
   placeSnap: DocumentSnapshot,
+  administratorSnap: DocumentSnapshot,
   memberSnap: DocumentSnapshot | null,
   uid: string,
   nowMs: number,
@@ -39,7 +40,7 @@ function canLikeNote(
   if (!isPublishedReadablePlace(placeSnap, nowMs)) return false;
   if (isNoteCreator(placeSnap, uid)) return false;
   if (placeSnap.get("visibility") !== "private") return true;
-  if (canMaintainNote(placeSnap, uid)) return true;
+  if (canMaintainNote(placeSnap, administratorSnap, uid)) return true;
   return hasValidMembership(placeSnap, memberSnap);
 }
 
@@ -57,16 +58,20 @@ export const setNoteLike = onCall<SetNoteLikeData>(
     const placeRef = db.collection("places").doc(placeId);
     const likeRef = placeRef.collection("likes").doc(uid);
     const memberRef = placeRef.collection("members").doc(uid);
+    const administratorRef = placeRef.collection("administrators").doc(uid);
     const nowMs = Date.now();
 
     return db.runTransaction(async (tx) => {
-      const placeSnap = await tx.get(placeRef);
+      const [placeSnap, administratorSnap] = await Promise.all([
+        tx.get(placeRef),
+        tx.get(administratorRef),
+      ]);
       if (!placeSnap.exists) {
         throw new HttpsError("not-found", "Note not found.");
       }
       const memberSnap =
         placeSnap.get("visibility") === "private" &&
-          !canMaintainNote(placeSnap, uid) ?
+          !canMaintainNote(placeSnap, administratorSnap, uid) ?
           await tx.get(memberRef) :
           null;
       if (desiredLiked) {
@@ -78,7 +83,13 @@ export const setNoteLike = onCall<SetNoteLikeData>(
           Timestamp.fromMillis(nowMs),
         );
       }
-      if (!canLikeNote(placeSnap, memberSnap, uid, nowMs)) {
+      if (!canLikeNote(
+        placeSnap,
+        administratorSnap,
+        memberSnap,
+        uid,
+        nowMs,
+      )) {
         throw new HttpsError(
           "permission-denied",
           "You cannot like this note.",

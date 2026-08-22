@@ -2,9 +2,10 @@
 
 World Notes has four practical roles around a note.
 
-`maintainerIds` is a denormalized Firestore array containing the creator plus
-delegated maintainers. The creator is still identified by `createdByUserId`;
-that field decides creator-only actions.
+Authority is normalized: the creator is identified by
+`places.createdByUserId`, while each delegated administrator has a trusted
+server-written `places/{placeId}/administrators/{uid}` relationship. The
+creator field alone decides creator-only actions.
 
 The Flutter client should derive UI actions through
 `lib/domain/policies/note_permissions.dart` instead of duplicating role checks
@@ -14,7 +15,7 @@ inside widgets. Cloud Functions should use named helpers in
 | Role | Meaning |
 | --- | --- |
 | Creator | The original note creator and final authority. Stored in `createdByUserId`. |
-| Maintainer | A delegated operator listed in `maintainerIds` but not `createdByUserId`. |
+| Maintainer | A delegated operator with an `administrators/{uid}` relationship. |
 | Member | A private-note participant with an invite or valid unlock membership. |
 | Visitor | A signed-in user discovering a public note by proximity. |
 
@@ -36,11 +37,10 @@ inside widgets. Cloud Functions should use named helpers in
 
 Operational notes:
 
-- `maintainerIds` intentionally includes `createdByUserId` so trusted server
-  authorization checks and maintainer notifications share one compact ACL.
-  My Notes does not query this array: creator-owned notes use a scalar
-  `createdByUserId` query, while delegated notes are discovered through the
-  existing server-written `administrators` relationship and read individually.
-  This avoids a mutable per-user note-summary projection.
+- Creator-owned notes use a scalar `createdByUserId` query. Delegated notes are
+  discovered through the server-written `administrators` relationship and
+  read individually. Notifications combine the creator with the current
+  administrator subcollection. This keeps a single authority source without a
+  mutable per-user note-summary projection.
 - Invite-link revocation is creator-only because it invalidates an existing
   sharing channel for everyone.

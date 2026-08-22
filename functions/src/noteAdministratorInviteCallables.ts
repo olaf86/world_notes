@@ -3,7 +3,6 @@
 import {getAuth} from "firebase-admin/auth";
 import {
   DocumentSnapshot,
-  FieldValue,
   Firestore,
   Timestamp,
   Transaction,
@@ -111,14 +110,28 @@ export const createNoteAdministratorInvitation =
         targetUid,
       );
       const placeRef = world.firestore.collection("places").doc(placeId);
+      const actorAdministratorRef = placeRef
+        .collection("administrators")
+        .doc(actorUid);
+      const targetAdministratorRef = placeRef
+        .collection("administrators")
+        .doc(targetUid);
       const auditRef = placeRef.collection("administratorAudits").doc();
       const candidateNonce = newNoteAdministratorInvitationNonce();
       const now = Timestamp.now();
       const invitation = await world.firestore.runTransaction(
         async (transaction) => {
-          const [place, currentSnapshot, blocked] = await Promise.all([
+          const [
+            place,
+            currentSnapshot,
+            actorAdministrator,
+            targetAdministrator,
+            blocked,
+          ] = await Promise.all([
             transaction.get(placeRef),
             transaction.get(invitationRef),
+            transaction.get(actorAdministratorRef),
+            transaction.get(targetAdministratorRef),
             hasUserBlockBetweenInTransaction(
               transaction,
               world.firestore,
@@ -141,7 +154,7 @@ export const createNoteAdministratorInvitation =
             ),
           ]);
           requireActiveNote(place, actorUid, now);
-          if (!isNoteMaintainer(place, actorUid)) {
+          if (!isNoteMaintainer(place, actorAdministrator, actorUid)) {
             throw new HttpsError(
               "permission-denied",
               "Only a note administrator can invite another administrator.",
@@ -154,9 +167,7 @@ export const createNoteAdministratorInvitation =
               {reason: "user_blocked"},
             );
           }
-          const maintainers = requireMaintainerIds(place);
-          if (maintainers.includes(targetUid) ||
-              isNoteCreator(place, targetUid)) {
+          if (targetAdministrator.exists || isNoteCreator(place, targetUid)) {
             throw new HttpsError(
               "already-exists",
               "This user is already a note administrator.",
@@ -342,10 +353,9 @@ export const acceptNoteAdministratorInvitation =
               uid,
               creatorUid,
             );
-          const maintainers = requireMaintainerIds(place);
           if (invitation.status ===
               NOTE_ADMINISTRATOR_INVITE_STATUS.accepted &&
-              administrator.exists && maintainers.includes(uid)) {
+              administrator.exists) {
             return {
               status: NOTE_ADMINISTRATOR_INVITE_STATUS.accepted,
               placeId: invitation.placeId,
@@ -393,8 +403,7 @@ export const acceptNoteAdministratorInvitation =
               {reason: "user_blocked"},
             );
           }
-          if (administrator.exists || maintainers.includes(uid) ||
-              isNoteCreator(place, uid)) {
+          if (administrator.exists || isNoteCreator(place, uid)) {
             throw new Error("Administrator authority already exists.");
           }
           const administratorCount = requireCount(
@@ -409,7 +418,6 @@ export const acceptNoteAdministratorInvitation =
             );
           }
           transaction.update(placeRef, {
-            maintainerIds: FieldValue.arrayUnion(uid),
             administratorCount: administratorCount + 1,
             pendingAdministratorInviteCount: pendingCount - 1,
           });
@@ -467,16 +475,21 @@ export const revokeNoteAdministratorInvitation =
         targetUid,
       );
       const placeRef = world.firestore.collection("places").doc(placeId);
+      const actorAdministratorRef = placeRef
+        .collection("administrators")
+        .doc(actorUid);
       const auditRef = placeRef.collection("administratorAudits").doc();
       const now = Timestamp.now();
       const status = await world.firestore.runTransaction(
         async (transaction) => {
-          const [place, invitationSnapshot] = await Promise.all([
-            transaction.get(placeRef),
-            transaction.get(invitationRef),
-          ]);
+          const [place, invitationSnapshot, actorAdministrator] =
+              await Promise.all([
+                transaction.get(placeRef),
+                transaction.get(invitationRef),
+                transaction.get(actorAdministratorRef),
+              ]);
           requireActiveNote(place, actorUid, now);
-          if (!isNoteMaintainer(place, actorUid)) {
+          if (!isNoteMaintainer(place, actorAdministrator, actorUid)) {
             throw new HttpsError(
               "permission-denied",
               "Only a note administrator can revoke this invitation.",
@@ -549,15 +562,19 @@ export const removeNoteAdministrator = onCall<RemoveAdministratorData>(
     const administratorRef = placeRef
       .collection("administrators")
       .doc(targetUid);
+    const actorAdministratorRef = placeRef
+      .collection("administrators")
+      .doc(actorUid);
     const auditRef = placeRef.collection("administratorAudits").doc();
     const now = Timestamp.now();
     await world.firestore.runTransaction(async (transaction) => {
-      const [place, administrator] = await Promise.all([
+      const [place, administrator, actorAdministrator] = await Promise.all([
         transaction.get(placeRef),
         transaction.get(administratorRef),
+        transaction.get(actorAdministratorRef),
       ]);
       requireActiveNote(place, actorUid, now);
-      if (!isNoteMaintainer(place, actorUid)) {
+      if (!isNoteMaintainer(place, actorAdministrator, actorUid)) {
         throw new HttpsError(
           "permission-denied",
           "Only a note administrator can remove administrator access.",
@@ -569,8 +586,7 @@ export const removeNoteAdministrator = onCall<RemoveAdministratorData>(
           "The note creator cannot be removed.",
         );
       }
-      const maintainers = requireMaintainerIds(place);
-      if (!administrator.exists || !maintainers.includes(targetUid)) {
+      if (!administrator.exists) {
         return;
       }
       const administratorCount = requireCount(
@@ -582,7 +598,6 @@ export const removeNoteAdministrator = onCall<RemoveAdministratorData>(
         throw new Error("Note administrator count is invalid.");
       }
       transaction.update(placeRef, {
-        maintainerIds: FieldValue.arrayRemove(targetUid),
         administratorCount: administratorCount - 1,
       });
       transaction.delete(administratorRef);
@@ -609,21 +624,42 @@ export const getNoteAdministratorAccess = onCall<AdministratorAccessData>(
     const actorUid = requireAuthenticatedUid(request.auth?.uid);
     const placeId = requireValue(request.data?.placeId, "placeId");
     const placeRef = world.firestore.collection("places").doc(placeId);
-    const place = await placeRef.get();
+    const [place, delegated] = await Promise.all([
+      placeRef.get(),
+      placeRef.collection("administrators")
+        .limit(NOTE_ADMINISTRATOR_MAX_ACTIVE + 1)
+        .get(),
+    ]);
     requireActiveNote(place, actorUid, Timestamp.now());
-    if (!isNoteMaintainer(place, actorUid)) {
+    const actorAdministrator = delegated.docs.find(
+      (document) => document.id === actorUid,
+    ) ?? null;
+    if (!isNoteMaintainer(place, actorAdministrator, actorUid)) {
       throw new HttpsError(
         "permission-denied",
         "Only a note administrator can view administrator access.",
       );
     }
-    const maintainers = requireMaintainerIds(place);
-    const delegated = await placeRef.collection("administrators")
-      .limit(NOTE_ADMINISTRATOR_MAX_ACTIVE + 1)
-      .get();
     if (delegated.size > NOTE_ADMINISTRATOR_MAX_ACTIVE) {
       throw new Error("Note administrator limit is invalid.");
     }
+    const creatorUid = requireCreatorUid(place);
+    const delegatedUids = delegated.docs.map((document) => {
+      const userId = document.get("userId");
+      if (userId !== document.id || userId === creatorUid) {
+        throw new Error("Note administrator authority is invalid.");
+      }
+      return document.id;
+    });
+    const administratorCount = requireCount(
+      place,
+      "administratorCount",
+      NOTE_ADMINISTRATOR_MAX_ACTIVE,
+    );
+    if (administratorCount !== delegatedUids.length) {
+      throw new Error("Note administrator count is inconsistent.");
+    }
+    const maintainers = [creatorUid, ...delegatedUids];
     const pending = await world.firestore
       .collection("noteAdministratorInvitations")
       .where("placeId", "==", placeId)
@@ -654,7 +690,7 @@ export const getNoteAdministratorAccess = onCall<AdministratorAccessData>(
     ]));
     const now = Timestamp.now();
     return {
-      creatorUid: place.get("createdByUserId"),
+      creatorUid,
       administrators: maintainers.map((uid) => ({
         userId: uid,
         isCreator: isNoteCreator(place, uid),
@@ -753,19 +789,6 @@ function requireActiveNote(
       typeof actorUid !== "string" || actorUid.length === 0) {
     throw new Error("Note authority is invalid.");
   }
-}
-
-function requireMaintainerIds(place: DocumentSnapshot): string[] {
-  const value = place.get("maintainerIds");
-  const creatorUid = requireCreatorUid(place);
-  if (!Array.isArray(value) || value.length === 0 ||
-      value.length > NOTE_ADMINISTRATOR_MAX_ACTIVE + 1 ||
-      value.some((uid) => typeof uid !== "string" || uid.length === 0) ||
-      new Set(value).size !== value.length ||
-      !value.includes(creatorUid)) {
-    throw new Error("Note administrator authority is invalid.");
-  }
-  return value as string[];
 }
 
 function requireCreatorUid(place: DocumentSnapshot): string {

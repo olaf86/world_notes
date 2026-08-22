@@ -77,7 +77,6 @@ class PlaceEntity {
   final String creatorName;
   final String? creatorPhotoUrl;
   final int creatorPhotoVersion;
-  final List<String> maintainerIds;
   final DateTime createdAt;
   final DateTime publishAt;
 
@@ -145,7 +144,6 @@ class PlaceEntity {
     required this.creatorName,
     this.creatorPhotoUrl,
     required this.creatorPhotoVersion,
-    this.maintainerIds = const [],
     required this.createdAt,
     required this.publishAt,
     required this.expiresAt,
@@ -175,11 +173,6 @@ class PlaceEntity {
   /// Maintainers may re-open only notes closed manually (never message-limit).
   bool get canReopen => isClosed && closedReason == ClosedReason.owner;
 
-  bool isMaintainedBy(String? uid) {
-    if (uid == null) return false;
-    return uid == createdByUserId || maintainerIds.contains(uid);
-  }
-
   bool isPublishedAt(DateTime now) => !now.isBefore(publishAt);
 
   /// Past its expiry but not yet archived by the server — the client treats
@@ -204,9 +197,15 @@ class PlaceEntity {
 
   /// Whether [uid] / [membership] may view this private note's content.
   /// Public notes are always accessible.
-  bool isAccessibleBy(String? uid, NoteMembership? membership) {
+  bool isAccessibleBy(
+    String? uid,
+    NoteMembership? membership, {
+    required bool isAdministrator,
+  }) {
     if (isPublic) return true;
-    if (isMaintainedBy(uid)) return true;
+    if (uid != null && (uid == createdByUserId || isAdministrator)) {
+      return true;
+    }
     if (membership == null) return false;
     return membership.viaPasswordVersion == passwordVersion;
   }

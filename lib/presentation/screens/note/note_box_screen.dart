@@ -747,6 +747,11 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
         ? null
         : ref.watch(noteAccessValidationProvider(accessValidation));
     final place = placeAsync.valueOrNull;
+    final isAdministrator =
+        ref
+            .watch(noteAdministratorAuthorityProvider(widget.placeId))
+            .valueOrNull ??
+        false;
     final now = DateTime.now();
 
     if (accessAsync?.isLoading ?? false) {
@@ -775,6 +780,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     final permissions = place.permissionsFor(
       uid: currentUser?.id,
       membership: membership,
+      isAdministrator: isAdministrator,
       readOnly: widget.readOnly,
       now: now,
     );
@@ -854,8 +860,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                             tooltip: l10n.goPro,
                             onPressed: () => context.push('/subscription'),
                           ),
-                        if (place.isArchived &&
-                            place.isMaintainedBy(currentUser?.id))
+                        if (place.isArchived && permissions.isMaintainer)
                           IconButton(
                             icon: const Icon(Icons.add_location_alt_outlined),
                             tooltip: l10n.createFromArchiveTooltip,
@@ -866,7 +871,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                               extra: NoteCreationDraft.fromPlace(place),
                             ),
                           ),
-                        if (!place.isMaintainedBy(currentUser?.id))
+                        if (!permissions.isMaintainer)
                           PopupMenuButton<String>(
                             tooltip: MaterialLocalizations.of(
                               context,

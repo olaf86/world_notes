@@ -296,9 +296,15 @@ async function finalizeMessageModeration(
         });
       }
     } else if (message.get("isPubliclyVisible") === true) {
+      const administrators = await transaction.get(
+        placeRef.collection("administrators"),
+      );
       enqueueMyNotesMessageNotification(transaction, context.firestore, {
         sourceWorld: context.job.world,
         place,
+        administratorUids: administrators.docs
+          .filter((document) => document.get("userId") === document.id)
+          .map((document) => document.id),
         messageId: target.messageId,
         senderId: uid,
         createdAt: checkedAt,

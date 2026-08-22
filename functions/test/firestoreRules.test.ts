@@ -680,7 +680,6 @@ describe(
           seedApplicationDocument("places/bob", {
             ...activePublicPlace(),
             createdByUserId: "bob",
-            maintainerIds: ["bob"],
           }),
         ]);
         const alice = requireApplicationRules().authenticatedContext("alice");
@@ -693,12 +692,6 @@ describe(
             .get(),
         );
         await assertFails(places.where("isArchived", "==", false).get());
-        await assertFails(
-          places
-            .where("maintainerIds", "array-contains", "alice")
-            .where("isArchived", "==", false)
-            .get(),
-        );
         await assertFails(
           places
             .where("createdByUserId", "==", "bob")
@@ -734,6 +727,51 @@ describe(
           }),
         );
       });
+
+      test(
+        "allows a delegated administrator but denies members and visitors",
+        async () => {
+          await Promise.all([
+            seedApplicationDocument("userHomes/bob", validUserHome()),
+            seedApplicationDocument("accountSafety/bob", validAccountSafety()),
+            seedApplicationDocument("userHomes/carol", validUserHome()),
+            seedApplicationDocument(
+              "accountSafety/carol",
+              validAccountSafety(),
+            ),
+            seedApplicationDocument("userHomes/dave", validUserHome()),
+            seedApplicationDocument("accountSafety/dave", validAccountSafety()),
+            seedApplicationDocument("places/tokyo", activePublicPlace()),
+            seedApplicationDocument("places/tokyo/administrators/bob", {
+              userId: "bob",
+              invitedByUid: "alice",
+              inviteId: "invite-bob",
+              grantedAt: firebase.firestore.Timestamp.now(),
+            }),
+            seedApplicationDocument("places/tokyo/members/carol", {
+              viaPasswordVersion: 1,
+            }),
+          ]);
+          const bob = requireApplicationRules().authenticatedContext("bob");
+          const carol = requireApplicationRules()
+            .authenticatedContext("carol");
+          const dave = requireApplicationRules().authenticatedContext("dave");
+
+          await assertSucceeds(
+            bob.firestore().doc("places/tokyo").update({
+              isOpen: false,
+              closedReason: "owner",
+              closedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            }),
+          );
+          await assertFails(
+            carol.firestore().doc("places/tokyo").update({isOpen: true}),
+          );
+          await assertFails(
+            dave.firestore().doc("places/tokyo").update({isOpen: true}),
+          );
+        },
+      );
 
       test("denies thread edits during a posting restriction", async () => {
         const future = firebase.firestore.Timestamp.fromMillis(
@@ -1148,6 +1186,11 @@ describe(
               .doc("places/first/administrators/alice")
               .get(),
           );
+          await assertSucceeds(
+            alice.firestore()
+              .doc("places/missing/administrators/alice")
+              .get(),
+          );
           await assertFails(
             alice.firestore().doc("places/second/administrators/bob").get(),
           );
@@ -1173,7 +1216,6 @@ describe(
 
           await assertFails(
             alice.firestore().doc("places/test-place").update({
-              maintainerIds: ["alice", "mallory"],
               administratorCount: 1,
             }),
           );
@@ -1381,7 +1423,6 @@ function activePublicPlace(): firebase.firestore.DocumentData {
   const now = Date.now();
   return {
     createdByUserId: "alice",
-    maintainerIds: ["alice"],
     visibility: "public",
     passwordVersion: 1,
     isArchived: false,

@@ -5,7 +5,10 @@ import test from "node:test";
 
 import {DocumentSnapshot, Timestamp} from "firebase-admin/firestore";
 
-import {isActiveNoteForAdministration} from "../src/noteMaintenance";
+import {
+  isActiveNoteForAdministration,
+  isNoteMaintainer,
+} from "../src/noteMaintenance";
 
 const NOW_MILLIS = 1_000;
 
@@ -36,10 +39,35 @@ test("active-note administration requires a visible unexpired note", () => {
   );
 });
 
+test("normalizes creator and delegated administrator authority", () => {
+  const place = snapshot({createdByUserId: "creator"}, "place");
+  assert.equal(isNoteMaintainer(place, null, "creator"), true);
+  assert.equal(
+    isNoteMaintainer(
+      place,
+      snapshot({userId: "delegate"}, "delegate"),
+      "delegate",
+    ),
+    true,
+  );
+  assert.equal(
+    isNoteMaintainer(
+      place,
+      snapshot({userId: "someone-else"}, "delegate"),
+      "delegate",
+    ),
+    false,
+  );
+  assert.equal(isNoteMaintainer(place, snapshot(null, "delegate"), "delegate"),
+    false);
+});
+
 function snapshot(
   data: Record<string, unknown> | null,
+  id = "test",
 ): DocumentSnapshot {
   return {
+    id,
     exists: data !== null,
     get: (field: string) => data?.[field],
   } as unknown as DocumentSnapshot;

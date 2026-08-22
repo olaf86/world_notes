@@ -229,9 +229,7 @@ async function cleanOwnedPlace(
       );
     }
 
-    const placeUpdate: Record<string, unknown> = {
-      maintainerIds: FieldValue.arrayRemove(peerUid),
-    };
+    const placeUpdate: Record<string, unknown> = {};
     if (administrator.exists) {
       const administratorCount = nonNegativeCount(
         place.get("administratorCount"),
@@ -242,7 +240,9 @@ async function cleanOwnedPlace(
       placeUpdate.administratorCount = administratorCount - 1;
       transaction.delete(administratorRef);
     }
-    transaction.update(placeRef, placeUpdate);
+    if (Object.keys(placeUpdate).length > 0) {
+      transaction.update(placeRef, placeUpdate);
+    }
     transaction.delete(memberRef);
     for (const message of messages.docs) transaction.delete(message.ref);
 

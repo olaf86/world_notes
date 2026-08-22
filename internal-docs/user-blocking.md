@@ -40,8 +40,8 @@ When user A blocks user B:
 - Push notifications caused by B are not sent to A.
 - Both follow directions are removed, and neither direction can be recreated
   while the block exists.
-- B is removed from `maintainerIds` and `members/{B}` in every note owned by A,
-  including archived notes.
+- B's `administrators/{B}` and `members/{B}` relationships are removed from
+  every note owned by A, including archived notes.
 - Unpublished scheduled messages authored by B in A-owned notes are deleted,
   their stored images are removed, and reserved message slots are released.
 - B cannot regain access to A-owned notes through a password or invite and

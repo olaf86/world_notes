@@ -24,7 +24,6 @@ import {
 } from "./notificationOutbox";
 import {worldContext} from "./platform/worldContext";
 import {WORLD_REGISTRY} from "./platform/worldRegistry";
-import {maintainerIdsOf} from "./noteMaintenance";
 import {hasUserBlockBetween} from "./userBlocks";
 
 interface RegisterFcmTokenData {
@@ -357,13 +356,23 @@ export function enqueueMyNotesMessageNotification(
   input: Readonly<{
     sourceWorld: string;
     place: DocumentSnapshot;
+    administratorUids: readonly string[];
     messageId: string;
     senderId: string;
     createdAt: Timestamp;
   }>,
 ): string | null {
   WORLD_REGISTRY.requireWorld(input.sourceWorld);
-  const recipients = currentMaintainerIds(input.place);
+  const recipients = new Set(
+    input.administratorUids.filter(
+      (uid) => typeof uid === "string" && uid.length > 0,
+    ),
+  );
+  const creator = input.place.get("createdByUserId");
+  if (typeof creator !== "string" || creator.length === 0) {
+    throw new Error("Note creator authority is invalid.");
+  }
+  recipients.add(creator);
   recipients.delete(input.senderId);
   if (recipients.size === 0) return null;
 
@@ -418,8 +427,9 @@ async function deliverMyNotesMessageNotification(
 
   const route = requireMessageSourceRoute(event);
   const placeRef = firestore.collection("places").doc(route.placeId);
-  const [place, message] = await Promise.all([
+  const [place, administrators, message] = await Promise.all([
     placeRef.get(),
+    placeRef.collection("administrators").get(),
     firestore.doc(event.sourcePath).get(),
   ]);
   if (!isDeliverableMessage(place, message)) {
@@ -430,7 +440,14 @@ async function deliverMyNotesMessageNotification(
     throw new Error("Message notification sender is invalid.");
   }
 
-  const maintainers = currentMaintainerIds(place);
+  const maintainers = new Set(administrators.docs
+    .filter((document) => document.get("userId") === document.id)
+    .map((document) => document.id));
+  const creatorUid = place.get("createdByUserId");
+  if (typeof creatorUid !== "string" || creatorUid.length === 0) {
+    throw new Error("Note creator authority is invalid.");
+  }
+  maintainers.add(creatorUid);
   const recipientEntries = await Promise.all(pendingRecipients.map(
     (uid) => notificationRecipientEntry(
       firestore,
@@ -522,19 +539,6 @@ async function deliverMyNotesMessageNotification(
     }
   }
   return {recipientResults, ...(lastErrorCode ? {lastErrorCode} : {})};
-}
-
-function currentMaintainerIds(place: DocumentSnapshot): Set<string> {
-  const maintainers = new Set(
-    maintainerIdsOf(place).filter(
-      (uid) => typeof uid === "string" && uid.length > 0,
-    ),
-  );
-  const creator = place.get("createdByUserId");
-  if (typeof creator === "string" && creator.length > 0) {
-    maintainers.add(creator);
-  }
-  return maintainers;
 }
 
 function requireMessageSourceRoute(

@@ -60,7 +60,8 @@ test("message publication omits an event with no other maintainer", () => {
     firestoreStub(),
     {
       sourceWorld: "asia",
-      place: placeSnapshot("test-sender", ["test-sender"]),
+      place: placeSnapshot("test-sender"),
+      administratorUids: [],
       messageId: MESSAGE_ID,
       senderId: "test-sender",
       createdAt: CREATED_AT,
@@ -78,14 +79,15 @@ test("message outbox handler owns its explicit event type", () => {
   );
 });
 
-function notificationWrite(maintainerIds: string[]) {
+function notificationWrite(administratorUids: string[]) {
   const writes: Array<{ref: {path: string}; data: unknown}> = [];
   const eventId = enqueueMyNotesMessageNotification(
     transactionRecording(writes),
     firestoreStub(),
     {
       sourceWorld: "europe",
-      place: placeSnapshot("test-creator", maintainerIds),
+      place: placeSnapshot("test-creator"),
+      administratorUids,
       messageId: MESSAGE_ID,
       senderId: "test-sender",
       createdAt: CREATED_AT,
@@ -119,13 +121,9 @@ function firestoreStub(): Firestore {
   } as unknown as Firestore;
 }
 
-function placeSnapshot(
-  creatorUid: string,
-  maintainerIds: string[],
-): DocumentSnapshot {
+function placeSnapshot(creatorUid: string): DocumentSnapshot {
   const fields: Record<string, unknown> = {
     createdByUserId: creatorUid,
-    maintainerIds,
   };
   return {
     id: "test-place",

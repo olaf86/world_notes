@@ -184,9 +184,15 @@ class _ManageAccessSheetState extends ConsumerState<ManageAccessSheet> {
     final theme = Theme.of(context);
     final currentUser = ref.watch(authStateProvider).valueOrNull;
     final place = ref.watch(placeProvider(widget.placeId)).valueOrNull;
+    final isAdministrator =
+        ref
+            .watch(noteAdministratorAuthorityProvider(widget.placeId))
+            .valueOrNull ??
+        false;
     final permissions = place?.permissionsFor(
       uid: currentUser?.id,
       membership: null,
+      isAdministrator: isAdministrator,
       readOnly: false,
       now: DateTime.now(),
     );

@@ -20,18 +20,6 @@ export function isActiveNoteForAdministration(
 }
 
 /**
- * Reads maintainerIds from a note.
- *
- * @param {DocumentSnapshot} placeSnap The note document.
- * @return {string[]} Creator plus delegated maintainer ids.
- */
-export function maintainerIdsOf(placeSnap: DocumentSnapshot): string[] {
-  const maintainerIds =
-    placeSnap.get("maintainerIds") as string[] | undefined;
-  return maintainerIds ?? [];
-}
-
-/**
  * Returns whether uid is the original creator of the note.
  *
  * @param {DocumentSnapshot} placeSnap The note document.
@@ -49,29 +37,35 @@ export function isNoteCreator(
  * Returns whether uid has maintainer-level access.
  *
  * @param {DocumentSnapshot} placeSnap The note document.
+ * @param {DocumentSnapshot|null} administratorSnap The delegated relationship.
  * @param {string} uid The user id to check.
  * @return {boolean} Whether the user can maintain the note.
  */
 export function isNoteMaintainer(
   placeSnap: DocumentSnapshot,
+  administratorSnap: DocumentSnapshot | null,
   uid: string,
 ): boolean {
   return isNoteCreator(placeSnap, uid) ||
-    maintainerIdsOf(placeSnap).includes(uid);
+    (administratorSnap?.exists === true &&
+      administratorSnap.id === uid &&
+      administratorSnap.get("userId") === uid);
 }
 
 /**
  * Returns whether uid may perform maintainer-level actions.
  *
  * @param {DocumentSnapshot} placeSnap The note document.
+ * @param {DocumentSnapshot|null} administratorSnap The delegated relationship.
  * @param {string} uid The user id to check.
  * @return {boolean} Whether the user can maintain the note.
  */
 export function canMaintainNote(
   placeSnap: DocumentSnapshot,
+  administratorSnap: DocumentSnapshot | null,
   uid: string,
 ): boolean {
-  return isNoteMaintainer(placeSnap, uid);
+  return isNoteMaintainer(placeSnap, administratorSnap, uid);
 }
 
 /**

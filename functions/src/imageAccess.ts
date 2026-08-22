@@ -102,6 +102,7 @@ export function parseImageStorageRoute(storagePath: string): ImageStorageRoute {
 /** Mirrors the authoritative note access policy for image delivery. */
 export function canAccessPlaceImage(
   place: DocumentSnapshot,
+  administrator: DocumentSnapshot,
   member: DocumentSnapshot | null,
   uid: string,
   nowMillis: number,
@@ -112,7 +113,8 @@ export function canAccessPlaceImage(
     return false;
   }
   if (place.get("visibility") !== "private") return true;
-  return canMaintainNote(place, uid) || hasValidMembership(place, member);
+  return canMaintainNote(place, administrator, uid) ||
+    hasValidMembership(place, member);
 }
 
 /** Returns whether a note currently exposes an accepted or pending pin. */
@@ -128,6 +130,7 @@ export function placeReferencesPinImage(
 /** Mirrors message visibility and exact-reference checks for image delivery. */
 export function canAccessMessageImage(
   place: DocumentSnapshot,
+  administrator: DocumentSnapshot,
   member: DocumentSnapshot | null,
   message: DocumentSnapshot,
   route: Extract<ImageStorageRoute, {kind: "message"}>,
@@ -138,6 +141,7 @@ export function canAccessMessageImage(
 ): boolean {
   if (!canAccessPlaceImage(
     place,
+    administrator,
     member,
     uid,
     nowMillis,
@@ -164,6 +168,7 @@ export async function authorizeImageStoragePaths(
 ): Promise<ReadonlyMap<string, boolean>> {
   const placeCache = new Map<string, Promise<DocumentSnapshot>>();
   const memberCache = new Map<string, Promise<DocumentSnapshot>>();
+  const administratorCache = new Map<string, Promise<DocumentSnapshot>>();
   const blockCache = new Map<string, Promise<boolean>>();
   const result = new Map<string, boolean>();
 
@@ -174,6 +179,11 @@ export async function authorizeImageStoragePaths(
     cache(memberCache, placeId, context.firestore
       .collection("places").doc(placeId)
       .collection("members").doc(context.uid).get());
+  const administratorFor = (placeId: string) =>
+    administratorCache.get(placeId) ??
+    cache(administratorCache, placeId, context.firestore
+      .collection("places").doc(placeId)
+      .collection("administrators").doc(context.uid).get());
   const blockedWith = (peerUid: string) => blockCache.get(peerUid) ??
     cache(blockCache, peerUid, hasUserBlockBetween(
       context.firestore,
@@ -190,6 +200,7 @@ export async function authorizeImageStoragePaths(
     }
     const member = place.get("visibility") === "private" ?
       await membershipFor(route.placeId) : null;
+    const administrator = await administratorFor(route.placeId);
     const creatorBlocked = await blockedWith(creatorUid);
     if (route.kind === "pin") {
       result.set(
@@ -197,6 +208,7 @@ export async function authorizeImageStoragePaths(
         placeReferencesPinImage(place, route.storagePath) &&
           canAccessPlaceImage(
             place,
+            administrator,
             member,
             context.uid,
             context.nowMillis,
@@ -216,6 +228,7 @@ export async function authorizeImageStoragePaths(
       route.storagePath,
       canAccessMessageImage(
         place,
+        administrator,
         member,
         message,
         route,

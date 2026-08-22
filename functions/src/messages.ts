@@ -97,6 +97,7 @@ interface ValidatedSetMessageLikeInput {
 
 interface SendMessageRefs {
   placeRef: DocumentReference;
+  administratorRef: DocumentReference;
   noteStateRef: DocumentReference;
   memberRef: DocumentReference;
   counterRef: DocumentReference;
@@ -106,6 +107,7 @@ interface SendMessageRefs {
 
 interface MessageLikeRefs {
   placeRef: DocumentReference;
+  administratorRef: DocumentReference;
   memberRef: DocumentReference;
   messageRef: DocumentReference;
   likedMessagesRef: DocumentReference;
@@ -254,6 +256,7 @@ function sendMessageRefs(
   const placeRef = db.collection("places").doc(input.placeId);
   return {
     placeRef,
+    administratorRef: placeRef.collection("administrators").doc(uid),
     noteStateRef: db
       .collection("users")
       .doc(uid)
@@ -277,6 +280,7 @@ function messageLikeRefs(
   const messageRef = placeRef.collection("messages").doc(input.messageId);
   return {
     placeRef,
+    administratorRef: placeRef.collection("administrators").doc(uid),
     memberRef: placeRef.collection("members").doc(uid),
     messageRef,
     likedMessagesRef: placeRef.collection("likedMessages").doc(uid),
@@ -378,23 +382,25 @@ function messageDocumentData({
 
 function canAccessNote(
   placeSnap: DocumentSnapshot,
+  administratorSnap: DocumentSnapshot,
   memberSnap: DocumentSnapshot | null,
   uid: string,
 ): boolean {
   if (placeSnap.get("visibility") !== "private") return true;
-  if (canMaintainNote(placeSnap, uid)) return true;
+  if (canMaintainNote(placeSnap, administratorSnap, uid)) return true;
   return hasValidMembership(placeSnap, memberSnap);
 }
 
 function canLikeMessage(
   placeSnap: DocumentSnapshot,
+  administratorSnap: DocumentSnapshot,
   memberSnap: DocumentSnapshot | null,
   messageSnap: DocumentSnapshot,
   uid: string,
   nowMs: number,
 ): boolean {
   return isPublishedReadablePlace(placeSnap, nowMs) &&
-    canAccessNote(placeSnap, memberSnap, uid) &&
+    canAccessNote(placeSnap, administratorSnap, memberSnap, uid) &&
     messageSnap.get("isVisible") === true &&
     messageSnap.get("isPubliclyVisible") === true &&
     messageSnap.get("isDeleted") !== true;
@@ -508,8 +514,9 @@ async function createMessageInTransaction({
   let isScheduled = false;
 
   await db.runTransaction(async (tx) => {
-    const [placeSnap, messageSnap] = await Promise.all([
+    const [placeSnap, administratorSnap, messageSnap] = await Promise.all([
       tx.get(refs.placeRef),
+      tx.get(refs.administratorRef),
       tx.get(refs.messageRef),
     ]);
     if (!placeSnap.exists) {
@@ -549,10 +556,10 @@ async function createMessageInTransaction({
     );
     const memberSnap =
       placeSnap.get("visibility") === "private" &&
-        !canMaintainNote(placeSnap, uid) ?
+        !canMaintainNote(placeSnap, administratorSnap, uid) ?
         await tx.get(refs.memberRef) :
         null;
-    if (!canAccessNote(placeSnap, memberSnap, uid)) {
+    if (!canAccessNote(placeSnap, administratorSnap, memberSnap, uid)) {
       throw new HttpsError(
         "permission-denied",
         "You cannot access this note.",
@@ -722,6 +729,7 @@ export const reportMessage = onCall<ReportMessageData>(
     const db = world.firestore;
     const placeRef = db.collection("places").doc(input.placeId);
     const memberRef = placeRef.collection("members").doc(uid);
+    const administratorRef = placeRef.collection("administrators").doc(uid);
     const messageRef = placeRef.collection("messages").doc(input.messageId);
     const reportRef = db.collection("reports").doc();
     const moderationReviewRef = db
@@ -735,9 +743,17 @@ export const reportMessage = onCall<ReportMessageData>(
     const reportCreatedAt = Timestamp.now();
 
     await db.runTransaction(async (tx) => {
-      const [placeSnap, memberSnap, messageSnap, reviewSnap, rateLimitSnap] =
+      const [
+        placeSnap,
+        administratorSnap,
+        memberSnap,
+        messageSnap,
+        reviewSnap,
+        rateLimitSnap,
+      ] =
         await Promise.all([
           tx.get(placeRef),
+          tx.get(administratorRef),
           tx.get(memberRef),
           tx.get(messageRef),
           tx.get(moderationReviewRef),
@@ -752,7 +768,7 @@ export const reportMessage = onCall<ReportMessageData>(
       }
       if (
         !isPublishedReadablePlace(placeSnap, reportCreatedAt.toMillis()) ||
-        !canAccessNote(placeSnap, memberSnap, uid)
+        !canAccessNote(placeSnap, administratorSnap, memberSnap, uid)
       ) {
         throw new HttpsError(
           "permission-denied",
@@ -835,8 +851,9 @@ async function applyMessageLike(
   uid: string,
   nowMs: number,
 ): Promise<LikeMutationResult> {
-  const [placeSnap, messageSnap] = await Promise.all([
+  const [placeSnap, administratorSnap, messageSnap] = await Promise.all([
     tx.get(refs.placeRef),
+    tx.get(refs.administratorRef),
     tx.get(refs.messageRef),
   ]);
   if (!placeSnap.exists || !messageSnap.exists) {
@@ -844,10 +861,17 @@ async function applyMessageLike(
   }
   const memberSnap =
     placeSnap.get("visibility") === "private" &&
-      !canMaintainNote(placeSnap, uid) ?
+      !canMaintainNote(placeSnap, administratorSnap, uid) ?
       await tx.get(refs.memberRef) :
       null;
-  if (!canLikeMessage(placeSnap, memberSnap, messageSnap, uid, nowMs)) {
+  if (!canLikeMessage(
+    placeSnap,
+    administratorSnap,
+    memberSnap,
+    messageSnap,
+    uid,
+    nowMs,
+  )) {
     throw new HttpsError(
       "permission-denied",
       "You cannot like this message.",

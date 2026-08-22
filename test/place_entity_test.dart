@@ -5,7 +5,7 @@ import 'package:world_notes/domain/entities/note_theme.dart';
 
 void main() {
   group('PlaceEntity', () {
-    test('treats creator and maintainerIds as maintainers', () {
+    test('uses creator identity and explicit administrator authority', () {
       final now = DateTime.now();
       final place = PlaceEntity(
         id: 'place-1',
@@ -19,18 +19,26 @@ void main() {
         createdByUserId: 'creator-1',
         creatorName: 'Alice',
         creatorPhotoVersion: 1,
-        maintainerIds: const ['creator-1', 'maintainer-2'],
         createdAt: now,
         publishAt: now,
         expiresAt: now.add(const Duration(days: 7)),
         likeCount: 0,
+        visibility: PlaceVisibility.private,
         isModerationHidden: false,
       );
 
-      expect(place.isMaintainedBy('creator-1'), isTrue);
-      expect(place.isMaintainedBy('maintainer-2'), isTrue);
-      expect(place.isMaintainedBy('member-3'), isFalse);
-      expect(place.isMaintainedBy(null), isFalse);
+      expect(
+        place.isAccessibleBy('creator-1', null, isAdministrator: false),
+        isTrue,
+      );
+      expect(
+        place.isAccessibleBy('maintainer-2', null, isAdministrator: true),
+        isTrue,
+      );
+      expect(
+        place.isAccessibleBy('member-3', null, isAdministrator: false),
+        isFalse,
+      );
     });
 
     test('carries an optional pin image storage path', () {

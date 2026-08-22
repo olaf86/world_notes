@@ -58,17 +58,19 @@ function isPubliclyReadablePlace(
 
 function canAccessNote({
   placeSnap,
+  administratorSnap,
   memberSnap,
   uid,
   nowMillis,
 }: {
   placeSnap: DocumentSnapshot;
+  administratorSnap: DocumentSnapshot;
   memberSnap: DocumentSnapshot | null;
   uid: string;
   nowMillis: number;
 }): boolean {
   if (placeSnap.get("isModerationHidden") !== false) return false;
-  if (canMaintainNote(placeSnap, uid)) return true;
+  if (canMaintainNote(placeSnap, administratorSnap, uid)) return true;
   if (!isPubliclyReadablePlace(placeSnap, nowMillis)) return false;
   if (placeSnap.get("visibility") !== "private") return true;
   return hasValidMembership(placeSnap, memberSnap);
@@ -86,11 +88,15 @@ export const recordNoteVisit = onCall<RecordNoteVisitData>(
     const userRef = db.collection("users").doc(uid);
     const noteStateRef = userRef.collection("noteStates").doc(placeId);
     const memberRef = placeRef.collection("members").doc(uid);
+    const administratorRef = placeRef.collection("administrators").doc(uid);
     const visitorRef = placeRef.collection("visitors").doc(uid);
     const nowMillis = Date.now();
 
     await db.runTransaction(async (tx) => {
-      const placeSnap = await tx.get(placeRef);
+      const [placeSnap, administratorSnap] = await Promise.all([
+        tx.get(placeRef),
+        tx.get(administratorRef),
+      ]);
       await assertAccountSafetyAllows(
         tx,
         db,
@@ -113,12 +119,22 @@ export const recordNoteVisit = onCall<RecordNoteVisitData>(
           {reason: "user_blocked"},
         );
       }
-      const isMaintainer = canMaintainNote(placeSnap, uid);
+      const isMaintainer = canMaintainNote(
+        placeSnap,
+        administratorSnap,
+        uid,
+      );
       const memberSnap =
         placeSnap.get("visibility") === "private" && !isMaintainer ?
           await tx.get(memberRef) :
           null;
-      if (!canAccessNote({placeSnap, memberSnap, uid, nowMillis})) {
+      if (!canAccessNote({
+        placeSnap,
+        administratorSnap,
+        memberSnap,
+        uid,
+        nowMillis,
+      })) {
         throw new HttpsError(
           "permission-denied",
           "You cannot access this note.",
@@ -192,8 +208,12 @@ export const setFootprintEnabled = onCall<SetFootprintEnabledData>(
 
     const db = world.firestore;
     const placeRef = db.collection("places").doc(placeId);
+    const administratorRef = placeRef.collection("administrators").doc(uid);
     await db.runTransaction(async (tx) => {
-      const placeSnap = await tx.get(placeRef);
+      const [placeSnap, administratorSnap] = await Promise.all([
+        tx.get(placeRef),
+        tx.get(administratorRef),
+      ]);
       await assertAccountSafetyAllows(
         tx,
         db,
@@ -216,7 +236,7 @@ export const setFootprintEnabled = onCall<SetFootprintEnabledData>(
           {reason: "user_blocked"},
         );
       }
-      if (!canMaintainNote(placeSnap, uid)) {
+      if (!canMaintainNote(placeSnap, administratorSnap, uid)) {
         throw new HttpsError(
           "permission-denied",
           "Only note maintainers can change footprints.",
