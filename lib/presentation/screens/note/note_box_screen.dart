@@ -854,12 +854,6 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                       leading: const _NoteBackButton(),
                       title: Text(displayTitle),
                       actions: [
-                        if (!isPremium)
-                          IconButton(
-                            icon: const Icon(Icons.star_outline),
-                            tooltip: l10n.goPro,
-                            onPressed: () => context.push('/subscription'),
-                          ),
                         if (place.isArchived && permissions.isMaintainer)
                           IconButton(
                             icon: const Icon(Icons.add_location_alt_outlined),
