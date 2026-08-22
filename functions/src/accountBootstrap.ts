@@ -6,6 +6,7 @@ import {getAuth, UserRecord} from "firebase-admin/auth";
 import {
   DocumentSnapshot,
   FieldValue,
+  Firestore,
   Timestamp,
 } from "firebase-admin/firestore";
 import * as logger from "firebase-functions/logger";
@@ -14,12 +15,11 @@ import {
   newGlobalOperationId,
   requireOperationId,
 } from "./globalOperations";
+import {processGlobalOperation} from "./globalReplication";
+import {productionGlobalReplicationRuntime} from "./globalReplicationRuntime";
 import {onCall, HttpsError} from "./platform/worldCallable";
-import {asiaWorldContext} from "./platform/worldContext";
-import {
-  ASIA_WORLD_ID,
-  WORLD_REGISTRY,
-} from "./platform/worldRegistry";
+import {asiaWorldContext, worldContext} from "./platform/worldContext";
+import {ASIA_WORLD_ID, WORLD_REGISTRY} from "./platform/worldRegistry";
 import {
   executeEntitlementUpdate,
   executePublicProfilePublish,
@@ -33,6 +33,7 @@ const HOME_EPOCH = 1;
 const MAX_DISPLAY_NAME_LENGTH = 20;
 const MAX_EMAIL_LENGTH = 320;
 const MAX_PHOTO_URL_LENGTH = 2000;
+const HOME_RESERVATIONS_COLLECTION = "accountHomeReservations";
 const PROFILE_REPLICATION_OPERATION_FIELD = "profileReplicationOperationId";
 const ENTITLEMENT_REPLICATION_OPERATION_FIELD =
   "entitlementReplicationOperationId";
@@ -41,17 +42,34 @@ interface AssignHomeWorldData {
   readonly homeWorld?: unknown;
 }
 
+interface HomeAssignmentData {
+  readonly world: string;
+  readonly epoch: number;
+  readonly profileReplicationOperationId: string;
+  readonly entitlementReplicationOperationId: string;
+  readonly safetyReplicationOperationId: string;
+  readonly createdAt: Timestamp;
+}
+
+interface ReservedHomeAssignment {
+  readonly assignedNow: boolean;
+  readonly home: HomeAssignmentData;
+}
+
 /**
- * Assigns the caller's immutable home and writes the Asia account bundle.
+ * Assigns the caller's immutable home and makes every world mirror ready.
  *
- * The initial catalog deliberately enables only Asia as a new-account home.
- * Global replication will use the same directory document as its authority
- * and write this bundle in additional home-enabled worlds. Until then,
- * refusing a non-Asia assignment avoids presenting cross-database writes as
- * atomic.
+ * Asia remains the single assignment directory. A server-only reservation
+ * serializes competing first requests before the selected home database is
+ * initialized. Every step is idempotent so a retry can finish an interrupted
+ * cross-database bootstrap without changing the chosen home.
  */
 export const assignHomeWorld = onCall<AssignHomeWorldData>(
-  {enforceAppCheck: true, requireAccountReady: false},
+  {
+    enforceAppCheck: true,
+    requireAccountReady: false,
+    timeoutSeconds: 120,
+  },
   async (request) => {
     const uid = request.auth?.uid;
     if (uid === undefined) {
@@ -59,125 +77,44 @@ export const assignHomeWorld = onCall<AssignHomeWorldData>(
     }
 
     const homeWorld = requireHomeWorld(request.data?.homeWorld);
-    if (homeWorld !== ASIA_WORLD_ID) {
-      throw new HttpsError(
-        "failed-precondition",
-        "This home world is not ready for account assignment.",
-      );
-    }
-
     const auth = getAuth();
     const authUser = await auth.getUser(uid);
-    const db = asiaWorldContext().firestore;
-    const homeRef = db.collection("userHomes").doc(uid);
-    const userRef = db.collection("users").doc(uid);
-    const profileRef = db.collection("publicProfiles").doc(uid);
-    const entitlementRef = db.collection("userEntitlements").doc(uid);
-    const usageRef = db.collection("userUsage").doc(uid);
-    const safetyRef = db.collection("accountSafety").doc(uid);
-
-    const candidateProfileOperationId = newGlobalOperationId();
-    const candidateEntitlementOperationId = newGlobalOperationId();
-    const candidateSafetyOperationId = newGlobalOperationId();
-    const bootstrap = await db.runTransaction(async (transaction) => {
-      const [homeSnapshot, user, profile, entitlement, usage, safety] =
-        await Promise.all([
-          transaction.get(homeRef),
-          transaction.get(userRef),
-          transaction.get(profileRef),
-          transaction.get(entitlementRef),
-          transaction.get(usageRef),
-          transaction.get(safetyRef),
-        ]);
-
-      if (homeSnapshot.exists) {
-        const existingWorld = homeSnapshot.get("world");
-        const existingEpoch = homeSnapshot.get("epoch");
-        if (existingWorld !== homeWorld || existingEpoch !== HOME_EPOCH) {
-          throw new HttpsError(
-            "already-exists",
-            "This account already has a different home assignment.",
-          );
-        }
-        requireCompleteAccountBundle(user, profile, entitlement, usage, safety);
-      } else {
-        requireEmptyAccountBundle(user, profile, entitlement, usage, safety);
-        transaction.create(homeRef, {
-          world: homeWorld,
-          epoch: HOME_EPOCH,
-          [PROFILE_REPLICATION_OPERATION_FIELD]:
-            candidateProfileOperationId,
-          [ENTITLEMENT_REPLICATION_OPERATION_FIELD]:
-            candidateEntitlementOperationId,
-          [SAFETY_REPLICATION_OPERATION_FIELD]: candidateSafetyOperationId,
-          createdAt: FieldValue.serverTimestamp(),
-        });
-        transaction.create(userRef, privateUserData(authUser));
-        transaction.create(profileRef, publicProfileData(authUser));
-        transaction.create(entitlementRef, entitlementData());
-        transaction.create(usageRef, usageData());
-        transaction.create(
-          safetyRef,
-          initialAccountSafetyData(homeWorld, Timestamp.now()),
-        );
-      }
-      const assignedNow = !homeSnapshot.exists;
-      const profileOperationId = assignedNow ?
-        candidateProfileOperationId :
-        operationIdFromHome(
-          homeSnapshot,
-          PROFILE_REPLICATION_OPERATION_FIELD,
-        );
-      const entitlementOperationId = assignedNow ?
-        candidateEntitlementOperationId :
-        operationIdFromHome(
-          homeSnapshot,
-          ENTITLEMENT_REPLICATION_OPERATION_FIELD,
-        );
-      const safetyOperationId = assignedNow ?
-        candidateSafetyOperationId :
-        operationIdFromHome(
-          homeSnapshot,
-          SAFETY_REPLICATION_OPERATION_FIELD,
-        );
-      const isPremium = assignedNow ? false : entitlement.get("isPremium");
-      if (typeof isPremium !== "boolean") {
-        throw new HttpsError(
-          "failed-precondition",
-          "User entitlement is invalid.",
-        );
-      }
-      return {
-        assignedNow,
-        profileOperationId,
-        entitlementOperationId,
-        safetyOperationId,
-        isPremium,
-      };
-    });
+    const directory = asiaWorldContext().firestore;
+    const authority = worldContext(homeWorld).firestore;
+    const reservation = await reserveHomeAssignment(
+      directory,
+      uid,
+      homeWorld,
+    );
+    const bootstrap = await ensureAuthorityBundle(
+      authority,
+      uid,
+      authUser,
+      reservation.home,
+    );
 
     await Promise.all([
       executePublicProfilePublish({
-        firestore: db,
+        firestore: authority,
         authorityWorld: homeWorld,
         uid,
-        operationId: bootstrap.profileOperationId,
+        operationId: reservation.home.profileReplicationOperationId,
         sourceEventId: "accountBootstrap:profile",
       }),
       executeEntitlementUpdate({
-        firestore: db,
+        firestore: authority,
         authorityWorld: homeWorld,
         uid,
-        operationId: bootstrap.entitlementOperationId,
+        operationId: reservation.home.entitlementReplicationOperationId,
         isPremium: bootstrap.isPremium,
         sourceCheckedAt: null,
         sourceEventId: "accountBootstrap:entitlement",
       }),
       executeAccountSafetyEvent({
-        firestore: db,
+        firestore: authority,
         authorityWorld: homeWorld,
         uid,
-        operationId: bootstrap.safetyOperationId,
+        operationId: reservation.home.safetyReplicationOperationId,
         eventId: bootstrapSafetyEventId(uid),
         points: 0,
         sourceWorld: homeWorld,
@@ -185,22 +122,249 @@ export const assignHomeWorld = onCall<AssignHomeWorldData>(
         sourceEntityId: uid,
       }),
     ]);
+    await replicateBootstrapOperations(homeWorld, reservation.home);
+    await publishHomeAssignment(uid, reservation.home);
+    await clearHomeReservation(directory, uid, reservation.home);
     await cacheHomeClaim(authUser, homeWorld);
     return {
       homeWorld,
       epoch: HOME_EPOCH,
       ready: true,
-      assignedNow: bootstrap.assignedNow,
+      assignedNow: reservation.assignedNow,
     };
   },
 );
 
-/** Reads one required bootstrap operation ID from the home document. */
-function operationIdFromHome(
-  homeSnapshot: DocumentSnapshot,
-  field: string,
-): string {
-  return requireOperationId(homeSnapshot.get(field));
+/** Reserves one immutable choice in the Asia directory before remote writes. */
+async function reserveHomeAssignment(
+  directory: Firestore,
+  uid: string,
+  homeWorld: string,
+): Promise<ReservedHomeAssignment> {
+  const homeRef = directory.collection("userHomes").doc(uid);
+  const reservationRef = directory
+    .collection(HOME_RESERVATIONS_COLLECTION)
+    .doc(uid);
+  const candidate: HomeAssignmentData = Object.freeze({
+    world: homeWorld,
+    epoch: HOME_EPOCH,
+    profileReplicationOperationId: newGlobalOperationId(),
+    entitlementReplicationOperationId: newGlobalOperationId(),
+    safetyReplicationOperationId: newGlobalOperationId(),
+    createdAt: Timestamp.now(),
+  });
+
+  return directory.runTransaction(async (transaction) => {
+    const [home, reservation] = await Promise.all([
+      transaction.get(homeRef),
+      transaction.get(reservationRef),
+    ]);
+    if (home.exists) {
+      return {
+        assignedNow: false,
+        home: requireMatchingHomeAssignment(home, homeWorld),
+      };
+    }
+    if (reservation.exists) {
+      return {
+        assignedNow: false,
+        home: requireMatchingHomeAssignment(reservation, homeWorld),
+      };
+    }
+    transaction.create(reservationRef, candidate);
+    return {assignedNow: true, home: candidate};
+  });
+}
+
+/** Creates or verifies the complete private bundle in the selected home. */
+async function ensureAuthorityBundle(
+  authority: Firestore,
+  uid: string,
+  authUser: UserRecord,
+  home: HomeAssignmentData,
+): Promise<{readonly isPremium: boolean}> {
+  const homeRef = authority.collection("userHomes").doc(uid);
+  const userRef = authority.collection("users").doc(uid);
+  const profileRef = authority.collection("publicProfiles").doc(uid);
+  const entitlementRef = authority.collection("userEntitlements").doc(uid);
+  const usageRef = authority.collection("userUsage").doc(uid);
+  const safetyRef = authority.collection("accountSafety").doc(uid);
+
+  return authority.runTransaction(async (transaction) => {
+    const [homeSnapshot, user, profile, entitlement, usage, safety] =
+      await Promise.all([
+        transaction.get(homeRef),
+        transaction.get(userRef),
+        transaction.get(profileRef),
+        transaction.get(entitlementRef),
+        transaction.get(usageRef),
+        transaction.get(safetyRef),
+      ]);
+    if (homeSnapshot.exists) {
+      requireMatchingHomeAssignment(homeSnapshot, home.world, home);
+    }
+    const bundle = [user, profile, entitlement, usage, safety];
+    const existing = bundle.filter((snapshot) => snapshot.exists).length;
+    if (existing !== 0 && existing !== bundle.length) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Account authority bundle is incomplete.",
+      );
+    }
+    if (existing === bundle.length) {
+      if (!homeSnapshot.exists) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Account data exists without a home assignment.",
+        );
+      }
+      const isPremium = entitlement.get("isPremium");
+      if (typeof isPremium !== "boolean") {
+        throw new HttpsError(
+          "failed-precondition",
+          "User entitlement is invalid.",
+        );
+      }
+      return {isPremium};
+    }
+
+    if (!homeSnapshot.exists) transaction.create(homeRef, home);
+    transaction.create(userRef, privateUserData(authUser));
+    transaction.create(profileRef, publicProfileData(authUser));
+    transaction.create(entitlementRef, entitlementData());
+    transaction.create(usageRef, usageData());
+    transaction.create(
+      safetyRef,
+      initialAccountSafetyData(home.world, Timestamp.now()),
+    );
+    return {isPremium: false};
+  });
+}
+
+/** Completes all initial projection operations before exposing readiness. */
+async function replicateBootstrapOperations(
+  homeWorld: string,
+  home: HomeAssignmentData,
+): Promise<void> {
+  const operationIds = [
+    home.profileReplicationOperationId,
+    home.entitlementReplicationOperationId,
+    home.safetyReplicationOperationId,
+  ];
+  const results = await Promise.all(operationIds.map((operationId) =>
+    processGlobalOperation(
+      homeWorld,
+      operationId,
+      productionGlobalReplicationRuntime,
+    )));
+  if (results.some((result) => result?.status !== "complete")) {
+    throw new HttpsError(
+      "unavailable",
+      "Account mirrors are still being prepared.",
+    );
+  }
+}
+
+/** Publishes the immutable marker to every world, with Asia visible last. */
+async function publishHomeAssignment(
+  uid: string,
+  home: HomeAssignmentData,
+): Promise<void> {
+  const worlds = [
+    ...WORLD_REGISTRY.catalog.worlds.filter(
+      (world) => world.worldId !== ASIA_WORLD_ID,
+    ),
+    WORLD_REGISTRY.requireWorld(ASIA_WORLD_ID),
+  ];
+  for (const world of worlds) {
+    const firestore = worldContext(world.worldId).firestore;
+    const homeRef = firestore.collection("userHomes").doc(uid);
+    await firestore.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(homeRef);
+      if (snapshot.exists) {
+        requireMatchingHomeAssignment(snapshot, home.world, home);
+      } else {
+        transaction.create(homeRef, home);
+      }
+    });
+  }
+}
+
+/** Removes an obsolete reservation only after the public directory is ready. */
+async function clearHomeReservation(
+  directory: Firestore,
+  uid: string,
+  home: HomeAssignmentData,
+): Promise<void> {
+  const reservationRef = directory
+    .collection(HOME_RESERVATIONS_COLLECTION)
+    .doc(uid);
+  await directory.runTransaction(async (transaction) => {
+    const reservation = await transaction.get(reservationRef);
+    if (!reservation.exists) return;
+    requireMatchingHomeAssignment(reservation, home.world, home);
+    transaction.delete(reservationRef);
+  });
+}
+
+/** Parses and verifies a directory, reservation, or world-local marker. */
+function requireMatchingHomeAssignment(
+  snapshot: DocumentSnapshot,
+  expectedWorld: string,
+  expected?: HomeAssignmentData,
+): HomeAssignmentData {
+  const world = snapshot.get("world");
+  const epoch = snapshot.get("epoch");
+  if (world !== expectedWorld || epoch !== HOME_EPOCH) {
+    throw new HttpsError(
+      "already-exists",
+      "This account already has a different home assignment.",
+    );
+  }
+  let home: HomeAssignmentData;
+  try {
+    home = Object.freeze({
+      world,
+      epoch,
+      profileReplicationOperationId: requireOperationId(
+        snapshot.get(PROFILE_REPLICATION_OPERATION_FIELD),
+      ),
+      entitlementReplicationOperationId: requireOperationId(
+        snapshot.get(ENTITLEMENT_REPLICATION_OPERATION_FIELD),
+      ),
+      safetyReplicationOperationId: requireOperationId(
+        snapshot.get(SAFETY_REPLICATION_OPERATION_FIELD),
+      ),
+      createdAt: requireHomeTimestamp(snapshot.get("createdAt")),
+    });
+  } catch {
+    throw new HttpsError(
+      "failed-precondition",
+      "Account home assignment is incomplete.",
+    );
+  }
+  if (expected !== undefined && (
+    home.profileReplicationOperationId !==
+      expected.profileReplicationOperationId ||
+    home.entitlementReplicationOperationId !==
+      expected.entitlementReplicationOperationId ||
+    home.safetyReplicationOperationId !==
+      expected.safetyReplicationOperationId
+  )) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Account home assignment operations do not match.",
+    );
+  }
+  return home;
+}
+
+/** Requires one committed home timestamp. */
+function requireHomeTimestamp(value: unknown): Timestamp {
+  if (!(value instanceof Timestamp)) {
+    throw new Error("Home assignment createdAt is invalid.");
+  }
+  return value;
 }
 
 /** Derives the one immutable safety-bootstrap receipt ID for an account. */
@@ -209,30 +373,6 @@ function bootstrapSafetyEventId(uid: string): string {
     .update("accountSafetyBootstrap\0", "utf8")
     .update(uid, "utf8")
     .digest("hex");
-}
-
-/** Rejects a partially created authority bundle. */
-function requireCompleteAccountBundle(
-  ...snapshots: readonly DocumentSnapshot[]
-): void {
-  if (snapshots.some((snapshot) => !snapshot.exists)) {
-    throw new HttpsError(
-      "failed-precondition",
-      "Account authority bundle is incomplete.",
-    );
-  }
-}
-
-/** Rejects orphaned account documents without an immutable home assignment. */
-function requireEmptyAccountBundle(
-  ...snapshots: readonly DocumentSnapshot[]
-): void {
-  if (snapshots.some((snapshot) => snapshot.exists)) {
-    throw new HttpsError(
-      "failed-precondition",
-      "Account data exists without a home assignment.",
-    );
-  }
 }
 
 /** Validates the requested home against the trusted activation catalog. */

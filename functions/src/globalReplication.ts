@@ -67,13 +67,18 @@ export class GlobalReplicationHandlerRegistry {
 
   /** Returns the sole handler trusted for an operation type. */
   require(operationType: string): GlobalReplicationHandler {
-    const handler = this.handlers.get(operationType);
+    const handler = this.find(operationType);
     if (handler === undefined) {
       throw new Error(
         `No global replication handler is registered for ${operationType}.`,
       );
     }
     return handler;
+  }
+
+  /** Returns the registered handler when an operation needs replication. */
+  find(operationType: string): GlobalReplicationHandler | undefined {
+    return this.handlers.get(operationType);
   }
 }
 
@@ -120,7 +125,14 @@ export async function processGlobalOperation(
     );
   }
   if (operation.status === "failed") return resultFor(operation);
-  const handler = runtime.handlers.require(operation.operationType);
+  const handler = runtime.handlers.find(operation.operationType);
+  if (handler === undefined) {
+    if (operation.status === "complete") return resultFor(operation);
+    throw new Error(
+      "No global replication handler is registered for " +
+      `${operation.operationType}.`,
+    );
+  }
   if (operation.status === "complete") {
     await finalizeGlobalOperation(
       operation,

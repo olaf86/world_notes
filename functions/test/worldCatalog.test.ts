@@ -11,7 +11,7 @@ import {
 
 test("loads the current versioned world catalog", () => {
   assert.equal(WORLD_CATALOG.schemaVersion, 1);
-  assert.equal(WORLD_CATALOG.catalogVersion, 3);
+  assert.equal(WORLD_CATALOG.catalogVersion, 5);
   assert.deepEqual(
     WORLD_CATALOG.worlds.map((world) => ({
       worldId: world.worldId,
@@ -27,12 +27,12 @@ test("loads the current versioned world catalog", () => {
       {
         worldId: "northAmerica",
         databaseId: "north-america",
-        state: "contentEnabled",
+        state: "homeEnabled",
       },
       {
         worldId: "europe",
         databaseId: "europe",
-        state: "contentEnabled",
+        state: "homeEnabled",
       },
     ],
   );
@@ -109,9 +109,9 @@ test("exposes only explicitly home-enabled worlds for assignment", () => {
   const europe = WORLD_CATALOG.worlds[2];
 
   assert.equal(asia.homeAssignmentEnabled, true);
-  assert.equal(northAmerica.homeAssignmentEnabled, false);
+  assert.equal(northAmerica.homeAssignmentEnabled, true);
   assert.equal(northAmerica.contentAccessEnabled, true);
-  assert.equal(europe.homeAssignmentEnabled, false);
+  assert.equal(europe.homeAssignmentEnabled, true);
   assert.equal(europe.contentAccessEnabled, true);
 });
 

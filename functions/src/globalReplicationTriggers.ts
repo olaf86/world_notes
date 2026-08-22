@@ -9,53 +9,22 @@ import {
   deriveGlobalOperationAttention,
   GLOBAL_OPERATION_RECONCILE_AFTER_MILLIS,
   GLOBAL_OPERATION_RECONCILE_BATCH_SIZE,
-  GlobalReplicationHandlerRegistry,
   GlobalReplicationRuntime,
   missingDestinationWorlds,
   processGlobalOperation,
 } from "./globalReplication";
-import {
-  accountSafetyReplicationHandler,
-  adminAccountSafetyReplicationHandler,
-} from "./accountSafety";
 import {parseGlobalOperation} from "./globalOperations";
 import {
-  publicProfileReplicationHandler,
   reconcilePublicProfileAuthCache,
-  userEntitlementReplicationHandler,
 } from "./profileEntitlementReplication";
-import {socialEdgeReplicationHandler} from "./socialEdgeReplication";
-import {userBlockReplicationHandler} from "./userBlockReplication";
-import {
-  WorldDatabaseConfig,
-  WorldFirestoreDatabaseId,
-  WorldFirestoreProvider,
-} from "./platform/worldFirestoreProvider";
 import {
   WORLD_CATALOG,
   WorldCatalogEntry,
 } from "./platform/worldCatalog";
+import {productionGlobalReplicationRuntime} from "./globalReplicationRuntime";
 
 const GLOBAL_OPERATION_PATH = "globalOperations/{operationId}";
 const RECONCILE_SCHEDULE = "every 15 minutes";
-
-const worldDatabases = WORLD_CATALOG.worlds.map((world) => ({
-  worldId: world.worldId,
-  databaseId: world.databaseId as WorldFirestoreDatabaseId,
-})) satisfies readonly WorldDatabaseConfig[];
-
-const productionRuntime: GlobalReplicationRuntime = {
-  catalog: WORLD_CATALOG,
-  firestore: new WorldFirestoreProvider(worldDatabases),
-  handlers: new GlobalReplicationHandlerRegistry([
-    publicProfileReplicationHandler,
-    userEntitlementReplicationHandler,
-    socialEdgeReplicationHandler,
-    userBlockReplicationHandler,
-    accountSafetyReplicationHandler,
-    adminAccountSafetyReplicationHandler,
-  ]),
-};
 
 export interface GlobalReconcileResult {
   readonly inspected: number;
@@ -73,7 +42,7 @@ export interface GlobalReconcileResult {
  */
 export async function reconcileGlobalOperations(
   authorityWorld: string,
-  runtime: GlobalReplicationRuntime = productionRuntime,
+  runtime: GlobalReplicationRuntime = productionGlobalReplicationRuntime,
   now: Timestamp = Timestamp.now(),
 ): Promise<GlobalReconcileResult> {
   const authorityFirestore = runtime.firestore.forWorld(authorityWorld);
@@ -168,10 +137,10 @@ function replicationTrigger(worldId: string) {
       await processGlobalOperation(
         worldId,
         event.params.operationId,
-        productionRuntime,
+        productionGlobalReplicationRuntime,
       );
       await reconcilePublicProfileAuthCache(
-        productionRuntime.firestore.forWorld(worldId),
+        productionGlobalReplicationRuntime.firestore.forWorld(worldId),
         worldId,
         operation,
       );

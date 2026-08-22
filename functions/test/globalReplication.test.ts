@@ -28,6 +28,8 @@ test("handler registry requires one explicit owner per operation type", () => {
   const registry = new GlobalReplicationHandlerRegistry([handler]);
 
   assert.equal(registry.require("replicateTestEntity"), handler);
+  assert.equal(registry.find("replicateTestEntity"), handler);
+  assert.equal(registry.find("authorityOnlyOperation"), undefined);
   assert.throws(
     () => registry.require("unknownOperation"),
     /No global replication handler/,

@@ -147,3 +147,42 @@ all three regions. The post-deploy preflight collected at
 activation inventory collected at `2026-08-22T01:39:07.348Z` also passed with
 zero pending or failed global operations; Europe remained ready for its first
 local content with zero private account authorities.
+
+## All-world home assignment
+
+Catalog version 4 enabled immutable North America home assignment. Catalog
+version 5 then enabled Europe, leaving Asia, North America, and Europe in the
+same `homeEnabled` state. The bootstrap callable keeps Asia as the single
+assignment directory, uses a server-only reservation to serialize competing
+first requests, creates the private account bundle in the selected home, and
+completes all home-marker, profile, entitlement, and account-safety mirrors
+before returning `ready: true`. Interrupted calls are safe to retry with the
+same home and cannot change an existing assignment.
+
+The minimum-client-version gate from the long-term rollout plan was explicitly
+omitted for this activation because the app is still in development and no
+older public release needs compatibility. Revisit that gate before any future
+protocol change after external distribution begins.
+
+North America was activated first. Its pre-deploy inventory collected at
+`2026-08-22T02:15:56.170Z` passed, and its post-deploy inventory collected at
+`2026-08-22T02:22:42.106Z` had zero pending or failed global operations. The
+post-deploy preflight checked at `2026-08-22T02:24:04.093Z` passed with zero
+failures and zero warnings.
+
+Europe was activated only after the North America checks passed. Its final
+pre-deploy inventory collected at `2026-08-22T02:26:32.374Z` passed. After the
+catalog-version-5 deployment, the final inventory collected at
+`2026-08-22T02:34:29.507Z` again had zero pending or failed global operations,
+and the final preflight checked at `2026-08-22T02:35:46.023Z` passed with zero
+failures and zero warnings.
+
+The catalog-version-5 app still requires ordinary application distribution and
+device testing. Cover initial account creation with each of the three home
+choices, profile and language updates through the selected home, switching to
+both non-home content worlds, and note/message/image/archive flows. App release
+remains an application-owner action.
+
+After this point, rollback must preserve every assigned authority. Disable only
+new home assignments or optional content creation for an affected world; do
+not remove a world that may own an immutable account.

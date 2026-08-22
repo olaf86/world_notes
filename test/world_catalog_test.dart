@@ -22,15 +22,15 @@ void main() {
     final catalog = WorldCatalog.fromJson(sourceCatalog);
 
     expect(catalog.schemaVersion, 1);
-    expect(catalog.catalogVersion, 3);
+    expect(catalog.catalogVersion, 5);
     expect(
       catalog.worlds
           .map((world) => (world.worldId, world.databaseId, world.catalogState))
           .toList(),
       [
         ('asia', '(default)', WorldCatalogState.homeEnabled),
-        ('northAmerica', 'north-america', WorldCatalogState.contentEnabled),
-        ('europe', 'europe', WorldCatalogState.contentEnabled),
+        ('northAmerica', 'north-america', WorldCatalogState.homeEnabled),
+        ('europe', 'europe', WorldCatalogState.homeEnabled),
       ],
     );
     expect(catalog.findWorld('europe')?.functionsRegion, 'europe-west1');
@@ -57,13 +57,20 @@ void main() {
       'north-america',
     );
     expect(
-      () =>
-          bootstrapWorldCatalog.requireHomeWorld(const WorldId('northAmerica')),
-      throwsStateError,
+      bootstrapWorldCatalog
+          .requireHomeWorld(const WorldId('northAmerica'))
+          .databaseId,
+      'north-america',
     );
     expect(
       bootstrapWorldCatalog
           .requireContentWorld(const WorldId('europe'))
+          .databaseId,
+      'europe',
+    );
+    expect(
+      bootstrapWorldCatalog
+          .requireHomeWorld(const WorldId('europe'))
           .databaseId,
       'europe',
     );

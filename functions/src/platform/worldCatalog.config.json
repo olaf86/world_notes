@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "catalogVersion": 3,
+  "catalogVersion": 5,
   "worlds": [
     {
       "worldId": "asia",
@@ -20,8 +20,8 @@
       "functionsRegion": "us-central1",
       "bucketName": "world-notes-prod-north-america",
       "displayNameKey": "world.northAmerica",
-      "catalogState": "contentEnabled",
-      "homeAssignmentEnabled": false,
+      "catalogState": "homeEnabled",
+      "homeAssignmentEnabled": true,
       "contentAccessEnabled": true
     },
     {
@@ -31,8 +31,8 @@
       "functionsRegion": "europe-west1",
       "bucketName": "world-notes-prod-europe",
       "displayNameKey": "world.europe",
-      "catalogState": "contentEnabled",
-      "homeAssignmentEnabled": false,
+      "catalogState": "homeEnabled",
+      "homeAssignmentEnabled": true,
       "contentAccessEnabled": true
     }
   ]

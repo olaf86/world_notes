@@ -44,6 +44,8 @@ let clientApp: FirebaseApp | undefined;
 let adminApp: AdminApp | undefined;
 let auth: Auth | undefined;
 let firestore: Firestore | undefined;
+let northAmericaFirestore: Firestore | undefined;
+let europeFirestore: Firestore | undefined;
 const cleanupReferences: DocumentReference[] = [];
 
 interface CallableErrorBody {
@@ -81,6 +83,8 @@ describe(
         `functions-contract-admin-${runId}`,
       );
       firestore = getFirestore(adminApp);
+      northAmericaFirestore = getFirestore(adminApp, "north-america");
+      europeFirestore = getFirestore(adminApp, "europe");
     });
 
     afterEach(async () => {
@@ -95,8 +99,12 @@ describe(
     });
 
     after(async () => {
-      if (firestore !== undefined && adminApp !== undefined) {
-        await firestore.terminate();
+      if (adminApp !== undefined) {
+        await Promise.all([
+          firestore?.terminate(),
+          northAmericaFirestore?.terminate(),
+          europeFirestore?.terminate(),
+        ]);
         await deleteAdminApp(adminApp);
       }
       if (clientApp !== undefined) {
@@ -258,6 +266,98 @@ describe(
       assert.equal(safety.get("revision"), 2);
       assert.equal(safety.get("authorityWorld"), "asia");
     });
+
+    test(
+      "bootstraps a North America home and completes every mirror",
+      async () => {
+        const credential = await signInAnonymously(requireAuth());
+        const uid = credential.user.uid;
+        const idToken = await credential.user.getIdToken();
+        const asia = requireWorldFirestore("asia");
+        const northAmerica = requireWorldFirestore("northAmerica");
+        const europe = requireWorldFirestore("europe");
+        const databases = [asia, northAmerica, europe];
+        const mirroredCollections = [
+          "userHomes",
+          "publicProfiles",
+          "userEntitlements",
+          "accountSafety",
+        ];
+        for (const database of databases) {
+          for (const collection of mirroredCollections) {
+            cleanupReferences.push(database.collection(collection).doc(uid));
+          }
+        }
+        cleanupReferences.push(
+          northAmerica.collection("users").doc(uid),
+          northAmerica.collection("userUsage").doc(uid),
+          asia.collection("accountHomeReservations").doc(uid),
+        );
+
+        const response = await callFunction(
+          "assignHomeWorld",
+          {worldId: "asia", homeWorld: "northAmerica"},
+          idToken,
+        );
+        const body = await response.json() as CallableSuccessBody<{
+        homeWorld: string;
+        ready: boolean;
+        assignedNow: boolean;
+        worldId: string;
+      }>;
+        const result = body.result ?? body.data;
+        const homes = await Promise.all(databases.map((database) =>
+          database.collection("userHomes").doc(uid).get()));
+        const profiles = await Promise.all(databases.map((database) =>
+          database.collection("publicProfiles").doc(uid).get()));
+        const entitlements = await Promise.all(databases.map((database) =>
+          database.collection("userEntitlements").doc(uid).get()));
+        const safety = await Promise.all(databases.map((database) =>
+          database.collection("accountSafety").doc(uid).get()));
+
+        assert.equal(response.status, 200);
+        assert.equal(result?.homeWorld, "northAmerica");
+        assert.equal(result?.ready, true);
+        assert.equal(result?.assignedNow, true);
+        assert.equal(result?.worldId, "asia");
+        assert.deepEqual(homes.map((snapshot) => snapshot.get("world")), [
+          "northAmerica",
+          "northAmerica",
+          "northAmerica",
+        ]);
+        assert.deepEqual(profiles.map((snapshot) => snapshot.get("revision")), [
+          2,
+          2,
+          2,
+        ]);
+        assert.deepEqual(
+          entitlements.map((snapshot) => snapshot.get("revision")),
+          [2, 2, 2],
+        );
+        assert.deepEqual(safety.map((snapshot) => snapshot.get("revision")), [
+          2,
+          2,
+          2,
+        ]);
+        assert.equal(
+          (await northAmerica.collection("users").doc(uid).get()).exists,
+          true,
+        );
+        assert.equal(
+          (await asia.collection("users").doc(uid).get()).exists,
+          false,
+        );
+        assert.equal(
+          (await europe.collection("users").doc(uid).get()).exists,
+          false,
+        );
+        assert.equal(
+          (await asia.collection("accountHomeReservations").doc(uid).get())
+            .exists,
+          false,
+        );
+      },
+    );
 
     test("accepts a revisioned home profile update", async () => {
       const credential = await signInAnonymously(requireAuth());
@@ -618,13 +718,71 @@ describe(
       );
     });
 
-    test("rejects a home world that is not assignment-enabled", async () => {
+    test("bootstraps a Europe home and completes every mirror", async () => {
+      const credential = await signInAnonymously(requireAuth());
+      const uid = credential.user.uid;
+      const idToken = await credential.user.getIdToken();
+      const asia = requireWorldFirestore("asia");
+      const northAmerica = requireWorldFirestore("northAmerica");
+      const europe = requireWorldFirestore("europe");
+      const databases = [asia, northAmerica, europe];
+      for (const database of databases) {
+        for (const collection of [
+          "userHomes",
+          "publicProfiles",
+          "userEntitlements",
+          "accountSafety",
+        ]) {
+          cleanupReferences.push(database.collection(collection).doc(uid));
+        }
+      }
+      cleanupReferences.push(
+        europe.collection("users").doc(uid),
+        europe.collection("userUsage").doc(uid),
+        asia.collection("accountHomeReservations").doc(uid),
+      );
+
+      const response = await callFunction(
+        "assignHomeWorld",
+        {worldId: "asia", homeWorld: "europe"},
+        idToken,
+      );
+      const body = await response.json() as CallableSuccessBody<{
+        homeWorld: string;
+        ready: boolean;
+      }>;
+      const result = body.result ?? body.data;
+      const homes = await Promise.all(databases.map((database) =>
+        database.collection("userHomes").doc(uid).get()));
+
+      assert.equal(response.status, 200);
+      assert.equal(result?.homeWorld, "europe");
+      assert.equal(result?.ready, true);
+      assert.deepEqual(
+        homes.map((snapshot) => snapshot.get("world")),
+        ["europe", "europe", "europe"],
+      );
+      assert.equal(
+        (await europe.collection("users").doc(uid).get()).exists,
+        true,
+      );
+      assert.equal(
+        (await asia.collection("users").doc(uid).get()).exists,
+        false,
+      );
+      assert.equal(
+        (await northAmerica.collection("users").doc(uid).get()).exists,
+        false,
+      );
+    });
+
+    test("rejects an unknown home world", async () => {
       const credential = await signInAnonymously(requireAuth());
       const idToken = await credential.user.getIdToken();
 
       const response = await callFunction(
         "assignHomeWorld",
-        {worldId: "asia", homeWorld: "europe"},
+        {worldId: "asia", homeWorld: "antarctica"},
         idToken,
       );
       const body = await response.json() as CallableErrorBody;
@@ -647,6 +805,16 @@ function requireFirestore(): Firestore {
     throw new Error("Firestore emulator client is not initialized.");
   }
   return firestore;
+}
+
+function requireWorldFirestore(worldId: string): Firestore {
+  const selected = worldId === "asia" ? firestore :
+    worldId === "northAmerica" ? northAmericaFirestore :
+      worldId === "europe" ? europeFirestore : undefined;
+  if (selected === undefined) {
+    throw new Error(`Firestore emulator ${worldId} is not initialized.`);
+  }
+  return selected;
 }
 
 async function seedReadyUser(uid: string): Promise<void> {

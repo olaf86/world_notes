@@ -56,6 +56,7 @@ const worldDatabases = WORLD_CATALOG.worlds.map((world) => ({
 function registryWithEuropeDisabled(): WorldRegistry {
   const catalog = JSON.parse(JSON.stringify(WORLD_CATALOG));
   catalog.worlds[2].catalogState = "mirrorOnly";
+  catalog.worlds[2].homeAssignmentEnabled = false;
   catalog.worlds[2].contentAccessEnabled = false;
   return new WorldRegistry(parseWorldCatalog(catalog));
 }
