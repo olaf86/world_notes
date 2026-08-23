@@ -65,6 +65,16 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<UserEntity> signInWithApple() async {
+    final provider = AppleAuthProvider()
+      ..addScope('email')
+      ..addScope('name');
+    final result = await _auth.signInWithProvider(provider);
+    await _subscriptionService.identifyUser(result.user!.uid);
+    return _toEntity(result.user!);
+  }
+
+  @override
   Future<UserEntity> signInWithEmail(String email, String password) async {
     final result = await _auth.signInWithEmailAndPassword(
       email: email,
@@ -110,6 +120,81 @@ class AuthRepositoryImpl implements AuthRepository {
     );
     await firebaseUser.reload();
     return _toEntity(_auth.currentUser ?? firebaseUser);
+  }
+
+  @override
+  bool get requiresPasswordForAccountDeletion {
+    final providers = _auth.currentUser?.providerData
+        .map((provider) => provider.providerId)
+        .toSet();
+    if (providers == null) return false;
+    return providers.contains(EmailAuthProvider.PROVIDER_ID) &&
+        !providers.contains(AppleAuthProvider.PROVIDER_ID) &&
+        !providers.contains(GoogleAuthProvider.PROVIDER_ID);
+  }
+
+  @override
+  Future<void> deleteAccount({String? password}) async {
+    final user = _auth.currentUser;
+    if (user == null) throw StateError('No signed-in user.');
+    final providers = user.providerData
+        .map((provider) => provider.providerId)
+        .toSet();
+
+    if (providers.contains(AppleAuthProvider.PROVIDER_ID)) {
+      final provider = AppleAuthProvider()
+        ..addScope('email')
+        ..addScope('name');
+      final result = await user.reauthenticateWithProvider(provider);
+      final authorizationCode = result.additionalUserInfo?.authorizationCode;
+      if (authorizationCode == null || authorizationCode.isEmpty) {
+        throw FirebaseAuthException(
+          code: 'apple-authorization-code-missing',
+          message: 'Apple did not return an authorization code.',
+        );
+      }
+      await _auth.revokeTokenWithAuthorizationCode(authorizationCode);
+    } else if (providers.contains(GoogleAuthProvider.PROVIDER_ID)) {
+      final googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        throw FirebaseAuthException(
+          code: 'reauthentication-cancelled',
+          message: 'Google reauthentication was cancelled.',
+        );
+      }
+      final googleAuth = await googleUser.authentication;
+      await user.reauthenticateWithCredential(
+        GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        ),
+      );
+    } else if (providers.contains(EmailAuthProvider.PROVIDER_ID)) {
+      final email = user.email;
+      if (email == null || password == null || password.isEmpty) {
+        throw FirebaseAuthException(
+          code: 'password-required',
+          message: 'The current password is required.',
+        );
+      }
+      await user.reauthenticateWithCredential(
+        EmailAuthProvider.credential(email: email, password: password),
+      );
+    } else {
+      throw FirebaseAuthException(
+        code: 'unsupported-provider',
+        message: 'This account cannot be reauthenticated.',
+      );
+    }
+
+    // Ensure the callable receives the refreshed auth_time claim produced by
+    // the provider reauthentication above.
+    await user.getIdToken(true);
+    final functions = await _functionsProvider();
+    await functions.httpsCallable('deleteAccount').call<Map<String, dynamic>>({
+      'confirmation': 'DELETE',
+    });
+    await _auth.signOut();
   }
 
   @override

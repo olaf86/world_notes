@@ -68,6 +68,7 @@ export {
 
 // Private account preferences and globally replicated profile updates.
 export {assignHomeWorld} from "./accountBootstrap";
+export {deleteAccount} from "./accountDeletion";
 export {setLanguagePreference, updateDisplayName} from "./userProfile";
 export {refreshEntitlement} from "./revenueCatEntitlements";
 export {

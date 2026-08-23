@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -75,6 +76,23 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     });
     try {
       await ref.read(authRepositoryProvider).signInWithGoogle();
+    } on FirebaseAuthException catch (e) {
+      setState(() => _error = _authErrorMessage(e, l10n));
+    } catch (e) {
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _signInWithApple() async {
+    final l10n = context.l10n;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      await ref.read(authRepositoryProvider).signInWithApple();
     } on FirebaseAuthException catch (e) {
       setState(() => _error = _authErrorMessage(e, l10n));
     } catch (e) {
@@ -255,6 +273,24 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     ],
                   ),
                   const SizedBox(height: 16),
+                  if (!kIsWeb &&
+                      (defaultTargetPlatform == TargetPlatform.iOS ||
+                          defaultTargetPlatform == TargetPlatform.macOS)) ...[
+                    FilledButton.icon(
+                      onPressed: _loading ? null : _signInWithApple,
+                      icon: const Icon(Icons.apple, size: 24),
+                      label: Text(l10n.continueWithApple),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 48),
+                        backgroundColor: Colors.black,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   OutlinedButton.icon(
                     onPressed: _loading ? null : _signInWithGoogle,
                     icon: const Icon(Icons.g_mobiledata, size: 24),

@@ -2648,6 +2648,60 @@ abstract class AppLocalizations {
   /// **'Continue with Google'**
   String get continueWithGoogle;
 
+  /// No description provided for @continueWithApple.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with Apple'**
+  String get continueWithApple;
+
+  /// No description provided for @accountSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get accountSettingsTitle;
+
+  /// No description provided for @deleteAccountTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete account'**
+  String get deleteAccountTitle;
+
+  /// No description provided for @deleteAccountDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Permanently delete your account and all associated data.'**
+  String get deleteAccountDescription;
+
+  /// No description provided for @deleteAccountWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This permanently deletes your profile and contributions, plus every note you created—including other administrators\' access and participants\' messages and images—from every World Notes region. This cannot be undone.'**
+  String get deleteAccountWarning;
+
+  /// No description provided for @deleteAccountSubscriptionWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting your World Notes account does not cancel an App Store subscription. Cancel any active subscription before deleting your account to avoid future charges.'**
+  String get deleteAccountSubscriptionWarning;
+
+  /// No description provided for @currentPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Current password'**
+  String get currentPasswordLabel;
+
+  /// No description provided for @deleteAccountConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete permanently'**
+  String get deleteAccountConfirm;
+
+  /// No description provided for @deleteAccountFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not delete the account. Confirm your sign-in and try again.'**
+  String get deleteAccountFailed;
+
   /// No description provided for @webpUnsupported.
   ///
   /// In en, this message translates to:

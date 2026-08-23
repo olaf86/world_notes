@@ -1403,6 +1403,35 @@ class AppLocalizationsJa extends AppLocalizations {
   String get continueWithGoogle => 'Googleで続ける';
 
   @override
+  String get continueWithApple => 'Appleで続ける';
+
+  @override
+  String get accountSettingsTitle => 'アカウント';
+
+  @override
+  String get deleteAccountTitle => 'アカウントを削除';
+
+  @override
+  String get deleteAccountDescription => 'アカウントと関連データを完全に削除します。';
+
+  @override
+  String get deleteAccountWarning =>
+      'あなたのプロフィールや投稿に加え、あなたが作成したノート全体（他の管理者の権限と、参加者が投稿したメッセージ・画像を含む）を、セカイノートの全地域から完全に削除します。この操作は取り消せません。';
+
+  @override
+  String get deleteAccountSubscriptionWarning =>
+      'セカイノートのアカウントを削除してもApp Storeのサブスクリプションは解約されません。今後の請求を防ぐため、削除前に有効なサブスクリプションを解約してください。';
+
+  @override
+  String get currentPasswordLabel => '現在のパスワード';
+
+  @override
+  String get deleteAccountConfirm => '完全に削除';
+
+  @override
+  String get deleteAccountFailed => 'アカウントを削除できませんでした。サインインを確認して、もう一度お試しください。';
+
+  @override
   String get webpUnsupported => 'この端末では画像のエンコードに対応していません。';
 
   @override
