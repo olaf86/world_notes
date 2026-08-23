@@ -65,6 +65,10 @@ void main() {
           l10n.footprintsTitle,
           l10n.sensitiveContent,
           l10n.adminAccessRequired,
+          l10n.continueWithApple,
+          l10n.deleteAccountTitle,
+          l10n.deleteAccountWarning,
+          l10n.deleteAccountSubscriptionWarning,
         ]) {
           expect(
             newlyLocalizedLabel,
@@ -111,6 +115,33 @@ void main() {
         lookupAppLocalizations(const Locale('ko')).proPlanName,
         '세계 일기 PRO',
       );
+    });
+
+    test('account deletion warns about other users\' note data', () {
+      final japanese = lookupAppLocalizations(const Locale('ja'));
+      final english = lookupAppLocalizations(const Locale('en'));
+
+      expect(japanese.deleteAccountWarning, contains('他の管理者の権限'));
+      expect(japanese.deleteAccountWarning, contains('参加者が投稿した'));
+      expect(english.deleteAccountWarning, contains('administrators'));
+      expect(english.deleteAccountWarning, contains('participants'));
+    });
+
+    test('account deletion uses each localized app name', () {
+      for (final locale in AppLocalizations.supportedLocales) {
+        final l10n = lookupAppLocalizations(locale);
+
+        expect(
+          l10n.deleteAccountWarning,
+          contains(l10n.appName),
+          reason: locale.toLanguageTag(),
+        );
+        expect(
+          l10n.deleteAccountSubscriptionWarning,
+          contains(l10n.appName),
+          reason: locale.toLanguageTag(),
+        );
+      }
     });
 
     test('screenshot locale parser accepts script tags', () {

@@ -23,6 +23,10 @@ import {
 import {hiddenMessageRetentionHandler} from "./messageModerationRetention";
 import {hiddenNoteRetentionHandler} from "./noteModerationRetention";
 import {storageObjectCleanupHandler} from "./storageObjectCleanup";
+import {
+  accountDeletionFirestoreHandler,
+  accountDeletionStorageHandler,
+} from "./accountDeletion";
 import {WorldBucketProvider} from "./platform/worldBucketProvider";
 import {
   WorldDatabaseConfig,
@@ -53,6 +57,8 @@ const productionRuntime: CleanupRuntime = {
     hiddenMessageRetentionHandler,
     hiddenNoteRetentionHandler,
     storageObjectCleanupHandler,
+    accountDeletionFirestoreHandler,
+    accountDeletionStorageHandler,
   ]),
 };
 

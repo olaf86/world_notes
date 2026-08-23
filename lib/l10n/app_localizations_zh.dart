@@ -639,7 +639,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noteThemeStandard => '标准';
 
   @override
-  String get noteThemeStandardDescription => '沉静而熟悉的World Notes标准外观。';
+  String get noteThemeStandardDescription => '沉静而熟悉的世界日记标准外观。';
 
   @override
   String get noteThemeAurora => '极光';
@@ -1386,6 +1386,35 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get continueWithGoogle => '使用 Google 继续';
+
+  @override
+  String get continueWithApple => '使用 Apple 继续';
+
+  @override
+  String get accountSettingsTitle => '帐户';
+
+  @override
+  String get deleteAccountTitle => '删除帐户';
+
+  @override
+  String get deleteAccountDescription => '永久删除帐户及所有相关数据。';
+
+  @override
+  String get deleteAccountWarning =>
+      '这会从所有世界日记区域永久删除您的个人资料和投稿，以及您创建的全部笔记（包括其他管理员的权限和参与者发布的消息与图片）。此操作无法撤销。';
+
+  @override
+  String get deleteAccountSubscriptionWarning =>
+      '删除世界日记帐户不会取消 App Store 订阅。为避免后续扣费，请在删除帐户前取消有效订阅。';
+
+  @override
+  String get currentPasswordLabel => '当前密码';
+
+  @override
+  String get deleteAccountConfirm => '永久删除';
+
+  @override
+  String get deleteAccountFailed => '无法删除帐户。请确认登录后重试。';
 
   @override
   String get webpUnsupported => '此设备不支持图片编码。';
@@ -2402,7 +2431,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get noteThemeStandard => '标准';
 
   @override
-  String get noteThemeStandardDescription => '沉静而熟悉的World Notes标准外观。';
+  String get noteThemeStandardDescription => '沉静而熟悉的世界日记标准外观。';
 
   @override
   String get noteThemeAurora => '极光';
@@ -3149,6 +3178,35 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get continueWithGoogle => '使用 Google 继续';
+
+  @override
+  String get continueWithApple => '使用 Apple 继续';
+
+  @override
+  String get accountSettingsTitle => '帐户';
+
+  @override
+  String get deleteAccountTitle => '删除帐户';
+
+  @override
+  String get deleteAccountDescription => '永久删除帐户及所有相关数据。';
+
+  @override
+  String get deleteAccountWarning =>
+      '这会从所有世界日记区域永久删除您的个人资料和投稿，以及您创建的全部笔记（包括其他管理员的权限和参与者发布的消息与图片）。此操作无法撤销。';
+
+  @override
+  String get deleteAccountSubscriptionWarning =>
+      '删除世界日记帐户不会取消 App Store 订阅。为避免后续扣费，请在删除帐户前取消有效订阅。';
+
+  @override
+  String get currentPasswordLabel => '当前密码';
+
+  @override
+  String get deleteAccountConfirm => '永久删除';
+
+  @override
+  String get deleteAccountFailed => '无法删除帐户。请确认登录后重试。';
 
   @override
   String get webpUnsupported => '此设备不支持图片编码。';
@@ -4165,7 +4223,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get noteThemeStandard => '標準';
 
   @override
-  String get noteThemeStandardDescription => '沉靜而熟悉的World Notes標準外觀。';
+  String get noteThemeStandardDescription => '沉靜而熟悉的世界日記標準外觀。';
 
   @override
   String get noteThemeAurora => '極光';
@@ -4913,6 +4971,35 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get continueWithGoogle => '使用 Google 繼續';
+
+  @override
+  String get continueWithApple => '使用 Apple 繼續';
+
+  @override
+  String get accountSettingsTitle => '帳號';
+
+  @override
+  String get deleteAccountTitle => '刪除帳號';
+
+  @override
+  String get deleteAccountDescription => '永久刪除帳號及所有相關資料。';
+
+  @override
+  String get deleteAccountWarning =>
+      '這會從所有世界日記區域永久刪除您的個人檔案和投稿，以及您建立的所有筆記（包括其他管理員的權限和參與者發布的訊息與圖片）。此操作無法復原。';
+
+  @override
+  String get deleteAccountSubscriptionWarning =>
+      '刪除世界日記帳號不會取消 App Store 訂閱。為避免後續扣款，請在刪除帳號前取消有效訂閱。';
+
+  @override
+  String get currentPasswordLabel => '目前密碼';
+
+  @override
+  String get deleteAccountConfirm => '永久刪除';
+
+  @override
+  String get deleteAccountFailed => '無法刪除帳號。請確認登入後再試一次。';
 
   @override
   String get webpUnsupported => '此裝置不支援圖片編碼。';

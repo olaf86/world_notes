@@ -24,6 +24,11 @@ import {
   processCleanupJob,
 } from "../src/cleanupJobs";
 import {
+  accountDeletionFirestoreHandler,
+  accountDeletionId,
+  DELETE_ACCOUNT_DATA_JOB,
+} from "../src/accountDeletion";
+import {
   ModerationJobHandler,
   ModerationJobHandlerRegistry,
   moderationJobId,
@@ -800,6 +805,94 @@ firestoreContractTest(
     assert.equal(completed.get("status"), "complete");
     assert.notEqual(completed.get("completedAt"), null);
     assert.notEqual(completed.get("expireAt"), null);
+  },
+);
+
+firestoreContractTest(
+  "account deletion removes an administrator-managed owned note",
+  async () => {
+    const {runId, asia} = requireContext();
+    const ownerUid = `owner-${runId}`;
+    const administratorUid = `administrator-${runId}`;
+    const deletionId = accountDeletionId(ownerUid);
+    const requestedAt = Timestamp.now();
+    const placeRef = asia.collection("places").doc(`owned-${runId}`);
+    const administratorRef = placeRef.collection("administrators")
+      .doc(administratorUid);
+    const participantMessageRef = placeRef.collection("messages")
+      .doc("participant-message");
+    const administratorAccountRef = asia.collection("users")
+      .doc(administratorUid);
+    const targetRef = asia.collection("accountDeletionFirestoreTargets")
+      .doc(deletionId);
+    const input = {
+      sourceOperationId: deletionId,
+      entityType: "accountDeletion",
+      entityId: deletionId,
+      revision: 1,
+      world: "asia",
+      queue: "firestore" as const,
+      jobType: DELETE_ACCOUNT_DATA_JOB,
+    };
+    const jobId = cleanupJobId(input);
+    trackForCleanup(
+      administratorRef,
+      participantMessageRef,
+      placeRef,
+      administratorAccountRef,
+      targetRef,
+    );
+    await Promise.all([
+      placeRef.set({
+        createdByUserId: ownerUid,
+        administratorCount: 1,
+      }),
+      administratorRef.set({
+        userId: administratorUid,
+        invitedByUid: ownerUid,
+      }),
+      participantMessageRef.set({
+        userId: `participant-${runId}`,
+        content: "participant content",
+      }),
+      administratorAccountRef.set({displayName: "Administrator"}),
+      targetRef.set({
+        uid: ownerUid,
+        ownedPlaceIds: [placeRef.id],
+        requestedAt,
+      }),
+    ]);
+
+    let job = newCleanupJobData(input, requestedAt);
+    let completed = false;
+    for (let batch = 0; batch < 32; batch += 1) {
+      const result = await accountDeletionFirestoreHandler.processBatch({
+        queue: "firestore",
+        firestore: asia,
+        jobId,
+        job,
+      });
+      if (result.complete) {
+        completed = true;
+        break;
+      }
+      job = {...job, cursor: result.cursor};
+    }
+
+    const [place, administrator, message, administratorAccount, target] =
+      await Promise.all([
+        placeRef.get(),
+        administratorRef.get(),
+        participantMessageRef.get(),
+        administratorAccountRef.get(),
+        targetRef.get(),
+      ]);
+    assert.equal(completed, true);
+    assert.equal(place.exists, false);
+    assert.equal(administrator.exists, false);
+    assert.equal(message.exists, false);
+    assert.equal(administratorAccount.exists, true);
+    assert.equal(target.exists, false);
   },
 );
 

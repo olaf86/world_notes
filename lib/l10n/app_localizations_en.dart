@@ -1503,6 +1503,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String get continueWithGoogle => 'Continue with Google';
 
   @override
+  String get continueWithApple => 'Continue with Apple';
+
+  @override
+  String get accountSettingsTitle => 'Account';
+
+  @override
+  String get deleteAccountTitle => 'Delete account';
+
+  @override
+  String get deleteAccountDescription =>
+      'Permanently delete your account and all associated data.';
+
+  @override
+  String get deleteAccountWarning =>
+      'This permanently deletes your profile and contributions, plus every note you created—including other administrators access and participants messages and images—from every World Notes region. This cannot be undone.';
+
+  @override
+  String get deleteAccountSubscriptionWarning =>
+      'Deleting your World Notes account does not cancel an App Store subscription. Cancel any active subscription before deleting your account to avoid future charges.';
+
+  @override
+  String get currentPasswordLabel => 'Current password';
+
+  @override
+  String get deleteAccountConfirm => 'Delete permanently';
+
+  @override
+  String get deleteAccountFailed =>
+      'Could not delete the account. Confirm your sign-in and try again.';
+
+  @override
   String get webpUnsupported =>
       'Image encoding is not supported on this device.';
 

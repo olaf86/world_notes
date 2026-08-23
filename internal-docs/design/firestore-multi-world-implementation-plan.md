@@ -765,6 +765,7 @@ Initial handlers:
 - invite revocation;
 - obsolete snapshot cleanup;
 - block follow/access/scheduled-message cleanup;
+- account Firestore and Storage deletion across every catalogued world;
 - moderation retention cleanup;
 - image deletion;
 - orphan upload deletion.
@@ -796,6 +797,30 @@ revision guards and resource schemas arrive in later units. Unit tests cover
 IDs, state validation, handler ownership, retry timing, alerts, and deployment
 routing. The named-database contract covers lease, cursor, completion, and
 idempotent replay through real Firestore transactions.
+
+Implementation note (2026-08-22): account deletion is coordinated by the
+caller's immutable home-world endpoint after provider-appropriate recent
+reauthentication. The coordinator resolves worlds only from the trusted
+catalog and transactionally creates deterministic Firestore and Storage jobs,
+plus temporary server-only target manifests, in every world before deleting
+the Firebase Authentication user. A partial cross-database failure therefore
+leaves the Auth account available for an idempotent retry; a completed regional
+job is never recreated merely because it has already removed its manifest.
+
+Regional Firestore cleanup removes owned note trees—including delegated
+administrator grants and participant-authored child content—authored content
+and participation elsewhere, social and block edges, account-private
+subcollections, and the per-world account roots in bounded checkpointed
+stages. Regional Storage
+cleanup uses tracked exact object paths and object generations for both
+account-owned uploads and images attached to an account-owned note. The
+temporary manifests preserve the UID and owned note IDs only until their
+respective workers finish; queue receipts use an opaque deletion ID and expire
+under the normal completed-job TTL. The collection-group single-field indexes
+used by the account cleanup queries are shared through
+`firestore.indexes.json` across all three databases. The full lifecycle and
+retention contract is defined in
+`global-consistency-server-operations.md#account-deletion-lifecycle`.
 
 Implementation note (2026-08-02): the notification outbox framework defines
 one `notificationOutbox/{eventId}` transport in every world. A deterministic

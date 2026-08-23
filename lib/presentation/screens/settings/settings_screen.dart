@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 
 import '../../../core/map_style.dart';
 import '../../../config/world_catalog.dart';
 import '../../../l10n/app_locale.dart';
 import '../../../l10n/l10n.dart';
 import '../../../l10n/presentation_labels.dart';
+import '../../../services/subscription_service.dart';
 import '../../providers/providers.dart';
 import '../../world_labels.dart';
 import '../../widgets/my_notes_notification_controls.dart';
@@ -59,8 +61,152 @@ class SettingsScreen extends ConsumerWidget {
             onTap: () => context.push('/settings/blocked-users'),
           ),
           const _AdPrivacySection(),
+          const SizedBox(height: 24),
+          const _AccountDeletionSection(),
         ],
       ),
+    );
+  }
+}
+
+class _AccountDeletionSection extends ConsumerStatefulWidget {
+  const _AccountDeletionSection();
+
+  @override
+  ConsumerState<_AccountDeletionSection> createState() =>
+      _AccountDeletionSectionState();
+}
+
+class _AccountDeletionSectionState
+    extends ConsumerState<_AccountDeletionSection> {
+  bool _deleting = false;
+
+  Future<void> _confirmAndDelete() async {
+    if (_deleting) return;
+    final repository = ref.read(authRepositoryProvider);
+    final passwordRequired = repository.requiresPasswordForAccountDeletion;
+    final passwordController = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          final canDelete =
+              !passwordRequired || passwordController.text.isNotEmpty;
+          return AlertDialog(
+            title: Text(dialogContext.l10n.deleteAccountTitle),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(dialogContext.l10n.deleteAccountWarning),
+                  const SizedBox(height: 12),
+                  Text(dialogContext.l10n.deleteAccountSubscriptionWarning),
+                  if (SubscriptionService.isConfigured) ...[
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () => RevenueCatUI.presentCustomerCenter(),
+                      child: Text(dialogContext.l10n.manageSubscription),
+                    ),
+                  ],
+                  if (passwordRequired) ...[
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: passwordController,
+                      obscureText: true,
+                      autofocus: true,
+                      enableSuggestions: false,
+                      autocorrect: false,
+                      decoration: InputDecoration(
+                        labelText: dialogContext.l10n.currentPasswordLabel,
+                      ),
+                      onChanged: (_) => setDialogState(() {}),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: Text(dialogContext.l10n.commonCancel),
+              ),
+              FilledButton(
+                onPressed: canDelete
+                    ? () => Navigator.pop(dialogContext, true)
+                    : null,
+                style: FilledButton.styleFrom(
+                  backgroundColor: Theme.of(dialogContext).colorScheme.error,
+                  foregroundColor: Theme.of(dialogContext).colorScheme.onError,
+                ),
+                child: Text(dialogContext.l10n.deleteAccountConfirm),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    final password = passwordController.text;
+    passwordController.dispose();
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _deleting = true);
+    try {
+      try {
+        await ref.read(myNotesNotificationServiceProvider).deleteCurrentToken();
+      } catch (_) {}
+      await repository.deleteAccount(
+        password: passwordRequired ? password : null,
+      );
+      try {
+        await ref.read(messageImageServiceProvider).clearCache();
+      } catch (_) {}
+      await ref.read(subscriptionServiceProvider).logOut();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.l10n.deleteAccountFailed)));
+    } finally {
+      if (mounted) setState(() => _deleting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          context.l10n.accountSettingsTitle,
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        ListTile(
+          key: const ValueKey('delete-account-tile'),
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(
+            Icons.delete_forever_outlined,
+            color: colorScheme.error,
+          ),
+          title: Text(
+            context.l10n.deleteAccountTitle,
+            style: TextStyle(color: colorScheme.error),
+          ),
+          subtitle: Text(context.l10n.deleteAccountDescription),
+          trailing: _deleting
+              ? const SizedBox.square(
+                  dimension: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : null,
+          onTap: _deleting ? null : _confirmAndDelete,
+        ),
+      ],
     );
   }
 }

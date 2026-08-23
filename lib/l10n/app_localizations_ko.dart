@@ -647,7 +647,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get noteThemeStandard => '스탠다드';
 
   @override
-  String get noteThemeStandardDescription => '차분하고 익숙한 World Notes 기본 디자인.';
+  String get noteThemeStandardDescription => '차분하고 익숙한 세계 일기 기본 디자인.';
 
   @override
   String get noteThemeAurora => '오로라';
@@ -1401,6 +1401,35 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get continueWithGoogle => 'Google로 계속하기';
+
+  @override
+  String get continueWithApple => 'Apple로 계속하기';
+
+  @override
+  String get accountSettingsTitle => '계정';
+
+  @override
+  String get deleteAccountTitle => '계정 삭제';
+
+  @override
+  String get deleteAccountDescription => '계정과 관련 데이터를 영구적으로 삭제합니다.';
+
+  @override
+  String get deleteAccountWarning =>
+      '프로필과 회원님의 게시물뿐만 아니라 회원님이 만든 모든 노트 전체(다른 관리자의 권한 및 참가자가 게시한 메시지와 이미지 포함)가 모든 세계 일기 지역에서 영구적으로 삭제됩니다. 이 작업은 되돌릴 수 없습니다.';
+
+  @override
+  String get deleteAccountSubscriptionWarning =>
+      '세계 일기 계정을 삭제해도 App Store 구독은 취소되지 않습니다. 향후 결제를 방지하려면 계정을 삭제하기 전에 활성 구독을 취소하세요.';
+
+  @override
+  String get currentPasswordLabel => '현재 비밀번호';
+
+  @override
+  String get deleteAccountConfirm => '영구 삭제';
+
+  @override
+  String get deleteAccountFailed => '계정을 삭제할 수 없습니다. 로그인을 확인한 후 다시 시도하세요.';
 
   @override
   String get webpUnsupported => '이 기기에서는 이미지 인코딩을 지원하지 않습니다.';

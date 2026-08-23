@@ -1007,6 +1007,62 @@ never guesses an object path from untrusted client input. Keeping Storage work
 separate prevents slow object operations and Storage IAM from consuming the
 Firestore worker's concurrency or permissions.
 
+#### Account deletion lifecycle
+
+Account deletion is an irreversible, all-world operation initiated from the
+authenticated account settings UI. The client must first perform provider-
+appropriate recent reauthentication. For Sign in with Apple accounts it also
+revokes the newly issued Apple authorization code before submitting the
+deletion request. The callable independently verifies the Firebase `auth_time`
+claim so a stale client session cannot delete an account.
+
+The account's home-world callable is the coordinator. It resolves only worlds
+from the trusted catalog and, before deleting the Firebase Authentication
+record, durably creates one Firestore cleanup job and one Storage cleanup job
+in every catalogued world. Creation is deterministic and replay-safe. A
+partial cross-database failure leaves the Auth account available so the caller
+can retry; Auth deletion is allowed only after every required world contains
+both cleanup intents. After that point the user cannot sign in again, while
+regional workers may finish physical deletion asynchronously.
+
+Each regional job has a temporary server-only target manifest. The manifest
+contains the UID and the note IDs owned in that world because the Storage
+worker must still be able to find note-scoped images after the Firestore worker
+has removed the note tree. Queue documents use an opaque deletion ID rather
+than the UID. Each worker deletes its own manifest when complete, and the
+ordinary cleanup-job TTL later removes the metadata-only queue receipt.
+
+The Firestore cleanup handler is a bounded, checkpointed stage machine. It:
+
+1. permanently removes every `places` tree created by the account and its
+   delegated administrator grants, participant-authored child content,
+   note-scoped reports, reviews, invitations, and retention targets;
+2. removes or content-free-tombstones the account's messages in notes owned by
+   other users, deleting text, profile snapshots, image references, reports,
+   and moderation review material;
+3. removes memberships, administrator grants, footprints, note likes, message
+   likes, follow edges, block edges, invitations, reports, notices, tokens, and
+   other user-private subcollections, repairing public counters where the
+   deleted edge and its counter can be updated atomically; and
+4. recursively removes the private account documents and their subcollections,
+   then removes `userHomes`, `publicProfiles`, `userEntitlements`, `userUsage`,
+   and `accountSafety` from every world.
+
+The Storage cleanup handler deletes both categories of account-associated
+objects: every upload owned by the UID and every image attached anywhere under
+a note owned by that UID, including images contributed by other users to that
+note. It uses the tracked exact object path and generation when available;
+already-absent objects are successful. The tracker is removed only after the
+object is absent.
+
+Both handlers are idempotent. Removing an already-absent document or object is
+success, and retries resume from the durable stage cursor. Account deletion is
+not a moderation-retention path: ordinary user content has no restoration
+window and is removed as soon as the cleanup workers can process it. Only data
+whose retention is independently required by law may survive, and such a
+policy must be disclosed to the user rather than inferred by the cleanup
+implementation.
+
 Implementations share the job parser and validator, lease acquisition,
 retry/backoff rules, cursor/checkpoint utilities, structured logging, metrics,
 and handler registry. The individual handlers remain small and
