@@ -572,7 +572,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get updateAction => '更新';
 
   @override
-  String get confirmPasswordLabel => 'パスワード（確認）';
+  String get confirmPasswordLabel => '確認用パスワード';
 
   @override
   String get patternSetupInstruction => '隣り合う点をつないでパターンを描いてください。';
@@ -1103,24 +1103,25 @@ class AppLocalizationsJa extends AppLocalizations {
   String get homeWorldSelectionTitle => 'ホームワールドを選択';
 
   @override
-  String get homeWorldSelectionIntro => 'ホームワールドは、あなたのアカウントデータを身近な地域に保管する場所です。';
+  String get homeWorldSelectionIntro =>
+      'アカウントデータを保存する地域を選んでください。通常は、現在地に最も近いワールドがおすすめです。';
 
   @override
   String get homeWorldSelectionPermanentWarning =>
-      'この選択は後から変更できません。ホームを移動せずに、準備済みのほかのワールドを訪れることはできます。';
+      'ホームワールドは一度設定すると変更できません。設定後も、ほかのワールドを利用できます。';
 
   @override
-  String get homeWorldSelectionUnavailable => '現在選択できるホームワールドはありません。';
+  String get homeWorldSelectionUnavailable => '現在、選択できるワールドはありません。';
 
   @override
-  String get homeWorldSelectionLoadFailed => 'アカウントの準備状況を読み込めませんでした。';
+  String get homeWorldSelectionLoadFailed => 'アカウントの設定状況を読み込めませんでした。';
 
   @override
   String get homeWorldSelectionSubmitFailed =>
-      'ホームワールドを設定できませんでした。もう一度お試しください。';
+      'ホームワールドを設定できませんでした。時間をおいてもう一度お試しください。';
 
   @override
-  String get homeWorldSelectionConfirm => 'このワールドを変更できないホームに設定';
+  String get homeWorldSelectionConfirm => 'このワールドをホームに設定';
 
   @override
   String get worldAsia => 'アジア';
@@ -1388,22 +1389,22 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get createAccount => 'アカウントを作成';
+  String get createAccount => '新規登録';
 
   @override
-  String get alreadyHaveAccountSignIn => 'アカウントをお持ちですか？ サインイン';
+  String get alreadyHaveAccountSignIn => 'すでにアカウントをお持ちの方はサインイン';
 
   @override
-  String get newHereCreateAccount => '初めてですか？ アカウントを作成';
+  String get newHereCreateAccount => 'アカウントをお持ちでない方は新規登録';
 
   @override
   String get orDivider => 'または';
 
   @override
-  String get continueWithGoogle => 'Googleで続ける';
+  String get continueWithGoogle => 'Googleでサインイン';
 
   @override
-  String get continueWithApple => 'Appleで続ける';
+  String get continueWithApple => 'Appleでサインイン';
 
   @override
   String get accountSettingsTitle => 'アカウント';

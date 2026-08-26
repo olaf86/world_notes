@@ -28,6 +28,16 @@ export const MAX_MESSAGE_PUBLISH_DELAY_DAYS = 7;
 export const MAX_TITLE_LENGTH = 100;
 export const MAX_SUBTITLE_LENGTH = 200;
 
+/** App-language values accepted by clients and stored on private profiles. */
+export const LANGUAGE_PREFERENCES: ReadonlySet<string> = new Set([
+  "system",
+  "en",
+  "ja",
+  "ko",
+  "zh-Hans",
+  "zh-Hant",
+]);
+
 /** Coarse geohash precision retained for broad discovery compatibility. */
 export const DISCOVERY_GEOHASH_PRECISION = 3;
 

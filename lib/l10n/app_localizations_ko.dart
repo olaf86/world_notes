@@ -1104,23 +1104,25 @@ class AppLocalizationsKo extends AppLocalizations {
   String get homeWorldSelectionTitle => '홈 월드 선택';
 
   @override
-  String get homeWorldSelectionIntro => '홈 월드는 계정 데이터를 가까운 지역에 보관합니다.';
+  String get homeWorldSelectionIntro =>
+      '계정 데이터를 저장할 지역을 선택해 주세요. 일반적으로 현재 위치와 가장 가까운 월드를 권장합니다.';
 
   @override
   String get homeWorldSelectionPermanentWarning =>
-      '이 선택은 나중에 변경할 수 없습니다. 홈을 옮기지 않고도 준비된 다른 월드를 방문할 수 있습니다.';
+      '홈 월드는 한 번 설정하면 변경할 수 없습니다. 설정 후에도 다른 월드를 이용할 수 있습니다.';
 
   @override
-  String get homeWorldSelectionUnavailable => '현재 선택할 수 있는 홈 월드가 없습니다.';
+  String get homeWorldSelectionUnavailable => '현재 선택할 수 있는 월드가 없습니다.';
 
   @override
-  String get homeWorldSelectionLoadFailed => '계정 준비 상태를 불러오지 못했습니다.';
+  String get homeWorldSelectionLoadFailed => '계정 설정 정보를 불러오지 못했습니다.';
 
   @override
-  String get homeWorldSelectionSubmitFailed => '홈 월드를 설정하지 못했습니다. 다시 시도해 주세요.';
+  String get homeWorldSelectionSubmitFailed =>
+      '홈 월드를 설정하지 못했습니다. 잠시 후 다시 시도해 주세요.';
 
   @override
-  String get homeWorldSelectionConfirm => '영구 홈으로 설정';
+  String get homeWorldSelectionConfirm => '이 월드를 홈으로 설정';
 
   @override
   String get worldAsia => '아시아';
@@ -1380,30 +1382,30 @@ class AppLocalizationsKo extends AppLocalizations {
   String get emailLabel => '이메일';
 
   @override
-  String get requiredField => '필수 항목';
+  String get requiredField => '필수 입력 항목입니다.';
 
   @override
   String minimumPasswordLength(int count) {
-    return '$count자 이상 입력하세요.';
+    return '비밀번호는 $count자 이상 입력해 주세요.';
   }
 
   @override
-  String get createAccount => '계정 만들기';
+  String get createAccount => '회원가입';
 
   @override
-  String get alreadyHaveAccountSignIn => '이미 계정이 있나요? 로그인';
+  String get alreadyHaveAccountSignIn => '이미 계정이 있으신가요? 로그인';
 
   @override
-  String get newHereCreateAccount => '처음이신가요? 계정 만들기';
+  String get newHereCreateAccount => '계정이 없으신가요? 회원가입';
 
   @override
   String get orDivider => '또는';
 
   @override
-  String get continueWithGoogle => 'Google로 계속하기';
+  String get continueWithGoogle => 'Google 계정으로 로그인';
 
   @override
-  String get continueWithApple => 'Apple로 계속하기';
+  String get continueWithApple => 'Apple로 로그인';
 
   @override
   String get accountSettingsTitle => '계정';

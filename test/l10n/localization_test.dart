@@ -102,6 +102,23 @@ void main() {
       expect(traditional.proPlanName, '世界日記 PRO');
     });
 
+    test('onboarding actions use locale-native UI phrasing', () {
+      final korean = lookupAppLocalizations(const Locale('ko'));
+      final simplified = lookupAppLocalizations(
+        const Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+      );
+      final traditional = lookupAppLocalizations(
+        const Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'),
+      );
+
+      expect(korean.createAccount, '회원가입');
+      expect(korean.homeWorldSelectionConfirm, '이 월드를 홈으로 설정');
+      expect(simplified.createAccount, '注册');
+      expect(simplified.homeWorldSelectionConfirm, '将此世界设为主世界');
+      expect(traditional.createAccount, '註冊');
+      expect(traditional.homeWorldSelectionConfirm, '將此世界設為主世界');
+    });
+
     test('PRO plan name uses each localized app name', () {
       expect(
         lookupAppLocalizations(const Locale('en')).proPlanName,

@@ -1090,23 +1090,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String get homeWorldSelectionTitle => '选择主世界';
 
   @override
-  String get homeWorldSelectionIntro => '主世界会将你的账户数据保存在离你较近的地区。';
+  String get homeWorldSelectionIntro => '请选择用于存储账户数据的地区。通常建议选择离你当前位置最近的世界。';
 
   @override
-  String get homeWorldSelectionPermanentWarning =>
-      '此选择以后无法更改。你仍可在不迁移主世界的情况下访问其他已准备好的世界。';
+  String get homeWorldSelectionPermanentWarning => '主世界一经设置便无法更改。设置后仍可使用其他世界。';
 
   @override
-  String get homeWorldSelectionUnavailable => '目前没有可选择的主世界。';
+  String get homeWorldSelectionUnavailable => '当前没有可选的世界。';
 
   @override
-  String get homeWorldSelectionLoadFailed => '无法加载账户准备状态。';
+  String get homeWorldSelectionLoadFailed => '无法加载账户设置信息。';
 
   @override
-  String get homeWorldSelectionSubmitFailed => '无法设置主世界，请重试。';
+  String get homeWorldSelectionSubmitFailed => '无法设置主世界，请稍后重试。';
 
   @override
-  String get homeWorldSelectionConfirm => '设为永久主世界';
+  String get homeWorldSelectionConfirm => '将此世界设为主世界';
 
   @override
   String get worldAsia => '亚洲';
@@ -1362,33 +1361,33 @@ class AppLocalizationsZh extends AppLocalizations {
   String get authTagline => '用一则笔记，分享你的世界';
 
   @override
-  String get emailLabel => '电子邮箱';
+  String get emailLabel => '邮箱';
 
   @override
-  String get requiredField => '必填';
+  String get requiredField => '此项为必填项';
 
   @override
   String minimumPasswordLength(int count) {
-    return '请至少输入$count个字符。';
+    return '密码至少需要$count个字符。';
   }
 
   @override
-  String get createAccount => '创建账户';
+  String get createAccount => '注册';
 
   @override
-  String get alreadyHaveAccountSignIn => '已有账户？登录';
+  String get alreadyHaveAccountSignIn => '已有账户？立即登录';
 
   @override
-  String get newHereCreateAccount => '初次使用？创建账户';
+  String get newHereCreateAccount => '还没有账户？立即注册';
 
   @override
   String get orDivider => '或';
 
   @override
-  String get continueWithGoogle => '使用 Google 继续';
+  String get continueWithGoogle => '使用 Google 登录';
 
   @override
-  String get continueWithApple => '使用 Apple 继续';
+  String get continueWithApple => '使用 Apple 登录';
 
   @override
   String get accountSettingsTitle => '帐户';
@@ -2882,23 +2881,22 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get homeWorldSelectionTitle => '选择主世界';
 
   @override
-  String get homeWorldSelectionIntro => '主世界会将你的账户数据保存在离你较近的地区。';
+  String get homeWorldSelectionIntro => '请选择用于存储账户数据的地区。通常建议选择离你当前位置最近的世界。';
 
   @override
-  String get homeWorldSelectionPermanentWarning =>
-      '此选择以后无法更改。你仍可在不迁移主世界的情况下访问其他已准备好的世界。';
+  String get homeWorldSelectionPermanentWarning => '主世界一经设置便无法更改。设置后仍可使用其他世界。';
 
   @override
-  String get homeWorldSelectionUnavailable => '目前没有可选择的主世界。';
+  String get homeWorldSelectionUnavailable => '当前没有可选的世界。';
 
   @override
-  String get homeWorldSelectionLoadFailed => '无法加载账户准备状态。';
+  String get homeWorldSelectionLoadFailed => '无法加载账户设置信息。';
 
   @override
-  String get homeWorldSelectionSubmitFailed => '无法设置主世界，请重试。';
+  String get homeWorldSelectionSubmitFailed => '无法设置主世界，请稍后重试。';
 
   @override
-  String get homeWorldSelectionConfirm => '设为永久主世界';
+  String get homeWorldSelectionConfirm => '将此世界设为主世界';
 
   @override
   String get worldAsia => '亚洲';
@@ -3154,33 +3152,33 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get authTagline => '用一则笔记，分享你的世界';
 
   @override
-  String get emailLabel => '电子邮箱';
+  String get emailLabel => '邮箱';
 
   @override
-  String get requiredField => '必填';
+  String get requiredField => '此项为必填项';
 
   @override
   String minimumPasswordLength(int count) {
-    return '请至少输入$count个字符。';
+    return '密码至少需要$count个字符。';
   }
 
   @override
-  String get createAccount => '创建账户';
+  String get createAccount => '注册';
 
   @override
-  String get alreadyHaveAccountSignIn => '已有账户？登录';
+  String get alreadyHaveAccountSignIn => '已有账户？立即登录';
 
   @override
-  String get newHereCreateAccount => '初次使用？创建账户';
+  String get newHereCreateAccount => '还没有账户？立即注册';
 
   @override
   String get orDivider => '或';
 
   @override
-  String get continueWithGoogle => '使用 Google 继续';
+  String get continueWithGoogle => '使用 Google 登录';
 
   @override
-  String get continueWithApple => '使用 Apple 继续';
+  String get continueWithApple => '使用 Apple 登录';
 
   @override
   String get accountSettingsTitle => '帐户';
@@ -4675,23 +4673,22 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get homeWorldSelectionTitle => '選擇主世界';
 
   @override
-  String get homeWorldSelectionIntro => '主世界會將你的帳戶資料保存在離你較近的地區。';
+  String get homeWorldSelectionIntro => '請選擇儲存帳號資料的地區。一般建議選擇離你目前位置最近的世界。';
 
   @override
-  String get homeWorldSelectionPermanentWarning =>
-      '此選擇之後無法變更。你仍可在不遷移主世界的情況下造訪其他已準備好的世界。';
+  String get homeWorldSelectionPermanentWarning => '主世界一經設定便無法變更。設定後仍可使用其他世界。';
 
   @override
-  String get homeWorldSelectionUnavailable => '目前沒有可選擇的主世界。';
+  String get homeWorldSelectionUnavailable => '目前沒有可選擇的世界。';
 
   @override
-  String get homeWorldSelectionLoadFailed => '無法載入帳戶準備狀態。';
+  String get homeWorldSelectionLoadFailed => '無法載入帳號設定資訊。';
 
   @override
-  String get homeWorldSelectionSubmitFailed => '無法設定主世界，請再試一次。';
+  String get homeWorldSelectionSubmitFailed => '無法設定主世界，請稍後再試。';
 
   @override
-  String get homeWorldSelectionConfirm => '設為永久主世界';
+  String get homeWorldSelectionConfirm => '將此世界設為主世界';
 
   @override
   String get worldAsia => '亞洲';
@@ -4950,30 +4947,30 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get emailLabel => '電子郵件';
 
   @override
-  String get requiredField => '必填';
+  String get requiredField => '此欄位為必填';
 
   @override
   String minimumPasswordLength(int count) {
-    return '請至少輸入$count個字元。';
+    return '密碼至少需要$count個字元。';
   }
 
   @override
-  String get createAccount => '建立帳號';
+  String get createAccount => '註冊';
 
   @override
-  String get alreadyHaveAccountSignIn => '已有帳號？登入';
+  String get alreadyHaveAccountSignIn => '已有帳號？立即登入';
 
   @override
-  String get newHereCreateAccount => '初次使用？建立帳號';
+  String get newHereCreateAccount => '還沒有帳號？立即註冊';
 
   @override
   String get orDivider => '或';
 
   @override
-  String get continueWithGoogle => '使用 Google 繼續';
+  String get continueWithGoogle => '使用 Google 登入';
 
   @override
-  String get continueWithApple => '使用 Apple 繼續';
+  String get continueWithApple => '使用 Apple 登入';
 
   @override
   String get accountSettingsTitle => '帳號';

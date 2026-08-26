@@ -420,13 +420,15 @@ final adminModerationServiceProvider = Provider<AdminModerationService>((ref) {
 final appLanguagePreferenceProvider =
     StateNotifierProvider<AppLanguagePreferenceNotifier, AppLanguagePreference>(
       (ref) {
+        final accountReady =
+            ref.watch(homeAssignmentProvider).valueOrNull != null;
         return AppLanguagePreferenceNotifier(
           auth: ref.watch(firebaseAuthProvider),
           firestore: ref.watch(homeWorldFirestoreProvider),
           functions: ref.watch(homeWorldFunctionsProvider),
           preferences: ref.watch(sharedPreferencesProvider),
           operationObserver: ref.watch(globalOperationObserverProvider),
-          syncAccount: !screenshotMode,
+          syncAccount: !screenshotMode && accountReady,
         );
       },
     );
@@ -447,6 +449,7 @@ class AppLanguagePreferenceNotifier
        _functions = functions,
        _preferences = preferences,
        _operationObserver = operationObserver,
+       _syncAccount = syncAccount,
        super(
          AppLanguagePreference.fromLocalStorage(
            preferences?.getString(appLanguagePreferenceKey),
@@ -464,6 +467,7 @@ class AppLanguagePreferenceNotifier
        _functions = null,
        _preferences = preferences,
        _operationObserver = null,
+       _syncAccount = false,
        super(
          AppLanguagePreference.fromLocalStorage(
            preferences.getString(appLanguagePreferenceKey),
@@ -474,6 +478,7 @@ class AppLanguagePreferenceNotifier
   final FirebaseFirestore? _firestore;
   final WorldFunctionsClient? _functions;
   final GlobalOperationObserver? _operationObserver;
+  final bool _syncAccount;
   final Uuid _uuid = const Uuid();
   SharedPreferences? _preferences;
   StreamSubscription<User?>? _authSubscription;
@@ -487,7 +492,9 @@ class AppLanguagePreferenceNotifier
     await _persistLocally(preference);
 
     final functions = _functions;
-    if (_auth?.currentUser == null || functions == null) return;
+    if (!_syncAccount || _auth?.currentUser == null || functions == null) {
+      return;
+    }
     _pendingPreference = preference;
     try {
       final response = await functions

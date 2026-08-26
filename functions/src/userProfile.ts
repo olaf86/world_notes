@@ -2,7 +2,7 @@ import {getAuth} from "firebase-admin/auth";
 import {Firestore} from "firebase-admin/firestore";
 import {onCall, HttpsError} from "./platform/worldCallable";
 
-import {REGION} from "./constants";
+import {LANGUAGE_PREFERENCES, REGION} from "./constants";
 import {
   executeGlobalCommand,
   GLOBAL_COMMAND_SCOPE,
@@ -13,14 +13,6 @@ import {UPDATE_PUBLIC_PROFILE_OPERATION} from
   "./profileEntitlementReplication";
 
 const MAX_DISPLAY_NAME_LENGTH = 20;
-const LANGUAGE_PREFERENCES = new Set([
-  "system",
-  "en",
-  "ja",
-  "ko",
-  "zh-Hans",
-  "zh-Hant",
-]);
 /**
  * Returns the app profile fields shown in a note's member list.
  *

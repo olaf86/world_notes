@@ -11,6 +11,7 @@ import {
 } from "firebase-admin/firestore";
 import * as logger from "firebase-functions/logger";
 
+import {LANGUAGE_PREFERENCES} from "./constants";
 import {
   newGlobalOperationId,
   requireOperationId,
@@ -40,6 +41,7 @@ const ENTITLEMENT_REPLICATION_OPERATION_FIELD =
 const SAFETY_REPLICATION_OPERATION_FIELD = "safetyReplicationOperationId";
 interface AssignHomeWorldData {
   readonly homeWorld?: unknown;
+  readonly languagePreference?: unknown;
 }
 
 interface HomeAssignmentData {
@@ -77,6 +79,9 @@ export const assignHomeWorld = onCall<AssignHomeWorldData>(
     }
 
     const homeWorld = requireHomeWorld(request.data?.homeWorld);
+    const languagePreference = requireLanguagePreference(
+      request.data?.languagePreference,
+    );
     const auth = getAuth();
     const authUser = await auth.getUser(uid);
     const directory = asiaWorldContext().firestore;
@@ -91,6 +96,7 @@ export const assignHomeWorld = onCall<AssignHomeWorldData>(
       uid,
       authUser,
       reservation.home,
+      languagePreference,
     );
 
     await Promise.all([
@@ -182,6 +188,7 @@ async function ensureAuthorityBundle(
   uid: string,
   authUser: UserRecord,
   home: HomeAssignmentData,
+  languagePreference: string,
 ): Promise<{readonly isPremium: boolean}> {
   const homeRef = authority.collection("userHomes").doc(uid);
   const userRef = authority.collection("users").doc(uid);
@@ -229,7 +236,10 @@ async function ensureAuthorityBundle(
     }
 
     if (!homeSnapshot.exists) transaction.create(homeRef, home);
-    transaction.create(userRef, privateUserData(authUser));
+    transaction.create(
+      userRef,
+      privateUserData(authUser, languagePreference),
+    );
     transaction.create(profileRef, publicProfileData(authUser));
     transaction.create(entitlementRef, entitlementData());
     transaction.create(usageRef, usageData());
@@ -391,16 +401,31 @@ function requireHomeWorld(value: unknown): string {
 }
 
 /** Builds the owner-only account document from trusted Auth identity. */
-function privateUserData(authUser: UserRecord): Record<string, unknown> {
+function privateUserData(
+  authUser: UserRecord,
+  languagePreference: string,
+): Record<string, unknown> {
   return {
     displayName: displayNameOf(authUser),
     email: boundedNullableString(authUser.email, MAX_EMAIL_LENGTH),
     photoUrl: boundedNullableString(authUser.photoURL, MAX_PHOTO_URL_LENGTH),
-    languagePreference: "system",
+    languagePreference,
     languagePreferenceRevision: 0,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   };
+}
+
+/** Uses the system language for older clients and validates newer clients. */
+function requireLanguagePreference(value: unknown): string {
+  if (value === undefined) return "system";
+  if (typeof value !== "string" || !LANGUAGE_PREFERENCES.has(value)) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Unsupported language preference.",
+    );
+  }
+  return value;
 }
 
 /** Builds the authenticated-readable public profile projection. */

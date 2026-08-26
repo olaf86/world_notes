@@ -5,6 +5,7 @@ import '../../../config/world_catalog.dart';
 import '../../../l10n/l10n.dart';
 import '../../providers/providers.dart';
 import '../../world_labels.dart';
+import '../../widgets/app_language_picker.dart';
 
 /// One-time selection of the account's immutable authority world.
 class HomeWorldSelectionScreen extends ConsumerStatefulWidget {
@@ -29,7 +30,13 @@ class _HomeWorldSelectionScreenState
       _submissionFailed = false;
     });
     try {
-      await ref.read(accountBootstrapServiceProvider).assignHome(selectedWorld);
+      final languagePreference = ref.read(appLanguagePreferenceProvider);
+      await ref
+          .read(accountBootstrapServiceProvider)
+          .assignHome(
+            selectedWorld,
+            languagePreference: languagePreference.storageValue,
+          );
       await ref.read(subscriptionServiceProvider).syncEntitlement();
       await ref.read(firebaseAuthProvider).currentUser?.getIdToken(true);
       ref.invalidate(homeAssignmentProvider);
@@ -58,7 +65,10 @@ class _HomeWorldSelectionScreenState
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.homeWorldSelectionTitle)),
+      appBar: AppBar(
+        title: Text(l10n.homeWorldSelectionTitle),
+        actions: const [AppLanguagePickerButton(showSelectedLanguage: false)],
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(24),

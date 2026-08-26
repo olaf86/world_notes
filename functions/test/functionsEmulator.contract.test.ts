@@ -230,7 +230,11 @@ describe(
 
       const response = await callFunction(
         "assignHomeWorld",
-        {worldId: "asia", homeWorld: "asia"},
+        {
+          worldId: "asia",
+          homeWorld: "asia",
+          languagePreference: "ja",
+        },
         idToken,
       );
       const body = await response.json() as CallableSuccessBody<{
@@ -253,7 +257,7 @@ describe(
       assert.equal(home.get("world"), "asia");
       assert.equal(home.get("epoch"), 1);
       assert.equal(user.get("displayName"), "User");
-      assert.equal(user.get("languagePreference"), "system");
+      assert.equal(user.get("languagePreference"), "ja");
       assert.equal(user.get("languagePreferenceRevision"), 0);
       assert.equal(profile.get("followerCount"), 0);
       assert.equal(profile.get("followingCount"), 0);

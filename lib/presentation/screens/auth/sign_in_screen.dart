@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../l10n/l10n.dart';
 import '../../providers/providers.dart';
+import '../../widgets/app_language_picker.dart';
 
 class SignInScreen extends ConsumerStatefulWidget {
   const SignInScreen({super.key});
@@ -125,186 +126,212 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       identifier: 'screen-sign-in',
       child: Scaffold(
         body: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                children: [
-                  const SizedBox(height: 32),
-                  Icon(
-                    Icons.map_rounded,
-                    size: 72,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    context.l10n.appName,
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    l10n.authTagline,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 48),
-                  Form(
-                    key: _formKey,
+          child: Column(
+            children: [
+              const Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12),
+                  child: AppLanguagePickerButton(),
+                ),
+              ),
+              Expanded(
+                child: Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
                     child: Column(
                       children: [
-                        if (_isSignUp)
-                          TextFormField(
-                            controller: _nameController,
-                            decoration: InputDecoration(
-                              labelText: l10n.nicknameLabel,
-                              prefixIcon: const Icon(Icons.person_outline),
-                            ),
-                            validator: (v) => v == null || v.trim().isEmpty
-                                ? l10n.requiredField
-                                : null,
+                        const SizedBox(height: 32),
+                        Icon(
+                          Icons.map_rounded,
+                          size: 72,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          context.l10n.appName,
+                          style: theme.textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
                           ),
-                        if (_isSignUp) const SizedBox(height: 16),
-                        Semantics(
-                          identifier: 'field-auth-email',
-                          child: TextFormField(
-                            controller: _emailController,
-                            keyboardType: TextInputType.emailAddress,
-                            decoration: InputDecoration(
-                              labelText: l10n.emailLabel,
-                              prefixIcon: const Icon(Icons.email_outlined),
-                            ),
-                            validator: (v) => v == null || !v.contains('@')
-                                ? l10n.invalidEmail
-                                : null,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          l10n.authTagline,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 48),
+                        Form(
+                          key: _formKey,
+                          child: Column(
+                            children: [
+                              if (_isSignUp)
+                                TextFormField(
+                                  controller: _nameController,
+                                  decoration: InputDecoration(
+                                    labelText: l10n.nicknameLabel,
+                                    prefixIcon: const Icon(
+                                      Icons.person_outline,
+                                    ),
+                                  ),
+                                  validator: (v) =>
+                                      v == null || v.trim().isEmpty
+                                      ? l10n.requiredField
+                                      : null,
+                                ),
+                              if (_isSignUp) const SizedBox(height: 16),
+                              Semantics(
+                                identifier: 'field-auth-email',
+                                child: TextFormField(
+                                  controller: _emailController,
+                                  keyboardType: TextInputType.emailAddress,
+                                  decoration: InputDecoration(
+                                    labelText: l10n.emailLabel,
+                                    prefixIcon: const Icon(
+                                      Icons.email_outlined,
+                                    ),
+                                  ),
+                                  validator: (v) =>
+                                      v == null || !v.contains('@')
+                                      ? l10n.invalidEmail
+                                      : null,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Semantics(
+                                identifier: 'field-auth-password',
+                                child: TextFormField(
+                                  controller: _passwordController,
+                                  obscureText: true,
+                                  decoration: InputDecoration(
+                                    labelText: l10n.passwordLabel,
+                                    prefixIcon: const Icon(Icons.lock_outline),
+                                  ),
+                                  validator: (v) => v == null || v.length < 6
+                                      ? l10n.minimumPasswordLength(6)
+                                      : null,
+                                ),
+                              ),
+                              if (_isSignUp) ...[
+                                const SizedBox(height: 16),
+                                TextFormField(
+                                  controller: _confirmPasswordController,
+                                  obscureText: true,
+                                  enableSuggestions: false,
+                                  autocorrect: false,
+                                  decoration: InputDecoration(
+                                    labelText: l10n.confirmPasswordLabel,
+                                    prefixIcon: const Icon(
+                                      Icons.lock_reset_outlined,
+                                    ),
+                                  ),
+                                  validator: (v) {
+                                    if (v == null || v.isEmpty) {
+                                      return l10n.passwordConfirmationRequired;
+                                    }
+                                    if (v != _passwordController.text) {
+                                      return l10n.passwordsDoNotMatch;
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ],
+                              if (_error != null) ...[
+                                const SizedBox(height: 12),
+                                Text(
+                                  _error!,
+                                  style: TextStyle(
+                                    color: theme.colorScheme.error,
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: 24),
+                              Semantics(
+                                identifier: 'action-auth-submit',
+                                child: FilledButton(
+                                  onPressed: _loading ? null : _submitEmail,
+                                  child: _loading
+                                      ? const SizedBox(
+                                          height: 20,
+                                          width: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : Text(
+                                          _isSignUp
+                                              ? l10n.createAccount
+                                              : l10n.signIn,
+                                        ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              TextButton(
+                                onPressed: () => setState(() {
+                                  _isSignUp = !_isSignUp;
+                                  _error = null;
+                                  _confirmPasswordController.clear();
+                                }),
+                                child: Text(
+                                  _isSignUp
+                                      ? l10n.alreadyHaveAccountSignIn
+                                      : l10n.newHereCreateAccount,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 16),
-                        Semantics(
-                          identifier: 'field-auth-password',
-                          child: TextFormField(
-                            controller: _passwordController,
-                            obscureText: true,
-                            decoration: InputDecoration(
-                              labelText: l10n.passwordLabel,
-                              prefixIcon: const Icon(Icons.lock_outline),
+                        Row(
+                          children: [
+                            const Expanded(child: Divider()),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              child: Text(l10n.orDivider),
                             ),
-                            validator: (v) => v == null || v.length < 6
-                                ? l10n.minimumPasswordLength(6)
-                                : null,
-                          ),
+                            const Expanded(child: Divider()),
+                          ],
                         ),
-                        if (_isSignUp) ...[
-                          const SizedBox(height: 16),
-                          TextFormField(
-                            controller: _confirmPasswordController,
-                            obscureText: true,
-                            enableSuggestions: false,
-                            autocorrect: false,
-                            decoration: InputDecoration(
-                              labelText: l10n.confirmPasswordLabel,
-                              prefixIcon: const Icon(Icons.lock_reset_outlined),
+                        const SizedBox(height: 16),
+                        if (!kIsWeb &&
+                            (defaultTargetPlatform == TargetPlatform.iOS ||
+                                defaultTargetPlatform ==
+                                    TargetPlatform.macOS)) ...[
+                          FilledButton.icon(
+                            onPressed: _loading ? null : _signInWithApple,
+                            icon: const Icon(Icons.apple, size: 24),
+                            label: Text(l10n.continueWithApple),
+                            style: FilledButton.styleFrom(
+                              minimumSize: const Size(double.infinity, 48),
+                              backgroundColor: Colors.black,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
-                            validator: (v) {
-                              if (v == null || v.isEmpty) {
-                                return l10n.passwordConfirmationRequired;
-                              }
-                              if (v != _passwordController.text) {
-                                return l10n.passwordsDoNotMatch;
-                              }
-                              return null;
-                            },
                           ),
-                        ],
-                        if (_error != null) ...[
                           const SizedBox(height: 12),
-                          Text(
-                            _error!,
-                            style: TextStyle(color: theme.colorScheme.error),
-                          ),
                         ],
-                        const SizedBox(height: 24),
-                        Semantics(
-                          identifier: 'action-auth-submit',
-                          child: FilledButton(
-                            onPressed: _loading ? null : _submitEmail,
-                            child: _loading
-                                ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : Text(
-                                    _isSignUp
-                                        ? l10n.createAccount
-                                        : l10n.signIn,
-                                  ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        TextButton(
-                          onPressed: () => setState(() {
-                            _isSignUp = !_isSignUp;
-                            _error = null;
-                            _confirmPasswordController.clear();
-                          }),
-                          child: Text(
-                            _isSignUp
-                                ? l10n.alreadyHaveAccountSignIn
-                                : l10n.newHereCreateAccount,
+                        OutlinedButton.icon(
+                          onPressed: _loading ? null : _signInWithGoogle,
+                          icon: const Icon(Icons.g_mobiledata, size: 24),
+                          label: Text(l10n.continueWithGoogle),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(double.infinity, 48),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      const Expanded(child: Divider()),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(l10n.orDivider),
-                      ),
-                      const Expanded(child: Divider()),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  if (!kIsWeb &&
-                      (defaultTargetPlatform == TargetPlatform.iOS ||
-                          defaultTargetPlatform == TargetPlatform.macOS)) ...[
-                    FilledButton.icon(
-                      onPressed: _loading ? null : _signInWithApple,
-                      icon: const Icon(Icons.apple, size: 24),
-                      label: Text(l10n.continueWithApple),
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size(double.infinity, 48),
-                        backgroundColor: Colors.black,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  OutlinedButton.icon(
-                    onPressed: _loading ? null : _signInWithGoogle,
-                    icon: const Icon(Icons.g_mobiledata, size: 24),
-                    label: Text(l10n.continueWithGoogle),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 48),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
         ),
       ),

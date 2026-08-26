@@ -72,11 +72,17 @@ final class AccountBootstrapService {
         );
   }
 
-  Future<HomeAssignment> assignHome(WorldId homeWorld) async {
+  Future<HomeAssignment> assignHome(
+    WorldId homeWorld, {
+    required String languagePreference,
+  }) async {
     _catalog.requireHomeWorld(homeWorld);
     final response = await _directoryFunctions
         .httpsCallable('assignHomeWorld')
-        .call<Map<String, dynamic>>({'homeWorld': homeWorld.value});
+        .call<Map<String, dynamic>>({
+          'homeWorld': homeWorld.value,
+          'languagePreference': languagePreference,
+        });
     final data = response.data;
     final returnedWorld = data['homeWorld'];
     final epoch = data['epoch'];
