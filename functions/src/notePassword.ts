@@ -36,7 +36,12 @@ export const setNotePassword = onCall<{
   lockType?: unknown;
   lockHint?: unknown;
 }>(
-  {secrets: [NOTE_PW_PEPPER], enforceAppCheck: true, region: REGION},
+  {
+    auditAction: "note.lock.set",
+    secrets: [NOTE_PW_PEPPER],
+    enforceAppCheck: true,
+    region: REGION,
+  },
   async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
@@ -112,7 +117,12 @@ export const setNotePassword = onCall<{
  * is not prompted again until the creator changes the secret.
  */
 export const unlockNote = onCall<{placeId?: unknown; password?: unknown}>(
-  {secrets: [NOTE_PW_PEPPER], enforceAppCheck: true, region: REGION},
+  {
+    auditAction: "note.unlock",
+    secrets: [NOTE_PW_PEPPER],
+    enforceAppCheck: true,
+    region: REGION,
+  },
   async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");

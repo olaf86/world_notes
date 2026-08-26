@@ -68,6 +68,7 @@ interface ReservedHomeAssignment {
  */
 export const assignHomeWorld = onCall<AssignHomeWorldData>(
   {
+    auditAction: "account.home.assign",
     enforceAppCheck: true,
     requireAccountReady: false,
     timeoutSeconds: 120,

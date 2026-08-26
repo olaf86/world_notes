@@ -668,7 +668,7 @@ async function createMessageInTransaction({
  * scheduled messages immediately for cap enforcement.
  */
 export const sendMessage = onCall<SendMessageData>(
-  {enforceAppCheck: true, region: REGION},
+  {auditAction: "message.send", enforceAppCheck: true, region: REGION},
   async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
@@ -719,7 +719,7 @@ export const sendMessage = onCall<SendMessageData>(
  * Records a user report and queues the message for administrator review.
  */
 export const reportMessage = onCall<ReportMessageData>(
-  {enforceAppCheck: true, region: REGION},
+  {auditAction: "message.report", enforceAppCheck: true, region: REGION},
   async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) {
@@ -940,7 +940,7 @@ async function applyMessageLike(
  * Sets the caller's final desired like state for a published message.
  */
 export const setMessageLike = onCall<SetMessageLikeData>(
-  {enforceAppCheck: true, region: REGION},
+  {auditAction: "message.like.set", enforceAppCheck: true, region: REGION},
   async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
@@ -960,7 +960,7 @@ export const setMessageLike = onCall<SetMessageLikeData>(
  * Soft-deletes a published message and removes its stored images.
  */
 export const deleteMessage = onCall<DeleteMessageData>(
-  {enforceAppCheck: true, region: REGION},
+  {auditAction: "message.delete", enforceAppCheck: true, region: REGION},
   async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
@@ -1026,7 +1026,11 @@ export const deleteMessage = onCall<DeleteMessageData>(
  * Cancels an unpublished scheduled message and frees its reserved slot.
  */
 export const cancelScheduledMessage = onCall<CancelScheduledMessageData>(
-  {enforceAppCheck: true, region: REGION},
+  {
+    auditAction: "message.schedule.cancel",
+    enforceAppCheck: true,
+    region: REGION,
+  },
   async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");

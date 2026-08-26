@@ -14,7 +14,7 @@ export const revokeNoteAccess = onCall<{
   placeId?: unknown;
   userId?: unknown;
 }>(
-  {enforceAppCheck: true, region: REGION},
+  {auditAction: "note.access.revoke", enforceAppCheck: true, region: REGION},
   async (request, world) => {
     const actorUid = request.auth?.uid;
     if (!actorUid) {

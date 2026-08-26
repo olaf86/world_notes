@@ -10,6 +10,12 @@ import {worldContext, WorldContext} from "./worldContext";
 import {
   WORLD_REGISTRY,
 } from "./worldRegistry";
+import {
+  applicationAuditEvent,
+  auditOutcomeForError,
+  callableAuditContext,
+  writeApplicationAudit,
+} from "../applicationAudit";
 
 export {HttpsError};
 
@@ -20,6 +26,7 @@ type WorldCallableHandler<T> = (
 ) => WorldCallableResult | Promise<WorldCallableResult>;
 
 type WorldCallableOptions<T> = CallableOptions<T> & {
+  readonly auditAction?: string;
   readonly requireAccountReady?: boolean;
   readonly requireHomeWorld?: boolean;
 };
@@ -47,6 +54,7 @@ export function onCall<T = unknown>(
   handler: WorldCallableHandler<T>,
 ) {
   const {
+    auditAction,
     requireAccountReady = true,
     requireHomeWorld = false,
     ...firebaseOptions
@@ -54,26 +62,49 @@ export function onCall<T = unknown>(
   return firebaseOnCall<T>(
     {...firebaseOptions, region: regionalFunctionsRegions},
     async (request) => {
-      const route = routeValidator.requireContentWorld(
-        worldIdFromData(request.data),
-      );
-      const world = worldContext(route.worldId);
-      if ((requireAccountReady || requireHomeWorld) &&
-          request.auth !== undefined) {
-        const homeWorld = await requireReadyAccount(request.auth.uid, world);
-        if (requireHomeWorld && homeWorld !== world.worldId) {
-          throw new HttpsError(
-            "failed-precondition",
-            "This operation must use the account's home world.",
-            {reason: "wrong-home-world", homeWorld},
-          );
+      const audit = auditAction === undefined ? null :
+        callableAuditContext(request, auditAction);
+      let resolvedWorldId: string | null = null;
+      try {
+        const route = routeValidator.requireContentWorld(
+          worldIdFromData(request.data),
+        );
+        const world = worldContext(route.worldId);
+        resolvedWorldId = world.worldId;
+        if ((requireAccountReady || requireHomeWorld) &&
+            request.auth !== undefined) {
+          const homeWorld = await requireReadyAccount(request.auth.uid, world);
+          if (requireHomeWorld && homeWorld !== world.worldId) {
+            throw new HttpsError(
+              "failed-precondition",
+              "This operation must use the account's home world.",
+              {reason: "wrong-home-world", homeWorld},
+            );
+          }
         }
+        const result = await handler(request, world);
+        if (audit !== null) {
+          writeApplicationAudit(applicationAuditEvent(
+            audit,
+            "success",
+            resolvedWorldId,
+          ));
+        }
+        return {
+          ...(result ?? {}),
+          worldId: world.worldId,
+        };
+      } catch (error) {
+        if (audit !== null) {
+          writeApplicationAudit(applicationAuditEvent(
+            audit,
+            auditOutcomeForError(error),
+            resolvedWorldId,
+            error,
+          ));
+        }
+        throw error;
       }
-      const result = await handler(request, world);
-      return {
-        ...(result ?? {}),
-        worldId: world.worldId,
-      };
     },
   );
 }
