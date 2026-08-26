@@ -5,7 +5,7 @@
         "appIDs": ["48C76HC76Y.dev.asobo.worldnotes"],
         "components": [
           {
-            "/": "/i/*",
+            "/": "/worlds/*/invites/*",
             "comment": "Private-note invite links"
           }
         ]

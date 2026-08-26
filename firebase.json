@@ -35,7 +35,10 @@
     "ignore": ["firebase.json", "**/node_modules/**"],
     "appAssociation": "NONE",
     "rewrites": [
-      { "source": "/i/**", "destination": "/index.html" }
+      {
+        "source": "/worlds/:worldId/invites/:token",
+        "destination": "/index.html"
+      }
     ],
     "headers": [
       {
