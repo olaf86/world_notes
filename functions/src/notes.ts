@@ -149,6 +149,7 @@ const UUID_V7_PATTERN =
  */
 export const createNote = onCall<CreateNoteData>(
   {
+    auditAction: "note.create",
     enforceAppCheck: true,
     region: REGION,
     secrets: [NOTE_PW_PEPPER],
@@ -473,7 +474,7 @@ export const createNote = onCall<CreateNoteData>(
 
 /** Attaches a public-pending pin candidate and queues regional evaluation. */
 export const setNotePinImage = onCall<SetNotePinImageData>(
-  {enforceAppCheck: true, region: REGION},
+  {auditAction: "note.pinImage.set", enforceAppCheck: true, region: REGION},
   async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) {
@@ -662,7 +663,7 @@ function canReportNote(
 
 /** Records a user report and queues the note for administrator review. */
 export const reportNote = onCall<ReportNoteData>(
-  {enforceAppCheck: true, region: REGION},
+  {auditAction: "note.report", enforceAppCheck: true, region: REGION},
   async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) {
@@ -793,7 +794,7 @@ export const reportNote = onCall<ReportNoteData>(
 
 /** Updates the built-in appearance theme of an active note. */
 export const setNoteTheme = onCall<SetNoteThemeData>(
-  {enforceAppCheck: true, region: REGION},
+  {auditAction: "note.theme.set", enforceAppCheck: true, region: REGION},
   async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) {
@@ -861,7 +862,7 @@ export const setNoteTheme = onCall<SetNoteThemeData>(
  * decrement share a transaction so retries cannot free the slot twice.
  */
 export const archiveNote = onCall<ArchiveNoteData>(
-  {enforceAppCheck: true, region: REGION},
+  {auditAction: "note.archive", enforceAppCheck: true, region: REGION},
   async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) {

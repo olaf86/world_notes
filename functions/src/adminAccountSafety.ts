@@ -43,7 +43,11 @@ interface AdminUpdateAccountSafetyData {
 }
 
 export const adminGetAccountSafety = onCall<AdminGetAccountSafetyData>(
-  {enforceAppCheck: true, region: REGION},
+  {
+    auditAction: "admin.accountSafety.get",
+    enforceAppCheck: true,
+    region: REGION,
+  },
   async (request, sourceWorld) => {
     assertAdmin(request.auth?.uid, request.auth?.token.admin);
     const targetUid = requireUid(request.data?.targetUid);
@@ -92,7 +96,11 @@ export const adminGetAccountSafety = onCall<AdminGetAccountSafetyData>(
 );
 
 export const adminUpdateAccountSafety = onCall<AdminUpdateAccountSafetyData>(
-  {enforceAppCheck: true, region: REGION},
+  {
+    auditAction: "admin.accountSafety.update",
+    enforceAppCheck: true,
+    region: REGION,
+  },
   async (request, sourceWorld) => {
     const adminUid = request.auth?.uid;
     assertAdmin(adminUid, request.auth?.token.admin);

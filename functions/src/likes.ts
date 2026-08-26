@@ -45,7 +45,7 @@ function canLikeNote(
 }
 
 export const setNoteLike = onCall<SetNoteLikeData>(
-  {enforceAppCheck: true, region: REGION},
+  {auditAction: "note.like.set", enforceAppCheck: true, region: REGION},
   async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) {

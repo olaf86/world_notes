@@ -195,7 +195,7 @@ export const recordNoteVisit = onCall<RecordNoteVisitData>(
 );
 
 export const setFootprintEnabled = onCall<SetFootprintEnabledData>(
-  {enforceAppCheck: true, region: REGION},
+  {auditAction: "note.footprint.set", enforceAppCheck: true, region: REGION},
   async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");

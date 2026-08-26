@@ -80,6 +80,7 @@ interface CleanupCursor {
  */
 export const deleteAccount = onCall<DeleteAccountData>(
   {
+    auditAction: "account.delete",
     enforceAppCheck: true,
     requireHomeWorld: true,
     timeoutSeconds: 120,

@@ -82,6 +82,7 @@ type AdministratorInvitationAcceptanceResult =
 export const createNoteAdministratorInvitation =
   onCall<CreateInvitationData>(
     {
+      auditAction: "noteAdministrator.invitation.create",
       enforceAppCheck: true,
       region: REGION,
       secrets: [NOTE_ADMINISTRATOR_INVITE_SIGNING_KEY],
@@ -255,6 +256,7 @@ export const createNoteAdministratorInvitation =
 export const previewNoteAdministratorInvitation =
   onCall<InvitationTokenData>(
     {
+      auditAction: "noteAdministrator.invitation.preview",
       enforceAppCheck: true,
       region: REGION,
       requireAccountReady: false,
@@ -300,6 +302,7 @@ export const previewNoteAdministratorInvitation =
 export const acceptNoteAdministratorInvitation =
   onCall<InvitationTokenData>(
     {
+      auditAction: "noteAdministrator.invitation.accept",
       enforceAppCheck: true,
       region: REGION,
       secrets: [NOTE_ADMINISTRATOR_INVITE_SIGNING_KEY],
@@ -464,7 +467,11 @@ export const acceptNoteAdministratorInvitation =
 /** Revokes the current pending invitation for one target user. */
 export const revokeNoteAdministratorInvitation =
   onCall<RevokeInvitationData>(
-    {enforceAppCheck: true, region: REGION},
+    {
+      auditAction: "noteAdministrator.invitation.revoke",
+      enforceAppCheck: true,
+      region: REGION,
+    },
     async (request, world) => {
       const actorUid = requireAuthenticatedUid(request.auth?.uid);
       const placeId = requireValue(request.data?.placeId, "placeId");
@@ -553,7 +560,11 @@ export const revokeNoteAdministratorInvitation =
 
 /** Removes a delegated administrator or lets one resign. */
 export const removeNoteAdministrator = onCall<RemoveAdministratorData>(
-  {enforceAppCheck: true, region: REGION},
+  {
+    auditAction: "noteAdministrator.remove",
+    enforceAppCheck: true,
+    region: REGION,
+  },
   async (request, world) => {
     const actorUid = requireAuthenticatedUid(request.auth?.uid);
     const placeId = requireValue(request.data?.placeId, "placeId");

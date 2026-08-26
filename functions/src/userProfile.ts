@@ -69,7 +69,11 @@ export const updateDisplayName = onCall<{
   displayName?: unknown;
   operationId?: unknown;
 }>(
-  {enforceAppCheck: true, region: REGION},
+  {
+    auditAction: "profile.displayName.update",
+    enforceAppCheck: true,
+    region: REGION,
+  },
   async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
@@ -150,7 +154,11 @@ export const setLanguagePreference = onCall<{
   languagePreference?: unknown;
   operationId?: unknown;
 }>(
-  {enforceAppCheck: true, region: REGION},
+  {
+    auditAction: "profile.language.update",
+    enforceAppCheck: true,
+    region: REGION,
+  },
   async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");

@@ -365,7 +365,11 @@ function reviewListItemFromDoc(
  */
 export const adminListModerationReviews =
   onCall<AdminListModerationReviewsData>(
-    {enforceAppCheck: true, region: REGION},
+    {
+      auditAction: "admin.moderation.list",
+      enforceAppCheck: true,
+      region: REGION,
+    },
     async (req, world) => {
       const token = req.auth?.token as Record<string, unknown> | undefined;
       assertAdmin(req.auth?.uid, token?.admin);
@@ -419,7 +423,11 @@ export const adminListModerationReviews =
  * Applies a trusted administrator moderation decision to a queued message.
  */
 export const adminReviewMessage = onCall<AdminReviewMessageData>(
-  {enforceAppCheck: true, region: REGION},
+  {
+    auditAction: "admin.moderation.message.review",
+    enforceAppCheck: true,
+    region: REGION,
+  },
   async (req, world) => {
     const token = req.auth?.token as Record<string, unknown> | undefined;
     assertAdmin(req.auth?.uid, token?.admin);
@@ -611,7 +619,11 @@ export const adminReviewMessage = onCall<AdminReviewMessageData>(
  * Applies a trusted administrator moderation decision to a queued note.
  */
 export const adminReviewNote = onCall<AdminReviewNoteData>(
-  {enforceAppCheck: true, region: REGION},
+  {
+    auditAction: "admin.moderation.note.review",
+    enforceAppCheck: true,
+    region: REGION,
+  },
   async (req, world) => {
     const token = req.auth?.token as Record<string, unknown> | undefined;
     assertAdmin(req.auth?.uid, token?.admin);

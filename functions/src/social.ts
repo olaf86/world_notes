@@ -76,7 +76,7 @@ function assertBlocked(value: unknown): boolean {
  * Sets the caller's final follow state for a target user.
  */
 export const setUserFollow = onCall<SetUserFollowData>(
-  {enforceAppCheck: true, region: REGION},
+  {auditAction: "user.follow.set", enforceAppCheck: true, region: REGION},
   async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) {
@@ -178,7 +178,7 @@ function socialCommandHttpsError(error: unknown): unknown {
  * converges independently without delaying the callable response.
  */
 export const setUserBlock = onCall<SetUserBlockData>(
-  {enforceAppCheck: true, region: REGION},
+  {auditAction: "user.block.set", enforceAppCheck: true, region: REGION},
   async (req, world) => {
     const uid = req.auth?.uid;
     if (!uid) {
