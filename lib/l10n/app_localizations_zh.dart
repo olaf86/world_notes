@@ -945,6 +945,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsLanguageUpdateFailed => '此设备的显示语言已更改，但无法保存到你的账户。';
 
   @override
+  String get settingsHomeWorldTitle => '主世界';
+
+  @override
   String get settingsContentWorldTitle => '内容世界';
 
   @override
@@ -2734,6 +2737,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get settingsLanguageUpdateFailed => '此设备的显示语言已更改，但无法保存到你的账户。';
+
+  @override
+  String get settingsHomeWorldTitle => '主世界';
 
   @override
   String get settingsContentWorldTitle => '内容世界';
@@ -4526,6 +4532,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get settingsLanguageUpdateFailed => '此裝置的顯示語言已變更，但無法儲存到你的帳號。';
+
+  @override
+  String get settingsHomeWorldTitle => '主世界';
 
   @override
   String get settingsContentWorldTitle => '內容世界';

@@ -1033,6 +1033,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'The language changed on this device, but could not be saved to your account.';
 
   @override
+  String get settingsHomeWorldTitle => 'Home world';
+
+  @override
   String get settingsContentWorldTitle => 'Content world';
 
   @override

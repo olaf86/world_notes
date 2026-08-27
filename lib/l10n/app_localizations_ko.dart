@@ -956,6 +956,9 @@ class AppLocalizationsKo extends AppLocalizations {
       '이 기기의 표시 언어는 변경되었지만 계정에 저장하지 못했습니다.';
 
   @override
+  String get settingsHomeWorldTitle => '홈 월드';
+
+  @override
   String get settingsContentWorldTitle => '콘텐츠 월드';
 
   @override

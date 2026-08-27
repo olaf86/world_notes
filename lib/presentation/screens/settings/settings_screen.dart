@@ -32,6 +32,7 @@ class SettingsScreen extends ConsumerWidget {
         children: [
           const _LanguageSection(),
           const SizedBox(height: 24),
+          const _HomeWorldTile(),
           const _ContentWorldSection(),
           const SizedBox(height: 24),
           Text(
@@ -65,6 +66,34 @@ class SettingsScreen extends ConsumerWidget {
           const _AccountDeletionSection(),
         ],
       ),
+    );
+  }
+}
+
+class _HomeWorldTile extends ConsumerWidget {
+  const _HomeWorldTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final homeWorld = ref.watch(homeWorldProvider);
+    final world = ref.watch(worldCatalogProvider).requireWorld(homeWorld);
+
+    return ListTile(
+      key: const ValueKey('home-world-setting-tile'),
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.home_outlined),
+      title: Text(
+        l10n.settingsHomeWorldTitle,
+        style: Theme.of(
+          context,
+        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+      ),
+      subtitle: Text(
+        '${localizedWorldName(l10n, world)} · '
+        '${localizedWorldLocation(l10n, world)}',
+      ),
+      trailing: const Icon(Icons.lock_outline),
     );
   }
 }

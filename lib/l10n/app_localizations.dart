@@ -1808,6 +1808,12 @@ abstract class AppLocalizations {
   /// **'The language changed on this device, but could not be saved to your account.'**
   String get settingsLanguageUpdateFailed;
 
+  /// No description provided for @settingsHomeWorldTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Home world'**
+  String get settingsHomeWorldTitle;
+
   /// No description provided for @settingsContentWorldTitle.
   ///
   /// In en, this message translates to:

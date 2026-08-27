@@ -954,6 +954,9 @@ class AppLocalizationsJa extends AppLocalizations {
       'この端末の表示言語は変更されましたが、アカウントに保存できませんでした。';
 
   @override
+  String get settingsHomeWorldTitle => 'ホームワールド';
+
+  @override
   String get settingsContentWorldTitle => 'コンテンツワールド';
 
   @override
