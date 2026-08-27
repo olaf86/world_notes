@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 
 import '../../../core/utils/image_upload_util.dart';
 import '../../../l10n/l10n.dart';
+import '../app_alert_dialog.dart';
 
 class PinThumbnailCropDialog extends StatefulWidget {
   final Uint8List imageBytes;
@@ -97,7 +98,7 @@ class _PinThumbnailCropDialogState extends State<PinThumbnailCropDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = context.l10n;
-    return AlertDialog(
+    return AppAlertDialog(
       title: Text(l10n.mapPinImageTitle),
       contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
       content: ConstrainedBox(
@@ -170,12 +171,12 @@ class _PinThumbnailCropDialogState extends State<PinThumbnailCropDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: _encoding ? null : _resetCrop,
-          child: Text(l10n.resetAction),
-        ),
-        TextButton(
           onPressed: _encoding ? null : () => Navigator.pop(context),
           child: Text(l10n.commonCancel),
+        ),
+        TextButton(
+          onPressed: _encoding ? null : _resetCrop,
+          child: Text(l10n.resetAction),
         ),
         FilledButton(
           onPressed: _encoding ? null : _useCrop,

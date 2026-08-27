@@ -19,6 +19,7 @@ import '../../../l10n/l10n.dart';
 import '../../../l10n/presentation_labels.dart';
 import '../../providers/providers.dart';
 import '../../utils/user_block_actions.dart';
+import '../../widgets/app_alert_dialog.dart';
 import '../../widgets/map/static_note_mini_map.dart';
 import '../../widgets/loading_skeleton.dart';
 import '../../widgets/note/manage_access_sheet.dart';
@@ -210,7 +211,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     final isAwaitingPublication = !message.isPublished;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AppAlertDialog(
         title: Text(
           isAwaitingPublication
               ? ctx.l10n.cancelScheduledMessageTitle
@@ -369,7 +370,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
   Future<void> _closeThread() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AppAlertDialog(
         title: Text(ctx.l10n.threadCloseTitle),
         content: Text(ctx.l10n.threadCloseConfirmation),
         actions: [
@@ -413,7 +414,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
   Future<void> _archiveNote() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => AppAlertDialog(
         title: Text(dialogContext.l10n.archiveNoteTitle),
         content: Text(dialogContext.l10n.archiveNoteMessage),
         actions: [
@@ -658,7 +659,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
               }
             }
 
-            return AlertDialog(
+            return AppAlertDialog(
               title: Text(ctx.l10n.unlockAction),
               content: SingleChildScrollView(
                 child: Column(

@@ -11,6 +11,7 @@ import '../../../l10n/presentation_labels.dart';
 import '../../../services/subscription_service.dart';
 import '../../providers/providers.dart';
 import '../../world_labels.dart';
+import '../../widgets/app_alert_dialog.dart';
 import '../../widgets/my_notes_notification_controls.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -93,7 +94,7 @@ class _AccountDeletionSectionState
         builder: (dialogContext, setDialogState) {
           final canDelete =
               !passwordRequired || passwordController.text.isNotEmpty;
-          return AlertDialog(
+          return AppAlertDialog(
             title: Text(dialogContext.l10n.deleteAccountTitle),
             content: SingleChildScrollView(
               child: Column(

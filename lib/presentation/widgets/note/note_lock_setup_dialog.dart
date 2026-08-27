@@ -5,6 +5,7 @@ import '../../../core/utils/pattern_lock_util.dart';
 import '../../../domain/entities/place_entity.dart';
 import '../../../l10n/l10n.dart';
 import '../../../l10n/presentation_labels.dart';
+import '../app_alert_dialog.dart';
 import '../pattern_lock/pattern_lock_input.dart';
 
 class NoteLockSetupValue {
@@ -129,7 +130,7 @@ class _NoteLockSetupDialogState extends State<NoteLockSetupDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    return AlertDialog(
+    return AppAlertDialog(
       title: Text(widget.title),
       content: SingleChildScrollView(
         child: Column(

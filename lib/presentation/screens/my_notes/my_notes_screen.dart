@@ -10,6 +10,7 @@ import '../../../domain/policies/note_permissions.dart';
 import '../../../l10n/l10n.dart';
 import '../../../l10n/localized_formatters.dart';
 import '../../providers/providers.dart';
+import '../../widgets/app_alert_dialog.dart';
 import '../../widgets/loading_skeleton.dart';
 import '../../widgets/my_notes_notification_controls.dart';
 import '../../widgets/note/note_list_card.dart';
@@ -70,7 +71,7 @@ class _MyNotesListView extends ConsumerWidget {
     final l10n = context.l10n;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => AppAlertDialog(
         title: Text(l10n.archiveNoteTitle),
         content: Text(l10n.archiveNoteMessage),
         actions: [

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/l10n.dart';
 import '../providers/providers.dart';
+import '../widgets/app_alert_dialog.dart';
 
 Future<bool> confirmAndSetUserBlocked({
   required BuildContext context,
@@ -15,7 +16,7 @@ Future<bool> confirmAndSetUserBlocked({
   final l10n = context.l10n;
   final confirmed = await showDialog<bool>(
     context: context,
-    builder: (dialogContext) => AlertDialog(
+    builder: (dialogContext) => AppAlertDialog(
       title: Text(
         blocked
             ? l10n.blockUserTitle(targetName)
