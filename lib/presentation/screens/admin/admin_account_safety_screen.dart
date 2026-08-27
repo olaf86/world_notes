@@ -6,6 +6,7 @@ import '../../../domain/entities/admin_account_safety_entity.dart';
 import '../../../l10n/l10n.dart';
 import '../../../l10n/localized_formatters.dart';
 import '../../providers/providers.dart';
+import '../../widgets/app_alert_dialog.dart';
 
 class AdminAccountSafetyScreen extends ConsumerStatefulWidget {
   const AdminAccountSafetyScreen({super.key});
@@ -86,7 +87,7 @@ class _AdminAccountSafetyScreenState
     final reference = TextEditingController();
     final result = await showDialog<_AdminReason>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => AppAlertDialog(
         title: Text(title),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -138,7 +139,7 @@ class _AdminAccountSafetyScreenState
     final controller = TextEditingController();
     final delta = await showDialog<int>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => AppAlertDialog(
         title: Text(context.l10n.adminSafetyAdjustPoints),
         content: TextField(
           controller: controller,

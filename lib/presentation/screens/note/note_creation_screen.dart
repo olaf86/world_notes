@@ -16,6 +16,7 @@ import '../../../l10n/l10n.dart';
 import '../../../l10n/localized_formatters.dart';
 import '../../../services/location_service.dart';
 import '../../providers/providers.dart';
+import '../../widgets/app_alert_dialog.dart';
 import '../../widgets/note/fork_location_notice.dart';
 import '../../widgets/note/note_lock_setup_dialog.dart';
 import '../../widgets/note/note_lock_summary.dart';
@@ -317,7 +318,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
   }) async {
     final shouldOpen = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AppAlertDialog(
         title: Text(title),
         content: Text(message),
         actions: [

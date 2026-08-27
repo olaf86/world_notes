@@ -6,6 +6,7 @@ import '../../../domain/entities/admin_moderation_review_entity.dart';
 import '../../../l10n/l10n.dart';
 import '../../../l10n/localized_formatters.dart';
 import '../../providers/providers.dart';
+import '../../widgets/app_alert_dialog.dart';
 import 'admin_account_safety_screen.dart';
 
 class AdminModerationScreen extends ConsumerStatefulWidget {
@@ -133,7 +134,7 @@ class _AdminModerationScreenState extends ConsumerState<AdminModerationScreen> {
     final controller = TextEditingController();
     final result = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => AppAlertDialog(
         title: Text(_actionTitle(action, context.l10n)),
         content: TextField(
           controller: controller,
