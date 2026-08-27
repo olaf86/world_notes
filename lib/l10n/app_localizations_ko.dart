@@ -956,6 +956,9 @@ class AppLocalizationsKo extends AppLocalizations {
       '이 기기의 표시 언어는 변경되었지만 계정에 저장하지 못했습니다.';
 
   @override
+  String get settingsHomeWorldTitle => '홈 월드';
+
+  @override
   String get settingsContentWorldTitle => '콘텐츠 월드';
 
   @override
@@ -1409,6 +1412,12 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get accountSettingsTitle => '계정';
+
+  @override
+  String get dangerZoneTitle => '위험한 작업';
+
+  @override
+  String get irreversibleActionWarning => '이 작업은 되돌릴 수 없습니다.';
 
   @override
   String get deleteAccountTitle => '계정 삭제';

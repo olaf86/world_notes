@@ -1033,6 +1033,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'The language changed on this device, but could not be saved to your account.';
 
   @override
+  String get settingsHomeWorldTitle => 'Home world';
+
+  @override
   String get settingsContentWorldTitle => 'Content world';
 
   @override
@@ -1507,6 +1510,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get accountSettingsTitle => 'Account';
+
+  @override
+  String get dangerZoneTitle => 'Danger zone';
+
+  @override
+  String get irreversibleActionWarning => 'This action cannot be undone.';
 
   @override
   String get deleteAccountTitle => 'Delete account';

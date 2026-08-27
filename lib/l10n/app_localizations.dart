@@ -1808,6 +1808,12 @@ abstract class AppLocalizations {
   /// **'The language changed on this device, but could not be saved to your account.'**
   String get settingsLanguageUpdateFailed;
 
+  /// No description provided for @settingsHomeWorldTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Home world'**
+  String get settingsHomeWorldTitle;
+
   /// No description provided for @settingsContentWorldTitle.
   ///
   /// In en, this message translates to:
@@ -2659,6 +2665,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Account'**
   String get accountSettingsTitle;
+
+  /// No description provided for @dangerZoneTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Danger zone'**
+  String get dangerZoneTitle;
+
+  /// No description provided for @irreversibleActionWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This action cannot be undone.'**
+  String get irreversibleActionWarning;
 
   /// No description provided for @deleteAccountTitle.
   ///

@@ -55,7 +55,25 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Asia ·'), findsOneWidget);
+    final homeWorldTile = find.byKey(const ValueKey('home-world-setting-tile'));
+    final contentWorldTile = find.byKey(
+      const ValueKey('content-world-setting-tile'),
+    );
+    expect(find.text('Home world'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: homeWorldTile,
+        matching: find.textContaining('Asia ·'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: contentWorldTile,
+        matching: find.textContaining('Asia ·'),
+      ),
+      findsOneWidget,
+    );
     await tester.tap(find.byKey(const ValueKey('content-world-setting-tile')));
     await tester.pumpAndSettle();
 
@@ -72,6 +90,19 @@ void main() {
 
     expect(container.read(homeWorldProvider), asiaWorldId);
     expect(container.read(selectedWorldProvider), const WorldId('europe'));
-    expect(find.textContaining('Europe ·'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: homeWorldTile,
+        matching: find.textContaining('Asia ·'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: contentWorldTile,
+        matching: find.textContaining('Europe ·'),
+      ),
+      findsOneWidget,
+    );
   });
 }

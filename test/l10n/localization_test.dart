@@ -144,6 +144,23 @@ void main() {
       expect(english.deleteAccountWarning, contains('participants'));
     });
 
+    test('account deletion explicitly labels its irreversible danger', () {
+      for (final locale in AppLocalizations.supportedLocales) {
+        final l10n = lookupAppLocalizations(locale);
+
+        expect(
+          l10n.dangerZoneTitle,
+          isNotEmpty,
+          reason: locale.toLanguageTag(),
+        );
+        expect(
+          l10n.irreversibleActionWarning,
+          isNotEmpty,
+          reason: locale.toLanguageTag(),
+        );
+      }
+    });
+
     test('account deletion uses each localized app name', () {
       for (final locale in AppLocalizations.supportedLocales) {
         final l10n = lookupAppLocalizations(locale);

@@ -954,6 +954,9 @@ class AppLocalizationsJa extends AppLocalizations {
       'この端末の表示言語は変更されましたが、アカウントに保存できませんでした。';
 
   @override
+  String get settingsHomeWorldTitle => 'ホームワールド';
+
+  @override
   String get settingsContentWorldTitle => 'コンテンツワールド';
 
   @override
@@ -1408,6 +1411,12 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get accountSettingsTitle => 'アカウント';
+
+  @override
+  String get dangerZoneTitle => '取り消せない操作';
+
+  @override
+  String get irreversibleActionWarning => 'この操作は取り消せません。';
 
   @override
   String get deleteAccountTitle => 'アカウントを削除';

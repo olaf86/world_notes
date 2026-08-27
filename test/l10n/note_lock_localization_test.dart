@@ -21,7 +21,7 @@ void main() {
 
     expect(find.text('ロックを設定'), findsOneWidget);
     expect(find.text('パスワード'), findsNWidgets(2));
-    expect(find.text('パスワード（確認）'), findsOneWidget);
+    expect(find.text('確認用パスワード'), findsOneWidget);
     expect(find.text('ヒント（任意）'), findsOneWidget);
     expect(find.text('キャンセル'), findsOneWidget);
     expect(find.text('保存'), findsOneWidget);

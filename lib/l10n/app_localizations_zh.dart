@@ -945,6 +945,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsLanguageUpdateFailed => '此设备的显示语言已更改，但无法保存到你的账户。';
 
   @override
+  String get settingsHomeWorldTitle => '主世界';
+
+  @override
   String get settingsContentWorldTitle => '内容世界';
 
   @override
@@ -1391,6 +1394,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get accountSettingsTitle => '帐户';
+
+  @override
+  String get dangerZoneTitle => '危险操作';
+
+  @override
+  String get irreversibleActionWarning => '此操作无法撤销。';
 
   @override
   String get deleteAccountTitle => '删除帐户';
@@ -2736,6 +2745,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get settingsLanguageUpdateFailed => '此设备的显示语言已更改，但无法保存到你的账户。';
 
   @override
+  String get settingsHomeWorldTitle => '主世界';
+
+  @override
   String get settingsContentWorldTitle => '内容世界';
 
   @override
@@ -3182,6 +3194,12 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get accountSettingsTitle => '帐户';
+
+  @override
+  String get dangerZoneTitle => '危险操作';
+
+  @override
+  String get irreversibleActionWarning => '此操作无法撤销。';
 
   @override
   String get deleteAccountTitle => '删除帐户';
@@ -4528,6 +4546,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get settingsLanguageUpdateFailed => '此裝置的顯示語言已變更，但無法儲存到你的帳號。';
 
   @override
+  String get settingsHomeWorldTitle => '主世界';
+
+  @override
   String get settingsContentWorldTitle => '內容世界';
 
   @override
@@ -4974,6 +4995,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get accountSettingsTitle => '帳號';
+
+  @override
+  String get dangerZoneTitle => '危險操作';
+
+  @override
+  String get irreversibleActionWarning => '此操作無法復原。';
 
   @override
   String get deleteAccountTitle => '刪除帳號';
