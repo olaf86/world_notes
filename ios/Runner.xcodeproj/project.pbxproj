@@ -22,6 +22,7 @@
 		D82247749D31024BB13E8BD7 /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 73D5BB33745B424261743B3E /* Pods_Runner.framework */; };
 		ED608E712FB862FC008AF54B /* Profile.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = ED608E702FB862FC008AF54B /* Profile.xcconfig */; };
 		ED608E722FB862FC008AF54B /* Profile.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = ED608E702FB862FC008AF54B /* Profile.xcconfig */; };
+		EDCE1C5F30405C6E00438F2E /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EDCE1C5E30405C6E00438F2E /* StoreKit.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -79,6 +80,7 @@
 		DC384A0BA031CDB68CC84984 /* Pods_RunnerTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_RunnerTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		E50C948B1D9393F86AE80090 /* Pods-Runner.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"; sourceTree = "<group>"; };
 		ED608E702FB862FC008AF54B /* Profile.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Profile.xcconfig; sourceTree = "<group>"; };
+		EDCE1C5E30405C6E00438F2E /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		F32B052C867EA5B3ED7742FE /* GoogleService-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; name = "GoogleService-Info.plist"; path = "Runner/GoogleService-Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -95,6 +97,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				EDCE1C5F30405C6E00438F2E /* StoreKit.framework in Frameworks */,
 				A1DFA0012F00000000000001 /* AppTrackingTransparency.framework in Frameworks */,
 				D82247749D31024BB13E8BD7 /* Pods_Runner.framework in Frameworks */,
 			);
@@ -106,6 +109,7 @@
 		029BB7BB72F4102219F556D0 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				EDCE1C5E30405C6E00438F2E /* StoreKit.framework */,
 				A1DFA0022F00000000000001 /* AppTrackingTransparency.framework */,
 				73D5BB33745B424261743B3E /* Pods_Runner.framework */,
 				DC384A0BA031CDB68CC84984 /* Pods_RunnerTests.framework */,
