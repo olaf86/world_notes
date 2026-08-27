@@ -436,6 +436,8 @@
   "continueWithGoogle": "Google 계정으로 로그인",
   "continueWithApple": "Apple로 로그인",
   "accountSettingsTitle": "계정",
+  "dangerZoneTitle": "위험한 작업",
+  "irreversibleActionWarning": "이 작업은 되돌릴 수 없습니다.",
   "deleteAccountTitle": "계정 삭제",
   "deleteAccountDescription": "계정과 관련 데이터를 영구적으로 삭제합니다.",
   "deleteAccountWarning": "프로필과 회원님의 게시물뿐만 아니라 회원님이 만든 모든 노트 전체(다른 관리자의 권한 및 참가자가 게시한 메시지와 이미지 포함)가 모든 세계 일기 지역에서 영구적으로 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",

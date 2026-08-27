@@ -1512,6 +1512,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accountSettingsTitle => 'Account';
 
   @override
+  String get dangerZoneTitle => 'Danger zone';
+
+  @override
+  String get irreversibleActionWarning => 'This action cannot be undone.';
+
+  @override
   String get deleteAccountTitle => 'Delete account';
 
   @override

@@ -1396,6 +1396,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get accountSettingsTitle => '帐户';
 
   @override
+  String get dangerZoneTitle => '危险操作';
+
+  @override
+  String get irreversibleActionWarning => '此操作无法撤销。';
+
+  @override
   String get deleteAccountTitle => '删除帐户';
 
   @override
@@ -3188,6 +3194,12 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get accountSettingsTitle => '帐户';
+
+  @override
+  String get dangerZoneTitle => '危险操作';
+
+  @override
+  String get irreversibleActionWarning => '此操作无法撤销。';
 
   @override
   String get deleteAccountTitle => '删除帐户';
@@ -4983,6 +4995,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get accountSettingsTitle => '帳號';
+
+  @override
+  String get dangerZoneTitle => '危險操作';
+
+  @override
+  String get irreversibleActionWarning => '此操作無法復原。';
 
   @override
   String get deleteAccountTitle => '刪除帳號';

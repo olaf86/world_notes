@@ -1414,6 +1414,12 @@ class AppLocalizationsKo extends AppLocalizations {
   String get accountSettingsTitle => '계정';
 
   @override
+  String get dangerZoneTitle => '위험한 작업';
+
+  @override
+  String get irreversibleActionWarning => '이 작업은 되돌릴 수 없습니다.';
+
+  @override
   String get deleteAccountTitle => '계정 삭제';
 
   @override
