@@ -2660,6 +2660,18 @@ abstract class AppLocalizations {
   /// **'Account'**
   String get accountSettingsTitle;
 
+  /// No description provided for @dangerZoneTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Danger zone'**
+  String get dangerZoneTitle;
+
+  /// No description provided for @irreversibleActionWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This action cannot be undone.'**
+  String get irreversibleActionWarning;
+
   /// No description provided for @deleteAccountTitle.
   ///
   /// In en, this message translates to:

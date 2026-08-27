@@ -435,6 +435,8 @@
   "continueWithGoogle": "使用 Google 登录",
   "continueWithApple": "使用 Apple 登录",
   "accountSettingsTitle": "帐户",
+  "dangerZoneTitle": "危险操作",
+  "irreversibleActionWarning": "此操作无法撤销。",
   "deleteAccountTitle": "删除帐户",
   "deleteAccountDescription": "永久删除帐户及所有相关数据。",
   "deleteAccountWarning": "这会从所有世界日记区域永久删除您的个人资料和投稿，以及您创建的全部笔记（包括其他管理员的权限和参与者发布的消息与图片）。此操作无法撤销。",

@@ -435,6 +435,8 @@
   "continueWithGoogle": "Googleでサインイン",
   "continueWithApple": "Appleでサインイン",
   "accountSettingsTitle": "アカウント",
+  "dangerZoneTitle": "取り消せない操作",
+  "irreversibleActionWarning": "この操作は取り消せません。",
   "deleteAccountTitle": "アカウントを削除",
   "deleteAccountDescription": "アカウントと関連データを完全に削除します。",
   "deleteAccountWarning": "あなたのプロフィールや投稿に加え、あなたが作成したノート全体（他の管理者の権限と、参加者が投稿したメッセージ・画像を含む）を、セカイノートの全地域から完全に削除します。この操作は取り消せません。",

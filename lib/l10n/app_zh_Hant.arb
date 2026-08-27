@@ -435,6 +435,8 @@
   "continueWithGoogle": "使用 Google 登入",
   "continueWithApple": "使用 Apple 登入",
   "accountSettingsTitle": "帳號",
+  "dangerZoneTitle": "危險操作",
+  "irreversibleActionWarning": "此操作無法復原。",
   "deleteAccountTitle": "刪除帳號",
   "deleteAccountDescription": "永久刪除帳號及所有相關資料。",
   "deleteAccountWarning": "這會從所有世界日記區域永久刪除您的個人檔案和投稿，以及您建立的所有筆記（包括其他管理員的權限和參與者發布的訊息與圖片）。此操作無法復原。",

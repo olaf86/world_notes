@@ -1410,6 +1410,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get accountSettingsTitle => 'アカウント';
 
   @override
+  String get dangerZoneTitle => '取り消せない操作';
+
+  @override
+  String get irreversibleActionWarning => 'この操作は取り消せません。';
+
+  @override
   String get deleteAccountTitle => 'アカウントを削除';
 
   @override

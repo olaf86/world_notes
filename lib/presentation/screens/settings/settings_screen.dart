@@ -94,12 +94,54 @@ class _AccountDeletionSectionState
           final canDelete =
               !passwordRequired || passwordController.text.isNotEmpty;
           return AlertDialog(
-            title: Text(dialogContext.l10n.deleteAccountTitle),
+            title: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.warning_amber_rounded,
+                  color: Theme.of(dialogContext).colorScheme.error,
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: Text(dialogContext.l10n.deleteAccountTitle)),
+              ],
+            ),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Container(
+                    key: const ValueKey('irreversible-action-warning'),
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(dialogContext).colorScheme.errorContainer,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          color: Theme.of(dialogContext).colorScheme.error,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            dialogContext.l10n.irreversibleActionWarning,
+                            style: Theme.of(dialogContext).textTheme.titleSmall
+                                ?.copyWith(
+                                  color: Theme.of(
+                                    dialogContext,
+                                  ).colorScheme.onErrorContainer,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   Text(dialogContext.l10n.deleteAccountWarning),
                   const SizedBox(height: 12),
                   Text(dialogContext.l10n.deleteAccountSubscriptionWarning),
@@ -180,31 +222,41 @@ class _AccountDeletionSectionState
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          context.l10n.accountSettingsTitle,
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          context.l10n.dangerZoneTitle,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            color: colorScheme.error,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         const SizedBox(height: 8),
-        ListTile(
-          key: const ValueKey('delete-account-tile'),
-          contentPadding: EdgeInsets.zero,
-          leading: Icon(
-            Icons.delete_forever_outlined,
-            color: colorScheme.error,
+        Material(
+          key: const ValueKey('danger-zone-card'),
+          color: colorScheme.errorContainer.withAlpha(96),
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+            side: BorderSide(color: colorScheme.error),
+            borderRadius: BorderRadius.circular(12),
           ),
-          title: Text(
-            context.l10n.deleteAccountTitle,
-            style: TextStyle(color: colorScheme.error),
+          child: ListTile(
+            key: const ValueKey('delete-account-tile'),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+            leading: Icon(
+              Icons.delete_forever_outlined,
+              color: colorScheme.error,
+            ),
+            title: Text(
+              context.l10n.deleteAccountTitle,
+              style: TextStyle(color: colorScheme.error),
+            ),
+            subtitle: Text(context.l10n.deleteAccountDescription),
+            trailing: _deleting
+                ? const SizedBox.square(
+                    dimension: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : null,
+            onTap: _deleting ? null : _confirmAndDelete,
           ),
-          subtitle: Text(context.l10n.deleteAccountDescription),
-          trailing: _deleting
-              ? const SizedBox.square(
-                  dimension: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : null,
-          onTap: _deleting ? null : _confirmAndDelete,
         ),
       ],
     );
