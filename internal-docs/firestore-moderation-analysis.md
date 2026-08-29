@@ -151,6 +151,13 @@ The version-controlled evaluation set lives at
 app-level contact-information risk signals. The set covers ordinary diary
 entries, contextual safety discussion, contact details, and unsafe content.
 
+`omni-moderation-latest` classifies harmful-content categories; it is not a
+general profanity blocklist. Policy version `2026-08-moderation-v2` therefore
+adds a narrow app-level rule for short, standalone Japanese profanity and
+harassment expressions. Exact standalone matches are hidden, while longer
+diary text that quotes or discusses the same expression continues through the
+provider classifier to reduce context-blind false positives.
+
 Run it from `functions/` only after a reviewer has checked the case labels.
 The evaluator calls the live OpenAI Moderation API sequentially; it does not
 use Firebase secrets, deploy Cloud Functions, create Firestore data, or print

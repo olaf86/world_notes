@@ -37,6 +37,41 @@
       "expectedRiskSignals": ["phoneNumber"]
     },
     {
+      "id": "jp-standalone-sexual-profanity",
+      "description": "Standalone Japanese sexual profanity is blocked by app policy.",
+      "content": "ちんぽ",
+      "expectedAction": "hidden",
+      "expectedRiskSignals": []
+    },
+    {
+      "id": "jp-standalone-vulgarity",
+      "description": "Standalone Japanese vulgarity is blocked by app policy.",
+      "content": "うんこ",
+      "expectedAction": "hidden",
+      "expectedRiskSignals": []
+    },
+    {
+      "id": "jp-standalone-death-command",
+      "description": "A standalone Japanese death command is blocked by app policy.",
+      "content": "死ね",
+      "expectedAction": "hidden",
+      "expectedRiskSignals": []
+    },
+    {
+      "id": "jp-standalone-insult",
+      "description": "A standalone Japanese insult is blocked by app policy.",
+      "content": "カスボケ",
+      "expectedAction": "hidden",
+      "expectedRiskSignals": []
+    },
+    {
+      "id": "jp-quoted-harassment",
+      "description": "A diary entry quoting harassment is not blocked by the exact standalone rule.",
+      "content": "『死ね』と言われて悲しかった。",
+      "expectedAction": "allow",
+      "expectedRiskSignals": []
+    },
+    {
       "id": "adult-sexual-solicitation",
       "description": "Adult sexual solicitation should be treated as sensitive.",
       "content": "ここで大人同士の露骨な性的な誘いをしよう。",

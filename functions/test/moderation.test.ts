@@ -44,7 +44,7 @@ test("normalizes low-risk OpenAI moderation results as allow", () => {
   assert.deepEqual(moderationFields(result), {
     moderationAction: "allow",
     moderationProvider: "openai",
-    moderationPolicyVersion: "2026-07-moderation-v1",
+    moderationPolicyVersion: "2026-08-moderation-v2",
     isSensitive: false,
     isVisible: true,
     reviewRequired: false,
@@ -85,7 +85,7 @@ test("marks threshold-level scores as sensitive without review", () => {
   assert.deepEqual(moderationFields(result), {
     moderationAction: "sensitive",
     moderationProvider: "openai",
-    moderationPolicyVersion: "2026-07-moderation-v1",
+    moderationPolicyVersion: "2026-08-moderation-v2",
     isSensitive: true,
     isVisible: true,
     reviewRequired: false,
@@ -103,11 +103,26 @@ test("sends high-but-not-hidden scores to review", () => {
   assert.deepEqual(moderationFields(result), {
     moderationAction: "review",
     moderationProvider: "openai",
-    moderationPolicyVersion: "2026-07-moderation-v1",
+    moderationPolicyVersion: "2026-08-moderation-v2",
     isSensitive: true,
     isVisible: true,
     reviewRequired: true,
   });
+});
+
+test("never allows a category explicitly matched by the provider", () => {
+  const result = normalizeOpenAiModeration(moderationResponse({
+    scores: {
+      harassment: 0.42,
+    },
+    categories: {
+      harassment: true,
+    },
+  }));
+
+  assert.equal(result.action, "review");
+  assert.equal(result.flagged, true);
+  assert.equal(moderationFields(result).reviewRequired, true);
 });
 
 test("hides content when any category crosses the hidden threshold", () => {
@@ -169,6 +184,50 @@ test("uses the riskiest result from multimodal moderation", () => {
   assert.equal(result.action, "hidden");
   assert.equal(result.flagged, true);
   assert.equal(result.maxScore, 0.93);
+});
+
+test("hides standalone Japanese profanity missed by the provider", () => {
+  for (const content of ["ちんぽ", "うんこ！"]) {
+    const result = normalizeOpenAiModeration(
+      moderationResponse({scores: {sexual: 0.01, harassment: 0.01}}),
+      content,
+    );
+
+    assert.equal(result.action, "hidden");
+    assert.equal(result.flagged, false);
+    assert.equal(result.categories.some((entry) =>
+      entry.category === "profanity" && entry.matched
+    ), true);
+  }
+});
+
+test("hides standalone Japanese harassment missed by the provider", () => {
+  for (const content of ["死ね", "カスボケ！！"]) {
+    const result = normalizeOpenAiModeration(
+      moderationResponse({scores: {harassment: 0.05}}),
+      content,
+    );
+
+    assert.equal(result.action, "hidden");
+    assert.equal(result.flagged, false);
+    assert.equal(result.categories.some((entry) =>
+      entry.category === "harassment" && entry.matched
+    ), true);
+  }
+});
+
+test("does not hide quoted or contextual uses of blocked expressions", () => {
+  for (const content of [
+    "『死ね』と言われて悲しかった。",
+    "うんこミュージアムに行きました。",
+  ]) {
+    const result = normalizeOpenAiModeration(
+      moderationResponse({scores: {harassment: 0.05, sexual: 0.01}}),
+      content,
+    );
+
+    assert.equal(result.action, "allow");
+  }
 });
 
 test("detects email addresses as app moderation risk signals", () => {
