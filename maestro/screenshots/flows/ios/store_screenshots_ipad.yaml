@@ -34,6 +34,10 @@ tags:
     visible:
       id: "screen-note-detail-wn_tokyo_station"
     timeout: 15000
+- extendedWaitUntil:
+    visible:
+      id: "action-toggle-message-like-msg_tokyo_03"
+    timeout: 15000
 - takeScreenshot: "${SCREENSHOT_OUTPUT_DIR}/ipad_03_note_detail"
 - tapOn:
     id: "action-close-note-detail"

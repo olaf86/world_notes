@@ -1,0 +1,34 @@
+appId: dev.asobo.worldnotes
+name: Store note detail screenshot
+tags:
+  - screenshots
+  - ios
+---
+- launchApp:
+    clearState: true
+    permissions:
+      location: inuse
+- tapOn:
+    text: "Allow While Using App"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: "screen-map"
+    timeout: 20000
+- tapOn:
+    id: "action-show-map-notes-list"
+- extendedWaitUntil:
+    visible:
+      id: "map-note-card-wn_tokyo_station"
+    timeout: 15000
+- tapOn:
+    id: "map-note-card-wn_tokyo_station"
+- extendedWaitUntil:
+    visible:
+      id: "screen-note-detail-wn_tokyo_station"
+    timeout: 15000
+- extendedWaitUntil:
+    visible:
+      id: "action-toggle-message-like-msg_tokyo_03"
+    timeout: 15000
+- takeScreenshot: "${SCREENSHOT_OUTPUT_DIR}/${SCREENSHOT_FILENAME}"

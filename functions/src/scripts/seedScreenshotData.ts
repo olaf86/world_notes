@@ -283,6 +283,7 @@ function placeData(
       ) : null,
     isOpen: place.isOpen !== false,
     isArchived: place.isArchived === true,
+    isModerationHidden: false,
     archivedAt: place.isArchived ? timestamp(hoursBefore(now, 8)) : null,
     expiresAt: timestamp(daysFrom(now, place.expiresInDays)),
     footprintEnabled: true,
@@ -378,6 +379,7 @@ async function seedPlace(
       isPubliclyVisible: true,
       isSensitive: false,
       reviewRequired: false,
+      moderationAction: "allow",
       reportCount: 0,
       sortOrder: index,
     });
