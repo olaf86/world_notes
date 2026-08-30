@@ -55,6 +55,14 @@ void main() {
       expect(supportPage, contains('href="/privacy/?lang='));
       expect(privacyPage, contains('href="/support/?lang='));
       expect(
+        supportPage,
+        contains('data-language-target="/support/" href="/support/"'),
+      );
+      expect(
+        privacyPage,
+        contains('data-language-target="/privacy/" href="/privacy/"'),
+      );
+      expect(
         languageScript,
         contains('document.querySelectorAll("[data-language-target]")'),
       );
