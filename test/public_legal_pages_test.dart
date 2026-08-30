@@ -26,6 +26,11 @@ void main() {
       expect(privacyPage, isNot(contains('support@worldnotes.asobo.dev')));
     });
 
+    test('name the legal rights holder in the copyright notice', () {
+      expect(supportPage, contains('© 2026 Yuta Ogawa'));
+      expect(privacyPage, contains('© 2026 Yuta Ogawa'));
+    });
+
     test('include every supported app language', () {
       for (final language in supportedLanguages) {
         expect(

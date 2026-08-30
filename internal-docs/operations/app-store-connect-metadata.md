@@ -32,7 +32,7 @@ Submission**, then select each language from the localization menu.
 - Primary Category: **Lifestyle**
 - Secondary Category: **Travel**
 - Version: `1.0.0`
-- Copyright: `2026 <legal person or entity name>`
+- Copyright: `2026 Yuta Ogawa`
 - Privacy Policy URL: `https://worldnotes.asobo.dev/privacy/`. Published and
   verified over HTTPS on 2026-08-30. The page source is in
   `public/privacy/index.html`.
@@ -403,8 +403,7 @@ artifacts/store_screenshots/ios_ipad/{locale}/
 
 1. Publish and verify the Privacy Policy URL.
 2. Publish and verify the Support URL with real contact information.
-3. Replace the copyright placeholder with the actual rights holder.
-4. Complete the Age Rating questionnaire after the localized metadata and
+3. Complete the Age Rating questionnaire after the localized metadata and
    screenshots are entered.
 
 ## Apple references
