@@ -1,1 +1,2 @@
 "CFBundleDisplayName" = "セカイノート";
+"NSUserTrackingUsageDescription" = "端末の広告識別子を、広告のパーソナライズと広告効果の測定に使用します。";

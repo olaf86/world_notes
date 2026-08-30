@@ -33,17 +33,56 @@ Submission**, then select each language from the localization menu.
 - Secondary Category: **Travel**
 - Version: `1.0.0`
 - Copyright: `2026 <legal person or entity name>`
-- Privacy Policy URL: **Not ready.** Publish a real page before submission,
-  for example `https://worldnotes.asobo.dev/privacy`.
-- Support URL: **Not ready.** Publish a page containing real contact
-  information before submission, for example
-  `https://worldnotes.asobo.dev/support`.
+- Privacy Policy URL: `https://worldnotes.asobo.dev/privacy/`. Published and
+  verified over HTTPS on 2026-08-30. The page source is in
+  `public/privacy/index.html`.
+- Support URL: `https://worldnotes.asobo.dev/support/`. Published and verified
+  over HTTPS on 2026-08-30. The page source is in
+  `public/support/index.html` and lists the public support address
+  `asobo.support@gmail.com`.
 - Marketing URL: leave blank for the first submission unless a product page is
   published. The current site root is an invitation fallback page and should
   not be used as the marketing page.
 
-Do not paste either example URL until the corresponding page is publicly
-available.
+Both URLs are ready to enter in App Store Connect. Reverify them after future
+Hosting changes.
+
+## App Privacy and App Tracking Transparency
+
+The iOS app intentionally uses Google's UMP flow to present an IDFA explainer
+and Apple's App Tracking Transparency prompt for non-PRO advertising. Keep
+`NSUserTrackingUsageDescription` in the binary and do not answer that the app
+does not track. In **App Store Connect → App Privacy**, include the following
+Google Mobile Ads data types and conservatively mark the three advertising
+types as used for tracking:
+
+| Data type | Purpose | Linked to user | Used for tracking |
+|---|---|---:|---:|
+| Device ID | Third-Party Advertising; Analytics | Yes | **Yes** |
+| Advertising Data | Third-Party Advertising; Analytics | Yes | **Yes** |
+| Product Interaction | Third-Party Advertising; Analytics | Yes | **Yes** |
+| Coarse Location | Third-Party Advertising; Analytics | No | No |
+| Crash Data | Analytics | No | No |
+| Performance Data | Analytics; Third-Party Advertising | Yes | No |
+
+These rows cover the Google Mobile Ads SDK behavior that triggered App Store
+Connect's `NSUserTrackingUsageDescription` warning. App Privacy answers must
+also include the app and its other SDKs, not just tracking. At minimum, review
+and declare:
+
+- Name and Email Address for account creation and authentication;
+- Precise Location for nearby-note functionality and location-linked notes;
+- Photos or Videos and Other User Content for notes and messages;
+- User ID for Firebase Authentication, social activity, and notifications;
+- Purchase History for RevenueCat entitlement management;
+- Device ID for Firebase Messaging registration and advertising;
+- Crash Data and Other Diagnostic Data for Firebase Crashlytics;
+- Customer Support for email support requests.
+
+Before submission, generate or inspect Xcode's privacy report for the archived
+release and reconcile every included SDK privacy manifest with these answers.
+App Privacy answers are account-level metadata and are not configured in this
+repository.
 
 ## Japanese (`ja`)
 

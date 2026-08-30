@@ -52,7 +52,7 @@
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Used to attach photos to your messages.</string>
 	<key>NSUserTrackingUsageDescription</key>
-	<string>Your permission helps World Notes provide ads that are more relevant to you.</string>
+	<string>Your device identifier will be used to personalize ads and measure advertising performance.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
