@@ -71,20 +71,11 @@ button:focus-visible {
   text-decoration: none;
 }
 
-.brand-mark {
-  display: grid;
+.brand-icon {
   width: 34px;
   height: 34px;
-  place-items: center;
-  border-radius: 50% 50% 50% 10%;
-  background: var(--accent);
-  color: white;
-  font-size: 18px;
-  transform: rotate(-45deg);
-}
-
-.brand-mark span {
-  transform: rotate(45deg);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(24, 58, 39, 0.16);
 }
 
 .page-shell {

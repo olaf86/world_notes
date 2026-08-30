@@ -49,6 +49,24 @@ void main() {
     test('link support and privacy pages to each other', () {
       expect(supportPage, contains('href="/privacy/?lang='));
       expect(privacyPage, contains('href="/support/?lang='));
+      expect(
+        languageScript,
+        contains('document.querySelectorAll("[data-language-target]")'),
+      );
+      expect(languageScript, contains('encodeURIComponent(language)'));
+    });
+
+    test('use the app icon in both page headers', () {
+      expect(File('public/assets/app_icon.svg').existsSync(), isTrue);
+      expect(supportPage, contains('src="/assets/app_icon.svg"'));
+      expect(privacyPage, contains('src="/assets/app_icon.svg"'));
+    });
+
+    test('version static assets so Hosting updates bypass browser caches', () {
+      expect(supportPage, contains('/assets/legal.css?v='));
+      expect(supportPage, contains('/assets/legal-language.js?v='));
+      expect(privacyPage, contains('/assets/legal.css?v='));
+      expect(privacyPage, contains('/assets/legal-language.js?v='));
     });
 
     test('provide account deletion and subscription guidance', () {

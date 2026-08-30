@@ -34,4 +34,8 @@
       link.removeAttribute("aria-current");
     }
   });
+  document.querySelectorAll("[data-language-target]").forEach((link) => {
+    const target = link.dataset.languageTarget;
+    link.href = `${target}?lang=${encodeURIComponent(language)}`;
+  });
 })();
