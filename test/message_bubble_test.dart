@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
 import 'package:world_notes/config/app_config.dart';
@@ -6,10 +9,50 @@ import 'package:world_notes/domain/entities/message_entity.dart';
 import 'package:world_notes/domain/entities/message_thread_item.dart';
 import 'package:world_notes/domain/entities/user_entity.dart';
 import 'package:world_notes/l10n/app_localizations.dart';
+import 'package:world_notes/presentation/providers/providers.dart';
 import 'package:world_notes/presentation/widgets/note/message_bubble.dart';
 
 void main() {
   group('MessageBubble', () {
+    testWidgets('image grid fills the available message width on mobile', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(400, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final now = DateTime.now();
+      final message = MessageEntity(
+        id: 'message-with-image',
+        placeId: 'place-1',
+        author: const UserEntity(id: 'user-1', name: 'Aki'),
+        content: 'Photo',
+        imageStoragePaths: const ['messages/photo.jpg'],
+        createdAt: now,
+        publishAt: now,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            messageImageUrlProvider.overrideWith(
+              (ref, storagePath) => Completer<String>().future,
+            ),
+          ],
+          child: MaterialApp(
+            home: Scaffold(body: MessageBubble(message: message, isOwn: false)),
+          ),
+        ),
+      );
+
+      final imageGridSize = tester.getSize(
+        find.byKey(const ValueKey('message-image-grid')),
+      );
+
+      // 400 - horizontal padding (24) - avatar (32) - gap (10).
+      expect(imageGridSize.width, 334);
+      expect(imageGridSize.height, imageGridSize.width);
+    });
+
     testWidgets('shows publish time for published scheduled messages', (
       tester,
     ) async {

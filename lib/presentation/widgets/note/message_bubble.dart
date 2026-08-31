@@ -561,13 +561,14 @@ class _MessageBubbleState extends State<MessageBubble> {
                   ],
                   // ── Images (optional) ───────────────────────────────
                   //
-                  // Left-aligned, fills the available column width up to 280
-                  // dp. The X-style grid keeps mixed photo counts compact.
+                  // Fill the available message column width. The X-style grid
+                  // keeps mixed photo counts compact.
                   // Tap opens a full-screen zoomable pager.
                   if (imageStoragePaths.isNotEmpty)
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 280),
+                    SizedBox(
+                      width: double.infinity,
                       child: ClipRRect(
+                        key: const ValueKey('message-image-grid'),
                         borderRadius: BorderRadius.circular(8),
                         child: AspectRatio(
                           aspectRatio: 1.0,
