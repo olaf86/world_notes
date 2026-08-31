@@ -4,6 +4,7 @@ import '../../../core/theme/note_themes.dart';
 import '../../../domain/entities/note_theme.dart';
 import '../../../l10n/l10n.dart';
 import '../../../l10n/presentation_labels.dart';
+import 'note_theme_motion_background.dart';
 
 class NoteThemePicker extends StatelessWidget {
   final NoteThemeId selected;
@@ -29,6 +30,13 @@ class NoteThemePicker extends StatelessWidget {
           gradient: palette.previewGradient,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: palette.colorScheme.outlineVariant),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: NoteThemeMotionBackground(
+          themeId: selected,
+          palette: palette,
+          animate: false,
+          opacityScale: 1.5,
         ),
       ),
       title: Text(
@@ -131,12 +139,26 @@ class _NoteThemeOptions extends StatelessWidget {
                         gradient: palette.previewGradient,
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: isSelected
-                          ? Icon(
-                              Icons.check,
-                              color: palette.colorScheme.onSurface,
-                            )
-                          : null,
+                      clipBehavior: Clip.antiAlias,
+                      child: Stack(
+                        children: [
+                          Positioned.fill(
+                            child: NoteThemeMotionBackground(
+                              themeId: definition.id,
+                              palette: palette,
+                              animate: false,
+                              opacityScale: 1.5,
+                            ),
+                          ),
+                          if (isSelected)
+                            Center(
+                              child: Icon(
+                                Icons.check,
+                                color: palette.colorScheme.onSurface,
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(

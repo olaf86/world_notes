@@ -1,0 +1,358 @@
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+
+import '../../../core/theme/note_themes.dart';
+import '../../../domain/entities/note_theme.dart';
+
+/// A subtle decorative layer that gives each non-standard note theme its own
+/// sense of motion. It deliberately paints no content for the standard theme.
+///
+/// Set [animate] to false for compact surfaces such as list cards and theme
+/// previews. When the platform requests reduced motion, the layer also falls
+/// back to a still composition.
+class NoteThemeMotionBackground extends StatefulWidget {
+  final NoteThemeId themeId;
+  final NoteThemePalette palette;
+  final bool animate;
+  final double opacityScale;
+
+  const NoteThemeMotionBackground({
+    super.key,
+    required this.themeId,
+    required this.palette,
+    this.animate = true,
+    this.opacityScale = 1,
+  });
+
+  @override
+  State<NoteThemeMotionBackground> createState() =>
+      _NoteThemeMotionBackgroundState();
+}
+
+class _NoteThemeMotionBackgroundState extends State<NoteThemeMotionBackground>
+    with SingleTickerProviderStateMixin {
+  static const _stillProgress = 0.18;
+
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 28),
+    value: _stillProgress,
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncAnimation();
+  }
+
+  @override
+  void didUpdateWidget(NoteThemeMotionBackground oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.themeId != widget.themeId ||
+        oldWidget.animate != widget.animate) {
+      _syncAnimation();
+    }
+  }
+
+  void _syncAnimation() {
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final shouldAnimate =
+        widget.animate &&
+        widget.themeId != NoteThemeId.standard &&
+        !reduceMotion;
+    if (shouldAnimate) {
+      if (!_controller.isAnimating) _controller.repeat();
+    } else {
+      _controller
+        ..stop()
+        ..value = _stillProgress;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.themeId == NoteThemeId.standard) {
+      return const SizedBox.expand();
+    }
+
+    Widget paint(double progress) => IgnorePointer(
+      child: ExcludeSemantics(
+        child: RepaintBoundary(
+          child: CustomPaint(
+            key: ValueKey('note-theme-motion-${widget.themeId.name}'),
+            painter: NoteThemeMotionPainter(
+              themeId: widget.themeId,
+              palette: widget.palette,
+              progress: progress,
+              opacityScale: widget.opacityScale,
+            ),
+            child: const SizedBox.expand(),
+          ),
+        ),
+      ),
+    );
+
+    if (!_controller.isAnimating) return paint(_stillProgress);
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (_, _) => paint(_controller.value),
+    );
+  }
+}
+
+@visibleForTesting
+class NoteThemeMotionPainter extends CustomPainter {
+  final NoteThemeId themeId;
+  final NoteThemePalette palette;
+  final double progress;
+  final double opacityScale;
+
+  const NoteThemeMotionPainter({
+    required this.themeId,
+    required this.palette,
+    required this.progress,
+    required this.opacityScale,
+  });
+
+  double get _phase => progress * math.pi * 2;
+
+  Color _color(Color color, double opacity) =>
+      color.withValues(alpha: (opacity * opacityScale).clamp(0, 1).toDouble());
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) return;
+    switch (themeId) {
+      case NoteThemeId.standard:
+        return;
+      case NoteThemeId.aurora:
+        _paintAurora(canvas, size);
+      case NoteThemeId.citrus:
+        _paintCitrus(canvas, size);
+      case NoteThemeId.botanical:
+        _paintBotanical(canvas, size);
+      case NoteThemeId.neon:
+        _paintNeon(canvas, size);
+      case NoteThemeId.editorial:
+        _paintEditorial(canvas, size);
+    }
+  }
+
+  void _paintAurora(Canvas canvas, Size size) {
+    final colors = [
+      palette.colorScheme.primary,
+      palette.colorScheme.tertiary,
+      palette.colorScheme.secondary,
+    ];
+    for (var index = 0; index < colors.length; index++) {
+      final wave = _phase + index * 1.8;
+      final y = size.height * (0.18 + index * 0.28);
+      final path = Path()
+        ..moveTo(-size.width * 0.24, y + math.sin(wave) * size.height * 0.06)
+        ..cubicTo(
+          size.width * 0.12,
+          y + math.cos(wave) * size.height * 0.12,
+          size.width * 0.56,
+          y - math.sin(wave * 0.8) * size.height * 0.11,
+          size.width * 1.24,
+          y + math.cos(wave * 0.7) * size.height * 0.07,
+        );
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = _color(colors[index], 0.065)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = math.max(16, size.shortestSide * 0.11)
+          ..strokeCap = StrokeCap.round,
+      );
+    }
+
+    for (var index = 0; index < 7; index++) {
+      final x = _wrap(0.08 + index * 0.17 + progress * 0.08) * size.width;
+      final y = _wrap(0.14 + index * 0.31 - progress * 0.04) * size.height;
+      canvas.drawCircle(
+        Offset(x, y),
+        index.isEven ? 1.7 : 1.1,
+        Paint()..color = _color(palette.colorScheme.primary, 0.18),
+      );
+    }
+  }
+
+  void _paintCitrus(Canvas canvas, Size size) {
+    final shortest = size.shortestSide;
+    final colors = [
+      palette.colorScheme.primary,
+      palette.colorScheme.tertiary,
+      palette.colorScheme.secondary,
+    ];
+    for (var index = 0; index < 6; index++) {
+      final x = _wrap(0.06 + index * 0.23 + progress * 0.06) * size.width;
+      final y = _wrap(0.12 + index * 0.29 - progress * 0.1) * size.height;
+      final radius = math.max(8.0, shortest * (0.055 + (index % 3) * 0.018));
+      final center = Offset(x, y);
+      final color = colors[index % colors.length];
+      canvas.drawCircle(center, radius, Paint()..color = _color(color, 0.055));
+      canvas.drawCircle(
+        center,
+        radius,
+        Paint()
+          ..color = _color(color, 0.13)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.2,
+      );
+      final spokePaint = Paint()
+        ..color = _color(color, 0.1)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.8;
+      for (var spoke = 0; spoke < 3; spoke++) {
+        final angle = _phase * 0.12 + spoke * math.pi * 2 / 3;
+        canvas.drawLine(
+          center,
+          center + Offset(math.cos(angle), math.sin(angle)) * radius,
+          spokePaint,
+        );
+      }
+    }
+  }
+
+  void _paintBotanical(Canvas canvas, Size size) {
+    final shortest = size.shortestSide;
+    for (var index = 0; index < 7; index++) {
+      final x = _wrap(0.03 + index * 0.19 + progress * 0.035) * size.width;
+      final y = _wrap(0.08 + index * 0.27 - progress * 0.07) * size.height;
+      final leafLength = math.max(
+        14.0,
+        shortest * (0.09 + (index % 2) * 0.025),
+      );
+      final leafWidth = leafLength * 0.43;
+      final sway = math.sin(_phase + index * 0.9) * 0.16;
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.rotate(-0.7 + (index % 4) * 0.46 + sway);
+      final leaf = Path()
+        ..moveTo(0, 0)
+        ..quadraticBezierTo(leafLength * 0.48, -leafWidth, leafLength, 0)
+        ..quadraticBezierTo(leafLength * 0.48, leafWidth, 0, 0)
+        ..close();
+      final color = index.isEven
+          ? palette.colorScheme.primary
+          : palette.colorScheme.tertiary;
+      canvas.drawPath(leaf, Paint()..color = _color(color, 0.075));
+      canvas.drawLine(
+        Offset.zero,
+        Offset(leafLength, 0),
+        Paint()
+          ..color = _color(color, 0.16)
+          ..strokeWidth = 0.9,
+      );
+      canvas.restore();
+    }
+  }
+
+  void _paintNeon(Canvas canvas, Size size) {
+    final cyan = palette.colorScheme.primary;
+    final magenta = palette.colorScheme.tertiary;
+    final gridPaint = Paint()
+      ..color = _color(cyan, 0.075)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.8;
+    final spacing = math.max(28.0, size.shortestSide * 0.14);
+    final shift = progress * spacing;
+    for (double y = -spacing + shift; y < size.height + spacing; y += spacing) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+    }
+    for (
+      double x = -size.height - spacing + shift;
+      x < size.width + spacing;
+      x += spacing
+    ) {
+      canvas.drawLine(
+        Offset(x, size.height),
+        Offset(x + size.height * 0.32, 0),
+        gridPaint,
+      );
+    }
+
+    for (var index = 0; index < 4; index++) {
+      final side = math.max(10.0, size.shortestSide * (0.04 + index * 0.008));
+      final x = _wrap(0.12 + index * 0.29 + progress * 0.09) * size.width;
+      final y = _wrap(0.2 + index * 0.37 - progress * 0.06) * size.height;
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.rotate(_phase * 0.08 + index * 0.4);
+      canvas.drawRect(
+        Rect.fromCenter(center: Offset.zero, width: side, height: side),
+        Paint()
+          ..color = _color(index.isEven ? magenta : cyan, 0.16)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.3,
+      );
+      canvas.restore();
+    }
+  }
+
+  void _paintEditorial(Canvas canvas, Size size) {
+    final ink = palette.colorScheme.primary;
+    final accent = palette.colorScheme.tertiary;
+    final linePaint = Paint()
+      ..color = _color(ink, 0.075)
+      ..strokeWidth = 0.85;
+    final gap = math.max(34.0, size.shortestSide * 0.16);
+    final shift = progress * gap;
+    for (double y = -gap + shift; y < size.height + gap; y += gap) {
+      final inset = ((y / gap).round().abs() % 3) * size.width * 0.08;
+      canvas.drawLine(
+        Offset(12 + inset, y),
+        Offset(size.width - 12 - inset * 0.4, y),
+        linePaint,
+      );
+    }
+
+    for (var index = 0; index < 4; index++) {
+      final x = _wrap(0.08 + index * 0.31 - progress * 0.045) * size.width;
+      final y = _wrap(0.14 + index * 0.38 + progress * 0.055) * size.height;
+      final width = math.max(18.0, size.shortestSide * (0.07 + index * 0.01));
+      final rect = RRect.fromRectAndRadius(
+        Rect.fromCenter(
+          center: Offset(x, y),
+          width: width,
+          height: width * 0.62,
+        ),
+        const Radius.circular(2),
+      );
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.rotate(math.sin(_phase + index) * 0.05);
+      canvas.translate(-x, -y);
+      canvas.drawRRect(
+        rect,
+        Paint()..color = _color(index.isEven ? ink : accent, 0.07),
+      );
+      canvas.drawRRect(
+        rect,
+        Paint()
+          ..color = _color(index.isEven ? ink : accent, 0.13)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 0.8,
+      );
+      canvas.restore();
+    }
+  }
+
+  double _wrap(double value) => value - value.floorToDouble();
+
+  @override
+  bool shouldRepaint(NoteThemeMotionPainter oldDelegate) =>
+      oldDelegate.themeId != themeId ||
+      oldDelegate.palette != palette ||
+      oldDelegate.progress != progress ||
+      oldDelegate.opacityScale != opacityScale;
+}

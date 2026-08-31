@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/note_themes.dart';
 import '../../../domain/entities/note_theme.dart';
 import 'note_pin_avatar.dart';
+import 'note_theme_motion_background.dart';
 
 class NoteListCard extends StatelessWidget {
   final Color avatarColor;
@@ -60,76 +61,90 @@ class NoteListCard extends StatelessWidget {
               decoration: BoxDecoration(
                 gradient: palette.cardGradient(isArchived: isArchived),
               ),
-              child: InkWell(
-                onTap: onTap,
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      NotePinAvatar(
-                        color: avatarColor,
-                        icon: avatarIcon,
-                        storagePath: avatarImageStoragePath,
-                        badge: avatarBadge,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: NoteThemeMotionBackground(
+                      themeId: themeId,
+                      palette: palette,
+                      animate: false,
+                      opacityScale: isArchived ? 0.32 : 0.52,
+                    ),
+                  ),
+                  InkWell(
+                    onTap: onTap,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          NotePinAvatar(
+                            color: avatarColor,
+                            icon: avatarIcon,
+                            storagePath: avatarImageStoragePath,
+                            badge: avatarBadge,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Expanded(
-                                  child: Text(
-                                    title,
-                                    style: theme.textTheme.titleSmall,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        title,
+                                        style: theme.textTheme.titleSmall,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    if (titleAccessory != null) ...[
+                                      const SizedBox(width: 8),
+                                      titleAccessory!,
+                                    ],
+                                    if (trailing != null) ...[
+                                      const SizedBox(width: 8),
+                                      trailing!,
+                                    ],
+                                  ],
                                 ),
-                                if (titleAccessory != null) ...[
-                                  const SizedBox(width: 8),
-                                  titleAccessory!,
-                                ],
-                                if (trailing != null) ...[
-                                  const SizedBox(width: 8),
-                                  trailing!,
-                                ],
+                                if (hasSubtitle)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Text(
+                                      trimmedSubtitle!,
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            color: colorScheme.onSurfaceVariant,
+                                          ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                if (metadata.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 6),
+                                    child: Wrap(
+                                      spacing: 8,
+                                      runSpacing: 4,
+                                      children: metadata
+                                          .map(
+                                            (item) =>
+                                                _NoteListMetaView(item: item),
+                                          )
+                                          .toList(),
+                                    ),
+                                  ),
                               ],
                             ),
-                            if (hasSubtitle)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Text(
-                                  trimmedSubtitle!,
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            if (metadata.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 6),
-                                child: Wrap(
-                                  spacing: 8,
-                                  runSpacing: 4,
-                                  children: metadata
-                                      .map(
-                                        (item) => _NoteListMetaView(item: item),
-                                      )
-                                      .toList(),
-                                ),
-                              ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
           );

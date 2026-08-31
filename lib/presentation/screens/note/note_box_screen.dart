@@ -26,6 +26,7 @@ import '../../widgets/note/manage_access_sheet.dart';
 import '../../widgets/note/message_bubble.dart';
 import '../../widgets/note/message_creation_overlay.dart';
 import '../../widgets/note/note_lock_setup_dialog.dart';
+import '../../widgets/note/note_theme_motion_background.dart';
 import '../../widgets/note/note_theme_picker.dart';
 import '../../widgets/note/user_avatar_badge.dart';
 import '../../widgets/note/visitor_map_overlay.dart';
@@ -838,6 +839,10 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                   child: DecoratedBox(
                     key: ValueKey('note-theme-page-${place.themeId.name}'),
                     decoration: BoxDecoration(gradient: palette.pageGradient),
+                    child: NoteThemeMotionBackground(
+                      themeId: place.themeId,
+                      palette: palette,
+                    ),
                   ),
                 ),
                 // ── Base layer: the message-box screen ──────────────────────
