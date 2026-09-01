@@ -116,7 +116,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
           .where((productId) => !returnedProductIds.contains(productId))
           .toList();
       if (missingProductIds.isNotEmpty) {
-        await _reportSubscriptionSetupWarning(
+        throw StateError(
           'RevenueCat offering "${current.identifier}" is missing expected '
           'products: ${missingProductIds.join(', ')}. '
           'Returned products: ${returnedProductIds.join(', ')}.',
@@ -503,22 +503,6 @@ Future<void> _reportSubscriptionSetupError(
     await crashlytics.setCustomKey('revenuecat_setup_error', message);
     await crashlytics.recordError(error, stack);
     await crashlytics.sendUnsentReports();
-  } catch (_) {}
-}
-
-Future<void> _reportSubscriptionSetupWarning(String message) async {
-  final diagnostic = '[RevenueCat Setup] $message';
-  debugPrint(diagnostic);
-  try {
-    final crashlytics = FirebaseCrashlytics.instance;
-    await crashlytics.log(diagnostic);
-    await crashlytics.setCustomKey('revenuecat_setup_warning', diagnostic);
-    await crashlytics.recordError(
-      StateError(diagnostic),
-      StackTrace.current,
-      reason: 'RevenueCat offering is partially available',
-      fatal: false,
-    );
   } catch (_) {}
 }
 

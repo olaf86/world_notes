@@ -186,9 +186,6 @@ Launch offer:
 |-------|---------|-------|
 | Introductory first year | `world_notes_pro_yearly` | ¥1,980 for the first year, then ¥2,980/year |
 
-For App Store Connect, RevenueCat dashboard, and physical-device verification,
-see [RevenueCat TestFlight readiness](internal-docs/operations/revenuecat-testflight.md).
-
 ## License
 
 MIT
