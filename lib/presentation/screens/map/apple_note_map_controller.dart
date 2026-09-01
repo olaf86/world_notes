@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:apple_maps_flutter/apple_maps_flutter.dart' as apple;
 import 'package:flutter/material.dart';
@@ -7,10 +6,9 @@ import 'package:geolocator/geolocator.dart';
 
 import '../../../config/app_config.dart';
 import '../../../core/map_style.dart';
-import '../../../core/utils/marker_image.dart';
-import '../../../core/utils/place_icon.dart';
 import '../../../domain/entities/pin_summary_entity.dart';
 import '../../providers/providers.dart';
+import 'apple_marker_icons.dart';
 import 'map_diagnostics.dart';
 import 'note_map_adapter.dart';
 
@@ -30,12 +28,14 @@ class AppleNoteMapController implements NoteMapAdapter {
   static const double _markerZIndex = 0;
 
   final Future<void> Function(PinSummary pin) onPinSelected;
-  final OnResolvePinMarkerImage onResolveMarkerImage;
+  final AppleMarkerIcons _markerIcons;
 
   AppleNoteMapController({
     required this.onPinSelected,
-    required this.onResolveMarkerImage,
-  });
+    required OnResolvePinMarkerImage onResolveMarkerImage,
+  }) : _markerIcons = AppleMarkerIcons(
+         onResolveMarkerImage: onResolveMarkerImage,
+       );
 
   final annotations = ValueNotifier<Set<apple.Annotation>>(
     <apple.Annotation>{},
@@ -45,7 +45,6 @@ class AppleNoteMapController implements NoteMapAdapter {
   );
   final accessAreaCircles = ValueNotifier<Set<apple.Circle>>(<apple.Circle>{});
 
-  final Map<String, apple.BitmapDescriptor> _iconsByMarkerId = {};
   List<PinSummary> _latestPins = const [];
   apple.AppleMapController? _map;
   apple.MapAppearanceMode _appearanceMode = apple.MapAppearanceMode.light;
@@ -58,6 +57,7 @@ class AppleNoteMapController implements NoteMapAdapter {
   double? _accessAreaRadiusMeters;
   Color? _accessAreaColor;
   String? _selectedPlaceId;
+  bool _disposed = false;
   int _markerRevision = 0;
   int _selectionRevision = 0;
   int _cameraMoveEventsSinceIdle = 0;
@@ -121,6 +121,10 @@ class AppleNoteMapController implements NoteMapAdapter {
   @override
   void dispose() {
     logMapDiagnostics('AppleMap.dispose');
+    _disposed = true;
+    _markerRevision++;
+    _selectionRevision++;
+    _map = null;
     annotations.dispose();
     trackingMode.dispose();
     accessAreaCircles.dispose();
@@ -196,13 +200,50 @@ class AppleNoteMapController implements NoteMapAdapter {
 
   @override
   Future<void> updateMarkers(List<PinSummary> pins) async {
-    logMapDiagnostics('AppleMap.updateMarkers count=${pins.length}');
+    if (_disposed || identical(_latestPins, pins)) return;
+    final stopwatch = Stopwatch()..start();
     _latestPins = pins;
     if (_selectedPlaceId != null &&
         !pins.any((pin) => pin.placeId == _selectedPlaceId)) {
       _selectedPlaceId = null;
     }
-    await _rebuildAnnotations();
+    final revision = ++_markerRevision;
+    _markerIcons.retainPlaces(pins);
+
+    // Publish coordinates synchronously with native placeholders. Custom
+    // marker rendering and optional photo I/O happen after the pins exist.
+    _publishAnnotations();
+    logMapDiagnostics(
+      'AppleMap.annotations placeholders count=${pins.length} '
+      'millis=${stopwatch.elapsedMilliseconds}',
+    );
+
+    await _markerIcons.prepareFallbacks(
+      pins,
+      isCurrent: () => _isCurrentMarkerRevision(revision),
+    );
+    if (!_isCurrentMarkerRevision(revision)) return;
+    _publishAnnotations();
+    logMapDiagnostics(
+      'AppleMap.annotations fallbacks count=${pins.length} '
+      'millis=${stopwatch.elapsedMilliseconds}',
+    );
+
+    final photoPins = pins
+        .where((pin) => pin.pinImageStoragePath != null)
+        .toList(growable: false);
+    await _markerIcons.preparePhotos(
+      pins,
+      isCurrent: () => _isCurrentMarkerRevision(revision),
+      afterBatch: () {
+        if (_isCurrentMarkerRevision(revision)) _publishAnnotations();
+      },
+    );
+    if (!_isCurrentMarkerRevision(revision)) return;
+    logMapDiagnostics(
+      'AppleMap.annotations photos count=${photoPins.length} '
+      'totalMillis=${stopwatch.elapsedMilliseconds}',
+    );
   }
 
   void _onCameraMove(apple.CameraPosition position) {
@@ -249,7 +290,7 @@ class AppleNoteMapController implements NoteMapAdapter {
     if (_clusteringEnabled == enabled) return;
     logMapDiagnostics('AppleMap.clustering enabled=$enabled');
     _clusteringEnabled = enabled;
-    unawaited(_rebuildAnnotations());
+    _publishAnnotations();
   }
 
   Future<void> _showSelectedPin(PinSummary pin) async {
@@ -270,19 +311,19 @@ class AppleNoteMapController implements NoteMapAdapter {
     }
   }
 
-  Future<void> _rebuildAnnotations() async {
-    final revision = ++_markerRevision;
-    final next = <apple.Annotation>{};
+  bool _isCurrentMarkerRevision(int revision) =>
+      !_disposed && revision == _markerRevision;
 
-    for (final pin in _latestPins) {
-      final icon = await _markerIcon(pin);
-      if (revision != _markerRevision) return;
-
-      next.add(
+  void _publishAnnotations() {
+    if (_disposed) return;
+    annotations.value = {
+      for (final pin in _latestPins)
         apple.Annotation(
           annotationId: apple.AnnotationId(_annotationIdFor(pin.placeId)),
           position: apple.LatLng(pin.latitude, pin.longitude),
-          icon: icon,
+          icon:
+              _markerIcons.preparedFor(pin.placeId) ??
+              _markerIcons.placeholder(pin),
           infoWindow: apple.InfoWindow.noText,
           clusteringIdentifier: !_clusteringEnabled ? null : _noteClusterId,
           // Keep every marker at the same zIndex. The iOS plugin tracks the
@@ -293,12 +334,7 @@ class AppleNoteMapController implements NoteMapAdapter {
           zIndex: _markerZIndex,
           onTap: () => unawaited(_showSelectedPin(pin)),
         ),
-      );
-    }
-
-    if (revision == _markerRevision) {
-      annotations.value = next;
-    }
+    };
   }
 
   String _annotationIdFor(String placeId) {
@@ -328,68 +364,6 @@ class AppleNoteMapController implements NoteMapAdapter {
       );
     } catch (error, stack) {
       debugPrint('Failed to animate Apple map annotation: $error\n$stack');
-    }
-  }
-
-  String _markerImageId(PinSummary pin, {String? imageStoragePath}) =>
-      MarkerImage.cacheKey(
-        namespace: 'marker',
-        iconName: pin.icon,
-        colorHex: pin.colorHex,
-        imageStoragePath: imageStoragePath,
-        variant: pin.markerVariantKey,
-      );
-
-  Future<apple.BitmapDescriptor> _markerIcon(PinSummary pin) async {
-    final fallbackId = _markerImageId(pin);
-    final photoStoragePath = pin.pinImageStoragePath;
-    final photoId = photoStoragePath == null
-        ? null
-        : _markerImageId(pin, imageStoragePath: photoStoragePath);
-    if (photoId != null && _iconsByMarkerId.containsKey(photoId)) {
-      return _iconsByMarkerId[photoId]!;
-    }
-
-    final photoBytes = photoStoragePath == null
-        ? null
-        : await _resolveMarkerImage(pin);
-    if (photoBytes != null) {
-      try {
-        final bytes = await MarkerImage.render(
-          iconData: placeIconData(pin.icon),
-          color: parsePlaceColor(pin.colorHex),
-          imageBytes: photoBytes,
-          showFollowedAuthorRing: pin.isFromFollowedAuthor,
-          showUnseenDot: pin.hasUnseenMessages,
-        );
-        final descriptor = apple.BitmapDescriptor.fromBytes(bytes);
-        _iconsByMarkerId[photoId!] = descriptor;
-        return descriptor;
-      } catch (error, stack) {
-        debugPrint('Failed to render Apple pin marker image: $error\n$stack');
-      }
-    }
-
-    final cached = _iconsByMarkerId[fallbackId];
-    if (cached != null) return cached;
-
-    final bytes = await MarkerImage.render(
-      iconData: placeIconData(pin.icon),
-      color: parsePlaceColor(pin.colorHex),
-      showFollowedAuthorRing: pin.isFromFollowedAuthor,
-      showUnseenDot: pin.hasUnseenMessages,
-    );
-    final descriptor = apple.BitmapDescriptor.fromBytes(bytes);
-    _iconsByMarkerId[fallbackId] = descriptor;
-    return descriptor;
-  }
-
-  Future<Uint8List?> _resolveMarkerImage(PinSummary pin) async {
-    try {
-      return await onResolveMarkerImage(pin);
-    } catch (error, stack) {
-      debugPrint('Failed to load Apple pin marker image: $error\n$stack');
-      return null;
     }
   }
 }

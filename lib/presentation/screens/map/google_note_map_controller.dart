@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -7,10 +6,9 @@ import 'package:google_maps_flutter/google_maps_flutter.dart' as google;
 
 import '../../../config/app_config.dart';
 import '../../../core/map_style.dart';
-import '../../../core/utils/marker_image.dart';
-import '../../../core/utils/place_icon.dart';
 import '../../../domain/entities/pin_summary_entity.dart';
 import '../../providers/providers.dart';
+import 'google_marker_icons.dart';
 import 'map_diagnostics.dart';
 import 'note_map_adapter.dart';
 
@@ -26,26 +24,22 @@ class GoogleNoteMapController implements NoteMapAdapter {
   );
   static const google.ClusterManagerId _noteClusterManagerId =
       google.ClusterManagerId('world_notes_places');
-  static const double _normalMarkerWidth = 48;
-  static const double _selectedMarkerWidth = 72;
 
   final Future<void> Function(PinSummary pin) onPinSelected;
-  final OnResolvePinMarkerImage onResolveMarkerImage;
-  final Future<google.BitmapDescriptor> Function(PinSummary pin, bool selected)?
-  markerIconBuilder;
+  final GoogleMarkerIcons _markerIcons;
 
   GoogleNoteMapController({
     required this.onPinSelected,
-    required this.onResolveMarkerImage,
-    this.markerIconBuilder,
-  });
+    required OnResolvePinMarkerImage onResolveMarkerImage,
+  }) : _markerIcons = GoogleMarkerIcons(
+         onResolveMarkerImage: onResolveMarkerImage,
+       );
 
   final markers = ValueNotifier<Set<google.Marker>>(<google.Marker>{});
   final accessAreaCircles = ValueNotifier<Set<google.Circle>>(
     <google.Circle>{},
   );
 
-  final Map<String, google.BitmapDescriptor> _iconsByMarkerId = {};
   List<PinSummary> _latestPins = const [];
   google.GoogleMapController? _map;
   ValueChanged<MapCameraSnapshot>? _onCameraIdleChanged;
@@ -56,6 +50,7 @@ class GoogleNoteMapController implements NoteMapAdapter {
   double? _accessAreaRadiusMeters;
   Color? _accessAreaColor;
   String? _selectedPlaceId;
+  google.BitmapDescriptor? _selectedMarkerIcon;
   bool _trackingEnabled = false;
   bool _disposed = false;
   int _markerRevision = 0;
@@ -133,122 +128,91 @@ class GoogleNoteMapController implements NoteMapAdapter {
 
   @override
   Future<void> updateMarkers(List<PinSummary> pins) async {
+    if (_disposed || identical(_latestPins, pins)) return;
+    final stopwatch = Stopwatch()..start();
     _latestPins = pins;
     if (_selectedPlaceId != null &&
         !pins.any((pin) => pin.placeId == _selectedPlaceId)) {
       _selectedPlaceId = null;
+      _selectedMarkerIcon = null;
     }
-    await _rebuildMarkers();
+    final revision = ++_markerRevision;
+    _markerIcons.retainPlaces(pins);
+
+    // Positions are usable immediately. Native placeholders are replaced by
+    // the normal custom markers as soon as their inexpensive render finishes.
+    _publishMarkers();
+    logMapDiagnostics(
+      'GoogleMap.markers placeholders count=${pins.length} '
+      'millis=${stopwatch.elapsedMilliseconds}',
+    );
+
+    await _markerIcons.prepareFallbacks(
+      pins,
+      isCurrent: () => _isCurrentMarkerRevision(revision),
+    );
+    if (!_isCurrentMarkerRevision(revision)) return;
+    _publishMarkers();
+    logMapDiagnostics(
+      'GoogleMap.markers fallbacks count=${pins.length} '
+      'millis=${stopwatch.elapsedMilliseconds}',
+    );
+
+    final photoPins = pins
+        .where((pin) => pin.pinImageStoragePath != null)
+        .toList(growable: false);
+    await _markerIcons.preparePhotos(
+      pins,
+      isCurrent: () => _isCurrentMarkerRevision(revision),
+      afterBatch: () {
+        if (_isCurrentMarkerRevision(revision)) _publishMarkers();
+      },
+    );
+    if (!_isCurrentMarkerRevision(revision)) return;
+    logMapDiagnostics(
+      'GoogleMap.markers photos count=${photoPins.length} '
+      'totalMillis=${stopwatch.elapsedMilliseconds}',
+    );
   }
 
-  Future<void> _rebuildMarkers() async {
-    final revision = ++_markerRevision;
-    final next = <google.Marker>{};
+  bool _isCurrentMarkerRevision(int revision) =>
+      !_disposed && revision == _markerRevision;
 
-    for (final pin in _latestPins) {
-      final selected = pin.placeId == _selectedPlaceId;
-      final icon =
-          await (markerIconBuilder?.call(pin, selected) ??
-              _markerIcon(pin, selected: selected));
-      if (_disposed || revision != _markerRevision) return;
-
-      next.add(
+  void _publishMarkers() {
+    if (_disposed) return;
+    markers.value = {
+      for (final pin in _latestPins)
         google.Marker(
           markerId: google.MarkerId(pin.placeId),
           clusterManagerId: _noteClusterManagerId,
           position: google.LatLng(pin.latitude, pin.longitude),
-          icon: icon,
+          icon: pin.placeId == _selectedPlaceId
+              ? _selectedMarkerIcon ??
+                    _markerIcons.preparedFor(pin.placeId) ??
+                    _markerIcons.placeholder(pin)
+              : _markerIcons.preparedFor(pin.placeId) ??
+                    _markerIcons.placeholder(pin),
           infoWindow: google.InfoWindow.noText,
-          zIndexInt: selected ? 1 : 0,
+          zIndexInt: pin.placeId == _selectedPlaceId ? 1 : 0,
           onTap: () => unawaited(_showSelectedPin(pin)),
         ),
-      );
-    }
-
-    if (!_disposed && revision == _markerRevision) {
-      markers.value = next;
-    }
+    };
   }
 
   Future<void> _showSelectedPin(PinSummary pin) async {
     final revision = ++_selectionRevision;
     _selectedPlaceId = pin.placeId;
-    await _rebuildMarkers();
+    _selectedMarkerIcon = null;
+    _publishMarkers();
+    final selectedIcon = await _markerIcons.selected(pin);
+    if (_disposed || revision != _selectionRevision) return;
+    _selectedMarkerIcon = selectedIcon;
+    _publishMarkers();
     await onPinSelected(pin);
     if (_disposed || revision != _selectionRevision) return;
     _selectedPlaceId = null;
-    await _rebuildMarkers();
-  }
-
-  String _markerImageId(PinSummary pin, {String? imageStoragePath}) =>
-      MarkerImage.cacheKey(
-        namespace: 'google_marker',
-        iconName: pin.icon,
-        colorHex: pin.colorHex,
-        imageStoragePath: imageStoragePath,
-        variant: pin.markerVariantKey,
-      );
-
-  Future<google.BitmapDescriptor> _markerIcon(
-    PinSummary pin, {
-    required bool selected,
-  }) async {
-    final photoStoragePath = pin.pinImageStoragePath;
-    final suffix = selected ? 'selected' : 'normal';
-    final fallbackCacheId = '${_markerImageId(pin)}-$suffix';
-    final photoCacheId = photoStoragePath == null
-        ? null
-        : '${_markerImageId(pin, imageStoragePath: photoStoragePath)}-$suffix';
-    if (photoCacheId != null) {
-      final cachedPhoto = _iconsByMarkerId[photoCacheId];
-      if (cachedPhoto != null) return cachedPhoto;
-    }
-
-    final photoBytes = photoStoragePath == null
-        ? null
-        : await _resolveMarkerImage(pin);
-    final cacheId = photoBytes == null ? fallbackCacheId : photoCacheId!;
-    final cached = _iconsByMarkerId[cacheId];
-    if (cached != null) return cached;
-    final bytes = await _renderMarker(pin, photoBytes: photoBytes);
-    final descriptor = google.BitmapDescriptor.bytes(
-      bytes,
-      width: selected ? _selectedMarkerWidth : _normalMarkerWidth,
-    );
-    _iconsByMarkerId[cacheId] = descriptor;
-    return descriptor;
-  }
-
-  Future<Uint8List> _renderMarker(
-    PinSummary pin, {
-    Uint8List? photoBytes,
-  }) async {
-    try {
-      return await MarkerImage.render(
-        iconData: placeIconData(pin.icon),
-        color: parsePlaceColor(pin.colorHex),
-        imageBytes: photoBytes,
-        showFollowedAuthorRing: pin.isFromFollowedAuthor,
-        showUnseenDot: pin.hasUnseenMessages,
-      );
-    } catch (error, stack) {
-      debugPrint('Failed to render Google pin marker image: $error\n$stack');
-      return MarkerImage.render(
-        iconData: placeIconData(pin.icon),
-        color: parsePlaceColor(pin.colorHex),
-        showFollowedAuthorRing: pin.isFromFollowedAuthor,
-        showUnseenDot: pin.hasUnseenMessages,
-      );
-    }
-  }
-
-  Future<Uint8List?> _resolveMarkerImage(PinSummary pin) async {
-    try {
-      return await onResolveMarkerImage(pin);
-    } catch (error, stack) {
-      debugPrint('Failed to load Google pin marker image: $error\n$stack');
-      return null;
-    }
+    _selectedMarkerIcon = null;
+    _publishMarkers();
   }
 
   @override
