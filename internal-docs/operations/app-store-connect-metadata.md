@@ -40,6 +40,10 @@ Submission**, then select each language from the localization menu.
   over HTTPS on 2026-08-30. The page source is in
   `public/support/index.html` and lists the public support address
   `asobo.support@gmail.com`.
+- Terms of Use: use the Apple Standard EULA. Include
+  `https://www.apple.com/legal/internet-services/itunes/dev/stdeula/` in every
+  localized Description so the App Store product page provides a functional
+  link to it.
 - Marketing URL: leave blank for the first submission unless a product page is
   published. The current site root is an invitation fallback page and should
   not be used as the marketing page.
@@ -133,6 +137,8 @@ repository.
 
 本アプリの PRO 版は、月額または年額の自動更新サブスクリプションです。価格は購入画面に表示されます。サブスクリプションは Apple Account の設定からいつでも管理・解約できます。
 
+利用規約（Apple標準EULA）: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+
 位置情報は、周辺のノートを表示すること、ノートを現在地に作成すること、およびノートとの距離を確認するために使用します。
 ```
 
@@ -190,6 +196,8 @@ World Notes lets you leave notes at your current location and share messages and
 • Extend the note-opening range to a 1 km radius
 
 World Notes PRO is a monthly or annual auto-renewable subscription. Prices are shown on the purchase screen. You can manage or cancel your subscription at any time in your Apple Account settings.
+
+Terms of Use (Apple Standard EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 
 Location access is used to show nearby notes, create notes at your current location, and check your distance from a note.
 ```
@@ -249,6 +257,8 @@ map,location,diary,memories,travel,messages,photos,places,community,walking,jour
 
 세계 일기 PRO는 월간 또는 연간 자동 갱신 구독입니다. 가격은 구매 화면에 표시됩니다. 구독은 Apple 계정 설정에서 언제든지 관리하거나 취소할 수 있습니다.
 
+이용 약관(Apple 표준 EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+
 위치 정보는 주변 노트를 표시하고, 현재 위치에 노트를 만들며, 노트와의 거리를 확인하는 데 사용됩니다.
 ```
 
@@ -306,6 +316,8 @@ map,location,diary,memories,travel,messages,photos,places,community,walking,jour
 • 将笔记打开范围扩大至半径1公里
 
 世界日记 PRO 是按月或按年自动续订的订阅服务。价格会显示在购买页面。你可以随时在 Apple 账户设置中管理或取消订阅。
+
+使用条款（Apple 标准 EULA）：https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 
 位置信息用于显示附近的笔记、在当前位置创建笔记，以及确认你与笔记之间的距离。
 ```
@@ -365,6 +377,8 @@ map,location,diary,memories,travel,messages,photos,places,community,walking,jour
 
 世界日記 PRO 是按月或按年自動續訂的訂閱服務。價格會顯示在購買頁面。你可以隨時在 Apple 帳號設定中管理或取消訂閱。
 
+使用條款（Apple 標準 EULA）：https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+
 位置資訊用於顯示附近的筆記、在目前位置建立筆記，以及確認你與筆記之間的距離。
 ```
 
@@ -403,11 +417,15 @@ artifacts/store_screenshots/ios_ipad/{locale}/
 
 1. Publish and verify the Privacy Policy URL.
 2. Publish and verify the Support URL with real contact information.
-3. Complete the Age Rating questionnaire after the localized metadata and
+3. Before resubmitting, confirm that all five localized Descriptions in App
+   Store Connect contain the complete Apple Standard EULA URL:
+   `https://www.apple.com/legal/internet-services/itunes/dev/stdeula/`.
+4. Complete the Age Rating questionnaire after the localized metadata and
    screenshots are entered.
 
 ## Apple references
 
 - [App information](https://developer.apple.com/help/app-store-connect/reference/app-information/app-information/)
+- [Provide a custom license agreement](https://developer.apple.com/help/app-store-connect/manage-app-information/provide-a-custom-license-agreement/)
 - [Platform version information](https://developer.apple.com/help/app-store-connect/reference/app-information/platform-version-information/)
 - [Screenshot specifications](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/)
