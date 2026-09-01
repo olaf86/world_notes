@@ -29,10 +29,10 @@ class AppConfig {
 
   /// Distinct note details that must open without an interstitial after the
   /// previous interstitial impression.
-  static const int interstitialMinimumNoteOpens = 2;
+  static const int interstitialMinimumNoteOpens = 1;
 
   /// Independent display chance for each new note after the minimum opens.
-  static const double interstitialDisplayProbability = 0.20;
+  static const double interstitialDisplayProbability = 0.30;
 
   /// A second guard in addition to the count/probability policy. Production
   /// should also configure an equivalent frequency cap in AdMob.

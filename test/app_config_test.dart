@@ -92,8 +92,8 @@ void main() {
   });
 
   test('uses the agreed note-open interstitial frequency defaults', () {
-    expect(AppConfig.interstitialMinimumNoteOpens, 2);
-    expect(AppConfig.interstitialDisplayProbability, 0.20);
+    expect(AppConfig.interstitialMinimumNoteOpens, 1);
+    expect(AppConfig.interstitialDisplayProbability, 0.30);
     expect(AppConfig.interstitialCooldown, const Duration(minutes: 15));
   });
 

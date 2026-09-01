@@ -243,8 +243,8 @@ class NoteOpenInterstitialController implements NoteOpenInterstitialGate {
       if (canAttemptToShow && randomDouble() < displayProbability) {
         final didShow = await adClient.show();
         if (didShow) {
-          // Do not count the note that follows the ad. The next two distinct
-          // notes must once again open without an interstitial.
+          // Do not count the note that follows the ad. The next distinct note
+          // must once again open without an interstitial.
           await stateStore.recordAdShown(userId, now().toUtc());
           return;
         }
