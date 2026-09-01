@@ -1,7 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:world_notes/domain/entities/pin_summary_entity.dart';
 import 'package:world_notes/presentation/screens/map/google_note_map_controller.dart';
 
@@ -10,11 +11,8 @@ void main() {
     final controller = GoogleNoteMapController(
       onPinSelected: (_) async {},
       onResolveMarkerImage: (_) async => null,
-      markerIconBuilder: (_, _) async => BitmapDescriptor.defaultMarker,
     );
-    addTearDown(controller.dispose);
-
-    await controller.updateMarkers([_pin('a', 35.68), _pin('b', 35.69)]);
+    unawaited(controller.updateMarkers([_pin('a', 35.68), _pin('b', 35.69)]));
 
     expect(controller.markers.value, hasLength(2));
     expect(
@@ -27,6 +25,7 @@ void main() {
       ),
       isTrue,
     );
+    controller.dispose();
   });
 
   testWidgets('renders and hides the note access area', (tester) async {
