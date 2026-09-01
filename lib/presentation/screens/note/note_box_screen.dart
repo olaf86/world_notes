@@ -137,6 +137,13 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
         },
         onAdFailedToLoad: (ad, error) {
           ad.dispose();
+          if (mounted) {
+            unawaited(
+              ref
+                  .read(adDiagnosticsServiceProvider)
+                  .reportBannerLoadFailure(error),
+            );
+          }
           if (!mounted || !identical(_bannerAd, ad)) return;
           _bannerAd = null;
           _adLoaded.value = false;

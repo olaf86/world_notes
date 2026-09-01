@@ -46,6 +46,7 @@ import '../../domain/repositories/notice_repository.dart';
 import '../../domain/repositories/place_repository.dart';
 import '../../domain/repositories/user_block_repository.dart';
 import '../../l10n/app_locale.dart';
+import '../../services/ad_diagnostics_service.dart';
 import '../../services/ad_privacy_service.dart';
 import '../../services/account_bootstrap_service.dart';
 import '../../services/global_operation_observer.dart';
@@ -237,6 +238,10 @@ final firebaseCrashlyticsProvider = Provider<FirebaseCrashlytics>(
   (_) => FirebaseCrashlytics.instance,
 );
 
+final adDiagnosticsServiceProvider = Provider<AdDiagnosticsService>((ref) {
+  return FirebaseAdDiagnosticsService(ref.watch(firebaseCrashlyticsProvider));
+});
+
 /// Preloaded before [runApp] in production so persisted UI preferences are
 /// available on the first rendered frame. Tests may leave this null and get
 /// the system-language default.
@@ -327,7 +332,17 @@ final adPrivacyServiceProvider = Provider<AdPrivacyService>(
 /// resolved. UMP decides whether a form is needed on this app launch and, on
 /// iOS, sequences a published IDFA explanation before the one-time ATT alert.
 final adPrivacyStatusProvider = FutureProvider<AdPrivacyStatus>((ref) async {
-  if (!AppConfig.supportsMobileAds || !AppConfig.hasRequiredAdUnitIds) {
+  if (!AppConfig.supportsMobileAds) {
+    return AdPrivacyStatus.disabled;
+  }
+
+  if (!AppConfig.hasRequiredAdUnitIds) {
+    await ref
+        .watch(adDiagnosticsServiceProvider)
+        .reportMissingConfiguration(
+          hasBannerAdUnitId: AppConfig.bannerAdUnitId.isNotEmpty,
+          hasInterstitialAdUnitId: AppConfig.interstitialAdUnitId.isNotEmpty,
+        );
     return AdPrivacyStatus.disabled;
   }
 
@@ -337,7 +352,13 @@ final adPrivacyStatusProvider = FutureProvider<AdPrivacyStatus>((ref) async {
     return AdPrivacyStatus.disabled;
   }
 
-  return ref.watch(adPrivacyServiceProvider).gatherConsentAndInitialize();
+  final status = await ref
+      .watch(adPrivacyServiceProvider)
+      .gatherConsentAndInitialize();
+  if (!status.canRequestAds) {
+    await ref.watch(adDiagnosticsServiceProvider).reportPrivacyBlocked(status);
+  }
+  return status;
 });
 
 final canRequestAdsProvider = Provider<bool>((ref) {

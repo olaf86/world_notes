@@ -23,14 +23,13 @@ void main() {
     );
   }
 
-  test('first two distinct notes are ad-free and third can show', () async {
+  test('first distinct note is ad-free and second can show', () async {
     final gate = controller();
 
     await gate.beforeNoteOpen(placeId: 'place-1');
-    await gate.beforeNoteOpen(placeId: 'place-2');
     expect(adClient.showCount, 0);
 
-    await gate.beforeNoteOpen(placeId: 'place-3');
+    await gate.beforeNoteOpen(placeId: 'place-2');
 
     expect(adClient.showCount, 1);
     final state = await store.read(userId);
@@ -39,9 +38,9 @@ void main() {
   });
 
   test(
-    'uses an independent 20 percent roll without a forced maximum',
+    'uses an independent 30 percent roll without a forced maximum',
     () async {
-      final gate = controller(randomValue: 0.20);
+      final gate = controller(randomValue: 0.30);
 
       for (var index = 1; index <= 20; index += 1) {
         await gate.beforeNoteOpen(placeId: 'place-$index');
@@ -57,38 +56,37 @@ void main() {
 
     await gate.beforeNoteOpen(placeId: 'place-1');
     await gate.beforeNoteOpen(placeId: 'place-1');
-    await gate.beforeNoteOpen(placeId: 'place-2');
     await gate.beforeNoteOpen(placeId: 'place-1');
 
     expect(adClient.showCount, 0);
-    expect((await store.read(userId)).openedPlaceIds, {'place-1', 'place-2'});
+    expect((await store.read(userId)).openedPlaceIds, {'place-1'});
 
-    await gate.beforeNoteOpen(placeId: 'place-3');
+    await gate.beforeNoteOpen(placeId: 'place-2');
     expect(adClient.showCount, 1);
   });
 
   test('cooldown blocks ads while note opens continue to count', () async {
     store.states[userId] = NoteOpenInterstitialState(
-      openedPlaceIds: const {'place-1', 'place-2'},
+      openedPlaceIds: const {'place-1'},
       lastShownAt: currentTime.subtract(const Duration(minutes: 5)),
     );
     final gate = controller();
 
-    await gate.beforeNoteOpen(placeId: 'place-3');
+    await gate.beforeNoteOpen(placeId: 'place-2');
     expect(adClient.showCount, 0);
 
     currentTime = currentTime.add(const Duration(minutes: 20));
-    await gate.beforeNoteOpen(placeId: 'place-4');
+    await gate.beforeNoteOpen(placeId: 'place-3');
     expect(adClient.showCount, 1);
   });
 
   test('an app restart does not create an extra ad-free open', () async {
     store.states[userId] = const NoteOpenInterstitialState(
-      openedPlaceIds: {'place-1', 'place-2'},
+      openedPlaceIds: {'place-1'},
     );
     final gate = controller();
 
-    await gate.beforeNoteOpen(placeId: 'place-3');
+    await gate.beforeNoteOpen(placeId: 'place-2');
     expect(adClient.showCount, 1);
   });
 
