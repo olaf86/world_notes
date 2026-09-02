@@ -37,6 +37,8 @@ void main() {
   testWidgets('provides a decorative layer for every expressive theme', (
     tester,
   ) async {
+    await tester.runAsync(NoteThemeShaderProgram.load);
+
     for (final themeId in NoteThemeId.values.where(
       (id) => id != NoteThemeId.standard,
     )) {
@@ -59,6 +61,29 @@ void main() {
         findsOneWidget,
       );
     }
+  });
+
+  testWidgets('loads the shared fragment program for expressive themes', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 320,
+          height: 480,
+          child: NoteThemeMotionBackground(
+            themeId: NoteThemeId.citrus,
+            palette: NoteThemes.of(NoteThemeId.citrus).light,
+            animate: false,
+          ),
+        ),
+      ),
+    );
+
+    await tester.runAsync(NoteThemeShaderProgram.load);
+    await tester.pumpAndSettle();
+
+    expect(_painter(tester, NoteThemeId.citrus).fragmentShader, isNotNull);
   });
 
   testWidgets('uses a still composition when reduced motion is requested', (
