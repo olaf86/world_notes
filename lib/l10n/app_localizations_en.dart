@@ -1040,7 +1040,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsContentWorldDescription =>
-      'Choose where you browse and post. Your permanent home world will not change.';
+      'Choose a world to browse and post in. Switching content worlds does not change your home world.';
 
   @override
   String get settingsContentWorldSwitchFailed =>

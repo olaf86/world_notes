@@ -963,7 +963,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get settingsContentWorldDescription =>
-      '둘러보고 게시할 월드를 선택합니다. 변경할 수 없는 홈 월드는 그대로 유지됩니다.';
+      '둘러보고 게시할 월드를 선택하세요. 콘텐츠 월드를 전환해도 홈 월드는 바뀌지 않습니다.';
 
   @override
   String get settingsContentWorldSwitchFailed => '월드를 전환하지 못했습니다. 다시 시도해 주세요.';

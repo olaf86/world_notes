@@ -951,7 +951,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsContentWorldTitle => '内容世界';
 
   @override
-  String get settingsContentWorldDescription => '选择浏览和发布内容的世界。无法更改的主世界将保持不变。';
+  String get settingsContentWorldDescription => '选择用于浏览和发布内容的世界。切换内容世界不会改变主世界。';
 
   @override
   String get settingsContentWorldSwitchFailed => '无法切换世界，请重试。';
@@ -2751,7 +2751,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get settingsContentWorldTitle => '内容世界';
 
   @override
-  String get settingsContentWorldDescription => '选择浏览和发布内容的世界。无法更改的主世界将保持不变。';
+  String get settingsContentWorldDescription => '选择用于浏览和发布内容的世界。切换内容世界不会改变主世界。';
 
   @override
   String get settingsContentWorldSwitchFailed => '无法切换世界，请重试。';
@@ -4552,7 +4552,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get settingsContentWorldTitle => '內容世界';
 
   @override
-  String get settingsContentWorldDescription => '選擇瀏覽和發佈內容的世界。無法變更的主世界會保持不變。';
+  String get settingsContentWorldDescription => '選擇用來瀏覽和發佈內容的世界。切換內容世界不會改變主世界。';
 
   @override
   String get settingsContentWorldSwitchFailed => '無法切換世界，請再試一次。';

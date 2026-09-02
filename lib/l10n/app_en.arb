@@ -473,7 +473,7 @@
   "@settingsHomeWorldTitle": {},
   "settingsContentWorldTitle": "Content world",
   "@settingsContentWorldTitle": {},
-  "settingsContentWorldDescription": "Choose where you browse and post. Your permanent home world will not change.",
+  "settingsContentWorldDescription": "Choose a world to browse and post in. Switching content worlds does not change your home world.",
   "@settingsContentWorldDescription": {},
   "settingsContentWorldSwitchFailed": "Could not switch worlds. Please try again.",
   "@settingsContentWorldSwitchFailed": {},

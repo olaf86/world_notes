@@ -295,7 +295,7 @@
   "settingsLanguageUpdateFailed": "この端末の表示言語は変更されましたが、アカウントに保存できませんでした。",
   "settingsHomeWorldTitle": "ホームワールド",
   "settingsContentWorldTitle": "コンテンツワールド",
-  "settingsContentWorldDescription": "閲覧・投稿するワールドを選びます。変更できないホームワールドはそのままです。",
+  "settingsContentWorldDescription": "閲覧や投稿に使うワールドを選べます。コンテンツワールドを切り替えても、ホームワールドは変わりません。",
   "settingsContentWorldSwitchFailed": "ワールドを切り替えられませんでした。もう一度お試しください。",
   "settingsMapStyleTitle": "マップスタイル",
   "settingsMapStyleAuto": "自動",

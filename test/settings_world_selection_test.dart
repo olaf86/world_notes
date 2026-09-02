@@ -81,7 +81,7 @@ void main() {
     expect(find.text('North America'), findsOneWidget);
     expect(find.text('Europe'), findsOneWidget);
     expect(
-      find.textContaining('permanent home world will not change'),
+      find.textContaining('Switching content worlds does not change'),
       findsOneWidget,
     );
 

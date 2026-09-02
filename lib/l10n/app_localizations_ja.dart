@@ -961,7 +961,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get settingsContentWorldDescription =>
-      '閲覧・投稿するワールドを選びます。変更できないホームワールドはそのままです。';
+      '閲覧や投稿に使うワールドを選べます。コンテンツワールドを切り替えても、ホームワールドは変わりません。';
 
   @override
   String get settingsContentWorldSwitchFailed =>
