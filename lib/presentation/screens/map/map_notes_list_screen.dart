@@ -12,6 +12,7 @@ import '../../../l10n/l10n.dart';
 import '../../../l10n/localized_formatters.dart';
 import '../../../services/location_service.dart';
 import '../../providers/providers.dart';
+import '../../widgets/map/map_note_activity_badges.dart';
 import '../../widgets/note/note_list_card.dart';
 import '../../widgets/note/note_sort_button.dart';
 import '../../widgets/note/user_avatar_badge.dart';
@@ -346,21 +347,14 @@ class _MapNoteTileState extends ConsumerState<_MapNoteTile> {
       ),
       title: pin.title,
       subtitle: pin.subtitle,
+      header: pin.markerFlags.isEmpty ? null : MapNoteActivityBadges(pin: pin),
+      highlightColor: pin.hasUnseenMessages
+          ? colorScheme.error
+          : pin.isFromFollowedAuthor
+          ? colorScheme.tertiary
+          : null,
       titleAccessory: _AccessStatusSignal(canOpen: display.canOpen),
       metadata: [
-        if (pin.isFromFollowedAuthor)
-          NoteListMeta(
-            icon: Icons.person_pin_circle_outlined,
-            label: l10n.mapFromFollowing,
-            semanticLabel: l10n.mapFromFollowingSemantic,
-            color: colorScheme.tertiary,
-          ),
-        if (pin.hasUnseenMessages)
-          NoteListMeta(
-            icon: Icons.fiber_new_outlined,
-            label: l10n.newMessages,
-            color: colorScheme.error,
-          ),
         NoteListMeta(
           icon: Icons.near_me_outlined,
           label: distanceLabel,

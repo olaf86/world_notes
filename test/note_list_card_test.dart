@@ -89,6 +89,34 @@ void main() {
 
     expect(darkGradient.colors, isNot(lightGradient.colors));
   });
+
+  testWidgets('shows an optional prominent header and tinted surface', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: NoteListCard(
+            avatarColor: Colors.red,
+            avatarIcon: Icons.place,
+            title: 'Updated note',
+            header: Text('New activity'),
+            highlightColor: Colors.red,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('New activity'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('note-list-card-highlight')),
+      findsOneWidget,
+    );
+    final card = tester.widget<Card>(find.byType(Card));
+    final shape = card.shape! as RoundedRectangleBorder;
+    expect(shape.side.color, Colors.red);
+    expect(shape.side.width, 2);
+  });
 }
 
 LinearGradient _cardGradient(WidgetTester tester, NoteThemeId id) {
