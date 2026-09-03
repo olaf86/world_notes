@@ -8,6 +8,7 @@ import '../../../l10n/l10n.dart';
 import '../../../l10n/localized_formatters.dart';
 import '../../providers/providers.dart';
 import '../../screens/map/map_pin_display.dart';
+import 'map_note_activity_badges.dart';
 import '../note/note_pin_avatar.dart';
 import '../note/note_theme_motion_background.dart';
 import '../note/user_avatar_badge.dart';
@@ -157,23 +158,15 @@ class _NoteMarkerBottomSheetState extends ConsumerState<NoteMarkerBottomSheet> {
                         ],
                       ),
                       const SizedBox(height: 12),
+                      if (pin.markerFlags.isNotEmpty) ...[
+                        MapNoteActivityBadges(pin: pin),
+                        const SizedBox(height: 12),
+                      ],
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          if (pin.isFromFollowedAuthor)
-                            _MetaChip(
-                              icon: Icons.person_pin_circle_outlined,
-                              label: l10n.mapNewFromFollowing,
-                              color: theme.colorScheme.tertiary,
-                            ),
-                          if (pin.hasUnseenMessages)
-                            _MetaChip(
-                              icon: Icons.fiber_new_outlined,
-                              label: l10n.newMessages,
-                              color: theme.colorScheme.error,
-                            ),
                           _MetaChip(
                             icon: Icons.chat_bubble_outline,
                             label: l10n.messageCount(pin.messageCount),

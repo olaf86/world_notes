@@ -46,8 +46,21 @@ class MarkerImage {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
     canvas.scale(scale);
+    ui.Codec? photoCodec;
+    ui.Image? photoImage;
 
     final center = Offset(_width / 2, _circleCenterY);
+
+    if (showFollowedAuthorRing) {
+      // A soft discovery halo keeps the state visible against both detailed
+      // and low-contrast map styles without changing the marker footprint.
+      final discoveryHaloPaint = Paint()
+        ..color = const Color(0xFFFFC857).withValues(alpha: 0.62)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 9
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
+      canvas.drawCircle(center, _circleRadius + 3, discoveryHaloPaint);
+    }
 
     // Drop shadow under the pin.
     final shadowPaint = Paint()
@@ -75,7 +88,7 @@ class MarkerImage {
       final discoveryPaint = Paint()
         ..color = const Color(0xFFFFC857)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 5;
+        ..strokeWidth = 7;
       canvas.drawCircle(center, _circleRadius + 3, discoveryPaint);
     }
 
@@ -109,12 +122,18 @@ class MarkerImage {
         ),
       );
     } else {
-      final codec = await ui.instantiateImageCodec(
+      photoCodec = await ui.instantiateImageCodec(
         imageBytes,
         targetWidth: (_photoRadius * 2 * scale).round(),
         targetHeight: (_photoRadius * 2 * scale).round(),
       );
-      final frame = await codec.getNextFrame();
+      try {
+        final frame = await photoCodec.getNextFrame();
+        photoImage = frame.image;
+      } catch (_) {
+        photoCodec.dispose();
+        rethrow;
+      }
       final photoRect = Rect.fromCircle(center: center, radius: _photoRadius);
 
       canvas.save();
@@ -122,7 +141,7 @@ class MarkerImage {
       paintImage(
         canvas: canvas,
         rect: photoRect,
-        image: frame.image,
+        image: photoImage,
         fit: BoxFit.cover,
       );
       canvas.restore();
@@ -135,17 +154,45 @@ class MarkerImage {
     }
 
     if (showUnseenDot) {
-      const dotCenter = Offset(78, 13);
-      canvas.drawCircle(dotCenter, 11, Paint()..color = Colors.white);
-      canvas.drawCircle(dotCenter, 7, Paint()..color = const Color(0xFFE5484D));
+      const dotCenter = Offset(78, 15);
+      const dotColor = Color(0xFFE5484D);
+      final dotHaloPaint = Paint()
+        ..color = dotColor.withValues(alpha: 0.72)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
+      canvas.drawCircle(dotCenter, 15, dotHaloPaint);
+      canvas.drawCircle(dotCenter, 14, Paint()..color = Colors.white);
+      canvas.drawCircle(dotCenter, 10, Paint()..color = dotColor);
+
+      // Use a white exclamation mark so the badge is clear without relying on
+      // color alone. Thick strokes keep it visible when the map scales it down.
+      final alertPaint = Paint()
+        ..color = Colors.white
+        ..strokeWidth = 3
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(
+        dotCenter.translate(0, -5),
+        dotCenter.translate(0, 2),
+        alertPaint,
+      );
+      canvas.drawCircle(dotCenter.translate(0, 6), 1.6, alertPaint);
     }
 
     final picture = recorder.endRecording();
-    final img = await picture.toImage(
-      (_width * scale).round(),
-      (_height * scale).round(),
-    );
-    final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
-    return byteData!.buffer.asUint8List();
+    try {
+      final img = await picture.toImage(
+        (_width * scale).round(),
+        (_height * scale).round(),
+      );
+      try {
+        final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
+        return byteData!.buffer.asUint8List();
+      } finally {
+        img.dispose();
+      }
+    } finally {
+      picture.dispose();
+      photoImage?.dispose();
+      photoCodec?.dispose();
+    }
   }
 }

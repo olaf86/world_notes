@@ -47,7 +47,15 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.text('From someone you follow'), findsOneWidget);
+    expect(find.text('New from someone you follow'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('map-note-activity-followed-author')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('note-list-card-highlight')),
+      findsOneWidget,
+    );
     expect(
       find.bySemanticsLabel('Within access range. You can open this note.'),
       findsOneWidget,

@@ -73,13 +73,16 @@ client receives no intermediate join state and performs no per-pin reads.
 
 Map markers use a stable-size visual treatment:
 
-- an outer discovery ring for a recent note by a followed user;
-- an unread dot for a previously opened or participated note with a larger
+- an outer discovery ring and soft static halo for a recent note by a followed
+  user;
+- a prominent alert badge for a previously opened or participated note with a larger
   `messageCount` than the caller last saw;
 - both treatments when both states apply.
 
-The map notes list and marker bottom sheet reuse the same server-computed
-state. No filter or mode switch is added to the map.
+The map notes list and marker bottom sheet reuse the same server-computed state
+as filled status badges. The unseen-message badge gives two soft pulses when it
+enters the viewport, then stops; reduced-motion settings disable the pulse. No
+filter or mode switch is added to the map.
 
 ## Cost Shape
 

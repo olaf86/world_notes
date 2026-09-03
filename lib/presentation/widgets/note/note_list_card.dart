@@ -13,11 +13,13 @@ class NoteListCard extends StatelessWidget {
   final String title;
   final String? subtitle;
   final Widget? titleAccessory;
+  final Widget? header;
   final List<NoteListMeta> metadata;
   final Widget? trailing;
   final VoidCallback? onTap;
   final NoteThemeId themeId;
   final bool isArchived;
+  final Color? highlightColor;
 
   const NoteListCard({
     super.key,
@@ -28,11 +30,13 @@ class NoteListCard extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.titleAccessory,
+    this.header,
     this.metadata = const [],
     this.trailing,
     this.onTap,
     this.themeId = NoteThemeId.standard,
     this.isArchived = false,
+    this.highlightColor,
   });
 
   @override
@@ -54,7 +58,10 @@ class NoteListCard extends StatelessWidget {
             clipBehavior: Clip.antiAlias,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
-              side: BorderSide(color: colorScheme.outlineVariant),
+              side: BorderSide(
+                color: highlightColor ?? colorScheme.outlineVariant,
+                width: highlightColor == null ? 1 : 2,
+              ),
             ),
             child: Ink(
               key: ValueKey('note-theme-card-${themeId.name}'),
@@ -71,74 +78,93 @@ class NoteListCard extends StatelessWidget {
                       opacityScale: isArchived ? 0.32 : 0.52,
                     ),
                   ),
+                  if (highlightColor != null)
+                    Positioned.fill(
+                      child: ColoredBox(
+                        key: const ValueKey('note-list-card-highlight'),
+                        color: highlightColor!.withValues(alpha: 0.08),
+                      ),
+                    ),
                   InkWell(
                     onTap: onTap,
                     child: Padding(
                       padding: const EdgeInsets.all(12),
-                      child: Row(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          NotePinAvatar(
-                            color: avatarColor,
-                            icon: avatarIcon,
-                            storagePath: avatarImageStoragePath,
-                            badge: avatarBadge,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
+                          if (header != null) ...[
+                            header!,
+                            const SizedBox(height: 10),
+                          ],
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              NotePinAvatar(
+                                color: avatarColor,
+                                icon: avatarIcon,
+                                storagePath: avatarImageStoragePath,
+                                badge: avatarBadge,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Expanded(
-                                      child: Text(
-                                        title,
-                                        style: theme.textTheme.titleSmall,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            title,
+                                            style: theme.textTheme.titleSmall,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        if (titleAccessory != null) ...[
+                                          const SizedBox(width: 8),
+                                          titleAccessory!,
+                                        ],
+                                        if (trailing != null) ...[
+                                          const SizedBox(width: 8),
+                                          trailing!,
+                                        ],
+                                      ],
                                     ),
-                                    if (titleAccessory != null) ...[
-                                      const SizedBox(width: 8),
-                                      titleAccessory!,
-                                    ],
-                                    if (trailing != null) ...[
-                                      const SizedBox(width: 8),
-                                      trailing!,
-                                    ],
+                                    if (hasSubtitle)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 4),
+                                        child: Text(
+                                          trimmedSubtitle!,
+                                          style: theme.textTheme.bodySmall
+                                              ?.copyWith(
+                                                color: colorScheme
+                                                    .onSurfaceVariant,
+                                              ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    if (metadata.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 6),
+                                        child: Wrap(
+                                          spacing: 8,
+                                          runSpacing: 4,
+                                          children: metadata
+                                              .map(
+                                                (item) => _NoteListMetaView(
+                                                  item: item,
+                                                ),
+                                              )
+                                              .toList(),
+                                        ),
+                                      ),
                                   ],
                                 ),
-                                if (hasSubtitle)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: Text(
-                                      trimmedSubtitle!,
-                                      style: theme.textTheme.bodySmall
-                                          ?.copyWith(
-                                            color: colorScheme.onSurfaceVariant,
-                                          ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                if (metadata.isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 6),
-                                    child: Wrap(
-                                      spacing: 8,
-                                      runSpacing: 4,
-                                      children: metadata
-                                          .map(
-                                            (item) =>
-                                                _NoteListMetaView(item: item),
-                                          )
-                                          .toList(),
-                                    ),
-                                  ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
