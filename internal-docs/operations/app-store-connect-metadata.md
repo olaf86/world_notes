@@ -34,7 +34,7 @@ Submission**, then select each language from the localization menu.
 - Version: `1.0.0`
 - Copyright: `2026 Yuta Ogawa`
 - Privacy Policy URL: `https://worldnotes.asobo.dev/privacy/`. Published and
-  verified over HTTPS on 2026-08-30. The page source is in
+  verified over HTTPS on 2026-09-03. The page source is in
   `public/privacy/index.html`.
 - Support URL: `https://worldnotes.asobo.dev/support/`. Published and verified
   over HTTPS on 2026-08-30. The page source is in
@@ -53,8 +53,11 @@ Hosting changes.
 
 ## App Privacy and App Tracking Transparency
 
-The iOS app intentionally uses Google's UMP flow to present an IDFA explainer
-and Apple's App Tracking Transparency prompt for non-PRO advertising. Keep
+The iOS app intentionally uses Google's UMP flow for consent and IDFA
+explanation, followed by a direct `ATTrackingManager` authorization request as
+a deterministic fallback for non-PRO advertising. The initial location
+permission request is serialized after this ad-privacy flow so iOS never has
+two permission prompts pending at the same time. Keep
 `NSUserTrackingUsageDescription` in the binary and do not answer that the app
 does not track. In **App Store Connect → App Privacy**, include the following
 Google Mobile Ads data types and conservatively mark the three advertising
@@ -422,6 +425,9 @@ artifacts/store_screenshots/ios_ipad/{locale}/
    `https://www.apple.com/legal/internet-services/itunes/dev/stdeula/`.
 4. Complete the Age Rating questionnaire after the localized metadata and
    screenshots are entered.
+5. For the September 2026 review follow-up, complete the physical-device
+   recording and paste-ready review notes in
+   `internal-docs/operations/app-review-resubmission-2026-09-02.md`.
 
 ## Apple references
 

@@ -69,6 +69,9 @@ void main() {
           l10n.deleteAccountTitle,
           l10n.deleteAccountWarning,
           l10n.deleteAccountSubscriptionWarning,
+          l10n.privacyPolicy,
+          l10n.termsOfUseEula,
+          l10n.legalLinkOpenFailed,
         ]) {
           expect(
             newlyLocalizedLabel,

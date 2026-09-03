@@ -11,6 +11,9 @@ class SceneDelegate: FlutterSceneDelegate {
     guard let controller = window?.rootViewController as? FlutterViewController else {
       return
     }
+    TrackingAuthorizationManager.shared.configure(
+      binaryMessenger: controller.binaryMessenger
+    )
     NotificationLaunchManager.shared.configure(binaryMessenger: controller.binaryMessenger)
     if let userInfo = connectionOptions.notificationResponse?.notification.request.content.userInfo {
       NotificationLaunchManager.shared.capture(userInfo: userInfo)

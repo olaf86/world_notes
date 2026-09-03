@@ -3,6 +3,40 @@ import 'package:geolocator/geolocator.dart';
 import 'package:world_notes/services/location_service.dart';
 
 void main() {
+  group('LocationService.ensurePermission', () {
+    test('requests location permission when it is denied', () async {
+      var permissionRequestCalls = 0;
+      final service = LocationService(
+        permissionChecker: () async => LocationPermission.denied,
+        permissionRequester: () async {
+          permissionRequestCalls += 1;
+          return LocationPermission.whileInUse;
+        },
+      );
+
+      final permission = await service.ensurePermission();
+
+      expect(permission, LocationPermission.whileInUse);
+      expect(permissionRequestCalls, 1);
+    });
+
+    test('does not request an existing location permission', () async {
+      var permissionRequestCalls = 0;
+      final service = LocationService(
+        permissionChecker: () async => LocationPermission.whileInUse,
+        permissionRequester: () async {
+          permissionRequestCalls += 1;
+          return LocationPermission.whileInUse;
+        },
+      );
+
+      final permission = await service.ensurePermission();
+
+      expect(permission, LocationPermission.whileInUse);
+      expect(permissionRequestCalls, 0);
+    });
+  });
+
   group('locationAvailabilityIssueFromPermission', () {
     test('classifies unavailable permissions', () {
       expect(

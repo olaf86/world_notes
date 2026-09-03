@@ -1,4 +1,5 @@
 import Flutter
+import AppTrackingTransparency
 import UIKit
 
 @main
@@ -30,6 +31,110 @@ import UIKit
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+  }
+}
+
+final class TrackingAuthorizationManager {
+  static let shared = TrackingAuthorizationManager()
+
+  private static let channelName = "world_notes/tracking_authorization"
+  private var channel: FlutterMethodChannel?
+  private var pendingResults: [FlutterResult] = []
+  private var requestInFlight = false
+  private var activationObserver: NSObjectProtocol?
+
+  private init() {}
+
+  func configure(binaryMessenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(
+      name: Self.channelName,
+      binaryMessenger: binaryMessenger
+    )
+    channel.setMethodCallHandler { [weak self] call, result in
+      guard call.method == "requestAuthorizationIfNeeded" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      self?.requestAuthorizationIfNeeded(result: result)
+    }
+    self.channel = channel
+  }
+
+  private func requestAuthorizationIfNeeded(result: @escaping FlutterResult) {
+    guard #available(iOS 14, *) else {
+      result("unavailable")
+      return
+    }
+
+    let status = ATTrackingManager.trackingAuthorizationStatus
+    guard status == .notDetermined else {
+      result(statusName(status))
+      return
+    }
+
+    pendingResults.append(result)
+    requestWhenApplicationIsActive()
+  }
+
+  @available(iOS 14, *)
+  private func requestWhenApplicationIsActive() {
+    guard !requestInFlight else { return }
+    guard UIApplication.shared.applicationState == .active else {
+      observeNextActivation()
+      return
+    }
+
+    stopObservingActivation()
+    requestInFlight = true
+    ATTrackingManager.requestTrackingAuthorization { [weak self] status in
+      DispatchQueue.main.async {
+        guard let self else { return }
+        self.requestInFlight = false
+        self.finishPendingResults(with: self.statusName(status))
+      }
+    }
+  }
+
+  private func observeNextActivation() {
+    guard activationObserver == nil else { return }
+    activationObserver = NotificationCenter.default.addObserver(
+      forName: UIApplication.didBecomeActiveNotification,
+      object: nil,
+      queue: .main
+    ) { [weak self] _ in
+      guard #available(iOS 14, *) else { return }
+      self?.requestWhenApplicationIsActive()
+    }
+  }
+
+  private func stopObservingActivation() {
+    guard let activationObserver else { return }
+    NotificationCenter.default.removeObserver(activationObserver)
+    self.activationObserver = nil
+  }
+
+  private func finishPendingResults(with status: String) {
+    let results = pendingResults
+    pendingResults.removeAll()
+    for result in results {
+      result(status)
+    }
+  }
+
+  @available(iOS 14, *)
+  private func statusName(_ status: ATTrackingManager.AuthorizationStatus) -> String {
+    switch status {
+    case .notDetermined:
+      return "notDetermined"
+    case .restricted:
+      return "restricted"
+    case .denied:
+      return "denied"
+    case .authorized:
+      return "authorized"
+    @unknown default:
+      return "unknown"
+    }
   }
 }
 

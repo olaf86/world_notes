@@ -97,6 +97,16 @@ void main() {
     expect(AppConfig.interstitialCooldown, const Duration(minutes: 15));
   });
 
+  test('uses public HTTPS links for subscription legal documents', () {
+    final privacy = Uri.parse(AppConfig.privacyPolicyUrl);
+    final terms = Uri.parse(AppConfig.termsOfUseUrl);
+
+    expect(privacy.scheme, 'https');
+    expect(privacy.host, 'worldnotes.asobo.dev');
+    expect(terms.scheme, 'https');
+    expect(terms.host, 'www.apple.com');
+  });
+
   test('backs off banner retries and caps the delay', () {
     expect(
       AppConfig.bannerAdRetryDelayForFailure(0),

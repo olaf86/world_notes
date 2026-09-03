@@ -1097,6 +1097,15 @@ class AppLocalizationsJa extends AppLocalizations {
   String get proChoosePlan => 'PROプランを選ぶ';
 
   @override
+  String get privacyPolicy => 'プライバシーポリシー';
+
+  @override
+  String get termsOfUseEula => '利用規約（EULA）';
+
+  @override
+  String get legalLinkOpenFailed => '選択した法的文書を開けませんでした。';
+
+  @override
   String get moderation => 'モデレーション';
 
   @override

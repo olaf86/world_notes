@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../config/app_config.dart';
 import '../../../config/runtime_mode.dart';
@@ -231,6 +232,8 @@ class _ScreenshotProView extends StatelessWidget {
                     ),
                   ],
                 ),
+                const SizedBox(height: 20),
+                const SubscriptionLegalLinks(),
               ],
             ),
           ),
@@ -367,44 +370,111 @@ class _RevenueCatPaywall extends StatelessWidget {
     return Semantics(
       identifier: 'screen-subscription',
       child: Scaffold(
-        body: PaywallView(
-          offering: offering,
-          customVariables: {
-            'plan_name': CustomVariableValue.string(context.l10n.proPlanName),
-            'monthly_price': CustomVariableValue.string(
-              AppConfig.proMonthlyPriceLabel,
+        body: Column(
+          children: [
+            Expanded(
+              child: PaywallView(
+                offering: offering,
+                customVariables: {
+                  'plan_name': CustomVariableValue.string(
+                    context.l10n.proPlanName,
+                  ),
+                  'monthly_price': CustomVariableValue.string(
+                    AppConfig.proMonthlyPriceLabel,
+                  ),
+                  'yearly_price': CustomVariableValue.string(
+                    AppConfig.proYearlyPriceLabel,
+                  ),
+                  'yearly_launch_price': CustomVariableValue.string(
+                    AppConfig.proYearlyLaunchPriceLabel,
+                  ),
+                  'free_note_limit': CustomVariableValue.number(
+                    AppConfig.freeNoteLimit.toDouble(),
+                  ),
+                  'pro_note_limit': CustomVariableValue.number(
+                    AppConfig.proNoteLimit.toDouble(),
+                  ),
+                },
+                onPurchaseCompleted: (customerInfo, storeTransaction) {
+                  unawaited(onEntitlementChanged());
+                  if (context.mounted) Navigator.of(context).pop();
+                },
+                onPurchaseError: (error) =>
+                    _handlePaywallError(context, 'purchase', error),
+                onRestoreCompleted: (customerInfo) {
+                  unawaited(onEntitlementChanged());
+                  if (context.mounted) Navigator.of(context).pop();
+                },
+                onRestoreError: (error) =>
+                    _handlePaywallError(context, 'restore', error),
+                onDismiss: () {
+                  if (context.mounted) Navigator.of(context).pop();
+                },
+              ),
             ),
-            'yearly_price': CustomVariableValue.string(
-              AppConfig.proYearlyPriceLabel,
-            ),
-            'yearly_launch_price': CustomVariableValue.string(
-              AppConfig.proYearlyLaunchPriceLabel,
-            ),
-            'free_note_limit': CustomVariableValue.number(
-              AppConfig.freeNoteLimit.toDouble(),
-            ),
-            'pro_note_limit': CustomVariableValue.number(
-              AppConfig.proNoteLimit.toDouble(),
-            ),
-          },
-          onPurchaseCompleted: (customerInfo, storeTransaction) {
-            unawaited(onEntitlementChanged());
-            if (context.mounted) Navigator.of(context).pop();
-          },
-          onPurchaseError: (error) =>
-              _handlePaywallError(context, 'purchase', error),
-          onRestoreCompleted: (customerInfo) {
-            unawaited(onEntitlementChanged());
-            if (context.mounted) Navigator.of(context).pop();
-          },
-          onRestoreError: (error) =>
-              _handlePaywallError(context, 'restore', error),
-          onDismiss: () {
-            if (context.mounted) Navigator.of(context).pop();
-          },
+            const SubscriptionLegalLinks(),
+          ],
         ),
       ),
     );
+  }
+}
+
+typedef SubscriptionUrlLauncher = Future<bool> Function(Uri uri);
+
+/// Review-visible legal links that do not depend on the remote paywall
+/// template configured in RevenueCat.
+class SubscriptionLegalLinks extends StatelessWidget {
+  const SubscriptionLegalLinks({super.key, this.urlLauncher});
+
+  final SubscriptionUrlLauncher? urlLauncher;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Material(
+      color: colors.surface,
+      child: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+        child: Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 4,
+          runSpacing: 0,
+          children: [
+            Semantics(
+              identifier: 'action-open-privacy-policy',
+              link: true,
+              child: TextButton(
+                onPressed: () =>
+                    _open(context, Uri.parse(AppConfig.privacyPolicyUrl)),
+                child: Text(context.l10n.privacyPolicy),
+              ),
+            ),
+            Semantics(
+              identifier: 'action-open-terms-of-use',
+              link: true,
+              child: TextButton(
+                onPressed: () =>
+                    _open(context, Uri.parse(AppConfig.termsOfUseUrl)),
+                child: Text(context.l10n.termsOfUseEula),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _open(BuildContext context, Uri uri) async {
+    final launched =
+        await (urlLauncher?.call(uri) ??
+            launchUrl(uri, mode: LaunchMode.externalApplication));
+    if (!launched && context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.l10n.legalLinkOpenFailed)));
+    }
   }
 }
 
