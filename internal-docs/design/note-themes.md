@@ -114,6 +114,11 @@ controls must meet WCAG AA contrast (4.5:1 for normal text) in both modes.
 
 ## Presentation behavior
 
+The dynamic background implementation uses a shared Flutter runtime fragment
+shader for the five expressive themes. For a GLSL primer, Dart-side lifecycle,
+uniform layout, per-theme formulas, performance constraints, and seamless-loop
+rules, see [`note-theme-fragment-shader.md`](note-theme-fragment-shader.md).
+
 ### Map marker bottom sheet
 
 `NoteMarkerBottomSheet` receives the summary's theme ID and applies the local
