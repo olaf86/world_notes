@@ -34,15 +34,24 @@ class NoteThemeMotionBackground extends StatefulWidget {
 
 class _NoteThemeMotionBackgroundState extends State<NoteThemeMotionBackground>
     with SingleTickerProviderStateMixin {
-  static const _stillProgress = 0.18;
-  static const _animationSteps = 28 * 30;
+  // A full background loop takes 28 seconds. Repaints are capped at 30 fps,
+  // which is sufficient for this slow movement even on 60/120 Hz displays.
+  static const _animationDurationSeconds = 28;
+  static const _targetRepaintsPerSecond = 30;
+  static const _animationSteps =
+      _animationDurationSeconds * _targetRepaintsPerSecond;
 
+  // Static previews and reduced-motion mode use a balanced frame 18% into the
+  // same loop. This is a normalized position, not seconds or opacity.
+  static const _stillProgress = 0.18;
+
+  late final double _shaderSeed = math.Random().nextDouble();
   ui.FragmentShader? _fragmentShader;
   bool _shaderRequested = false;
 
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(seconds: 28),
+    duration: const Duration(seconds: _animationDurationSeconds),
     value: _stillProgress,
   );
 
@@ -127,6 +136,7 @@ class _NoteThemeMotionBackgroundState extends State<NoteThemeMotionBackground>
               themeId: widget.themeId,
               palette: widget.palette,
               progress: progress,
+              shaderSeed: _shaderSeed,
               opacityScale: widget.opacityScale,
               fragmentShader: _fragmentShader,
             ),
@@ -162,6 +172,7 @@ class NoteThemeMotionPainter extends CustomPainter {
   final NoteThemeId themeId;
   final NoteThemePalette palette;
   final double progress;
+  final double shaderSeed;
   final double opacityScale;
   final ui.FragmentShader? fragmentShader;
 
@@ -169,6 +180,7 @@ class NoteThemeMotionPainter extends CustomPainter {
     required this.themeId,
     required this.palette,
     required this.progress,
+    required this.shaderSeed,
     required this.opacityScale,
     this.fragmentShader,
   });
@@ -208,6 +220,7 @@ class NoteThemeMotionPainter extends CustomPainter {
       ..setFloat(uniform++, size.width)
       ..setFloat(uniform++, size.height)
       ..setFloat(uniform++, progress)
+      ..setFloat(uniform++, shaderSeed)
       ..setFloat(uniform++, themeId.index.toDouble())
       ..setFloat(uniform++, opacityScale);
 
@@ -433,6 +446,7 @@ class NoteThemeMotionPainter extends CustomPainter {
       oldDelegate.themeId != themeId ||
       oldDelegate.palette != palette ||
       oldDelegate.progress != progress ||
+      oldDelegate.shaderSeed != shaderSeed ||
       oldDelegate.opacityScale != opacityScale ||
       oldDelegate.fragmentShader != fragmentShader;
 }

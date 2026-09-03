@@ -5,6 +5,7 @@
 // used, keeping the full-screen background inexpensive on mobile GPUs.
 uniform vec2 uSize;
 uniform float uProgress;
+uniform float uSeed;
 uniform float uTheme;
 uniform float uOpacity;
 uniform vec4 uPrimary;
@@ -19,6 +20,23 @@ float softLine(float distanceToLine, float core, float feather) {
   return 1.0 - smoothstep(core, core + feather, distanceToLine);
 }
 
+// A small, arithmetic-only hash provides stable pseudo-random values for the
+// lifetime of a background. It requires no texture lookup or iterative noise.
+float seededHash(vec2 value) {
+  value += vec2(uSeed * 91.7, uSeed * 47.3);
+  vec3 parts = fract(vec3(value.xyx) * vec3(0.1031, 0.1030, 0.0973));
+  parts += dot(parts, parts.yzx + 33.33);
+  return fract((parts.x + parts.y) * parts.z);
+}
+
+float seededValue(float stream) {
+  return fract(uSeed * (71.37 + stream * 13.91) + stream * 0.618033);
+}
+
+float remix(float value) {
+  return fract(value * 7.31 + 0.17);
+}
+
 void finish(vec3 premultipliedTint, float alpha) {
   float scaledAlpha = clamp(alpha * uOpacity, 0.0, 0.32);
   float sourceAlpha = max(alpha, 0.0001);
@@ -27,9 +45,18 @@ void finish(vec3 premultipliedTint, float alpha) {
 }
 
 void paintAurora(vec2 uv, float time) {
-  float firstCenter = 0.20 + 0.070 * sin(uv.x * 4.2 + time);
-  float secondCenter = 0.51 + 0.085 * sin(uv.x * 3.4 - time * 0.72 + 2.1);
-  float thirdCenter = 0.80 + 0.060 * sin(uv.x * 4.8 + time * 0.55 + 4.0);
+  float firstRandom = seededValue(1.0);
+  float secondRandom = seededValue(2.0);
+  float thirdRandom = seededValue(3.0);
+  float firstCenter = 0.18 + firstRandom * 0.045
+      + mix(0.050, 0.085, firstRandom)
+      * sin(uv.x * mix(3.7, 4.8, firstRandom) + time + firstRandom * PI * 2.0);
+  float secondCenter = 0.49 + secondRandom * 0.040
+      + mix(0.060, 0.095, secondRandom)
+      * sin(uv.x * mix(3.0, 4.1, secondRandom) - time + secondRandom * PI * 2.0);
+  float thirdCenter = 0.78 + thirdRandom * 0.030
+      + mix(0.045, 0.070, thirdRandom)
+      * sin(uv.x * mix(4.1, 5.2, thirdRandom) + time + thirdRandom * PI * 2.0);
 
   float first = softLine(abs(uv.y - firstCenter), 0.015, 0.145) * 0.070;
   float second = softLine(abs(uv.y - secondCenter), 0.012, 0.125) * 0.060;
@@ -42,58 +69,84 @@ void paintAurora(vec2 uv, float time) {
 
 void paintCitrus(vec2 uv, float time) {
   vec2 cells = vec2(3.2, 4.4);
-  vec2 cell = floor(uv * cells);
-  vec2 point = fract(uv * cells + vec2(time * 0.035, -time * 0.022)) - 0.5;
+  float motionPhase = seededValue(6.0) * PI * 2.0;
+  vec2 motion = vec2(sin(time + motionPhase), cos(time + motionPhase))
+      * vec2(0.055, 0.040);
+  vec2 movingPoint = uv * cells + motion;
+  vec2 cell = floor(movingPoint);
+  float random = seededHash(cell);
+  float secondRandom = remix(random);
+  vec2 point = fract(movingPoint) - 0.5;
+  point += vec2(random - 0.5, secondRandom - 0.5) * 0.10;
   point.x *= uSize.x / max(uSize.y, 1.0) * cells.y / cells.x;
 
-  float rotation = time * 0.08 + (cell.x + cell.y) * 0.34;
+  float spinDirection = mix(-1.0, 1.0, step(0.5, secondRandom));
+  float spinCount = mix(1.0, 2.0, step(0.78, random));
+  float rotation = time * spinDirection * spinCount + random * PI * 2.0;
   float sine = sin(rotation);
   float cosine = cos(rotation);
   point = mat2(cosine, -sine, sine, cosine) * point;
 
   float radius = length(point);
-  float rind = softLine(abs(radius - 0.255), 0.010, 0.020);
+  float fruitRadius = mix(0.215, 0.285, random);
+  float rind = softLine(abs(radius - fruitRadius), 0.010, 0.020);
   float segmentDistance = min(
     abs(point.y),
     min(abs(point.y - point.x * 0.577), abs(point.y + point.x * 0.577))
   );
   float segments = softLine(segmentDistance, 0.004, 0.012)
-      * (1.0 - smoothstep(0.20, 0.26, radius));
-  float flesh = (1.0 - smoothstep(0.19, 0.25, radius)) * 0.32;
+      * (1.0 - smoothstep(fruitRadius - 0.055, fruitRadius, radius));
+  float flesh = (1.0 - smoothstep(fruitRadius - 0.065, fruitRadius, radius)) * 0.32;
   float alpha = (rind * 0.105 + segments * 0.060 + flesh * 0.038);
-  float alternate = step(1.0, mod(cell.x + cell.y, 2.0));
+  float alternate = step(0.52, secondRandom);
   vec3 fruitColor = mix(uPrimary.rgb, uTertiary.rgb, alternate * 0.62);
   finish(fruitColor * alpha, alpha);
 }
 
 void paintBotanical(vec2 uv, float time) {
   vec2 cells = vec2(3.0, 4.2);
-  vec2 cell = floor(uv * cells);
-  vec2 point = fract(uv * cells + vec2(time * 0.018, -time * 0.028)) - 0.5;
+  float motionPhase = seededValue(7.0) * PI * 2.0;
+  vec2 motion = vec2(sin(time + motionPhase), cos(time + motionPhase))
+      * vec2(0.035, 0.050);
+  vec2 movingPoint = uv * cells + motion;
+  vec2 cell = floor(movingPoint);
+  float random = seededHash(cell + vec2(3.0, 11.0));
+  float secondRandom = remix(random);
+  vec2 point = fract(movingPoint) - 0.5;
+  point += vec2(random - 0.5, secondRandom - 0.5) * 0.08;
   point.x *= uSize.x / max(uSize.y, 1.0) * cells.y / cells.x;
 
-  float direction = mix(-0.72, 0.62, step(1.0, mod(cell.x + cell.y, 2.0)));
-  float sway = sin(time + cell.x * 1.7 + cell.y) * 0.10;
+  float direction = mix(-0.88, 0.78, random);
+  float sway = sin(time + secondRandom * PI * 2.0) * mix(0.065, 0.125, random);
   float sine = sin(direction + sway);
   float cosine = cos(direction + sway);
   point = mat2(cosine, -sine, sine, cosine) * point;
 
   // A tapered ellipse reads as a leaf while remaining cheap to evaluate.
-  vec2 leafPoint = vec2((point.x + 0.02) / 0.32, point.y / 0.115);
+  vec2 leafPoint = vec2(
+    (point.x + 0.02) / mix(0.275, 0.350, random),
+    point.y / mix(0.092, 0.132, secondRandom)
+  );
   float taper = 1.0 + abs(leafPoint.x) * 0.70;
   float leafDistance = length(vec2(leafPoint.x, leafPoint.y * taper));
   float leaf = 1.0 - smoothstep(0.82, 1.0, leafDistance);
   float vein = softLine(abs(point.y), 0.003, 0.010)
       * (1.0 - smoothstep(0.04, 0.30, abs(point.x)));
   float alpha = leaf * 0.055 + vein * 0.085;
-  float alternate = step(1.0, mod(cell.x, 2.0));
+  float alternate = step(0.48, secondRandom);
   vec3 leafColor = mix(uPrimary.rgb, uTertiary.rgb, alternate * 0.70);
   finish(leafColor * alpha, alpha);
 }
 
 void paintNeon(vec2 uv, float time) {
-  float horizontal = abs(fract((uv.y - time * 0.018) * 8.0) - 0.5);
-  float diagonal = abs(fract((uv.x + uv.y * 0.22 + time * 0.012) * 7.0) - 0.5);
+  float gridRandom = seededValue(4.0);
+  float horizontal = abs(
+    fract((uv.y - uProgress * 0.125) * 8.0 + gridRandom) - 0.5
+  );
+  float diagonal = abs(
+    fract((uv.x + uv.y * mix(0.16, 0.29, gridRandom) + uProgress / 7.0) * 7.0
+      + gridRandom * 0.73) - 0.5
+  );
   float gridCore = max(
     softLine(horizontal, 0.006, 0.012),
     softLine(diagonal, 0.006, 0.012)
@@ -103,8 +156,19 @@ void paintNeon(vec2 uv, float time) {
     softLine(diagonal, 0.010, 0.050)
   );
 
-  vec2 framePoint = fract(uv * vec2(2.2, 3.1) + vec2(time * 0.025, -time * 0.018)) - 0.5;
-  vec2 frameDistance = abs(framePoint) - vec2(0.24, 0.17);
+  float framePhase = seededValue(8.0) * PI * 2.0;
+  vec2 frameMotion = vec2(sin(time + framePhase), cos(time + framePhase))
+      * vec2(0.060, 0.045);
+  vec2 movingFrame = uv * vec2(2.2, 3.1) + frameMotion;
+  vec2 frameCell = floor(movingFrame);
+  float frameRandom = seededHash(frameCell + vec2(13.0, 29.0));
+  vec2 framePoint = fract(movingFrame) - 0.5;
+  framePoint += vec2(frameRandom - 0.5, gridRandom - 0.5) * 0.07;
+  vec2 frameSize = vec2(
+    mix(0.19, 0.28, frameRandom),
+    mix(0.13, 0.20, 1.0 - frameRandom)
+  );
+  vec2 frameDistance = abs(framePoint) - frameSize;
   float frame = softLine(abs(max(frameDistance.x, frameDistance.y)), 0.006, 0.015);
   float alpha = gridGlow * 0.028 + gridCore * 0.075 + frame * 0.075;
   vec3 tint = uPrimary.rgb * (gridGlow * 0.028 + gridCore * 0.075)
@@ -113,14 +177,24 @@ void paintNeon(vec2 uv, float time) {
 }
 
 void paintEditorial(vec2 uv, float time) {
-  float shiftedY = uv.y + time * 0.010;
-  float rules = softLine(abs(fract(shiftedY * 10.0) - 0.5), 0.006, 0.012);
-  float margin = softLine(abs(uv.x - 0.115), 0.002, 0.006);
+  float motionPhase = seededValue(9.0) * PI * 2.0;
+  float shiftedY = uv.y + sin(time + motionPhase) * 0.045;
+  float ruleRow = floor(shiftedY * 10.0);
+  float ruleRandom = seededHash(vec2(ruleRow, 37.0));
+  float rules = softLine(abs(fract(shiftedY * 10.0) - 0.5), 0.006, 0.012)
+      * step(mix(0.035, 0.12, ruleRandom), uv.x)
+      * step(uv.x, mix(0.60, 0.96, ruleRandom));
+  float marginRandom = seededValue(5.0);
+  float margin = softLine(abs(uv.x - mix(0.09, 0.14, marginRandom)), 0.002, 0.006);
 
-  vec2 blockCell = fract(vec2(uv.x * 2.0, shiftedY * 5.0)) - 0.5;
-  float block = (1.0 - step(0.25, abs(blockCell.x)))
-      * (1.0 - step(0.11, abs(blockCell.y)));
-  float column = step(0.5, fract(floor(shiftedY * 5.0) * 0.5));
+  vec2 blockGrid = vec2(uv.x * 2.0, shiftedY * 5.0);
+  vec2 blockCellId = floor(blockGrid);
+  float blockRandom = seededHash(blockCellId + vec2(47.0, 53.0));
+  vec2 blockCell = fract(blockGrid) - 0.5;
+  blockCell.x += (blockRandom - 0.5) * 0.12;
+  float block = (1.0 - step(mix(0.18, 0.29, blockRandom), abs(blockCell.x)))
+      * (1.0 - step(mix(0.075, 0.13, 1.0 - blockRandom), abs(blockCell.y)));
+  float column = step(0.5, blockRandom);
   float alpha = rules * 0.050 + margin * 0.105 + block * 0.040;
   vec3 tint = uPrimary.rgb * (rules * 0.050 + block * 0.040)
       + mix(uPrimary.rgb, uTertiary.rgb, 0.78) * (margin * 0.105)
@@ -130,6 +204,8 @@ void paintEditorial(vec2 uv, float time) {
 
 void main() {
   vec2 uv = FlutterFragCoord().xy / max(uSize, vec2(1.0));
+  // Every time-dependent expression is periodic over this 0..2PI interval,
+  // so AnimationController.repeat() can return to zero without a visual jump.
   float time = uProgress * PI * 2.0;
 
   if (uTheme < 1.5) {
