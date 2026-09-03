@@ -75,3 +75,6 @@ flutter:
 
   assets:
     - assets/images/
+
+  shaders:
+    - shaders/note_theme_background.frag

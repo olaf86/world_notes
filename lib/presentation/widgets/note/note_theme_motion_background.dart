@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
@@ -32,13 +34,33 @@ class NoteThemeMotionBackground extends StatefulWidget {
 
 class _NoteThemeMotionBackgroundState extends State<NoteThemeMotionBackground>
     with SingleTickerProviderStateMixin {
+  // Preserve the pre-shader background's 28-second visual cadence. This is a
+  // design-tuning value, not a Flutter or GPU requirement. Repaints are capped
+  // at 30 fps, which is sufficient for this slow movement on 60/120 Hz displays.
+  static const _animationDurationSeconds = 28;
+  static const _targetRepaintsPerSecond = 30;
+  static const _animationSteps =
+      _animationDurationSeconds * _targetRepaintsPerSecond;
+
+  // Static previews and reduced-motion mode use a balanced frame 18% into the
+  // same loop. This is a normalized position, not seconds or opacity.
   static const _stillProgress = 0.18;
+
+  late final double _shaderSeed = math.Random().nextDouble();
+  ui.FragmentShader? _fragmentShader;
+  bool _shaderRequested = false;
 
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(seconds: 28),
+    duration: const Duration(seconds: _animationDurationSeconds),
     value: _stillProgress,
   );
+
+  @override
+  void initState() {
+    super.initState();
+    _requestShaderIfNeeded();
+  }
 
   @override
   void didChangeDependencies() {
@@ -52,6 +74,28 @@ class _NoteThemeMotionBackgroundState extends State<NoteThemeMotionBackground>
     if (oldWidget.themeId != widget.themeId ||
         oldWidget.animate != widget.animate) {
       _syncAnimation();
+    }
+    _requestShaderIfNeeded();
+  }
+
+  void _requestShaderIfNeeded() {
+    if (_shaderRequested || widget.themeId == NoteThemeId.standard) return;
+    _shaderRequested = true;
+    unawaited(_loadShader());
+  }
+
+  Future<void> _loadShader() async {
+    try {
+      final program = await NoteThemeShaderProgram.load();
+      if (!mounted) return;
+      setState(() => _fragmentShader = program.fragmentShader());
+    } catch (error, stackTrace) {
+      // Runtime shaders may be unavailable on a renderer or during a test.
+      // Retain the Canvas painter as a safe visual fallback.
+      assert(() {
+        debugPrint('Note theme shader unavailable: $error\n$stackTrace');
+        return true;
+      }());
     }
   }
 
@@ -73,6 +117,7 @@ class _NoteThemeMotionBackgroundState extends State<NoteThemeMotionBackground>
 
   @override
   void dispose() {
+    _fragmentShader?.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -92,7 +137,9 @@ class _NoteThemeMotionBackgroundState extends State<NoteThemeMotionBackground>
               themeId: widget.themeId,
               palette: widget.palette,
               progress: progress,
+              shaderSeed: _shaderSeed,
               opacityScale: widget.opacityScale,
+              fragmentShader: _fragmentShader,
             ),
             child: const SizedBox.expand(),
           ),
@@ -103,9 +150,22 @@ class _NoteThemeMotionBackgroundState extends State<NoteThemeMotionBackground>
     if (!_controller.isAnimating) return paint(_stillProgress);
     return AnimatedBuilder(
       animation: _controller,
-      builder: (_, _) => paint(_controller.value),
+      // Quantizing the slow background to 30 fps avoids repainting it at the
+      // full 60/120 Hz display rate without making the motion look stepped.
+      builder: (_, _) => paint(
+        (_controller.value * _animationSteps).floor() / _animationSteps,
+      ),
     );
   }
+}
+
+@visibleForTesting
+class NoteThemeShaderProgram {
+  static const assetKey = 'shaders/note_theme_background.frag';
+  static Future<ui.FragmentProgram>? _program;
+
+  static Future<ui.FragmentProgram> load() =>
+      _program ??= ui.FragmentProgram.fromAsset(assetKey);
 }
 
 @visibleForTesting
@@ -113,13 +173,17 @@ class NoteThemeMotionPainter extends CustomPainter {
   final NoteThemeId themeId;
   final NoteThemePalette palette;
   final double progress;
+  final double shaderSeed;
   final double opacityScale;
+  final ui.FragmentShader? fragmentShader;
 
   const NoteThemeMotionPainter({
     required this.themeId,
     required this.palette,
     required this.progress,
+    required this.shaderSeed,
     required this.opacityScale,
+    this.fragmentShader,
   });
 
   double get _phase => progress * math.pi * 2;
@@ -130,6 +194,10 @@ class NoteThemeMotionPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (size.isEmpty) return;
+    if (fragmentShader != null && themeId != NoteThemeId.standard) {
+      _paintFragmentShader(canvas, size);
+      return;
+    }
     switch (themeId) {
       case NoteThemeId.standard:
         return;
@@ -144,6 +212,31 @@ class NoteThemeMotionPainter extends CustomPainter {
       case NoteThemeId.editorial:
         _paintEditorial(canvas, size);
     }
+  }
+
+  void _paintFragmentShader(Canvas canvas, Size size) {
+    final shader = fragmentShader!;
+    var uniform = 0;
+    shader
+      ..setFloat(uniform++, size.width)
+      ..setFloat(uniform++, size.height)
+      ..setFloat(uniform++, progress)
+      ..setFloat(uniform++, shaderSeed)
+      ..setFloat(uniform++, themeId.index.toDouble())
+      ..setFloat(uniform++, opacityScale);
+
+    void setColor(Color color) {
+      shader
+        ..setFloat(uniform++, color.r)
+        ..setFloat(uniform++, color.g)
+        ..setFloat(uniform++, color.b)
+        ..setFloat(uniform++, color.a);
+    }
+
+    setColor(palette.colorScheme.primary);
+    setColor(palette.colorScheme.secondary);
+    setColor(palette.colorScheme.tertiary);
+    canvas.drawRect(Offset.zero & size, Paint()..shader = shader);
   }
 
   void _paintAurora(Canvas canvas, Size size) {
@@ -354,5 +447,7 @@ class NoteThemeMotionPainter extends CustomPainter {
       oldDelegate.themeId != themeId ||
       oldDelegate.palette != palette ||
       oldDelegate.progress != progress ||
-      oldDelegate.opacityScale != opacityScale;
+      oldDelegate.shaderSeed != shaderSeed ||
+      oldDelegate.opacityScale != opacityScale ||
+      oldDelegate.fragmentShader != fragmentShader;
 }
