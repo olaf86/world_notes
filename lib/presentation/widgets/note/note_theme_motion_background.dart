@@ -34,8 +34,9 @@ class NoteThemeMotionBackground extends StatefulWidget {
 
 class _NoteThemeMotionBackgroundState extends State<NoteThemeMotionBackground>
     with SingleTickerProviderStateMixin {
-  // A full background loop takes 28 seconds. Repaints are capped at 30 fps,
-  // which is sufficient for this slow movement even on 60/120 Hz displays.
+  // Preserve the pre-shader background's 28-second visual cadence. This is a
+  // design-tuning value, not a Flutter or GPU requirement. Repaints are capped
+  // at 30 fps, which is sufficient for this slow movement on 60/120 Hz displays.
   static const _animationDurationSeconds = 28;
   static const _targetRepaintsPerSecond = 30;
   static const _animationSteps =

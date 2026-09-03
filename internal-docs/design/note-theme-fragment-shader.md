@@ -228,6 +228,13 @@ canvas.drawRect(Offset.zero & size, Paint()..shader = shader);
 - `_animationSteps = 28 * 30 = 840`: 1周の描画段階数
 - `_stillProgress = 0.18`: 1周の18%地点。約5.04秒地点の構図
 
+28秒はFlutter、GLSL、GPUから要求される技術的な値ではない。Shader化以前の
+Canvas版 `NoteThemeMotionBackground` が28秒周期を使っていたため、Shaderへの
+切り替えで背景の速度感まで変わらないよう、その周期を引き継いでいる。ゆっくり
+した装飾として動きが主張しすぎず、短時間の閲覧では反復も意識されにくい値だが、
+性能上28秒でなければならない理由はない。周期を変更する場合は
+`_animationDurationSeconds` だけを変更すれば、`_animationSteps` も追従する。
+
 `AnimationController` 自体は端末のvsyncで通知するが、進行度を840段階へ量子化
 する。同じ段階では `CustomPainter.shouldRepaint()` がfalseになるため、60Hzや
 120Hz端末でも背景のGPU再描画は最大約30fpsに抑えられる。
@@ -447,8 +454,8 @@ Shader ID をDart側で割り当てることを検討する。
 - OSのReduced Motion設定では静止させる
 - `RepaintBoundary` で背景の再描画を周囲から分離する
 
-ただしFragmentShaderは全面の全ピクセルで動くため、「計算式が短いから無料」
-ではない。次の変更は特に慎重に扱う。
+ただしFragmentShaderは全面の全ピクセルで動くため、計算式が短くても処理コスト
+がなくなるわけではない。次の変更は特に慎重に扱う。
 
 - 複数octaveのnoise/fBMを追加する
 - ピクセルごとの長いループを追加する
