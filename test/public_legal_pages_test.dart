@@ -1,6 +1,8 @@
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:world_notes/core/theme/app_theme.dart';
 
 void main() {
   const supportedLanguages = ['ja', 'en', 'ko', 'zh-Hans', 'zh-Hant'];
@@ -9,11 +11,15 @@ void main() {
   group('public legal pages', () {
     late String supportPage;
     late String privacyPage;
+    late String invitationPage;
+    late String stylesheet;
     late String languageScript;
 
     setUpAll(() async {
       supportPage = await File('public/support/index.html').readAsString();
       privacyPage = await File('public/privacy/index.html').readAsString();
+      invitationPage = await File('public/index.html').readAsString();
+      stylesheet = await File('public/assets/legal.css').readAsString();
       languageScript = await File(
         'public/assets/legal-language.js',
       ).readAsString();
@@ -82,6 +88,15 @@ void main() {
       expect(privacyPage, contains('/assets/legal-language.js?v='));
     });
 
+    test('share the app palette and adaptive surfaces across web pages', () {
+      expect(stylesheet, contains('--accent: ${_cssHex(AppTheme.accent)}'));
+      expect(stylesheet, contains('--accent: ${_cssHex(AppTheme.darkAccent)}'));
+      expect(supportPage, contains('content="#f6f7f5"'));
+      expect(privacyPage, contains('content="#101414"'));
+      expect(invitationPage, contains('/assets/legal.css?v='));
+      expect(invitationPage, contains('src="/assets/app_icon.svg"'));
+    });
+
     test('provide account deletion and subscription guidance', () {
       expect(supportPage, contains('アカウントを削除する'));
       expect(supportPage, contains('Delete your account'));
@@ -102,4 +117,9 @@ void main() {
       expect(privacyPage, contains('Google Mobile Ads'));
     });
   });
+}
+
+String _cssHex(Color color) {
+  final argb = color.toARGB32().toRadixString(16).padLeft(8, '0');
+  return '#${argb.substring(2)}';
 }
