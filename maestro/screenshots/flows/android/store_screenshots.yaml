@@ -10,6 +10,7 @@ tags:
     visible:
       id: "screen-map"
     timeout: 20000
+- waitForAnimationToEnd
 - takeScreenshot: "${SCREENSHOT_OUTPUT_DIR}/android_01_map"
 - tapOn:
     id: "action-show-map-notes-list"
@@ -21,6 +22,7 @@ tags:
     visible:
       id: "map-note-card-wn_tokyo_station"
     timeout: 15000
+- waitForAnimationToEnd
 - takeScreenshot: "${SCREENSHOT_OUTPUT_DIR}/android_02_nearby_notes"
 - tapOn:
     id: "map-note-card-wn_tokyo_station"
@@ -32,6 +34,7 @@ tags:
     visible:
       id: "action-toggle-message-like-msg_tokyo_03"
     timeout: 15000
+- waitForAnimationToEnd
 - takeScreenshot: "${SCREENSHOT_OUTPUT_DIR}/android_03_note_detail"
 - back
 - tapOn:
@@ -44,6 +47,7 @@ tags:
     visible:
       id: "my-note-card-wn_tokyo_station"
     timeout: 15000
+- waitForAnimationToEnd
 - takeScreenshot: "${SCREENSHOT_OUTPUT_DIR}/android_04_my_notes"
 - tapOn:
     id: "nav-profile"
@@ -51,6 +55,7 @@ tags:
     visible:
       id: "screen-profile"
     timeout: 15000
+- waitForAnimationToEnd
 - takeScreenshot: "${SCREENSHOT_OUTPUT_DIR}/android_05_profile"
 - tapOn:
     id: "action-upgrade-to-pro"
@@ -58,4 +63,5 @@ tags:
     visible:
       id: "screen-subscription"
     timeout: 15000
+- waitForAnimationToEnd
 - takeScreenshot: "${SCREENSHOT_OUTPUT_DIR}/android_06_pro"

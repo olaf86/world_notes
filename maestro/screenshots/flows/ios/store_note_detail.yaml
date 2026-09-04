@@ -31,4 +31,5 @@ tags:
     visible:
       id: "action-toggle-message-like-msg_tokyo_03"
     timeout: 15000
+- waitForAnimationToEnd
 - takeScreenshot: "${SCREENSHOT_OUTPUT_DIR}/${SCREENSHOT_FILENAME}"
