@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 class AdPrivacyStatus {
@@ -32,10 +31,6 @@ abstract interface class AdPrivacyService {
 /// AdMob, UMP presents them in the required order and triggers ATT after its
 /// IDFA explanation. A declined ATT request does not prevent ad requests.
 class GoogleAdPrivacyService implements AdPrivacyService {
-  static const _trackingAuthorizationChannel = MethodChannel(
-    'world_notes/tracking_authorization',
-  );
-
   final Future<AdPrivacyStatus> Function()? _initializerOverride;
   Future<AdPrivacyStatus>? _initialization;
 
@@ -91,14 +86,6 @@ class GoogleAdPrivacyService implements AdPrivacyService {
       );
     }
 
-    // UMP requests ATT when an IDFA message is published in AdMob. Calling the
-    // native API as a fallback makes the request deterministic when that
-    // remote message is unavailable or misconfigured. iOS returns the current
-    // status without prompting again if UMP already completed the request.
-    // This must remain before Mobile Ads initialization because the SDK can
-    // preload ads or initialize mediation adapters during initialization.
-    await _requestTrackingAuthorizationIfNeeded();
-
     final consentInformation = ConsentInformation.instance;
     final canRequestAds = await consentInformation.canRequestAds();
     final privacyOptionsStatus = await consentInformation
@@ -114,14 +101,6 @@ class GoogleAdPrivacyService implements AdPrivacyService {
           privacyOptionsStatus == PrivacyOptionsRequirementStatus.required,
       shouldRetry: !canRequestAds && (updateError != null || formError != null),
     );
-  }
-
-  Future<void> _requestTrackingAuthorizationIfNeeded() async {
-    if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) return;
-    final status = await _trackingAuthorizationChannel.invokeMethod<String>(
-      'requestAuthorizationIfNeeded',
-    );
-    debugPrint('[AdMob] ATT authorization status: $status');
   }
 
   Future<FormError?> _requestConsentInfoUpdate() {

@@ -51,13 +51,30 @@ Submission**, then select each language from the localization menu.
 Both URLs are ready to enter in App Store Connect. Reverify them after future
 Hosting changes.
 
+## Auto-renewable subscription review requirements
+
+Keep the following information visible and functional in the in-app purchase
+flow for every release:
+
+- subscription title;
+- subscription duration;
+- localized price and unit price where applicable;
+- Privacy Policy link;
+- Terms of Use link.
+
+The RevenueCat purchase screen supplies the product information and has a
+persistent footer for the two legal links. App Store Connect must separately
+contain the Privacy Policy URL in its dedicated field and the Apple Standard
+EULA URL in every localized Description.
+
 ## App Privacy and App Tracking Transparency
 
-The iOS app intentionally uses Google's UMP flow for consent and IDFA
-explanation, followed by a direct `ATTrackingManager` authorization request as
-a deterministic fallback for non-PRO advertising. The initial location
+The iOS app uses Google's UMP flow as the single owner of consent, the IDFA
+explanation, and the ATT request for non-PRO advertising. The initial location
 permission request is serialized after this ad-privacy flow so iOS never has
-two permission prompts pending at the same time. Keep
+two permission prompts pending at the same time. Before every submission,
+verify that the IDFA message is published in AdMob Privacy & messaging for the
+same iOS app configured by `IOS_ADMOB_APP_ID_PROD`. Keep
 `NSUserTrackingUsageDescription` in the binary and do not answer that the app
 does not track. In **App Store Connect → App Privacy**, include the following
 Google Mobile Ads data types and conservatively mark the three advertising
@@ -90,6 +107,20 @@ Before submission, generate or inspect Xcode's privacy report for the archived
 release and reconcile every included SDK privacy manifest with these answers.
 App Privacy answers are account-level metadata and are not configured in this
 repository.
+
+### AdMob privacy-message checks
+
+Before every iOS submission, confirm in **AdMob → Privacy & messaging** that
+the messages assigned to World Notes are published:
+
+- European regulations for the EEA, the UK, and Switzerland;
+- US state regulations for all current and future supported states;
+- IDFA for the World Notes iOS app.
+
+World Notes uses the UMP SDK directly, so ad-unit deployment is not needed.
+The IDFA message must belong to the same AdMob app configured by
+`IOS_ADMOB_APP_ID_PROD`. Do not use the Google sample app ID to validate the
+published production message.
 
 ## Japanese (`ja`)
 
@@ -425,9 +456,20 @@ artifacts/store_screenshots/ios_ipad/{locale}/
    `https://www.apple.com/legal/internet-services/itunes/dev/stdeula/`.
 4. Complete the Age Rating questionnaire after the localized metadata and
    screenshots are entered.
-5. For the September 2026 review follow-up, complete the physical-device
-   recording and paste-ready review notes in
-   `internal-docs/operations/app-review-resubmission-2026-09-02.md`.
+5. Confirm the review account is non-PRO so reviewers can exercise the ad
+   privacy flow, and provide working credentials and navigation instructions.
+6. Confirm the archived release received non-empty production AdMob app and ad
+   unit IDs and the RevenueCat API key from Xcode Cloud.
+7. On a fresh install of a physical device with tracking requests enabled,
+   verify that the UMP explanation and ATT request finish before the first
+   location permission request.
+8. Open the subscription purchase screen and verify that both the Privacy
+   Policy and Apple Standard EULA links load successfully.
+
+If App Review asks for evidence of either flow, capture a physical-device
+recording showing the fresh-install permission sequence, the following app
+flow, and both subscription legal links opening. Add the recording and concise
+test instructions to **App Review Information → Notes**.
 
 ## Apple references
 

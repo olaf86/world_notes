@@ -329,9 +329,8 @@ final adPrivacyServiceProvider = Provider<AdPrivacyService>(
 );
 
 /// Starts UMP only after authentication and the subscription state have
-/// resolved. UMP decides whether a form is needed on this app launch. On iOS,
-/// the service then guarantees the one-time ATT request before initializing
-/// Mobile Ads, even if the remote IDFA explanation is unavailable.
+/// resolved. UMP decides whether a form is needed on this app launch and, on
+/// iOS, sequences a published IDFA explanation before the one-time ATT alert.
 final adPrivacyStatusProvider = FutureProvider<AdPrivacyStatus>((ref) async {
   if (!AppConfig.supportsMobileAds) {
     return AdPrivacyStatus.disabled;
