@@ -16,7 +16,7 @@
 
 このシェーダーは写真のような複雑な表現を目的にしていない。ノート本文の
 可読性を保ちながら、低コストな幾何学模様でテーマの違いを伝える装飾層で
-ある。背景のベース色は従来どおり `NoteThemePalette` のグラデーションが担当し、
+ある。背景のベース色は `NoteThemePalette` のグラデーションが担当し、
 FragmentShader はその上に半透明で重なる。
 
 ## 最初に押さえる全体像
@@ -184,8 +184,8 @@ ui.FragmentProgram.fromAsset('shaders/note_theme_background.frag');
 ### 4. 非同期ロード中と失敗時
 
 Shaderは非同期に読み込む。完了するまで、または読み込みに失敗した場合は、
-同じ `CustomPainter` に残している従来のCanvas描画を利用する。ロード成功後は
-`fragmentShader != null` となり、Canvas版のテーマ別関数は通らない。
+同じ `CustomPainter` に実装されたCanvasフォールバック描画を利用する。
+ロード成功後は `fragmentShader != null` となり、Canvas版のテーマ別関数は通らない。
 
 Standard テーマは意図的に装飾を持たないため、Shader自体を要求しない。
 
@@ -230,8 +230,7 @@ canvas.drawRect(Offset.zero & size, Paint()..shader = shader);
 
 14秒はFlutter、GLSL、GPUから要求される技術的な値ではなく、背景を見た直後に
 動的な表現だと認識できる速度と、本文の背後で主張しすぎない速度のバランスを
-取ったデザイン値である。以前はShader化前のCanvas版から引き継いだ28秒周期
-だったが、動きが伝わりにくかったため2倍の速度へ調整した。周期を変更する場合は
+取ったデザイン値である。周期を変更する場合は
 `_animationDurationSeconds` だけを変更すれば、`_animationSteps` も追従する。
 
 `AnimationController` 自体は端末のvsyncで通知するが、進行度を420段階へ量子化
