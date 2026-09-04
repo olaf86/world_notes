@@ -147,32 +147,58 @@ void paintNeon(vec2 uv, float time) {
     fract((uv.x + uv.y * mix(0.16, 0.29, gridRandom) + uProgress / 7.0) * 7.0
       + gridRandom * 0.73) - 0.5
   );
-  float gridCore = max(
-    softLine(horizontal, 0.006, 0.012),
-    softLine(diagonal, 0.006, 0.012)
+  float horizontalGrid = softLine(horizontal, 0.010, 0.050) * 0.018
+      + softLine(horizontal, 0.006, 0.012) * 0.050;
+  float diagonalGrid = softLine(diagonal, 0.010, 0.050) * 0.018
+      + softLine(diagonal, 0.006, 0.012) * 0.050;
+
+  // Three independently shaped loops follow Lissajous-style paths. The first
+  // pair periodically meets in the center before pulling apart, so overlapping
+  // colors become part of the animation instead of a static tiled pattern.
+  float orbit = time + seededValue(8.0) * PI * 2.0;
+  vec2 firstCenter = vec2(
+    0.50 + sin(orbit) * 0.27,
+    0.47 + sin(orbit * 2.0) * 0.16
   );
-  float gridGlow = max(
-    softLine(horizontal, 0.010, 0.050),
-    softLine(diagonal, 0.010, 0.050)
+  vec2 secondCenter = vec2(
+    0.50 - sin(orbit) * 0.27,
+    0.47 + sin(orbit * 2.0) * 0.16
+  );
+  vec2 thirdCenter = vec2(
+    0.50 + cos(orbit) * 0.20,
+    0.47 + sin(orbit * 3.0 + 1.1) * 0.24
   );
 
-  float framePhase = seededValue(8.0) * PI * 2.0;
-  vec2 frameMotion = vec2(sin(time + framePhase), cos(time + framePhase))
-      * vec2(0.060, 0.045);
-  vec2 movingFrame = uv * vec2(2.2, 3.1) + frameMotion;
-  vec2 frameCell = floor(movingFrame);
-  float frameRandom = seededHash(frameCell + vec2(13.0, 29.0));
-  vec2 framePoint = fract(movingFrame) - 0.5;
-  framePoint += vec2(frameRandom - 0.5, gridRandom - 0.5) * 0.07;
-  vec2 frameSize = vec2(
-    mix(0.19, 0.28, frameRandom),
-    mix(0.13, 0.20, 1.0 - frameRandom)
-  );
-  vec2 frameDistance = abs(framePoint) - frameSize;
-  float frame = softLine(abs(max(frameDistance.x, frameDistance.y)), 0.006, 0.015);
-  float alpha = gridGlow * 0.028 + gridCore * 0.075 + frame * 0.075;
-  vec3 tint = uPrimary.rgb * (gridGlow * 0.028 + gridCore * 0.075)
-      + uTertiary.rgb * (frame * 0.075);
+  float aspect = uSize.x / max(uSize.y, 1.0);
+  vec2 firstPoint = uv - firstCenter;
+  vec2 secondPoint = uv - secondCenter;
+  vec2 thirdPoint = uv - thirdCenter;
+  firstPoint.x *= aspect;
+  secondPoint.x *= aspect;
+  thirdPoint.x *= aspect;
+
+  float firstAngle = atan(firstPoint.y, firstPoint.x);
+  float secondAngle = atan(secondPoint.y, secondPoint.x);
+  float thirdAngle = atan(thirdPoint.y, thirdPoint.x);
+  float firstRadius = 0.120 * (1.0 + sin(firstAngle * 3.0 + orbit) * 0.16);
+  float secondRadius = 0.100 * (1.0 + sin(secondAngle * 5.0 - orbit) * 0.18);
+  float thirdRadius = 0.075 * (1.0 + sin(thirdAngle * 4.0 + orbit * 3.0) * 0.22);
+  float firstDistance = abs(length(firstPoint) - firstRadius);
+  float secondDistance = abs(length(secondPoint) - secondRadius);
+  float thirdDistance = abs(length(thirdPoint) - thirdRadius);
+
+  float firstLoop = softLine(firstDistance, 0.004, 0.010) * 0.175
+      + softLine(firstDistance, 0.010, 0.050) * 0.050;
+  float secondLoop = softLine(secondDistance, 0.004, 0.010) * 0.175
+      + softLine(secondDistance, 0.010, 0.050) * 0.050;
+  float thirdLoop = softLine(thirdDistance, 0.004, 0.009) * 0.190
+      + softLine(thirdDistance, 0.009, 0.045) * 0.055;
+
+  float alpha = horizontalGrid + diagonalGrid
+      + firstLoop + secondLoop + thirdLoop;
+  vec3 tint = uPrimary.rgb * (horizontalGrid + firstLoop)
+      + uSecondary.rgb * (diagonalGrid + secondLoop)
+      + uTertiary.rgb * thirdLoop;
   finish(tint, alpha);
 }
 
