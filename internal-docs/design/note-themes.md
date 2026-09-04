@@ -106,18 +106,21 @@ restart. The picker previews the palette appropriate to the current setting.
 
 Every theme has a deliberate dark counterpart, including Citrus Pop,
 Botanical, and Editorial; they are not simply color-inverted. Aurora becomes
-deeper and more luminous, while Neon Grid remains dark in both modes but uses
-a distinct dark palette with reduced glow and higher text contrast. Background
-surfaces, text, outlines, chip states, CTA colors, message bubbles, and focus/
-disabled states must be specified in both palettes. Body text and interactive
-controls must meet WCAG AA contrast (4.5:1 for normal text) in both modes.
+deeper and more luminous, while Neon Grid keeps its cyan, hot-pink, and violet
+identity in both modes with brightness-appropriate surfaces and text contrast.
+Background surfaces, text, outlines, chip states, CTA colors, message bubbles,
+and focus/disabled states must be specified in both palettes. Body text and
+interactive controls must meet WCAG AA contrast (4.5:1 for normal text) in
+both modes.
 
 ## Presentation behavior
 
 The dynamic background implementation uses a shared Flutter runtime fragment
-shader for the five expressive themes. For a GLSL primer, Dart-side lifecycle,
-uniform layout, per-theme formulas, performance constraints, and seamless-loop
-rules, see [`note-theme-fragment-shader.md`](note-theme-fragment-shader.md).
+shader for the five expressive themes. Animated backgrounds complete a
+seamless loop every 14 seconds, with repaints capped at 30 fps. For a GLSL
+primer, Dart-side lifecycle, uniform layout, per-theme formulas, performance
+constraints, and seamless-loop rules, see
+[`note-theme-fragment-shader.md`](note-theme-fragment-shader.md).
 
 ### Map marker bottom sheet
 

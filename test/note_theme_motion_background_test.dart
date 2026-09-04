@@ -170,6 +170,29 @@ void main() {
     expect(after, isNot(before));
   });
 
+  testWidgets('moves far enough to read as animated within two seconds', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 320,
+          height: 480,
+          child: NoteThemeMotionBackground(
+            themeId: NoteThemeId.neon,
+            palette: NoteThemes.of(NoteThemeId.neon).dark,
+          ),
+        ),
+      ),
+    );
+
+    final before = _painter(tester, NoteThemeId.neon).progress;
+    await tester.pump(const Duration(seconds: 2));
+    final after = _painter(tester, NoteThemeId.neon).progress;
+
+    expect((after - before).abs(), greaterThan(0.1));
+  });
+
   testWidgets('keeps its procedural random seed stable while animating', (
     tester,
   ) async {

@@ -34,10 +34,10 @@ class NoteThemeMotionBackground extends StatefulWidget {
 
 class _NoteThemeMotionBackgroundState extends State<NoteThemeMotionBackground>
     with SingleTickerProviderStateMixin {
-  // Preserve the pre-shader background's 28-second visual cadence. This is a
-  // design-tuning value, not a Flutter or GPU requirement. Repaints are capped
-  // at 30 fps, which is sufficient for this slow movement on 60/120 Hz displays.
-  static const _animationDurationSeconds = 28;
+  // Complete a loop quickly enough for the background motion to register at a
+  // glance while keeping the movement calm behind note content. Repaints are
+  // capped at 30 fps to avoid tracking 60/120 Hz displays unnecessarily.
+  static const _animationDurationSeconds = 14;
   static const _targetRepaintsPerSecond = 30;
   static const _animationSteps =
       _animationDurationSeconds * _targetRepaintsPerSecond;
@@ -351,10 +351,13 @@ class NoteThemeMotionPainter extends CustomPainter {
   }
 
   void _paintNeon(Canvas canvas, Size size) {
-    final cyan = palette.colorScheme.primary;
-    final magenta = palette.colorScheme.tertiary;
+    final colors = [
+      palette.colorScheme.primary,
+      palette.colorScheme.secondary,
+      palette.colorScheme.tertiary,
+    ];
     final gridPaint = Paint()
-      ..color = _color(cyan, 0.075)
+      ..color = _color(colors.first, 0.055)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.8;
     final spacing = math.max(28.0, size.shortestSide * 0.14);
@@ -374,22 +377,69 @@ class NoteThemeMotionPainter extends CustomPainter {
       );
     }
 
-    for (var index = 0; index < 4; index++) {
-      final side = math.max(10.0, size.shortestSide * (0.04 + index * 0.008));
-      final x = _wrap(0.12 + index * 0.29 + progress * 0.09) * size.width;
-      final y = _wrap(0.2 + index * 0.37 - progress * 0.06) * size.height;
-      canvas.save();
-      canvas.translate(x, y);
-      canvas.rotate(_phase * 0.08 + index * 0.4);
-      canvas.drawRect(
-        Rect.fromCenter(center: Offset.zero, width: side, height: side),
-        Paint()
-          ..color = _color(index.isEven ? magenta : cyan, 0.16)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.3,
+    final orbit = _phase + shaderSeed * math.pi * 2;
+    final centers = [
+      Offset(
+        size.width * (0.5 + math.sin(orbit) * 0.27),
+        size.height * (0.47 + math.sin(orbit * 2) * 0.16),
+      ),
+      Offset(
+        size.width * (0.5 - math.sin(orbit) * 0.27),
+        size.height * (0.47 + math.sin(orbit * 2) * 0.16),
+      ),
+      Offset(
+        size.width * (0.5 + math.cos(orbit) * 0.20),
+        size.height * (0.47 + math.sin(orbit * 3 + 1.1) * 0.24),
+      ),
+    ];
+    final radii = [0.12, 0.10, 0.075];
+    final lobes = [3, 5, 4];
+    for (var index = 0; index < centers.length; index++) {
+      final path = _neonLoopPath(
+        center: centers[index],
+        radius: size.height * radii[index],
+        lobes: lobes[index],
+        phase: orbit * (index.isEven ? index + 1 : -1),
       );
-      canvas.restore();
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = _color(colors[index], 0.065)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 7
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7),
+      );
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = _color(colors[index], 0.24)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.4,
+      );
     }
+  }
+
+  Path _neonLoopPath({
+    required Offset center,
+    required double radius,
+    required int lobes,
+    required double phase,
+  }) {
+    const segments = 40;
+    final path = Path();
+    for (var segment = 0; segment <= segments; segment++) {
+      final angle = segment / segments * math.pi * 2;
+      final shapedRadius =
+          radius * (1 + math.sin(angle * lobes + phase) * 0.16);
+      final point =
+          center + Offset(math.cos(angle), math.sin(angle)) * shapedRadius;
+      if (segment == 0) {
+        path.moveTo(point.dx, point.dy);
+      } else {
+        path.lineTo(point.dx, point.dy);
+      }
+    }
+    return path..close();
   }
 
   void _paintEditorial(Canvas canvas, Size size) {
