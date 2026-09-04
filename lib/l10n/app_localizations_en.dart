@@ -1184,6 +1184,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get proChoosePlan => 'Choose your PRO plan';
 
   @override
+  String get privacyPolicy => 'Privacy Policy';
+
+  @override
+  String get termsOfUseEula => 'Terms of Use (EULA)';
+
+  @override
+  String get legalLinkOpenFailed =>
+      'Could not open the selected legal document.';
+
+  @override
   String get moderation => 'Moderation';
 
   @override

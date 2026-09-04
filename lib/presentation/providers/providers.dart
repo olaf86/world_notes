@@ -346,9 +346,11 @@ final adPrivacyStatusProvider = FutureProvider<AdPrivacyStatus>((ref) async {
     return AdPrivacyStatus.disabled;
   }
 
-  final user = ref.watch(authStateProvider).valueOrNull;
-  final isPremium = ref.watch(isPremiumProvider).valueOrNull;
-  if (user == null || isPremium != false) {
+  final userFuture = ref.watch(authStateProvider.future);
+  final isPremiumFuture = ref.watch(isPremiumProvider.future);
+  final user = await userFuture;
+  final isPremium = await isPremiumFuture;
+  if (user == null || isPremium) {
     return AdPrivacyStatus.disabled;
   }
 
@@ -931,13 +933,18 @@ final unreadNoticeCountProvider = Provider<int>((ref) {
 
 // --- Location ---
 
-/// Live position stream. [ref.keepAlive] prevents the stream from being torn
-/// down when the user switches tabs in the [ShellRoute] — without it, every
-/// tab switch would restart GPS acquisition and briefly show
-/// "location unavailable".
-final positionStreamProvider = StreamProvider<Position>((ref) {
+/// Live position stream. The application-level provider serializes the first
+/// location permission request after the ad privacy flow; [LocationService]
+/// remains concerned only with location APIs. [ref.keepAlive] prevents the
+/// stream from being torn down when the user switches tabs in the [ShellRoute]
+/// — without it, every tab switch would restart GPS acquisition and briefly
+/// show "location unavailable".
+final positionStreamProvider = StreamProvider<Position>((ref) async* {
   ref.keepAlive();
-  return ref.watch(locationServiceProvider).watchPosition();
+  final adPrivacyReady = ref.watch(adPrivacyStatusProvider.future);
+  final locationService = ref.watch(locationServiceProvider);
+  await adPrivacyReady;
+  yield* locationService.watchPosition();
 });
 
 /// Anchor position used as the centre of the map's notes-query window.

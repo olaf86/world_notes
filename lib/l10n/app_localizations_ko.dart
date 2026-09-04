@@ -1098,6 +1098,15 @@ class AppLocalizationsKo extends AppLocalizations {
   String get proChoosePlan => 'PRO 요금제 선택';
 
   @override
+  String get privacyPolicy => '개인정보 처리방침';
+
+  @override
+  String get termsOfUseEula => '이용 약관(EULA)';
+
+  @override
+  String get legalLinkOpenFailed => '선택한 법적 문서를 열 수 없습니다.';
+
+  @override
   String get moderation => '콘텐츠 관리';
 
   @override

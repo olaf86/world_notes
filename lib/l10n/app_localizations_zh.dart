@@ -1084,6 +1084,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get proChoosePlan => '选择 PRO 方案';
 
   @override
+  String get privacyPolicy => '隐私政策';
+
+  @override
+  String get termsOfUseEula => '使用条款（EULA）';
+
+  @override
+  String get legalLinkOpenFailed => '无法打开所选法律文件。';
+
+  @override
   String get moderation => '内容管理';
 
   @override
@@ -2882,6 +2891,15 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get proChoosePlan => '选择 PRO 方案';
+
+  @override
+  String get privacyPolicy => '隐私政策';
+
+  @override
+  String get termsOfUseEula => '使用条款（EULA）';
+
+  @override
+  String get legalLinkOpenFailed => '无法打开所选法律文件。';
 
   @override
   String get moderation => '内容管理';
@@ -4683,6 +4701,15 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get proChoosePlan => '選擇 PRO 方案';
+
+  @override
+  String get privacyPolicy => '隱私權政策';
+
+  @override
+  String get termsOfUseEula => '使用條款（EULA）';
+
+  @override
+  String get legalLinkOpenFailed => '無法開啟所選法律文件。';
 
   @override
   String get moderation => '內容管理';

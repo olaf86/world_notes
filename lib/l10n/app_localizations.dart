@@ -2066,6 +2066,24 @@ abstract class AppLocalizations {
   /// **'Choose your PRO plan'**
   String get proChoosePlan;
 
+  /// No description provided for @privacyPolicy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy Policy'**
+  String get privacyPolicy;
+
+  /// No description provided for @termsOfUseEula.
+  ///
+  /// In en, this message translates to:
+  /// **'Terms of Use (EULA)'**
+  String get termsOfUseEula;
+
+  /// No description provided for @legalLinkOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the selected legal document.'**
+  String get legalLinkOpenFailed;
+
   /// No description provided for @moderation.
   ///
   /// In en, this message translates to:

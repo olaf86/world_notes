@@ -59,6 +59,16 @@ extension LocationAvailabilityIssueException on LocationAvailabilityIssue {
 }
 
 class LocationService {
+  LocationService({
+    Future<LocationPermission> Function()? permissionChecker,
+    Future<LocationPermission> Function()? permissionRequester,
+  }) : _permissionChecker = permissionChecker ?? Geolocator.checkPermission,
+       _permissionRequester =
+           permissionRequester ?? Geolocator.requestPermission;
+
+  final Future<LocationPermission> Function() _permissionChecker;
+  final Future<LocationPermission> Function() _permissionRequester;
+
   Position _screenshotPosition() {
     return Position(
       latitude: screenshotLatitude,
@@ -78,9 +88,9 @@ class LocationService {
   /// Returns the final [LocationPermission] after any request dialog.
   Future<LocationPermission> ensurePermission() async {
     if (screenshotMode) return LocationPermission.whileInUse;
-    var permission = await Geolocator.checkPermission();
+    var permission = await _permissionChecker();
     if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
+      permission = await _permissionRequester();
     }
     return permission;
   }

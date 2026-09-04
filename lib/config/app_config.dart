@@ -126,6 +126,10 @@ class AppConfig {
   static const String proYearlyLaunchPriceLabel = '¥1,980';
   static const String proMonthlyUsdPriceLabel = '\$2';
   static const String proYearlyUsdPriceLabel = '\$20';
+  static const String privacyPolicyUrl =
+      'https://worldnotes.asobo.dev/privacy/';
+  static const String termsOfUseUrl =
+      'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
 
   // Message pagination
   static const int messagesPageSize = 20;
