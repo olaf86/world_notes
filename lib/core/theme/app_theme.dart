@@ -9,85 +9,49 @@ class AppTheme {
   static const accent = Color(0xFF0F6B6C);
   static const darkAccent = Color(0xFF84D9CC);
 
-  static const _lightScheme = ColorScheme(
-    brightness: Brightness.light,
-    primary: accent,
-    onPrimary: Color(0xFFFFFFFF),
-    primaryContainer: Color(0xFFD2EFEB),
-    onPrimaryContainer: Color(0xFF0A3737),
-    secondary: Color(0xFF586565),
-    onSecondary: Color(0xFFFFFFFF),
-    secondaryContainer: Color(0xFFDFE8E7),
-    onSecondaryContainer: Color(0xFF182222),
-    tertiary: Color(0xFF5D6576),
-    onTertiary: Color(0xFFFFFFFF),
-    tertiaryContainer: Color(0xFFE2E6F2),
-    onTertiaryContainer: Color(0xFF1B2231),
-    error: Color(0xFFBA1A1A),
-    onError: Color(0xFFFFFFFF),
-    errorContainer: Color(0xFFFFDAD6),
-    onErrorContainer: Color(0xFF410002),
-    surface: Color(0xFFFFFEFC),
-    onSurface: Color(0xFF191C1C),
-    onSurfaceVariant: Color(0xFF56605E),
-    outline: Color(0xFF737C79),
-    outlineVariant: Color(0xFFD0D7D4),
-    shadow: Color(0xFF000000),
-    scrim: Color(0xFF000000),
-    inverseSurface: Color(0xFF2D3130),
-    onInverseSurface: Color(0xFFF0F2F0),
-    inversePrimary: darkAccent,
-    surfaceTint: accent,
-    surfaceDim: Color(0xFFDBDEDC),
-    surfaceBright: Color(0xFFFFFEFC),
-    surfaceContainerLowest: Color(0xFFFFFFFF),
-    surfaceContainerLow: Color(0xFFF6F7F5),
-    surfaceContainer: Color(0xFFF0F2F0),
-    surfaceContainerHigh: Color(0xFFEAEDEA),
-    surfaceContainerHighest: Color(0xFFE3E7E4),
-  );
+  static ThemeData get light => _build(_colorScheme(Brightness.light));
 
-  static const _darkScheme = ColorScheme(
-    brightness: Brightness.dark,
-    primary: darkAccent,
-    onPrimary: Color(0xFF003736),
-    primaryContainer: Color(0xFF0F4F50),
-    onPrimaryContainer: Color(0xFFB5F1E9),
-    secondary: Color(0xFFB9C9C7),
-    onSecondary: Color(0xFF243332),
-    secondaryContainer: Color(0xFF354745),
-    onSecondaryContainer: Color(0xFFD5E5E2),
-    tertiary: Color(0xFFC4C8D6),
-    onTertiary: Color(0xFF2E3443),
-    tertiaryContainer: Color(0xFF454B5C),
-    onTertiaryContainer: Color(0xFFE1E4F2),
-    error: Color(0xFFFFB4AB),
-    onError: Color(0xFF690005),
-    errorContainer: Color(0xFF93000A),
-    onErrorContainer: Color(0xFFFFDAD6),
-    surface: Color(0xFF101414),
-    onSurface: Color(0xFFE7EBE9),
-    onSurfaceVariant: Color(0xFFBEC7C4),
-    outline: Color(0xFF89938F),
-    outlineVariant: Color(0xFF3F4846),
-    shadow: Color(0xFF000000),
-    scrim: Color(0xFF000000),
-    inverseSurface: Color(0xFFE1E3E1),
-    onInverseSurface: Color(0xFF2E3130),
-    inversePrimary: accent,
-    surfaceTint: darkAccent,
-    surfaceDim: Color(0xFF101414),
-    surfaceBright: Color(0xFF363B3A),
-    surfaceContainerLowest: Color(0xFF0B0E0E),
-    surfaceContainerLow: Color(0xFF171B1B),
-    surfaceContainer: Color(0xFF1B2020),
-    surfaceContainerHigh: Color(0xFF222827),
-    surfaceContainerHighest: Color(0xFF2A3130),
-  );
+  static ThemeData get dark => _build(_colorScheme(Brightness.dark));
 
-  static ThemeData get light => _build(_lightScheme);
+  static ColorScheme _colorScheme(Brightness brightness) {
+    final isDark = brightness == Brightness.dark;
 
-  static ThemeData get dark => _build(_darkScheme);
+    return ColorScheme.fromSeed(
+      seedColor: accent,
+      brightness: brightness,
+      primary: isDark ? darkAccent : accent,
+      onPrimary: isDark ? const Color(0xFF003736) : const Color(0xFFFFFFFF),
+      primaryContainer: isDark
+          ? const Color(0xFF0F4F50)
+          : const Color(0xFFD2EFEB),
+      onPrimaryContainer: isDark
+          ? const Color(0xFFB5F1E9)
+          : const Color(0xFF0A3737),
+      surface: isDark ? const Color(0xFF101414) : const Color(0xFFFFFEFC),
+      onSurface: isDark ? const Color(0xFFE7EBE9) : const Color(0xFF191C1C),
+      onSurfaceVariant: isDark
+          ? const Color(0xFFBEC7C4)
+          : const Color(0xFF56605E),
+      outlineVariant: isDark
+          ? const Color(0xFF3F4846)
+          : const Color(0xFFD0D7D4),
+      surfaceContainerLowest: isDark
+          ? const Color(0xFF0B0E0E)
+          : const Color(0xFFFFFFFF),
+      surfaceContainerLow: isDark
+          ? const Color(0xFF171B1B)
+          : const Color(0xFFF6F7F5),
+      surfaceContainer: isDark
+          ? const Color(0xFF1B2020)
+          : const Color(0xFFF0F2F0),
+      surfaceContainerHigh: isDark
+          ? const Color(0xFF222827)
+          : const Color(0xFFEAEDEA),
+      surfaceContainerHighest: isDark
+          ? const Color(0xFF2A3130)
+          : const Color(0xFFE3E7E4),
+    );
+  }
 
   static ThemeData _build(ColorScheme colors) {
     final base = ThemeData(
