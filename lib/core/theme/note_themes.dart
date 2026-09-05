@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../domain/entities/note_theme.dart';
+import 'app_theme.dart';
 
 class NoteThemeTextColors {
   final Color heading;
@@ -84,19 +85,21 @@ class NoteThemes {
       id: NoteThemeId.standard,
       name: 'Standard',
       description: 'The calm, familiar World Notes appearance.',
-      lightSeed: const Color(0xFF2E7D32),
-      darkSeed: const Color(0xFF8BC58F),
-      lightGradient: const [Color(0xFFF7FAF6), Color(0xFFF3F8F5)],
-      darkGradient: const [Color(0xFF142018), Color(0xFF18241B)],
+      lightSeed: AppTheme.accent,
+      darkSeed: AppTheme.darkAccent,
+      lightPrimary: AppTheme.accent,
+      darkPrimary: AppTheme.darkAccent,
+      lightGradient: const [Color(0xFFFFFEFC), Color(0xFFF6F7F5)],
+      darkGradient: const [Color(0xFF101414), Color(0xFF171B1B)],
       lightTextColors: const NoteThemeTextColors(
-        heading: Color(0xFF18251C),
-        body: Color(0xFF25352A),
-        muted: Color(0xFF536258),
+        heading: Color(0xFF191C1C),
+        body: Color(0xFF191C1C),
+        muted: Color(0xFF56605E),
       ),
       darkTextColors: const NoteThemeTextColors(
-        heading: Color(0xFFEAF4EC),
-        body: Color(0xFFDDE9DF),
-        muted: Color(0xFFABB9AE),
+        heading: Color(0xFFE7EBE9),
+        body: Color(0xFFE7EBE9),
+        muted: Color(0xFFBEC7C4),
       ),
     ),
     _definition(
@@ -254,6 +257,8 @@ class NoteThemes {
     required String description,
     required Color lightSeed,
     required Color darkSeed,
+    Color? lightPrimary,
+    Color? darkPrimary,
     Color? lightSecondary,
     Color? lightTertiary,
     Color? darkSecondary,
@@ -272,6 +277,7 @@ class NoteThemes {
             seedColor: lightSeed,
             brightness: Brightness.light,
           ).copyWith(
+            primary: lightPrimary,
             secondary: lightSecondary,
             tertiary: lightTertiary,
             onSurface: lightTextColors.body,
@@ -286,6 +292,7 @@ class NoteThemes {
             seedColor: darkSeed,
             brightness: Brightness.dark,
           ).copyWith(
+            primary: darkPrimary,
             secondary: darkSecondary,
             tertiary: darkTertiary,
             onSurface: darkTextColors.body,

@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../config/app_config.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/pattern_lock_util.dart';
 import '../../../core/utils/place_icon.dart';
 import '../../../domain/entities/place_entity.dart';
@@ -88,7 +89,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
   final _subtitleController = TextEditingController();
   final _imagePicker = ImagePicker();
 
-  Color _selectedColor = Colors.green;
+  Color _selectedColor = AppTheme.defaultNoteColor;
   String _selectedIcon = defaultMapPinIcon;
   NoteThemeId _selectedTheme = NoteThemeId.standard;
   _PinMarkerStyle _pinMarkerStyle = _PinMarkerStyle.image;
@@ -126,7 +127,7 @@ class _NoteCreationScreenState extends ConsumerState<NoteCreationScreen> {
   };
 
   static const List<Color> _colors = [
-    Colors.green,
+    AppTheme.defaultNoteColor,
     Colors.blue,
     Colors.red,
     Colors.orange,

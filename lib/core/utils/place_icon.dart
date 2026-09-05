@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_theme.dart';
+
 const defaultMapPinIcon = 'place';
 
 /// Maps a [PlaceEntity.icon] string (as persisted in Firestore) to its
@@ -24,12 +26,12 @@ IconData placeIconData(String icon) {
   };
 }
 
-/// Parses a "#RRGGBB" hex string into a Flutter [Color]. Returns a safe
-/// fallback green when parsing fails so the UI never crashes on bad data.
+/// Parses a "#RRGGBB" hex string into a Flutter [Color]. Returns the app's
+/// default note color when parsing fails so the UI never crashes on bad data.
 Color parsePlaceColor(String hex) {
   try {
     return Color(int.parse(hex.replaceFirst('#', '0xFF')));
   } catch (_) {
-    return Colors.green;
+    return AppTheme.defaultNoteColor;
   }
 }

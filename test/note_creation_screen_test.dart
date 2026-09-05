@@ -59,6 +59,7 @@ void main() {
     expect(placeRepository.createNoteCallCount, 1);
     expect(placeRepository.latitude, 35.681236);
     expect(placeRepository.longitude, 139.767125);
+    expect(placeRepository.colorHex, '#0F6B6C');
   });
 
   testWidgets('uses archived note draft values when creating a fork', (
@@ -296,6 +297,7 @@ class _RecordingPlaceRepository implements PlaceRepository {
   double? longitude;
   String? title;
   String? subtitle;
+  String? colorHex;
 
   @override
   Future<String> createNote({
@@ -316,6 +318,7 @@ class _RecordingPlaceRepository implements PlaceRepository {
     this.longitude = longitude;
     this.title = title;
     this.subtitle = subtitle;
+    this.colorHex = colorHex;
     return 'place-1';
   }
 

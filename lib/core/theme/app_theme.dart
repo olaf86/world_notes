@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 class AppTheme {
   static const accent = Color(0xFF0F6B6C);
   static const darkAccent = Color(0xFF84D9CC);
+  static const defaultNoteColor = accent;
 
   static ThemeData get light => _build(_colorScheme(Brightness.light));
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../../l10n/l10n.dart';
 
 /// Compact color selection with an expandable set of additional choices.
@@ -138,7 +139,9 @@ String _colorLabel(BuildContext context, Color color) {
   if (color == Colors.red) return l10n.colorRed;
   if (color == Colors.orange) return l10n.colorOrange;
   if (color == Colors.purple) return l10n.colorPurple;
-  if (color == Colors.teal) return l10n.colorTeal;
+  if (color == Colors.teal || color == AppTheme.defaultNoteColor) {
+    return l10n.colorTeal;
+  }
   if (color == Colors.pink) return l10n.colorPink;
   if (color == Colors.brown) return l10n.colorBrown;
   if (color == Colors.indigo) return l10n.colorIndigo;

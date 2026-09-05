@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:world_notes/core/theme/app_theme.dart';
 import 'package:world_notes/core/theme/note_themes.dart';
 import 'package:world_notes/domain/entities/note_theme.dart';
 
@@ -30,6 +31,21 @@ void main() {
 
       expect(signatures, hasLength(NoteThemeId.values.length));
     }
+  });
+
+  test('standard theme follows the app palette with neutral surfaces', () {
+    final standard = NoteThemes.of(NoteThemeId.standard);
+
+    expect(standard.light.colorScheme.primary, AppTheme.accent);
+    expect(standard.dark.colorScheme.primary, AppTheme.darkAccent);
+    expect(standard.light.heroGradient, const [
+      Color(0xFFFFFEFC),
+      Color(0xFFF6F7F5),
+    ]);
+    expect(standard.dark.heroGradient, const [
+      Color(0xFF101414),
+      Color(0xFF171B1B),
+    ]);
   });
 
   test('keeps all semantic text colors readable on themed surfaces', () {
