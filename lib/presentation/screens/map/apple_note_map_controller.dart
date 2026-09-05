@@ -298,12 +298,20 @@ class AppleNoteMapController implements NoteMapAdapter {
     final revision = ++_selectionRevision;
     _selectedPlaceId = pin.placeId;
     final annotationId = _annotationIdFor(pin.placeId);
-    await _animateAnnotationScale(annotationId, _selectedMarkerScale);
 
-    await onPinSelected(pin);
+    // Start presenting the sheet immediately. The native marker animation is
+    // decorative and should not add its full duration to tap responsiveness.
+    final sheetClosed = onPinSelected(pin);
+    final selectionAnimation = _animateAnnotationScale(
+      annotationId,
+      _selectedMarkerScale,
+    );
+
+    await sheetClosed;
     logMapDiagnostics('AppleMap.pinSheetClosed placeId=${pin.placeId}');
     if (revision != _selectionRevision) return;
 
+    await selectionAnimation;
     await _deselectAnnotation(annotationId);
     await _animateAnnotationScale(annotationId, 1);
     if (revision == _selectionRevision) {

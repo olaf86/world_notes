@@ -204,15 +204,33 @@ class GoogleNoteMapController implements NoteMapAdapter {
     _selectedPlaceId = pin.placeId;
     _selectedMarkerIcon = null;
     _publishMarkers();
-    final selectedIcon = await _markerIcons.selected(pin);
+
+    // Present the sheet before resolving or rendering the enlarged marker.
+    // Photo-backed marker work can involve storage I/O and must not sit on the
+    // interaction path between the user's tap and the sheet transition.
+    final sheetClosed = onPinSelected(pin);
+    unawaited(_prepareSelectedMarker(pin, revision));
+    await sheetClosed;
     if (_disposed || revision != _selectionRevision) return;
-    _selectedMarkerIcon = selectedIcon;
-    _publishMarkers();
-    await onPinSelected(pin);
-    if (_disposed || revision != _selectionRevision) return;
+    _selectionRevision++;
     _selectedPlaceId = null;
     _selectedMarkerIcon = null;
     _publishMarkers();
+  }
+
+  Future<void> _prepareSelectedMarker(PinSummary pin, int revision) async {
+    try {
+      final selectedIcon = await _markerIcons.selected(pin);
+      if (_disposed ||
+          revision != _selectionRevision ||
+          _selectedPlaceId != pin.placeId) {
+        return;
+      }
+      _selectedMarkerIcon = selectedIcon;
+      _publishMarkers();
+    } catch (error, stack) {
+      debugPrint('Failed to prepare selected Google marker: $error\n$stack');
+    }
   }
 
   @override
