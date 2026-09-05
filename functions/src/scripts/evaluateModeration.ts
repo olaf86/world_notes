@@ -129,7 +129,7 @@ async function main(): Promise<void> {
     const response = await requestModeration(evaluationCase.content, apiKey);
     results.push(evaluateModerationCase(
       evaluationCase,
-      normalizeOpenAiModeration(response, evaluationCase.content),
+      normalizeOpenAiModeration(response),
     ));
   }
   const report = buildModerationEvaluationReport(results);

@@ -86,7 +86,7 @@ export interface ModerationImageInput {
 export type AutomatedModerationSourceType =
   "noteDraft" | "messageImage" | "pinImage";
 
-const POLICY_VERSION = "2026-08-moderation-v2";
+const POLICY_VERSION = "2026-08-moderation-v3";
 export const OPENAI_MODERATION_MODEL = "omni-moderation-latest";
 export const OPENAI_MODERATION_URL = "https://api.openai.com/v1/moderations";
 const SENSITIVE_SCORE_THRESHOLD = 0.70;
@@ -123,29 +123,6 @@ const CRITICAL_CATEGORIES = new Set<InternalCategory>([
 
 const DEFAULT_PHONE_NUMBER_COUNTRY: CountryCode = "JP";
 const EMAIL_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
-const APP_POLICY_IGNORABLE_PATTERN = /[\s!！?？。、,.・…〜~ー_-]+/gu;
-const BLOCKED_STANDALONE_PROFANITY = new Set([
-  "ちんこ",
-  "ちんぽ",
-  "まんこ",
-  "うんこ",
-  "くそ",
-  "糞",
-]);
-const BLOCKED_STANDALONE_HARASSMENT = new Set([
-  "死ね",
-  "しね",
-  "消えろ",
-  "カス",
-  "かす",
-  "ボケ",
-  "ぼけ",
-  "カスボケ",
-  "かすぼけ",
-  "クズ",
-  "くず",
-]);
-
 function scoreOf(value: unknown): number {
   return typeof value === "number" && isFinite(value) ?
     Math.max(0, Math.min(1, value)) :
@@ -195,21 +172,6 @@ function actionFor(categories: ModerationCategoryScore[]): ModerationAction {
   return "allow";
 }
 
-function applyAppTextPolicy(
-  byCategory: Map<InternalCategory, ModerationCategoryScore>,
-  content: string,
-): void {
-  const standalone = content
-    .normalize("NFKC")
-    .replace(APP_POLICY_IGNORABLE_PATTERN, "");
-  if (BLOCKED_STANDALONE_PROFANITY.has(standalone)) {
-    mergeCategoryScore(byCategory, "profanity", 1, true);
-  }
-  if (BLOCKED_STANDALONE_HARASSMENT.has(standalone)) {
-    mergeCategoryScore(byCategory, "harassment", 1, true);
-  }
-}
-
 function pendingModerationResult(): InternalModerationResult {
   return {
     provider: "openai",
@@ -228,7 +190,6 @@ function canDeferModeration(status: number): boolean {
 
 export function normalizeOpenAiModeration(
   response: OpenAiModerationResponse,
-  content = "",
 ): InternalModerationResult {
   const byCategory = new Map<InternalCategory, ModerationCategoryScore>();
   const results = response.results ?? [];
@@ -244,7 +205,6 @@ export function normalizeOpenAiModeration(
       );
     }
   }
-  applyAppTextPolicy(byCategory, content);
   const categories = [...byCategory.values()];
   const action = actionFor(categories);
   return {
@@ -328,7 +288,7 @@ export async function moderateContent(
       {reason: "moderation_unavailable"},
     );
   }
-  return normalizeOpenAiModeration(payload, trimmed);
+  return normalizeOpenAiModeration(payload);
 }
 
 export async function moderateTextContent(
