@@ -58,7 +58,7 @@ class AppleMarkerIcons {
         : await _resolveMarkerImage(pin);
     if (photoBytes != null) {
       try {
-        return _store.cached(photoId!, () async {
+        return await _store.cached(photoId!, () async {
           final bytes = await MarkerImage.render(
             iconData: placeIconData(pin.icon),
             color: parsePlaceColor(pin.colorHex),
