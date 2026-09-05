@@ -26,23 +26,14 @@ class AppleMarkerIcons {
 
   void retainPlaces(Iterable<PinSummary> pins) => _store.retainPlaces(pins);
 
-  Future<void> prepareFallbacks(
-    Iterable<PinSummary> pins, {
-    required bool Function() isCurrent,
-  }) => _store.prepare(
-    pins,
-    isCurrent: isCurrent,
-    load: (pin) => _icon(pin, includePhoto: false),
-  );
-
-  Future<void> preparePhotos(
+  Future<void> prepare(
     Iterable<PinSummary> pins, {
     required bool Function() isCurrent,
     required void Function() afterBatch,
   }) => _store.prepare(
-    pins.where((pin) => pin.pinImageStoragePath != null),
+    pins,
     isCurrent: isCurrent,
-    load: (pin) => _icon(pin, includePhoto: true),
+    load: _icon,
     afterBatch: afterBatch,
   );
 
@@ -55,12 +46,9 @@ class AppleMarkerIcons {
         variant: pin.markerVariantKey,
       );
 
-  Future<apple.BitmapDescriptor> _icon(
-    PinSummary pin, {
-    required bool includePhoto,
-  }) async {
+  Future<apple.BitmapDescriptor> _icon(PinSummary pin) async {
     final fallbackId = _cacheKey(pin);
-    final photoStoragePath = includePhoto ? pin.pinImageStoragePath : null;
+    final photoStoragePath = pin.pinImageStoragePath;
     final photoId = photoStoragePath == null
         ? null
         : _cacheKey(pin, imageStoragePath: photoStoragePath);

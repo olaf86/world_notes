@@ -139,29 +139,17 @@ class GoogleNoteMapController implements NoteMapAdapter {
     final revision = ++_markerRevision;
     _markerIcons.retainPlaces(pins);
 
-    // Positions are usable immediately. Native placeholders are replaced by
-    // the normal custom markers as soon as their inexpensive render finishes.
+    // Positions are usable immediately. Keep an already prepared marker (or a
+    // native placeholder on first load) visible until its final custom marker
+    // is ready. Rendering a fallback first can overwrite a completed photo
+    // marker when overlapping updates cancel the later photo pass.
     _publishMarkers();
     logMapDiagnostics(
       'GoogleMap.markers placeholders count=${pins.length} '
       'millis=${stopwatch.elapsedMilliseconds}',
     );
 
-    await _markerIcons.prepareFallbacks(
-      pins,
-      isCurrent: () => _isCurrentMarkerRevision(revision),
-    );
-    if (!_isCurrentMarkerRevision(revision)) return;
-    _publishMarkers();
-    logMapDiagnostics(
-      'GoogleMap.markers fallbacks count=${pins.length} '
-      'millis=${stopwatch.elapsedMilliseconds}',
-    );
-
-    final photoPins = pins
-        .where((pin) => pin.pinImageStoragePath != null)
-        .toList(growable: false);
-    await _markerIcons.preparePhotos(
+    await _markerIcons.prepare(
       pins,
       isCurrent: () => _isCurrentMarkerRevision(revision),
       afterBatch: () {
@@ -170,7 +158,7 @@ class GoogleNoteMapController implements NoteMapAdapter {
     );
     if (!_isCurrentMarkerRevision(revision)) return;
     logMapDiagnostics(
-      'GoogleMap.markers photos count=${photoPins.length} '
+      'GoogleMap.markers final count=${pins.length} '
       'totalMillis=${stopwatch.elapsedMilliseconds}',
     );
   }

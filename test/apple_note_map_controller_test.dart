@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:world_notes/domain/entities/pin_summary_entity.dart';
@@ -26,9 +27,39 @@ void main() {
 
     controller.dispose();
   });
+
+  testWidgets('keeps the placeholder until the final photo marker is ready', (
+    tester,
+  ) async {
+    final imageRequested = Completer<void>();
+    final markerImage = Completer<Uint8List?>();
+    final controller = AppleNoteMapController(
+      onPinSelected: (_) async {},
+      onResolveMarkerImage: (_) {
+        imageRequested.complete();
+        return markerImage.future;
+      },
+    );
+    addTearDown(controller.dispose);
+    var annotationPublications = 0;
+    controller.annotations.addListener(() => annotationPublications += 1);
+
+    await tester.runAsync(() async {
+      final update = controller.updateMarkers([
+        _pin('photo', 35.68, pinImageStoragePath: 'pins/photo.jpg'),
+      ]);
+      await imageRequested.future;
+
+      expect(annotationPublications, 1);
+
+      markerImage.complete(null);
+      await update;
+      expect(annotationPublications, 2);
+    });
+  });
 }
 
-PinSummary _pin(String id, double latitude) {
+PinSummary _pin(String id, double latitude, {String? pinImageStoragePath}) {
   final now = DateTime(2026);
   return PinSummary(
     placeId: id,
@@ -39,6 +70,7 @@ PinSummary _pin(String id, double latitude) {
     icon: 'place',
     creatorName: 'Alice',
     creatorPhotoVersion: 1,
+    pinImageStoragePath: pinImageStoragePath,
     messageCount: 0,
     likeCount: 0,
     visitorCount: 0,

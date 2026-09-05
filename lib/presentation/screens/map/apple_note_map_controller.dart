@@ -210,29 +210,17 @@ class AppleNoteMapController implements NoteMapAdapter {
     final revision = ++_markerRevision;
     _markerIcons.retainPlaces(pins);
 
-    // Publish coordinates synchronously with native placeholders. Custom
-    // marker rendering and optional photo I/O happen after the pins exist.
+    // Publish coordinates synchronously. Keep an already prepared marker (or
+    // a native placeholder on first load) visible until its final custom
+    // marker is ready. Rendering a fallback first can overwrite a completed
+    // photo marker when overlapping updates cancel the later photo pass.
     _publishAnnotations();
     logMapDiagnostics(
       'AppleMap.annotations placeholders count=${pins.length} '
       'millis=${stopwatch.elapsedMilliseconds}',
     );
 
-    await _markerIcons.prepareFallbacks(
-      pins,
-      isCurrent: () => _isCurrentMarkerRevision(revision),
-    );
-    if (!_isCurrentMarkerRevision(revision)) return;
-    _publishAnnotations();
-    logMapDiagnostics(
-      'AppleMap.annotations fallbacks count=${pins.length} '
-      'millis=${stopwatch.elapsedMilliseconds}',
-    );
-
-    final photoPins = pins
-        .where((pin) => pin.pinImageStoragePath != null)
-        .toList(growable: false);
-    await _markerIcons.preparePhotos(
+    await _markerIcons.prepare(
       pins,
       isCurrent: () => _isCurrentMarkerRevision(revision),
       afterBatch: () {
@@ -241,7 +229,7 @@ class AppleNoteMapController implements NoteMapAdapter {
     );
     if (!_isCurrentMarkerRevision(revision)) return;
     logMapDiagnostics(
-      'AppleMap.annotations photos count=${photoPins.length} '
+      'AppleMap.annotations final count=${pins.length} '
       'totalMillis=${stopwatch.elapsedMilliseconds}',
     );
   }

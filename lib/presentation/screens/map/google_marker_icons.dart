@@ -29,28 +29,19 @@ class GoogleMarkerIcons {
 
   void retainPlaces(Iterable<PinSummary> pins) => _store.retainPlaces(pins);
 
-  Future<void> prepareFallbacks(
-    Iterable<PinSummary> pins, {
-    required bool Function() isCurrent,
-  }) => _store.prepare(
-    pins,
-    isCurrent: isCurrent,
-    load: (pin) => _icon(pin, selected: false, includePhoto: false),
-  );
-
-  Future<void> preparePhotos(
+  Future<void> prepare(
     Iterable<PinSummary> pins, {
     required bool Function() isCurrent,
     required void Function() afterBatch,
   }) => _store.prepare(
-    pins.where((pin) => pin.pinImageStoragePath != null),
+    pins,
     isCurrent: isCurrent,
-    load: (pin) => _icon(pin, selected: false, includePhoto: true),
+    load: (pin) => _icon(pin, selected: false),
     afterBatch: afterBatch,
   );
 
   Future<google.BitmapDescriptor> selected(PinSummary pin) =>
-      _icon(pin, selected: true, includePhoto: true);
+      _icon(pin, selected: true);
 
   String _cacheKey(PinSummary pin, {String? imageStoragePath}) =>
       MarkerImage.cacheKey(
@@ -64,9 +55,8 @@ class GoogleMarkerIcons {
   Future<google.BitmapDescriptor> _icon(
     PinSummary pin, {
     required bool selected,
-    required bool includePhoto,
   }) async {
-    final photoStoragePath = includePhoto ? pin.pinImageStoragePath : null;
+    final photoStoragePath = pin.pinImageStoragePath;
     final suffix = selected ? 'selected' : 'normal';
     final fallbackCacheId = '${_cacheKey(pin)}-$suffix';
     final photoCacheId = photoStoragePath == null

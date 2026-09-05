@@ -97,6 +97,36 @@ void main() {
     sheetClosed.complete();
     await tester.pump();
   });
+
+  testWidgets('keeps the placeholder until the final photo marker is ready', (
+    tester,
+  ) async {
+    final imageRequested = Completer<void>();
+    final markerImage = Completer<Uint8List?>();
+    final controller = GoogleNoteMapController(
+      onPinSelected: (_) async {},
+      onResolveMarkerImage: (_) {
+        imageRequested.complete();
+        return markerImage.future;
+      },
+    );
+    addTearDown(controller.dispose);
+    var markerPublications = 0;
+    controller.markers.addListener(() => markerPublications += 1);
+
+    await tester.runAsync(() async {
+      final update = controller.updateMarkers([
+        _pin('photo', 35.68, pinImageStoragePath: 'pins/photo.jpg'),
+      ]);
+      await imageRequested.future;
+
+      expect(markerPublications, 1);
+
+      markerImage.complete(null);
+      await update;
+      expect(markerPublications, 2);
+    });
+  });
 }
 
 PinSummary _pin(String id, double latitude, {String? pinImageStoragePath}) {
