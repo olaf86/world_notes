@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -70,9 +71,35 @@ void main() {
     );
     expect(controller.accessAreaCircles.value, isEmpty);
   });
+
+  testWidgets('opens a pin before its selected marker image is ready', (
+    tester,
+  ) async {
+    final markerImage = Completer<Uint8List?>();
+    final sheetClosed = Completer<void>();
+    var sheetOpened = false;
+    final controller = GoogleNoteMapController(
+      onPinSelected: (_) {
+        sheetOpened = true;
+        return sheetClosed.future;
+      },
+      onResolveMarkerImage: (_) => markerImage.future,
+    );
+    addTearDown(controller.dispose);
+    final pin = _pin('photo', 35.68, pinImageStoragePath: 'pins/photo.jpg');
+
+    unawaited(controller.updateMarkers([pin]));
+    controller.markers.value.single.onTap!();
+
+    expect(sheetOpened, isTrue);
+
+    markerImage.complete(null);
+    sheetClosed.complete();
+    await tester.pump();
+  });
 }
 
-PinSummary _pin(String id, double latitude) {
+PinSummary _pin(String id, double latitude, {String? pinImageStoragePath}) {
   final now = DateTime(2026);
   return PinSummary(
     placeId: id,
@@ -83,6 +110,7 @@ PinSummary _pin(String id, double latitude) {
     icon: 'place',
     creatorName: 'Alice',
     creatorPhotoVersion: 1,
+    pinImageStoragePath: pinImageStoragePath,
     messageCount: 0,
     likeCount: 0,
     visitorCount: 0,
