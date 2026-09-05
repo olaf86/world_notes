@@ -128,11 +128,16 @@ Screenshot flows use the isolated `maestro/screenshots/` workspace and
 maestro test --config=maestro/screenshots/config.yaml \
   maestro/screenshots/flows/smoke.yaml
 
-# Store screenshots after Firebase Emulator + flutter run are active
+# Store screenshots after Firebase Emulator is active and one target device is booted
 ./scripts/run_screenshots_ios.sh
 ./scripts/run_screenshots_ipad.sh
 ./scripts/run_screenshots_android.sh
 ```
+
+Each script builds the current checkout with the screenshot runtime flags,
+installs it on the sole booted target, forces light appearance, seeds local
+data, and then runs Maestro. This prevents a stale installed app from being
+captured.
 
 See [internal-docs/local-screenshot-with-maestro.md](internal-docs/local-screenshot-with-maestro.md)
 for the Firebase Emulator setup, screenshot seed data, and platform-specific

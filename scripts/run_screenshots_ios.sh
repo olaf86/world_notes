@@ -24,12 +24,10 @@ if ! command -v maestro >/dev/null 2>&1; then
   exit 1
 fi
 
-if command -v xcrun >/dev/null 2>&1; then
-  xcrun simctl terminate booted dev.asobo.worldnotes >/dev/null 2>&1 || true
-  sleep 1
-fi
+echo "[1/3] Building and installing the current app..."
+bash scripts/prepare_screenshot_app.sh ios
 
-echo "[1/2] Seeding screenshot data..."
+echo "[2/3] Seeding screenshot data..."
 seed_screenshot_data() {
   (
     cd functions
@@ -42,7 +40,7 @@ if ! seed_screenshot_data; then
   seed_screenshot_data
 fi
 
-echo "[2/2] Running Maestro flow (iOS)..."
+echo "[3/3] Running Maestro flow (iOS)..."
 mkdir -p "$SCREENSHOT_OUTPUT_DIR"
 maestro test \
   -e SCREENSHOT_OUTPUT_DIR="$SCREENSHOT_OUTPUT_DIR" \

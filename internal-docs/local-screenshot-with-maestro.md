@@ -10,7 +10,8 @@
 
 - UI automation: Maestro (`maestro/screenshots/` workspace)
 - Data source: Firebase Emulator (Auth / Firestore / Functions / Storage)
-- App mode: `flutter run` with `USE_FIREBASE_EMULATORS=true` and `SCREENSHOT_MODE=true`
+- App mode: the capture script builds and installs the current checkout with
+  `USE_FIREBASE_EMULATORS=true` and `SCREENSHOT_MODE=true`
 - Screenshot output:
   - Android: `artifacts/store_screenshots/android/{locale}/`
   - iOS (1320 x 2868): `artifacts/store_screenshots/ios/{locale}/`
@@ -79,19 +80,8 @@ flutter pub get
    firebase emulators:start --project world-notes-prod --only auth,firestore,functions,storage
    ```
 
-2. Run the app on a single Android emulator:
-
-   ```bash
-   flutter run \
-     -d emulator-5554 \
-     --dart-define=USE_FIREBASE_EMULATORS=true \
-     --dart-define=SCREENSHOT_MODE=true \
-     --dart-define=SCREENSHOT_LOCALE=ja \
-     --dart-define=SCREENSHOT_AUTH_EMAIL=screenshot@example.com \
-     --dart-define=SCREENSHOT_AUTH_PASSWORD=Passw0rd!
-   ```
-
-3. Capture screenshots:
+2. Boot exactly one Android emulator, then capture screenshots. The script
+   builds and installs the current checkout before launching Maestro:
 
    ```bash
    SCREENSHOT_LOCALE=ja ./scripts/run_screenshots_android.sh
@@ -105,19 +95,9 @@ flutter pub get
    firebase emulators:start --project world-notes-prod --only auth,firestore,functions,storage
    ```
 
-2. Run the app on a single iPhone simulator:
-
-   ```bash
-   flutter run \
-     -d "iPhone 17 Pro Max" \
-     --dart-define=USE_FIREBASE_EMULATORS=true \
-     --dart-define=SCREENSHOT_MODE=true \
-     --dart-define=SCREENSHOT_LOCALE=ja \
-     --dart-define=SCREENSHOT_AUTH_EMAIL=screenshot@example.com \
-     --dart-define=SCREENSHOT_AUTH_PASSWORD=Passw0rd!
-   ```
-
-3. Capture screenshots:
+2. Boot exactly one iPhone simulator, then capture screenshots. Each command
+   builds and installs the current checkout with the matching locale before
+   launching Maestro:
 
    ```bash
    SCREENSHOT_LOCALE=ja ./scripts/run_screenshots_ios.sh
@@ -127,9 +107,6 @@ flutter pub get
    SCREENSHOT_LOCALE=ko ./scripts/run_screenshots_ios.sh
    ```
 
-   Restart `flutter run` with the matching `SCREENSHOT_LOCALE` before
-   capturing the other language.
-
 ## iPad
 
 1. Start Firebase Emulator:
@@ -138,19 +115,9 @@ flutter pub get
    firebase emulators:start --project world-notes-prod --only auth,firestore,functions,storage
    ```
 
-2. Run the app on an iPad simulator:
-
-   ```bash
-   flutter run \
-     -d "iPad Pro 13-inch (M5)" \
-     --dart-define=USE_FIREBASE_EMULATORS=true \
-     --dart-define=SCREENSHOT_MODE=true \
-     --dart-define=SCREENSHOT_LOCALE=ja \
-     --dart-define=SCREENSHOT_AUTH_EMAIL=screenshot@example.com \
-     --dart-define=SCREENSHOT_AUTH_PASSWORD=Passw0rd!
-   ```
-
-3. Capture screenshots:
+2. Boot exactly one iPad simulator, then capture screenshots. Each command
+   builds and installs the current checkout with the matching locale before
+   launching Maestro:
 
    ```bash
    SCREENSHOT_LOCALE=ja ./scripts/run_screenshots_ipad.sh
@@ -159,9 +126,6 @@ flutter pub get
    SCREENSHOT_LOCALE=zh_Hans ./scripts/run_screenshots_ipad.sh
    SCREENSHOT_LOCALE=ko ./scripts/run_screenshots_ipad.sh
    ```
-
-   Restart `flutter run` with the matching `SCREENSHOT_LOCALE` before
-   capturing the other language.
 
 ## Smoke Test
 
@@ -174,8 +138,12 @@ maestro test --config=maestro/screenshots/config.yaml \
 
 ## Notes
 
-- Run only one simulator/emulator target at a time.
-- Use `-d` with `flutter run` so Flutter does not pick the wrong device.
+- Run only one simulator/emulator target at a time. The scripts fail instead
+  of guessing when multiple targets are available.
+- Capture scripts force light appearance so OS theme settings do not alter the
+  store images.
+- Capture scripts always build and reinstall the current checkout, preventing
+  stale UI from a previous app installation.
 - The iOS scripts use `JAVA_HOME` when set and otherwise fall back to Android
   Studio's bundled JBR for Maestro.
 - The store flows use `takeScreenshot`, so filenames are controlled by the YAML.

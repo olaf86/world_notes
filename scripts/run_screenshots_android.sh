@@ -19,13 +19,16 @@ if ! command -v maestro >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "[1/2] Seeding screenshot data..."
+echo "[1/3] Building and installing the current app..."
+bash scripts/prepare_screenshot_app.sh android
+
+echo "[2/3] Seeding screenshot data..."
 (
   cd functions
   SCREENSHOT_LOCALE="$SCREENSHOT_LOCALE" npm run seed:screenshot
 )
 
-echo "[2/2] Running Maestro flow (Android)..."
+echo "[3/3] Running Maestro flow (Android)..."
 mkdir -p "$SCREENSHOT_OUTPUT_DIR"
 maestro test \
   -e SCREENSHOT_OUTPUT_DIR="$SCREENSHOT_OUTPUT_DIR" \
