@@ -86,7 +86,7 @@ export interface ModerationImageInput {
 export type AutomatedModerationSourceType =
   "noteDraft" | "messageImage" | "pinImage";
 
-const POLICY_VERSION = "2026-08-moderation-v3";
+const POLICY_VERSION = "2026-09-moderation-v2";
 export const OPENAI_MODERATION_MODEL = "omni-moderation-latest";
 export const OPENAI_MODERATION_URL = "https://api.openai.com/v1/moderations";
 const SENSITIVE_SCORE_THRESHOLD = 0.70;
@@ -123,6 +123,7 @@ const CRITICAL_CATEGORIES = new Set<InternalCategory>([
 
 const DEFAULT_PHONE_NUMBER_COUNTRY: CountryCode = "JP";
 const EMAIL_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
+
 function scoreOf(value: unknown): number {
   return typeof value === "number" && isFinite(value) ?
     Math.max(0, Math.min(1, value)) :

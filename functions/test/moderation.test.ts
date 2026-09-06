@@ -44,7 +44,7 @@ test("normalizes low-risk OpenAI moderation results as allow", () => {
   assert.deepEqual(moderationFields(result), {
     moderationAction: "allow",
     moderationProvider: "openai",
-    moderationPolicyVersion: "2026-08-moderation-v3",
+    moderationPolicyVersion: "2026-09-moderation-v2",
     isSensitive: false,
     isVisible: true,
     reviewRequired: false,
@@ -85,7 +85,7 @@ test("marks threshold-level scores as sensitive without review", () => {
   assert.deepEqual(moderationFields(result), {
     moderationAction: "sensitive",
     moderationProvider: "openai",
-    moderationPolicyVersion: "2026-08-moderation-v3",
+    moderationPolicyVersion: "2026-09-moderation-v2",
     isSensitive: true,
     isVisible: true,
     reviewRequired: false,
@@ -103,7 +103,7 @@ test("sends high-but-not-hidden scores to review", () => {
   assert.deepEqual(moderationFields(result), {
     moderationAction: "review",
     moderationProvider: "openai",
-    moderationPolicyVersion: "2026-08-moderation-v3",
+    moderationPolicyVersion: "2026-09-moderation-v2",
     isSensitive: true,
     isVisible: true,
     reviewRequired: true,
