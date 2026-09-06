@@ -139,92 +139,112 @@ void paintBotanical(vec2 uv, float time) {
 }
 
 void paintNeon(vec2 uv, float time) {
-  float gridRandom = seededValue(4.0);
-  float horizontal = abs(
-    fract((uv.y - uProgress * 0.125) * 8.0 + gridRandom) - 0.5
-  );
-  float diagonal = abs(
-    fract((uv.x + uv.y * mix(0.16, 0.29, gridRandom) + uProgress / 7.0) * 7.0
-      + gridRandom * 0.73) - 0.5
-  );
-  float horizontalGrid = softLine(horizontal, 0.010, 0.050) * 0.018
-      + softLine(horizontal, 0.006, 0.012) * 0.050;
-  float diagonalGrid = softLine(diagonal, 0.010, 0.050) * 0.018
-      + softLine(diagonal, 0.006, 0.012) * 0.050;
+  // Horizontal and vertical circuit traces each occupy irregular positions
+  // inside a coarse cell. Every trace has one animated right-angle bend; the
+  // two families meet at junctions that receive a brighter shared halo.
+  float seedPhase = seededValue(8.0) * PI * 2.0;
+  float rowCoordinate = uv.y * 8.0;
+  float row = floor(rowCoordinate);
+  float rowPosition = fract(rowCoordinate);
+  float rowRandom = seededHash(vec2(row, 31.0));
+  float rowSecond = remix(rowRandom);
+  float rowThird = remix(rowSecond);
+  float rowCenter = 0.50 + (rowRandom - 0.5) * 0.42
+      + sin(time + rowRandom * PI * 2.0 + seedPhase) * 0.055;
+  float rowDirection = mix(-1.0, 1.0, step(0.5, rowSecond));
+  float rowStep = mix(0.16, 0.32, rowThird) * rowDirection;
+  float rowBefore = rowCenter - rowStep * 0.5;
+  float rowAfter = rowCenter + rowStep * 0.5;
+  float rowBend = 0.18 + rowThird * 0.64
+      + sin(time + rowSecond * PI * 2.0) * 0.055;
+  float rowLevel = mix(rowBefore, rowAfter, step(rowBend, uv.x));
+  float omittedRow = floor(seededValue(4.0) * 5.0);
+  float rowPresence = step(0.5, abs(mod(row, 5.0) - omittedRow));
+  float rowSpan = step(min(rowBefore, rowAfter), rowPosition)
+      * step(rowPosition, max(rowBefore, rowAfter));
+  float horizontalCore = max(
+    softLine(abs(rowPosition - rowLevel), 0.006, 0.018),
+    softLine(abs(uv.x - rowBend), 0.0015, 0.0040) * rowSpan
+  ) * rowPresence;
+  float horizontalHalo = max(
+    softLine(abs(rowPosition - rowLevel), 0.016, 0.060),
+    softLine(abs(uv.x - rowBend), 0.0040, 0.0120) * rowSpan
+  ) * rowPresence;
 
-  // Three independently shaped loops follow Lissajous-style paths. The first
-  // pair periodically meets in the center before pulling apart, so overlapping
-  // colors become part of the animation instead of a static tiled pattern.
-  float orbit = time + seededValue(8.0) * PI * 2.0;
-  vec2 firstCenter = vec2(
-    0.50 + sin(orbit) * 0.27,
-    0.47 + sin(orbit * 2.0) * 0.16
+  float columnCoordinate = uv.x * 5.0;
+  float column = floor(columnCoordinate);
+  float columnPosition = fract(columnCoordinate);
+  float columnRandom = seededHash(vec2(column, 73.0));
+  float columnSecond = remix(columnRandom);
+  float columnThird = remix(columnSecond);
+  float columnCenter = 0.50 + (columnRandom - 0.5) * 0.42
+      + cos(time + columnRandom * PI * 2.0 + seedPhase) * 0.055;
+  float columnDirection = mix(-1.0, 1.0, step(0.5, columnSecond));
+  float columnStep = mix(0.16, 0.32, columnThird) * columnDirection;
+  float columnBefore = columnCenter - columnStep * 0.5;
+  float columnAfter = columnCenter + columnStep * 0.5;
+  float columnBend = 0.16 + columnThird * 0.68
+      + cos(time + columnSecond * PI * 2.0) * 0.055;
+  float columnLevel = mix(columnBefore, columnAfter, step(columnBend, uv.y));
+  float omittedColumn = floor(seededValue(5.0) * 5.0);
+  float columnPresence = step(
+    0.5,
+    abs(mod(column, 5.0) - omittedColumn)
   );
-  vec2 secondCenter = vec2(
-    0.50 - sin(orbit) * 0.27,
-    0.47 + sin(orbit * 2.0) * 0.16
-  );
-  vec2 thirdCenter = vec2(
-    0.50 + cos(orbit) * 0.20,
-    0.47 + sin(orbit * 3.0 + 1.1) * 0.24
-  );
+  float columnSpan = step(min(columnBefore, columnAfter), columnPosition)
+      * step(columnPosition, max(columnBefore, columnAfter));
+  float verticalCore = max(
+    softLine(abs(columnPosition - columnLevel), 0.006, 0.018),
+    softLine(abs(uv.y - columnBend), 0.0015, 0.0040) * columnSpan
+  ) * columnPresence;
+  float verticalHalo = max(
+    softLine(abs(columnPosition - columnLevel), 0.016, 0.060),
+    softLine(abs(uv.y - columnBend), 0.0040, 0.0120) * columnSpan
+  ) * columnPresence;
 
-  float aspect = uSize.x / max(uSize.y, 1.0);
-  vec2 firstPoint = uv - firstCenter;
-  vec2 secondPoint = uv - secondCenter;
-  vec2 thirdPoint = uv - thirdCenter;
-  firstPoint.x *= aspect;
-  secondPoint.x *= aspect;
-  thirdPoint.x *= aspect;
+  float horizontalLines = horizontalCore * 0.072 + horizontalHalo * 0.018;
+  float verticalLines = verticalCore * 0.072 + verticalHalo * 0.018;
+  float crossingCore = horizontalCore * verticalCore;
+  float crossingHalo = horizontalHalo * verticalHalo;
+  float crossings = crossingCore * 0.190 + crossingHalo * 0.080;
 
-  float firstAngle = atan(firstPoint.y, firstPoint.x);
-  float secondAngle = atan(secondPoint.y, secondPoint.x);
-  float thirdAngle = atan(thirdPoint.y, thirdPoint.x);
-  float firstRadius = 0.120 * (1.0 + sin(firstAngle * 3.0 + orbit) * 0.16);
-  float secondRadius = 0.100 * (1.0 + sin(secondAngle * 5.0 - orbit) * 0.18);
-  float thirdRadius = 0.075 * (1.0 + sin(thirdAngle * 4.0 + orbit * 3.0) * 0.22);
-  float firstDistance = abs(length(firstPoint) - firstRadius);
-  float secondDistance = abs(length(secondPoint) - secondRadius);
-  float thirdDistance = abs(length(thirdPoint) - thirdRadius);
-
-  float firstLoop = softLine(firstDistance, 0.004, 0.010) * 0.175
-      + softLine(firstDistance, 0.010, 0.050) * 0.050;
-  float secondLoop = softLine(secondDistance, 0.004, 0.010) * 0.175
-      + softLine(secondDistance, 0.010, 0.050) * 0.050;
-  float thirdLoop = softLine(thirdDistance, 0.004, 0.009) * 0.190
-      + softLine(thirdDistance, 0.009, 0.045) * 0.055;
-
-  float alpha = horizontalGrid + diagonalGrid
-      + firstLoop + secondLoop + thirdLoop;
-  vec3 tint = uPrimary.rgb * (horizontalGrid + firstLoop)
-      + uSecondary.rgb * (diagonalGrid + secondLoop)
-      + uTertiary.rgb * thirdLoop;
+  float alpha = horizontalLines + verticalLines + crossings;
+  vec3 tint = uPrimary.rgb * horizontalLines
+      + uSecondary.rgb * verticalLines
+      + uTertiary.rgb * crossings;
   finish(tint, alpha);
 }
 
 void paintEditorial(vec2 uv, float time) {
-  float motionPhase = seededValue(9.0) * PI * 2.0;
-  float shiftedY = uv.y + sin(time + motionPhase) * 0.045;
-  float ruleRow = floor(shiftedY * 10.0);
-  float ruleRandom = seededHash(vec2(ruleRow, 37.0));
-  float rules = softLine(abs(fract(shiftedY * 10.0) - 0.5), 0.006, 0.012)
-      * step(mix(0.035, 0.12, ruleRandom), uv.x)
-      * step(uv.x, mix(0.60, 0.96, ruleRandom));
-  float marginRandom = seededValue(5.0);
-  float margin = softLine(abs(uv.x - mix(0.09, 0.14, marginRandom)), 0.002, 0.006);
+  // Editorial uses a typesetter-like system: consistent baselines, a fixed
+  // margin rule, and a quiet dot matrix. No randomly sized content blocks.
+  vec2 gridSize = vec2(8.0, 12.0);
+  vec2 gridPoint = uv * gridSize;
+  vec2 local = abs(fract(gridPoint) - 0.5);
+  float rule = softLine(local.y, 0.004, 0.012)
+      * step(0.07, uv.x) * step(uv.x, 0.94);
+  float majorRule = 1.0 - step(
+    0.5,
+    mod(floor(gridPoint.y), 4.0)
+  );
+  float rules = rule * (0.040 + majorRule * 0.025);
+  float margin = softLine(abs(uv.x - 0.105), 0.002, 0.006) * 0.095;
 
-  vec2 blockGrid = vec2(uv.x * 2.0, shiftedY * 5.0);
-  vec2 blockCellId = floor(blockGrid);
-  float blockRandom = seededHash(blockCellId + vec2(47.0, 53.0));
-  vec2 blockCell = fract(blockGrid) - 0.5;
-  blockCell.x += (blockRandom - 0.5) * 0.12;
-  float block = (1.0 - step(mix(0.18, 0.29, blockRandom), abs(blockCell.x)))
-      * (1.0 - step(mix(0.075, 0.13, 1.0 - blockRandom), abs(blockCell.y)));
-  float column = step(0.5, blockRandom);
-  float alpha = rules * 0.050 + margin * 0.105 + block * 0.040;
-  vec3 tint = uPrimary.rgb * (rules * 0.050 + block * 0.040)
-      + mix(uPrimary.rgb, uTertiary.rgb, 0.78) * (margin * 0.105)
-      + uTertiary.rgb * (block * column * 0.018);
+  vec2 dotPoint = local;
+  dotPoint.x *= uSize.x / max(uSize.y, 1.0) * gridSize.y / gridSize.x;
+  float dot = 1.0 - smoothstep(0.026, 0.070, length(dotPoint));
+  float dotPattern = 1.0 - step(
+    0.5,
+    mod(floor(gridPoint.x) + floor(gridPoint.y), 4.0)
+  );
+  float pulse = 0.86 + sin(time) * 0.14;
+  float dots = dot * (0.025 + dotPattern * 0.065 * pulse)
+      * step(0.16, uv.x) * step(uv.x, 0.92);
+
+  float alpha = rules + margin + dots;
+  vec3 tint = uPrimary.rgb * rules
+      + mix(uPrimary.rgb, uTertiary.rgb, 0.72) * margin
+      + uTertiary.rgb * dots;
   finish(tint, alpha);
 }
 
