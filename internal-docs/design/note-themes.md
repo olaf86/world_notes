@@ -10,12 +10,12 @@ The first release ships six app-defined themes:
 
 | ID | Name | Direction |
 | --- | --- | --- |
-| `standard` | Standard | The calm, familiar World Notes appearance. Default. |
-| `aurora` | Aurora | Modern deep indigo with aqua and violet accents. |
-| `citrus` | Citrus Pop | Warm cream, coral, orange, and teal for a playful look. |
-| `botanical` | Botanical | Calm jade and leaf green on a soft natural surface. |
-| `neon` | Neon Grid | Cyberpunk near-black with cyan and fuchsia highlights. |
-| `editorial` | Editorial | Crisp paper-like neutral surfaces with a strong cobalt accent. |
+| `standard` | Standard | A calm neutral surface without decorative motion. Default. |
+| `aurora` | Aurora | Broad aqua and violet light ribbons drift softly over an indigo surface. |
+| `citrus` | Citrus Pop | Coral, orange, and teal citrus cross-sections float and rotate over a warm cream surface. |
+| `botanical` | Botanical | Slender jade and leaf-green forms drift and sway over a soft natural surface. |
+| `neon` | Neon Grid | Uneven cyan and fuchsia circuit traces make right-angle turns; their moving junctions glow violet. |
+| `editorial` | Editorial | Paper-like neutrals use orderly horizontal rules, a fixed margin, and a restrained cobalt dot matrix. |
 
 Theme IDs are stable product identifiers. Display names, token values, and
 preview artwork live in the app and can change without a data migration. The

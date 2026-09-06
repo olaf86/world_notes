@@ -121,6 +121,35 @@ void main() {
     }
   });
 
+  testWidgets('moves neon line crossings over time', (tester) async {
+    final program = await tester.runAsync(NoteThemeShaderProgram.load);
+    expect(program, isNotNull);
+
+    final frames = await tester.runAsync(() async {
+      final first = await _renderShaderFrame(program!, NoteThemeId.neon, 0);
+      final second = await _renderShaderFrame(program, NoteThemeId.neon, 0.25);
+      return (first, second);
+    });
+    expect(frames, isNotNull);
+
+    var changedPixels = 0;
+    for (var index = 0; index < frames!.$1.length; index += 4) {
+      final redDelta = (frames.$1[index] - frames.$2[index]).abs();
+      final greenDelta = (frames.$1[index + 1] - frames.$2[index + 1]).abs();
+      final blueDelta = (frames.$1[index + 2] - frames.$2[index + 2]).abs();
+      final alphaDelta = (frames.$1[index + 3] - frames.$2[index + 3]).abs();
+      if (redDelta > 2 || greenDelta > 2 || blueDelta > 2 || alphaDelta > 2) {
+        changedPixels++;
+      }
+    }
+
+    expect(
+      changedPixels,
+      greaterThan(200),
+      reason: 'the line families and their glowing crossings should migrate',
+    );
+  });
+
   testWidgets('uses a still composition when reduced motion is requested', (
     tester,
   ) async {
