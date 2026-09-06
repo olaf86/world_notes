@@ -151,6 +151,17 @@ The version-controlled evaluation set lives at
 app-level contact-information risk signals. The set covers ordinary diary
 entries, contextual safety discussion, contact details, and unsafe content.
 
+`omni-moderation-latest` classifies harmful-content categories; it is not a
+general profanity blocklist. Policy version `2026-09-moderation-v2` does not
+maintain a language-specific word list. Content that OpenAI does not classify
+as harmful may therefore remain allowed; user reports and administrator review
+are the operational fallback for those misses.
+
+When OpenAI explicitly marks any category as matched, the app assigns at least
+`review` even when the provider's numeric score is below the local review
+threshold. A matched sexual-minors result and scores at or above the hidden
+threshold continue to produce `hidden`.
+
 Run it from `functions/` only after a reviewer has checked the case labels.
 The evaluator calls the live OpenAI Moderation API sequentially; it does not
 use Firebase secrets, deploy Cloud Functions, create Firestore data, or print
@@ -183,6 +194,36 @@ Treat a mismatch as a review task, not an automatic policy change. Review the
 case text and the model result, then update either the human label or the
 moderation thresholds with an explicit policy decision. Do not commit API keys
 or generated reports containing production data.
+
+## OpenAI provider availability
+
+The production moderation path uses OpenAI only. User reports and administrator
+review provide the fallback for harmful content that the provider does not
+classify. No second AI provider, provider quota counter, or language-specific
+profanity dictionary is part of this design.
+
+OpenAI HTTP 429 responses can represent a temporary request/token rate limit or
+an account-level balance, spending, or usage limit. The current raw
+`fetch` implementation converts transport failures, HTTP 429, and HTTP 5xx to a
+`pending` moderation result. The content handler then raises
+`moderation/provider-unavailable`, leaving the durable moderation job pending.
+
+The job layer retries after approximately 1 minute, 5 minutes, 15 minutes,
+1 hour, 6 hours, and then at 24-hour intervals, with plus or minus 10 percent
+jitter. The one-minute reconciler may add up to approximately one minute before
+claiming a due job. There is no in-process retry loop.
+
+Future error handling may distinguish temporary rate limits from account-level
+limits by inspecting the provider `error.code`/`error.type`, respecting a valid
+`Retry-After` header, and logging `x-request-id` plus sanitized rate-limit
+headers. Account-level limits require operational attention instead of rapid
+retries. Submitted text, image bytes, and API keys must never be logged.
+
+Official references:
+
+- [OpenAI 429 causes and retry guidance](https://help.openai.com/en/articles/5955604)
+- [OpenAI API response and rate-limit headers](https://developers.openai.com/api/reference/overview#debugging-requests)
+- [OpenAI omni-moderation-latest model and limits](https://developers.openai.com/api/docs/models/omni-moderation-latest)
 
 ## User report flow
 

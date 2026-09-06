@@ -86,7 +86,7 @@ export interface ModerationImageInput {
 export type AutomatedModerationSourceType =
   "noteDraft" | "messageImage" | "pinImage";
 
-const POLICY_VERSION = "2026-07-moderation-v1";
+const POLICY_VERSION = "2026-09-moderation-v2";
 export const OPENAI_MODERATION_MODEL = "omni-moderation-latest";
 export const OPENAI_MODERATION_URL = "https://api.openai.com/v1/moderations";
 const SENSITIVE_SCORE_THRESHOLD = 0.70;
@@ -167,10 +167,8 @@ function actionFor(categories: ModerationCategoryScore[]): ModerationAction {
     entry.matched && entry.severity === "critical",
   );
   if (hasCritical || maxScore >= HIDDEN_SCORE_THRESHOLD) return "hidden";
-  const hasReview = categories.some((entry) =>
-    entry.matched && entry.severity === "high",
-  );
-  if (hasReview || maxScore >= REVIEW_SCORE_THRESHOLD) return "review";
+  const hasProviderMatch = categories.some((entry) => entry.matched);
+  if (hasProviderMatch || maxScore >= REVIEW_SCORE_THRESHOLD) return "review";
   if (maxScore >= SENSITIVE_SCORE_THRESHOLD) return "sensitive";
   return "allow";
 }
