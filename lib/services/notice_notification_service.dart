@@ -4,11 +4,13 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 
 import '../config/world_catalog.dart';
 import '../config/world_routes.dart';
+import '../config/notification_navigation.dart';
 
 final class NotificationNoticeRoute {
-  const NotificationNoticeRoute(this.notice);
+  const NotificationNoticeRoute(this.notice, {this.mapTarget});
 
   final WorldRoute notice;
+  final NotificationMapNoteTarget? mapTarget;
 }
 
 class NoticeNotificationService {
@@ -57,8 +59,34 @@ class NoticeNotificationService {
         noticeId.isEmpty) {
       return null;
     }
+    final actionWorldId = data?['actionWorldId'];
+    final actionPlaceId = data?['actionPlaceId'];
+    final actionMessageId = data?['actionMessageId'];
+    final latitude = double.tryParse(data?['actionLatitude']?.toString() ?? '');
+    final longitude = double.tryParse(
+      data?['actionLongitude']?.toString() ?? '',
+    );
+    final mapTarget =
+        data?['actionRoute'] == 'mapNote' &&
+            actionWorldId is String &&
+            actionWorldId.isNotEmpty &&
+            actionPlaceId is String &&
+            actionPlaceId.isNotEmpty &&
+            latitude != null &&
+            longitude != null
+        ? NotificationMapNoteTarget(
+            worldId: WorldId(actionWorldId),
+            placeId: actionPlaceId,
+            messageId: actionMessageId is String && actionMessageId.isNotEmpty
+                ? actionMessageId
+                : null,
+            latitude: latitude,
+            longitude: longitude,
+          )
+        : null;
     return NotificationNoticeRoute(
       WorldRoute(worldId: WorldId(worldId), entityId: noticeId),
+      mapTarget: mapTarget,
     );
   }
 }

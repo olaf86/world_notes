@@ -55,6 +55,7 @@ class GoogleNoteMapController implements NoteMapAdapter {
   bool _disposed = false;
   int _markerRevision = 0;
   int _selectionRevision = 0;
+  PinSummary? _pendingFocusPin;
 
   Set<google.ClusterManager> get _clusterManagers => {
     google.ClusterManager(
@@ -107,6 +108,11 @@ class GoogleNoteMapController implements NoteMapAdapter {
     logMapDiagnostics('GoogleMap.attach');
     if (_trackingEnabled && _accessAreaCenter != null) {
       unawaited(_moveTo(_accessAreaCenter!));
+    }
+    final pending = _pendingFocusPin;
+    if (pending != null) {
+      _pendingFocusPin = null;
+      unawaited(focusPin(pending));
     }
   }
 
@@ -161,6 +167,28 @@ class GoogleNoteMapController implements NoteMapAdapter {
       'GoogleMap.markers final count=${pins.length} '
       'totalMillis=${stopwatch.elapsedMilliseconds}',
     );
+  }
+
+  @override
+  Future<void> focusPin(PinSummary pin) async {
+    if (_disposed) return;
+    final map = _map;
+    if (map == null) {
+      _pendingFocusPin = pin;
+      return;
+    }
+    _trackingEnabled = false;
+    try {
+      await map.animateCamera(
+        google.CameraUpdate.newLatLngZoom(
+          google.LatLng(pin.latitude, pin.longitude),
+          16,
+        ),
+      );
+    } catch (error, stack) {
+      debugPrint('Failed to focus Google map pin: $error\n$stack');
+    }
+    if (!_disposed) await _showSelectedPin(pin);
   }
 
   bool _isCurrentMarkerRevision(int revision) =>
@@ -303,6 +331,7 @@ class GoogleNoteMapController implements NoteMapAdapter {
     _markerRevision++;
     _selectionRevision++;
     _map = null;
+    _pendingFocusPin = null;
     markers.dispose();
     accessAreaCircles.dispose();
   }

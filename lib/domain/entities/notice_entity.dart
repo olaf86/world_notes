@@ -8,6 +8,7 @@ class NoticeEntity {
   final DateTime? readAt;
   final String? sourceType;
   final String? sourceId;
+  final NoticeActionEntity? action;
 
   const NoticeEntity({
     required this.id,
@@ -19,9 +20,17 @@ class NoticeEntity {
     this.readAt,
     this.sourceType,
     this.sourceId,
+    this.action,
   });
 
   bool get isUnread => readAt == null;
   bool get isCritical => severity == 'critical';
   bool get isWarning => severity == 'warning';
+}
+
+class NoticeActionEntity {
+  final String route;
+  final Map<String, Object?> params;
+
+  const NoticeActionEntity({required this.route, this.params = const {}});
 }

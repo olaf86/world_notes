@@ -26,6 +26,8 @@ abstract class NoteMapAdapter {
 
   Future<void> updateMarkers(List<PinSummary> pins);
 
+  Future<void> focusPin(PinSummary pin);
+
   Future<void> updateAccessArea({
     required Position center,
     required bool visible,
