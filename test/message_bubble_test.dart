@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:world_notes/config/app_config.dart';
 import 'package:world_notes/domain/entities/message_entity.dart';
 import 'package:world_notes/domain/entities/message_thread_item.dart';
+import 'package:world_notes/domain/entities/mention_target.dart';
 import 'package:world_notes/domain/entities/user_entity.dart';
 import 'package:world_notes/l10n/app_localizations.dart';
 import 'package:world_notes/presentation/providers/providers.dart';
@@ -105,6 +106,46 @@ void main() {
       );
 
       expect(find.text('Scheduled'), findsNothing);
+    });
+
+    testWidgets('renders structured mentions and offers directed reply', (
+      tester,
+    ) async {
+      var replied = false;
+      final now = DateTime.now();
+      final message = MessageEntity(
+        id: 'message-1',
+        placeId: 'place-1',
+        author: const UserEntity(id: 'user-1', name: 'Aki'),
+        content: 'Hello',
+        mentions: const [MentionTarget(userId: 'user-2', displayName: 'Mina')],
+        createdAt: now,
+        publishAt: now,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: MessageBubble(
+              message: message,
+              isOwn: false,
+              onMentionReply: () => replied = true,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Mina'), findsOneWidget);
+      expect(find.byIcon(Icons.alternate_email), findsOneWidget);
+
+      await tester.longPress(find.text(message.content));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Mention and reply'));
+      await tester.pumpAndSettle();
+
+      expect(replied, isTrue);
     });
 
     test('uses the recorded scheduling flag', () {

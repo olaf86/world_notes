@@ -1467,6 +1467,43 @@ class AppLocalizationsJa extends AppLocalizations {
   String get messageContentHint => 'この場所で何がありましたか？';
 
   @override
+  String get addMention => '参加者をメンション';
+
+  @override
+  String get mentionAndReply => 'メンションして返信';
+
+  @override
+  String get mentionSearchHint => '参加者を検索';
+
+  @override
+  String mentionSelectionCount(int count, int max) {
+    return '$count/$max人を選択中';
+  }
+
+  @override
+  String get mentionSearchFailed => '参加者を検索できませんでした。';
+
+  @override
+  String get mentionNoCandidates => '該当する参加者はいません。';
+
+  @override
+  String get mentionNotificationsTitle => 'メンション';
+
+  @override
+  String get mentionNotificationsDescription => 'ノート内でメンションされたときに通知します。';
+
+  @override
+  String get mentionNotificationsUpdateFailed => 'メンション通知を更新できませんでした。';
+
+  @override
+  String notificationContentWorldSwitched(String worldName) {
+    return 'このお知らせを表示するため、$worldNameに切り替えました。';
+  }
+
+  @override
+  String get doneAction => '完了';
+
+  @override
   String get newMessageTitle => '新しいメッセージ';
 
   @override

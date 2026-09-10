@@ -1468,6 +1468,44 @@ class AppLocalizationsKo extends AppLocalizations {
   String get messageContentHint => '이 장소에서 무슨 일이 있었나요?';
 
   @override
+  String get addMention => '참여자 멘션';
+
+  @override
+  String get mentionAndReply => '멘션하여 답장';
+
+  @override
+  String get mentionSearchHint => '참여자 검색';
+
+  @override
+  String mentionSelectionCount(int count, int max) {
+    return '$count/$max명 선택됨';
+  }
+
+  @override
+  String get mentionSearchFailed => '참여자를 검색할 수 없습니다.';
+
+  @override
+  String get mentionNoCandidates => '일치하는 참여자가 없습니다.';
+
+  @override
+  String get mentionNotificationsTitle => '멘션';
+
+  @override
+  String get mentionNotificationsDescription =>
+      '노트에서 다른 참여자가 나를 멘션하면 알림을 받습니다.';
+
+  @override
+  String get mentionNotificationsUpdateFailed => '멘션 알림을 업데이트할 수 없습니다.';
+
+  @override
+  String notificationContentWorldSwitched(String worldName) {
+    return '이 알림을 표시하기 위해 $worldName(으)로 전환했습니다.';
+  }
+
+  @override
+  String get doneAction => '완료';
+
+  @override
   String get newMessageTitle => '새 메시지';
 
   @override

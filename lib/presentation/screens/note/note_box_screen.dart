@@ -12,6 +12,7 @@ import '../../../core/theme/note_themes.dart';
 import '../../../core/utils/password_util.dart';
 import '../../../core/utils/pattern_lock_util.dart';
 import '../../../domain/entities/message_entity.dart';
+import '../../../domain/entities/mention_target.dart';
 import '../../../domain/entities/place_entity.dart';
 import '../../../domain/entities/note_theme.dart';
 import '../../../domain/policies/note_permissions.dart';
@@ -42,6 +43,7 @@ class NoteBoxScreen extends ConsumerStatefulWidget {
   final String placeTitle;
   final bool readOnly;
   final NoteAccessValidationRequest? accessValidation;
+  final String? targetMessageId;
 
   const NoteBoxScreen({
     super.key,
@@ -49,6 +51,7 @@ class NoteBoxScreen extends ConsumerStatefulWidget {
     required this.placeTitle,
     this.readOnly = false,
     this.accessValidation,
+    this.targetMessageId,
   });
 
   @override
@@ -58,6 +61,8 @@ class NoteBoxScreen extends ConsumerStatefulWidget {
 class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
     with SingleTickerProviderStateMixin {
   final _scrollController = ScrollController();
+  final _targetMessageKey = GlobalKey();
+  bool _targetMessagePositioned = false;
 
   // Banner ad — ValueNotifier avoids calling setState() from the ad callback,
   // which previously caused Column layout mutations mid-frame and triggered the
@@ -80,6 +85,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
   late final AnimationController _messageEditorController;
   bool _isMessageEditorOpen = false;
   bool _preparingMessageEditor = false;
+  List<MentionTarget> _initialMentions = const [];
   String? _highlightedAuthorId;
   String? _visitRecordedForPlaceId;
 
@@ -181,14 +187,17 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
 
   // ── Message editor overlay ────────────────────────────────────────────────
 
-  Future<void> _openMessageEditor() async {
+  Future<void> _openMessageEditor([MentionTarget? initialMention]) async {
     if (_isMessageEditorOpen || _preparingMessageEditor || widget.readOnly) {
       return;
     }
     setState(() => _preparingMessageEditor = true);
     try {
       if (!mounted) return;
-      setState(() => _isMessageEditorOpen = true);
+      setState(() {
+        _initialMentions = initialMention == null ? const [] : [initialMention];
+        _isMessageEditorOpen = true;
+      });
       _messageEditorController.forward();
     } catch (e) {
       if (mounted) {
@@ -204,12 +213,37 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
   Future<void> _closeMessageEditor() async {
     if (!_isMessageEditorOpen) return;
     await _messageEditorController.reverse();
-    if (mounted) setState(() => _isMessageEditorOpen = false);
+    if (mounted) {
+      setState(() {
+        _isMessageEditorOpen = false;
+        _initialMentions = const [];
+      });
+    }
   }
 
   void _toggleAuthorHighlight(String authorId) {
     setState(() {
       _highlightedAuthorId = _highlightedAuthorId == authorId ? null : authorId;
+    });
+  }
+
+  void _positionTargetMessageIfNeeded(List<MessageEntity> messages) {
+    final targetMessageId = widget.targetMessageId;
+    if (_targetMessagePositioned ||
+        targetMessageId == null ||
+        !messages.any((message) => message.id == targetMessageId)) {
+      return;
+    }
+    _targetMessagePositioned = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final targetContext = _targetMessageKey.currentContext;
+      if (targetContext == null) return;
+      Scrollable.ensureVisible(
+        targetContext,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOutCubic,
+        alignment: 0.25,
+      );
     });
   }
 
@@ -1050,6 +1084,9 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                             error: (e, _) =>
                                 Center(child: Text(l10n.commonError(e))),
                             data: (messages) {
+                              _positionTargetMessageIfNeeded(
+                                messages.map((item) => item.message).toList(),
+                              );
                               return messages.isEmpty
                                   ? const _EmptyState()
                                   : ListView.builder(
@@ -1067,7 +1104,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                                         final isOwn =
                                             message.author.id ==
                                             currentUser?.id;
-                                        return MessageBubble(
+                                        final bubble = MessageBubble(
                                           key: ValueKey(message.id),
                                           message: message,
                                           likeState: item.likeState,
@@ -1081,6 +1118,9 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                                           isAuthorHighlighted:
                                               _highlightedAuthorId ==
                                               message.author.id,
+                                          isMessageHighlighted:
+                                              widget.targetMessageId ==
+                                              message.id,
                                           onAuthorTap: _toggleAuthorHighlight,
                                           onDelete: isOwn
                                               ? () => _confirmDeleteMessage(
@@ -1102,7 +1142,28 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                                                       place.createdByUserId,
                                                 )
                                               : null,
+                                          onMentionReply:
+                                              !isOwn &&
+                                                  permissions.canPostMessage
+                                              ? () => _openMessageEditor(
+                                                  MentionTarget(
+                                                    userId: message.author.id,
+                                                    displayName:
+                                                        message.author.name,
+                                                    photoUrl:
+                                                        message.author.photoUrl,
+                                                  ),
+                                                )
+                                              : null,
                                         );
+                                        if (widget.targetMessageId ==
+                                            message.id) {
+                                          return KeyedSubtree(
+                                            key: _targetMessageKey,
+                                            child: bubble,
+                                          );
+                                        }
+                                        return bubble;
                                       },
                                     );
                             },
@@ -1186,6 +1247,7 @@ class _NoteBoxScreenState extends ConsumerState<NoteBoxScreen>
                           ),
                       child: MessageCreationOverlay(
                         placeId: widget.placeId,
+                        initialMentions: _initialMentions,
                         onClose: _closeMessageEditor,
                       ),
                     ),

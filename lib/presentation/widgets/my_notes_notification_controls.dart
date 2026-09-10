@@ -118,6 +118,58 @@ class MyNotesNotificationPreviewSwitchTile extends ConsumerStatefulWidget {
       _MyNotesNotificationPreviewSwitchTileState();
 }
 
+class MentionNotificationSwitchTile extends ConsumerStatefulWidget {
+  const MentionNotificationSwitchTile({super.key});
+
+  @override
+  ConsumerState<MentionNotificationSwitchTile> createState() =>
+      _MentionNotificationSwitchTileState();
+}
+
+class _MentionNotificationSwitchTileState
+    extends ConsumerState<MentionNotificationSwitchTile> {
+  bool _updating = false;
+
+  Future<void> _setEnabled(bool enabled) async {
+    if (_updating) return;
+    setState(() => _updating = true);
+    try {
+      final service = ref.read(myNotesNotificationServiceProvider);
+      final granted = enabled
+          ? await service.enableMentionNotifications()
+          : await (() async {
+              await service.disableMentionNotifications();
+              return true;
+            })();
+      if (!granted && mounted) {
+        showMyNotesNotificationPermissionSnackBar(context);
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(context.l10n.mentionNotificationsUpdateFailed),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _updating = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final enabledAsync = ref.watch(mentionNotificationEnabledProvider);
+    return SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(context.l10n.mentionNotificationsTitle),
+      subtitle: Text(context.l10n.mentionNotificationsDescription),
+      value: enabledAsync.valueOrNull ?? false,
+      onChanged: _updating || enabledAsync.isLoading ? null : _setEnabled,
+    );
+  }
+}
+
 class _MyNotesNotificationPreviewSwitchTileState
     extends ConsumerState<MyNotesNotificationPreviewSwitchTile> {
   bool _updating = false;

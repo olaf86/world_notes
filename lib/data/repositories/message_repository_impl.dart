@@ -12,6 +12,7 @@ import '../../services/world_firebase_clients.dart';
 import '../../domain/entities/message_entity.dart';
 import '../../domain/entities/message_thread_item.dart';
 import '../../domain/entities/content_report.dart';
+import '../../domain/entities/mention_target.dart';
 import '../../domain/repositories/message_repository.dart';
 import '../models/message_model.dart';
 
@@ -268,6 +269,7 @@ class MessageRepositoryImpl implements MessageRepository {
     String? userPhotoUrl,
     List<List<int>> imageBytesList = const [],
     DateTime? publishAt,
+    List<MentionTarget> mentions = const [],
   }) async {
     final messageId = id ?? _uuid.v7();
     final imageStoragePaths = await Future.wait([
@@ -294,6 +296,10 @@ class MessageRepositoryImpl implements MessageRepository {
               'imageStoragePaths': imageStoragePaths,
             if (publishAt != null)
               'publishAtMillis': publishAt.millisecondsSinceEpoch,
+            if (mentions.isNotEmpty)
+              'mentionUserIds': mentions
+                  .map((target) => target.userId)
+                  .toList(),
           });
     } catch (_) {
       // Immutable uploads are server-cleaned when they remain unreferenced.
@@ -311,6 +317,7 @@ class MessageRepositoryImpl implements MessageRepository {
       userName: userName,
       userPhotoUrl: userPhotoUrl,
       content: content,
+      mentions: mentions,
       imageStoragePaths: imageStoragePaths,
       createdAt: now,
       publishAt: confirmedPublishAt,
@@ -318,6 +325,43 @@ class MessageRepositoryImpl implements MessageRepository {
     );
 
     return model.toEntity();
+  }
+
+  @override
+  Future<List<MentionTarget>> listMentionCandidates({
+    required String placeId,
+    String query = '',
+    int limit = 20,
+  }) async {
+    final result = await _functions
+        .httpsCallable('listMentionCandidates')
+        .call<Map<String, dynamic>>({
+          'placeId': placeId,
+          'query': query,
+          'limit': limit,
+        });
+    final values = result.data['candidates'];
+    if (values is! List) return const [];
+    return values
+        .whereType<Map>()
+        .map((value) {
+          final userId = value['userId'];
+          final displayName = value['displayName'];
+          if (userId is! String ||
+              userId.isEmpty ||
+              displayName is! String ||
+              displayName.isEmpty) {
+            return null;
+          }
+          return MentionTarget(
+            userId: userId,
+            displayName: displayName,
+            photoUrl: value['photoUrl'] as String?,
+          );
+        })
+        .whereType<MentionTarget>()
+        .take(limit)
+        .toList(growable: false);
   }
 
   @override

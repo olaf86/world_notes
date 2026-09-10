@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,6 +9,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../config/app_config.dart';
 import '../../../core/utils/image_upload_util.dart';
+import '../../../domain/entities/mention_target.dart';
 import '../../../l10n/l10n.dart';
 import '../../../l10n/localized_formatters.dart';
 import '../../providers/providers.dart';
@@ -24,6 +27,8 @@ enum _MessagePublishPreset {
 
   const _MessagePublishPreset(this.delay);
 }
+
+enum _MessageEditorMode { composing, mentionPicker, scheduleOptions }
 
 /// Full-screen "new message" editor rendered as an **overlay inside
 /// NoteBoxScreen**, not as a separate Navigator route.
@@ -53,11 +58,13 @@ enum _MessagePublishPreset {
 class MessageCreationOverlay extends ConsumerStatefulWidget {
   final String placeId;
   final VoidCallback onClose;
+  final List<MentionTarget> initialMentions;
 
   const MessageCreationOverlay({
     super.key,
     required this.placeId,
     required this.onClose,
+    this.initialMentions = const [],
   });
 
   @override
@@ -70,15 +77,22 @@ class _MessageCreationOverlayState
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
   final _picker = ImagePicker();
+  final _mentionSearchController = TextEditingController();
 
   // Stored as Uint8List (not List<int>) so that the same instances are reused
   // across rebuilds. MemoryImage uses reference equality on the byte array;
   // recreating them every build can cause a white-flash flicker.
   final List<Uint8List> _imageBytesList = [];
+  late final List<MentionTarget> _mentions;
+  List<MentionTarget> _mentionCandidates = const [];
+  Timer? _mentionSearchDebounce;
+  int _mentionSearchRequestId = 0;
+  bool _loadingMentionCandidates = false;
+  Object? _mentionSearchError;
   String? _pendingMessageId;
   _MessagePublishPreset _publishPreset = _MessagePublishPreset.now;
   DateTime? _customPublishAt;
-  bool _showScheduleOptions = false;
+  _MessageEditorMode _editorMode = _MessageEditorMode.composing;
   bool _isSending = false;
   bool _picking = false;
 
@@ -89,7 +103,9 @@ class _MessageCreationOverlayState
   @override
   void initState() {
     super.initState();
+    _mentions = [...widget.initialMentions.take(maxMessageMentionRecipients)];
     _controller.addListener(_onChanged);
+    _mentionSearchController.addListener(_onMentionQueryChanged);
     // Defer keyboard focus until after the parent's slide-up animation
     // settles to avoid viewInsets racing the layout pass.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -103,14 +119,93 @@ class _MessageCreationOverlayState
 
   @override
   void dispose() {
+    _mentionSearchDebounce?.cancel();
     _controller.removeListener(_onChanged);
     _controller.dispose();
+    _mentionSearchController
+      ..removeListener(_onMentionQueryChanged)
+      ..dispose();
     _focusNode.dispose();
     super.dispose();
   }
 
   bool get _hasContent =>
       _controller.text.trim().isNotEmpty || _imageBytesList.isNotEmpty;
+
+  void _onMentionQueryChanged() {
+    _mentionSearchDebounce?.cancel();
+    _mentionSearchDebounce = Timer(
+      const Duration(milliseconds: 250),
+      _loadMentionCandidates,
+    );
+  }
+
+  Future<void> _loadMentionCandidates() async {
+    if (_editorMode != _MessageEditorMode.mentionPicker) return;
+    // A boolean can say that a request is running, but cannot distinguish two
+    // overlapping searches that finish out of order. The request id ensures
+    // only the newest response is allowed to update the picker.
+    final requestId = ++_mentionSearchRequestId;
+    setState(() {
+      _loadingMentionCandidates = true;
+      _mentionSearchError = null;
+    });
+    try {
+      final candidates = await ref
+          .read(messageRepositoryProvider)
+          .listMentionCandidates(
+            placeId: widget.placeId,
+            query: _mentionSearchController.text,
+          );
+      if (!_isCurrentMentionSearch(requestId)) return;
+      setState(() => _mentionCandidates = candidates);
+    } catch (error) {
+      if (!_isCurrentMentionSearch(requestId)) return;
+      setState(() => _mentionSearchError = error);
+    } finally {
+      if (_isCurrentMentionSearch(requestId)) {
+        setState(() => _loadingMentionCandidates = false);
+      }
+    }
+  }
+
+  bool _isCurrentMentionSearch(int requestId) {
+    return mounted &&
+        _editorMode == _MessageEditorMode.mentionPicker &&
+        requestId == _mentionSearchRequestId;
+  }
+
+  void _openMentionPicker() {
+    if (_isSending) return;
+    setState(() {
+      _editorMode = _MessageEditorMode.mentionPicker;
+    });
+    _loadMentionCandidates();
+  }
+
+  void _closeMentionPicker() {
+    _mentionSearchDebounce?.cancel();
+    _mentionSearchRequestId += 1;
+    setState(() => _editorMode = _MessageEditorMode.composing);
+    _focusNode.requestFocus();
+  }
+
+  void _toggleMention(MentionTarget target) {
+    final index = _mentions.indexWhere((item) => item.userId == target.userId);
+    setState(() {
+      if (index >= 0) {
+        _mentions.removeAt(index);
+      } else if (_mentions.length < maxMessageMentionRecipients) {
+        _mentions.add(target);
+        _publishPreset = _MessagePublishPreset.now;
+        _customPublishAt = null;
+      }
+    });
+  }
+
+  void _removeMention(String userId) {
+    setState(() => _mentions.removeWhere((item) => item.userId == userId));
+  }
 
   // ── Image picking ─────────────────────────────────────────────────────────
 
@@ -323,6 +418,7 @@ class _MessageCreationOverlayState
             userPhotoUrl: user.photoUrl,
             imageBytesList: _imageBytesList,
             publishAt: _publishAtForSend(),
+            mentions: _mentions,
           );
       _pendingMessageId = null;
       if (mounted) widget.onClose();
@@ -360,6 +456,7 @@ class _MessageCreationOverlayState
     final theme = Theme.of(context);
     final keyboardBottom = MediaQuery.viewInsetsOf(context).bottom;
     final canAddImages = _imageBytesList.length < AppConfig.maxMessageImages;
+    final isChoosingMentions = _editorMode == _MessageEditorMode.mentionPicker;
 
     return Material(
       color: theme.colorScheme.surface,
@@ -381,51 +478,62 @@ class _MessageCreationOverlayState
               ),
               const Divider(height: 1),
 
-              // Text editor — fills the available vertical space.
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  child: TextField(
-                    controller: _controller,
-                    focusNode: _focusNode,
-                    maxLines: null,
-                    expands: true,
-                    keyboardType: TextInputType.multiline,
-                    textInputAction: TextInputAction.newline,
-                    textAlignVertical: TextAlignVertical.top,
-                    style: theme.textTheme.bodyLarge,
-                    maxLength: _maxChars,
-                    // Hide the default counter — we show it in the header instead.
-                    buildCounter:
-                        (
-                          _, {
-                          required currentLength,
-                          required isFocused,
-                          maxLength,
-                        }) => null,
-                    inputFormatters: [
-                      LengthLimitingTextInputFormatter(_maxChars),
-                    ],
-                    decoration: InputDecoration(
-                      hintText: context.l10n.messageContentHint,
-                      // Remove Material 3's default filled look (grey tinted
-                      // background + rounded corners).  The editor lives
-                      // inside a plain white/surface Material already.
-                      filled: false,
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ),
+              if (_mentions.isNotEmpty)
+                _SelectedMentions(
+                  mentions: _mentions,
+                  onRemoved: _isSending ? null : _removeMention,
                 ),
+
+              Expanded(
+                child: isChoosingMentions
+                    ? _MentionPicker(
+                        controller: _mentionSearchController,
+                        candidates: _mentionCandidates,
+                        selected: _mentions,
+                        loading: _loadingMentionCandidates,
+                        error: _mentionSearchError,
+                        onToggle: _toggleMention,
+                        onDone: _closeMentionPicker,
+                      )
+                    : Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        child: TextField(
+                          controller: _controller,
+                          focusNode: _focusNode,
+                          maxLines: null,
+                          expands: true,
+                          keyboardType: TextInputType.multiline,
+                          textInputAction: TextInputAction.newline,
+                          textAlignVertical: TextAlignVertical.top,
+                          style: theme.textTheme.bodyLarge,
+                          maxLength: _maxChars,
+                          buildCounter:
+                              (
+                                _, {
+                                required currentLength,
+                                required isFocused,
+                                maxLength,
+                              }) => null,
+                          inputFormatters: [
+                            LengthLimitingTextInputFormatter(_maxChars),
+                          ],
+                          decoration: InputDecoration(
+                            hintText: context.l10n.messageContentHint,
+                            filled: false,
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                      ),
               ),
 
               // Image attachment preview (if any).
-              if (_imageBytesList.isNotEmpty)
+              if (!isChoosingMentions && _imageBytesList.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   child: _ImagePreviewGrid(
@@ -436,7 +544,8 @@ class _MessageCreationOverlayState
 
               const Divider(height: 1),
 
-              if (_showScheduleOptions)
+              if (_editorMode == _MessageEditorMode.scheduleOptions &&
+                  _mentions.isEmpty)
                 _ScheduleOptions(
                   selected: _publishPreset,
                   label: _publishLabel(),
@@ -453,21 +562,167 @@ class _MessageCreationOverlayState
                 ),
 
               // Keyboard-aware attachment toolbar.
-              _AttachmentToolbar(
-                picking: _picking,
-                canAddImages: canAddImages,
-                scheduleLabel: _publishLabel(),
-                scheduled: _isScheduled,
-                onPickGallery: _pickGalleryImages,
-                onPickCamera: _pickCameraImage,
-                onToggleSchedule: () {
-                  setState(() => _showScheduleOptions = !_showScheduleOptions);
-                },
-              ),
+              if (!isChoosingMentions)
+                _AttachmentToolbar(
+                  picking: _picking,
+                  canAddImages: canAddImages,
+                  scheduleLabel: _mentions.isEmpty
+                      ? _publishLabel()
+                      : context.l10n.publishNow,
+                  scheduled: _mentions.isEmpty && _isScheduled,
+                  canSchedule: _mentions.isEmpty,
+                  onMention: _openMentionPicker,
+                  onPickGallery: _pickGalleryImages,
+                  onPickCamera: _pickCameraImage,
+                  onToggleSchedule: () {
+                    setState(() {
+                      _editorMode =
+                          _editorMode == _MessageEditorMode.scheduleOptions
+                          ? _MessageEditorMode.composing
+                          : _MessageEditorMode.scheduleOptions;
+                    });
+                  },
+                ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _SelectedMentions extends StatelessWidget {
+  final List<MentionTarget> mentions;
+  final ValueChanged<String>? onRemoved;
+
+  const _SelectedMentions({required this.mentions, required this.onRemoved});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+        child: Row(
+          children: mentions
+              .map(
+                (mention) => Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: InputChip(
+                    avatar: const Icon(Icons.alternate_email, size: 16),
+                    label: Text(mention.displayName),
+                    onDeleted: onRemoved == null
+                        ? null
+                        : () => onRemoved!(mention.userId),
+                  ),
+                ),
+              )
+              .toList(growable: false),
+        ),
+      ),
+    );
+  }
+}
+
+class _MentionPicker extends StatelessWidget {
+  final TextEditingController controller;
+  final List<MentionTarget> candidates;
+  final List<MentionTarget> selected;
+  final bool loading;
+  final Object? error;
+  final ValueChanged<MentionTarget> onToggle;
+  final VoidCallback onDone;
+
+  const _MentionPicker({
+    required this.controller,
+    required this.candidates,
+    required this.selected,
+    required this.loading,
+    required this.error,
+    required this.onToggle,
+    required this.onDone,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: SearchBar(
+                  controller: controller,
+                  autoFocus: true,
+                  leading: const Icon(Icons.search),
+                  hintText: context.l10n.mentionSearchHint,
+                  trailing: [
+                    if (controller.text.isNotEmpty)
+                      IconButton(
+                        tooltip: MaterialLocalizations.of(
+                          context,
+                        ).deleteButtonTooltip,
+                        onPressed: controller.clear,
+                        icon: const Icon(Icons.clear),
+                      ),
+                  ],
+                ),
+              ),
+              TextButton(
+                onPressed: onDone,
+                child: Text(context.l10n.doneAction),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              context.l10n.mentionSelectionCount(selected.length, 3),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Expanded(
+          child: loading && candidates.isEmpty
+              ? const Center(child: CircularProgressIndicator())
+              : error != null
+              ? Center(child: Text(context.l10n.mentionSearchFailed))
+              : candidates.isEmpty
+              ? Center(child: Text(context.l10n.mentionNoCandidates))
+              : ListView.builder(
+                  itemCount: candidates.length,
+                  itemBuilder: (context, index) {
+                    final candidate = candidates[index];
+                    final checked = selected.any(
+                      (item) => item.userId == candidate.userId,
+                    );
+                    final enabled = checked || selected.length < 3;
+                    return CheckboxListTile(
+                      value: checked,
+                      onChanged: enabled ? (_) => onToggle(candidate) : null,
+                      secondary: CircleAvatar(
+                        foregroundImage: candidate.photoUrl == null
+                            ? null
+                            : NetworkImage(candidate.photoUrl!),
+                        child: candidate.photoUrl == null
+                            ? Text(candidate.displayName.characters.first)
+                            : null,
+                      ),
+                      title: Text(candidate.displayName),
+                    );
+                  },
+                ),
+        ),
+      ],
     );
   }
 }
@@ -620,6 +875,8 @@ class _AttachmentToolbar extends StatelessWidget {
   final bool canAddImages;
   final String scheduleLabel;
   final bool scheduled;
+  final bool canSchedule;
+  final VoidCallback onMention;
   final VoidCallback onPickGallery;
   final VoidCallback onPickCamera;
   final VoidCallback onToggleSchedule;
@@ -629,6 +886,8 @@ class _AttachmentToolbar extends StatelessWidget {
     required this.canAddImages,
     required this.scheduleLabel,
     required this.scheduled,
+    required this.canSchedule,
+    required this.onMention,
     required this.onPickGallery,
     required this.onPickCamera,
     required this.onToggleSchedule,
@@ -653,9 +912,15 @@ class _AttachmentToolbar extends StatelessWidget {
             color: theme.colorScheme.primary,
             onPressed: picking || !canAddImages ? null : onPickCamera,
           ),
+          IconButton(
+            tooltip: context.l10n.addMention,
+            icon: const Icon(Icons.alternate_email),
+            color: theme.colorScheme.primary,
+            onPressed: onMention,
+          ),
           const Spacer(),
           TextButton.icon(
-            onPressed: onToggleSchedule,
+            onPressed: canSchedule ? onToggleSchedule : null,
             icon: Icon(
               scheduled ? Icons.schedule_send_outlined : Icons.schedule,
               size: 18,

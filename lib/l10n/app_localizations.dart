@@ -2762,6 +2762,72 @@ abstract class AppLocalizations {
   /// **'What\'\'s happening at this place?'**
   String get messageContentHint;
 
+  /// No description provided for @addMention.
+  ///
+  /// In en, this message translates to:
+  /// **'Mention participants'**
+  String get addMention;
+
+  /// No description provided for @mentionAndReply.
+  ///
+  /// In en, this message translates to:
+  /// **'Mention and reply'**
+  String get mentionAndReply;
+
+  /// No description provided for @mentionSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search participants'**
+  String get mentionSearchHint;
+
+  /// No description provided for @mentionSelectionCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}/{max} selected'**
+  String mentionSelectionCount(int count, int max);
+
+  /// No description provided for @mentionSearchFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not search participants.'**
+  String get mentionSearchFailed;
+
+  /// No description provided for @mentionNoCandidates.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching participants.'**
+  String get mentionNoCandidates;
+
+  /// No description provided for @mentionNotificationsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Mentions'**
+  String get mentionNotificationsTitle;
+
+  /// No description provided for @mentionNotificationsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Notify me when a participant mentions me in a note.'**
+  String get mentionNotificationsDescription;
+
+  /// No description provided for @mentionNotificationsUpdateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not update mention notifications.'**
+  String get mentionNotificationsUpdateFailed;
+
+  /// No description provided for @notificationContentWorldSwitched.
+  ///
+  /// In en, this message translates to:
+  /// **'Switched to {worldName} to show this notification.'**
+  String notificationContentWorldSwitched(String worldName);
+
+  /// No description provided for @doneAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get doneAction;
+
   /// No description provided for @newMessageTitle.
   ///
   /// In en, this message translates to:

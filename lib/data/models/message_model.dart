@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../domain/entities/message_entity.dart';
+import '../../domain/entities/mention_target.dart';
 import '../../domain/entities/user_entity.dart';
 
 class MessageModel {
@@ -9,6 +10,7 @@ class MessageModel {
   final String userName;
   final String? userPhotoUrl;
   final String content;
+  final List<MentionTarget> mentions;
   final List<String> imageStoragePaths;
   final DateTime createdAt;
   final DateTime publishAt;
@@ -29,6 +31,7 @@ class MessageModel {
     required this.userName,
     this.userPhotoUrl,
     required this.content,
+    this.mentions = const [],
     this.imageStoragePaths = const [],
     required this.createdAt,
     required this.publishAt,
@@ -54,6 +57,7 @@ class MessageModel {
       userName: data['userName'] as String? ?? 'Unknown',
       userPhotoUrl: data['userPhotoUrl'] as String?,
       content: data['content'] as String,
+      mentions: _mentionsFromJson(data['mentions']),
       imageStoragePaths: List<String>.from(
         (data['imageStoragePaths'] as List<dynamic>? ?? const [])
             .whereType<String>(),
@@ -77,6 +81,7 @@ class MessageModel {
     placeId: placeId,
     author: UserEntity(id: userId, name: userName, photoUrl: userPhotoUrl),
     content: content,
+    mentions: mentions,
     imageStoragePaths: imageStoragePaths,
     createdAt: createdAt,
     publishAt: publishAt,
@@ -88,4 +93,24 @@ class MessageModel {
     isSensitive: isSensitive,
     reviewRequired: reviewRequired,
   );
+}
+
+List<MentionTarget> _mentionsFromJson(Object? value) {
+  if (value is! List) return const [];
+  return value
+      .whereType<Map>()
+      .map((entry) {
+        final userId = entry['userId'];
+        final displayName = entry['displayName'];
+        if (userId is! String ||
+            userId.isEmpty ||
+            displayName is! String ||
+            displayName.isEmpty) {
+          return null;
+        }
+        return MentionTarget(userId: userId, displayName: displayName);
+      })
+      .whereType<MentionTarget>()
+      .take(3)
+      .toList(growable: false);
 }
