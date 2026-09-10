@@ -461,7 +461,7 @@
   "mentionNotificationsTitle": "멘션",
   "mentionNotificationsDescription": "노트에서 다른 참여자가 나를 멘션하면 알림을 받습니다.",
   "mentionNotificationsUpdateFailed": "멘션 알림을 업데이트할 수 없습니다.",
-  "notificationContentWorldSwitched": "이 알림을 표시하기 위해 {worldName}(으)로 전환했습니다.",
+  "notificationContentWorldSwitched": "연결된 노트를 표시하기 위해 콘텐츠 월드를 {worldName}(으)로 전환했습니다.",
   "doneAction": "완료",
   "newMessageTitle": "새 메시지",
   "sendAction": "보내기",

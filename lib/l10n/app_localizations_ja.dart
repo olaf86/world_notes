@@ -1497,7 +1497,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String notificationContentWorldSwitched(String worldName) {
-    return 'このお知らせを表示するため、$worldNameに切り替えました。';
+    return 'リンク先のノートを表示するため、コンテンツワールドを$worldNameに切り替えました。';
   }
 
   @override

@@ -1480,7 +1480,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String notificationContentWorldSwitched(String worldName) {
-    return '已切换到$worldName以显示此通知。';
+    return '为了显示链接的笔记，已将内容世界切换到$worldName。';
   }
 
   @override
@@ -3326,7 +3326,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String notificationContentWorldSwitched(String worldName) {
-    return '已切换到$worldName以显示此通知。';
+    return '为了显示链接的笔记，已将内容世界切换到$worldName。';
   }
 
   @override
@@ -5173,7 +5173,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String notificationContentWorldSwitched(String worldName) {
-    return '已切換至$worldName以顯示此通知。';
+    return '為了顯示連結的筆記，已將內容世界切換至$worldName。';
   }
 
   @override

@@ -461,7 +461,7 @@
   "mentionNotificationsTitle": "メンション",
   "mentionNotificationsDescription": "ノート内でメンションされたときに通知します。",
   "mentionNotificationsUpdateFailed": "メンション通知を更新できませんでした。",
-  "notificationContentWorldSwitched": "このお知らせを表示するため、{worldName}に切り替えました。",
+  "notificationContentWorldSwitched": "リンク先のノートを表示するため、コンテンツワールドを{worldName}に切り替えました。",
   "doneAction": "完了",
   "newMessageTitle": "新しいメッセージ",
   "sendAction": "送信",

@@ -2819,7 +2819,7 @@ abstract class AppLocalizations {
   /// No description provided for @notificationContentWorldSwitched.
   ///
   /// In en, this message translates to:
-  /// **'Switched to {worldName} to show this notification.'**
+  /// **'Switched to {worldName} to show the linked note.'**
   String notificationContentWorldSwitched(String worldName);
 
   /// No description provided for @doneAction.

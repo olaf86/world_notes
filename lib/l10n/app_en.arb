@@ -940,7 +940,7 @@
   "@mentionNotificationsDescription": {},
   "mentionNotificationsUpdateFailed": "Could not update mention notifications.",
   "@mentionNotificationsUpdateFailed": {},
-  "notificationContentWorldSwitched": "Switched to {worldName} to show this notification.",
+  "notificationContentWorldSwitched": "Switched to {worldName} to show the linked note.",
   "@notificationContentWorldSwitched": {"placeholders": {"worldName": {"type": "String"}}},
   "doneAction": "Done",
   "@doneAction": {},

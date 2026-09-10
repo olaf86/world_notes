@@ -1602,7 +1602,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String notificationContentWorldSwitched(String worldName) {
-    return 'Switched to $worldName to show this notification.';
+    return 'Switched to $worldName to show the linked note.';
   }
 
   @override

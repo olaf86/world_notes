@@ -461,7 +461,7 @@
   "mentionNotificationsTitle": "提及",
   "mentionNotificationsDescription": "當參與者在筆記中提及我時通知我。",
   "mentionNotificationsUpdateFailed": "無法更新提及通知。",
-  "notificationContentWorldSwitched": "已切換至{worldName}以顯示此通知。",
+  "notificationContentWorldSwitched": "為了顯示連結的筆記，已將內容世界切換至{worldName}。",
   "doneAction": "完成",
   "newMessageTitle": "新訊息",
   "sendAction": "傳送",

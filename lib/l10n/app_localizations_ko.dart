@@ -1499,7 +1499,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String notificationContentWorldSwitched(String worldName) {
-    return '이 알림을 표시하기 위해 $worldName(으)로 전환했습니다.';
+    return '연결된 노트를 표시하기 위해 콘텐츠 월드를 $worldName(으)로 전환했습니다.';
   }
 
   @override
