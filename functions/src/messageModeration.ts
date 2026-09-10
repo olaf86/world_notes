@@ -28,6 +28,11 @@ import {
 } from "./moderationJobs";
 import {enqueueHiddenMessageRetention} from "./messageModerationRetention";
 import {enqueueMyNotesMessageNotification} from "./notifications";
+import {
+  enqueueMessageMentionNotification,
+  mentionUserIdsFromMessage,
+  upsertMessageParticipant,
+} from "./mentions";
 import {HttpsError} from "./platform/worldCallable";
 import {WorldBucket} from "./platform/worldBucketProvider";
 import {worldContext} from "./platform/worldContext";
@@ -299,6 +304,7 @@ async function finalizeMessageModeration(
       const administrators = await transaction.get(
         placeRef.collection("administrators"),
       );
+      await upsertMessageParticipant(transaction, message, checkedAt);
       enqueueMyNotesMessageNotification(transaction, context.firestore, {
         sourceWorld: context.job.world,
         place,
@@ -307,6 +313,13 @@ async function finalizeMessageModeration(
           .map((document) => document.id),
         messageId: target.messageId,
         senderId: uid,
+        createdAt: checkedAt,
+        excludedRecipientUids: mentionUserIdsFromMessage(message),
+      });
+      enqueueMessageMentionNotification(transaction, context.firestore, {
+        sourceWorld: context.job.world,
+        place,
+        message,
         createdAt: checkedAt,
       });
     }

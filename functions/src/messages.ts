@@ -53,6 +53,11 @@ import {
 } from "./userBlocks";
 import {bindImageUploadsToContent} from "./imageUploads";
 import {enqueueStorageObjectDeletion} from "./storageObjectCleanup";
+import {
+  parseMentionUserIds,
+  validateMentionTargetsInTransaction,
+  type MentionSnapshot,
+} from "./mentions";
 
 interface SendMessageData {
   messageId?: unknown;
@@ -60,6 +65,7 @@ interface SendMessageData {
   content?: unknown;
   imageStoragePaths?: unknown;
   publishAtMillis?: unknown;
+  mentionUserIds?: unknown;
 }
 
 interface ReportMessageData {
@@ -81,6 +87,7 @@ interface ValidatedSendMessageInput {
   trimmedContent: string;
   trimmedImageStoragePaths: string[];
   publishAtMillis?: unknown;
+  mentionUserIds: string[];
 }
 
 interface ValidatedReportMessageInput {
@@ -178,6 +185,7 @@ function validateSendMessageInput(
     content,
     imageStoragePaths,
     publishAtMillis,
+    mentionUserIds,
   } = data ?? {};
   const messageId = messageIdOf(rawMessageId);
   if (typeof placeId !== "string" || placeId.length === 0) {
@@ -225,6 +233,7 @@ function validateSendMessageInput(
     trimmedContent,
     trimmedImageStoragePaths,
     publishAtMillis,
+    mentionUserIds: parseMentionUserIds(mentionUserIds, uid),
   };
 }
 
@@ -341,6 +350,7 @@ function messageDocumentData({
   isScheduled,
   isPubliclyVisible,
   riskSignals,
+  mentions,
 }: {
   placeId: string;
   uid: string;
@@ -352,6 +362,7 @@ function messageDocumentData({
   isScheduled: boolean;
   isPubliclyVisible: boolean;
   riskSignals: AppModerationRiskSignal[];
+  mentions: readonly MentionSnapshot[];
 }): Record<string, unknown> {
   return {
     placeId,
@@ -359,6 +370,7 @@ function messageDocumentData({
     userName: profileDisplayName ?? "Unknown user",
     userPhotoUrl: photoUrlFor(tokenPicture),
     content,
+    mentions: mentions.map((mention) => ({...mention})),
     ...(imageStoragePaths.length > 0 ?
       {imageStoragePaths} :
       {}),
@@ -566,14 +578,6 @@ async function createMessageInTransaction({
       );
     }
     const counterSnap = await tx.get(refs.counterRef);
-    await bindImageUploadsToContent(
-      tx,
-      db,
-      input.trimmedImageStoragePaths,
-      refs.messageRef.path,
-      Timestamp.fromMillis(nowMs),
-    );
-
     validatePlaceCanAccept(placeSnap, nowMs);
     const publicCount =
       (placeSnap.get("messageCount") as number | undefined) ?? 0;
@@ -588,6 +592,28 @@ async function createMessageInTransaction({
       placeSnap,
     );
     const isImmediate = publishAt.toMillis() <= nowMs;
+    if (input.mentionUserIds.length > 0 && !isImmediate) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Mentioned messages must be published now.",
+        {reason: "scheduled_mentions_not_allowed"},
+      );
+    }
+    const mentions = await validateMentionTargetsInTransaction(
+      tx,
+      db,
+      placeSnap,
+      uid,
+      input.mentionUserIds,
+      Timestamp.fromMillis(nowMs),
+    );
+    await bindImageUploadsToContent(
+      tx,
+      db,
+      input.trimmedImageStoragePaths,
+      refs.messageRef.path,
+      Timestamp.fromMillis(nowMs),
+    );
     isScheduled = !isImmediate;
     publishAtMillis = publishAt.toMillis();
     created = true;
@@ -632,6 +658,7 @@ async function createMessageInTransaction({
         isScheduled,
         isPubliclyVisible: isImmediate,
         riskSignals,
+        mentions,
       }),
       placeAggregateAppliedAt: isImmediate ?
         FieldValue.serverTimestamp() :

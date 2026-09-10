@@ -67,7 +67,7 @@ test("hiding and restoring a public message changes the aggregate once", () => {
       isDeleted: false,
       isVisible: true,
     }),
-    {wasPublic: true, willBePublic: false, delta: -1},
+    {wasPublic: true, willBePublic: false, messageCountDelta: -1},
   );
   assert.deepEqual(
     adminMessagePublicTransition({
@@ -77,7 +77,7 @@ test("hiding and restoring a public message changes the aggregate once", () => {
       isDeleted: true,
       isVisible: false,
     }),
-    {wasPublic: false, willBePublic: true, delta: 1},
+    {wasPublic: false, willBePublic: true, messageCountDelta: 1},
   );
 });
 
@@ -92,7 +92,7 @@ test(
         isDeleted: false,
         isVisible: true,
       }),
-      {wasPublic: true, willBePublic: true, delta: 0},
+      {wasPublic: true, willBePublic: true, messageCountDelta: 0},
     );
   },
 );
@@ -108,7 +108,7 @@ test(
         isDeleted: true,
         isVisible: false,
       }),
-      {wasPublic: false, willBePublic: false, delta: 0},
+      {wasPublic: false, willBePublic: false, messageCountDelta: 0},
     );
   },
 );

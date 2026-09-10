@@ -8,6 +8,11 @@ import {WORLD_REGISTRY} from "./platform/worldRegistry";
 import {
   enqueueMyNotesMessageNotification,
 } from "./notifications";
+import {
+  enqueueMessageMentionNotification,
+  mentionUserIdsFromMessage,
+  upsertMessageParticipant,
+} from "./mentions";
 import {hasUserBlockBetweenInTransaction} from "./userBlocks";
 import {enqueueStorageObjectDeletion} from "./storageObjectCleanup";
 
@@ -172,6 +177,8 @@ export async function publishScheduledMessagesForWorld(
             update.closedAt = FieldValue.serverTimestamp();
           }
 
+          await upsertMessageParticipant(transaction, message, now);
+
           transaction.update(placeRef, update);
           transaction.update(messageDocument.ref, {
             placeAggregateAppliedAt: FieldValue.serverTimestamp(),
@@ -186,6 +193,13 @@ export async function publishScheduledMessagesForWorld(
                 .map((document) => document.id),
               messageId: messageDocument.id,
               senderId,
+              createdAt: now,
+              excludedRecipientUids: mentionUserIdsFromMessage(message),
+            });
+            enqueueMessageMentionNotification(transaction, db, {
+              sourceWorld: worldId,
+              place,
+              message,
               createdAt: now,
             });
           }

@@ -26,6 +26,7 @@ type NoticeCategory =
   "ban" |
   "developer" |
   "social" |
+  "mention" |
   "system";
 
 type NoticeSeverity = "info" | "warning" | "critical";
@@ -213,6 +214,7 @@ async function deliverUserNoticeNotification(
   if (typeof title !== "string" || typeof body !== "string") {
     throw new Error("Notice notification content is invalid.");
   }
+  const actionData = noticeActionData(notice.get("action"));
   const tokens = tokenDocuments.docs.flatMap((document) => {
     const token = document.get("token");
     return typeof token === "string" && token.length > 0 ? [{
@@ -242,6 +244,7 @@ async function deliverUserNoticeNotification(
           worldId: event.ownerWorld,
           noticeId: event.entityId,
           severity,
+          ...actionData,
         },
         apns: {
           headers: {"apns-collapse-id": event.eventId},
@@ -276,6 +279,38 @@ async function deliverUserNoticeNotification(
   return {
     recipientResults: {[uid]: status},
     ...(lastErrorCode ? {lastErrorCode} : {}),
+  };
+}
+
+function noticeActionData(value: unknown): Record<string, string> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return {};
+  }
+  const action = value as Record<string, unknown>;
+  if (action.type !== "route" || action.route !== "mapNote" ||
+      typeof action.params !== "object" || action.params === null ||
+      Array.isArray(action.params)) {
+    return {};
+  }
+  const params = action.params as Record<string, unknown>;
+  const worldId = params.worldId;
+  const placeId = params.placeId;
+  const messageId = params.messageId;
+  const latitude = params.latitude;
+  const longitude = params.longitude;
+  if (typeof worldId !== "string" || typeof placeId !== "string" ||
+      typeof messageId !== "string" || typeof latitude !== "number" ||
+      !Number.isFinite(latitude) || typeof longitude !== "number" ||
+      !Number.isFinite(longitude)) {
+    return {};
+  }
+  return {
+    actionRoute: "mapNote",
+    actionWorldId: worldId,
+    actionPlaceId: placeId,
+    actionMessageId: messageId,
+    actionLatitude: String(latitude),
+    actionLongitude: String(longitude),
   };
 }
 
