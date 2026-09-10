@@ -86,7 +86,7 @@ class _MessageCreationOverlayState
   late final List<MentionTarget> _mentions;
   List<MentionTarget> _mentionCandidates = const [];
   Timer? _mentionSearchDebounce;
-  int _mentionSearchRequestId = 0;
+  int _mentionSearchGeneration = 0;
   bool _loadingMentionCandidates = false;
   Object? _mentionSearchError;
   String? _pendingMessageId;
@@ -143,9 +143,9 @@ class _MessageCreationOverlayState
   Future<void> _loadMentionCandidates() async {
     if (_editorMode != _MessageEditorMode.mentionPicker) return;
     // A boolean can say that a request is running, but cannot distinguish two
-    // overlapping searches that finish out of order. The request id ensures
+    // overlapping searches that finish out of order. The generation ensures
     // only the newest response is allowed to update the picker.
-    final requestId = ++_mentionSearchRequestId;
+    final generation = ++_mentionSearchGeneration;
     setState(() {
       _loadingMentionCandidates = true;
       _mentionSearchError = null;
@@ -157,22 +157,22 @@ class _MessageCreationOverlayState
             placeId: widget.placeId,
             query: _mentionSearchController.text,
           );
-      if (!_isCurrentMentionSearch(requestId)) return;
+      if (!_isCurrentMentionSearch(generation)) return;
       setState(() => _mentionCandidates = candidates);
     } catch (error) {
-      if (!_isCurrentMentionSearch(requestId)) return;
+      if (!_isCurrentMentionSearch(generation)) return;
       setState(() => _mentionSearchError = error);
     } finally {
-      if (_isCurrentMentionSearch(requestId)) {
+      if (_isCurrentMentionSearch(generation)) {
         setState(() => _loadingMentionCandidates = false);
       }
     }
   }
 
-  bool _isCurrentMentionSearch(int requestId) {
+  bool _isCurrentMentionSearch(int generation) {
     return mounted &&
         _editorMode == _MessageEditorMode.mentionPicker &&
-        requestId == _mentionSearchRequestId;
+        generation == _mentionSearchGeneration;
   }
 
   void _openMentionPicker() {
@@ -185,7 +185,7 @@ class _MessageCreationOverlayState
 
   void _closeMentionPicker() {
     _mentionSearchDebounce?.cancel();
-    _mentionSearchRequestId += 1;
+    _mentionSearchGeneration += 1;
     setState(() => _editorMode = _MessageEditorMode.composing);
     _focusNode.requestFocus();
   }
