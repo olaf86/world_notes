@@ -1094,6 +1094,32 @@ describe(
     });
 
     describe("server-only data", {concurrency: false}, () => {
+      test("denies direct client access to mention participants", async () => {
+        const path = "places/tokyo/participants/alice";
+        await seedApplicationDocument(path, {
+          userId: "alice",
+          displayName: "Alice",
+        });
+        const alice = requireApplicationRules().authenticatedContext("alice");
+        const guest = requireApplicationRules().unauthenticatedContext();
+
+        await assertFails(alice.firestore().doc(path).get());
+        await assertFails(guest.firestore().doc(path).get());
+        await assertFails(
+          alice.firestore().collection("places/tokyo/participants").get(),
+        );
+        await assertFails(alice.firestore().doc(path).update({
+          displayName: "Changed",
+        }));
+        await assertFails(
+          alice.firestore().doc("places/tokyo/participants/bob").set({
+            userId: "bob",
+            displayName: "Bob",
+          }),
+        );
+        await assertFails(alice.firestore().doc(path).delete());
+      });
+
       test("denies client access to moderation audit logs", async () => {
         await seedApplicationDocument("moderationAuditLogs/log", {
           action: "allow",

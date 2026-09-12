@@ -172,14 +172,21 @@ class _WorldNotesAppState extends ConsumerState<WorldNotesApp>
     NotificationNoticeRoute? route,
   ) async {
     if (!mounted || route == null) return;
+    final mapTarget = route.mapTarget;
     try {
       await ref
           .read(selectedWorldProvider.notifier)
-          .selectWorld(route.notice.worldId);
+          .selectWorld(mapTarget?.worldId ?? route.notice.worldId);
     } on StateError {
       return;
     }
-    openNotices(ref.read(routerProvider));
+    final router = ref.read(routerProvider);
+    if (mapTarget != null) {
+      ref.read(pendingNotificationMapTargetProvider.notifier).state = mapTarget;
+      router.go('/map');
+    } else {
+      openNotices(router);
+    }
   }
 
   Future<void> _bindNotificationServices(HomeAssignment assignment) async {

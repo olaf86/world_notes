@@ -43,6 +43,10 @@ interface SetMyNotesNotificationPreviewEnabledData {
   enabled?: unknown;
 }
 
+interface SetMentionNotificationEnabledData {
+  enabled?: unknown;
+}
+
 type NotificationLocale = "en" | "ja";
 
 interface MyNotesNotificationToken {
@@ -342,6 +346,31 @@ export const setMyNotesNotificationPreviewEnabled =
     },
   );
 
+export const setMentionNotificationEnabled =
+  onCall<SetMentionNotificationEnabledData>(
+    {enforceAppCheck: true, region: REGION, requireHomeWorld: true},
+    async (req, world) => {
+      const uid = req.auth?.uid;
+      if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+      if (typeof req.data?.enabled !== "boolean") {
+        throw new HttpsError("invalid-argument", "enabled is required.");
+      }
+      await world.firestore
+        .collection("users")
+        .doc(uid)
+        .collection("notificationSettings")
+        .doc("main")
+        .set(
+          {
+            mentionsEnabled: req.data.enabled,
+            updatedAt: FieldValue.serverTimestamp(),
+          },
+          {merge: true},
+        );
+      return {ok: true};
+    },
+  );
+
 /**
  * Creates one durable source-world notification intent in a transaction.
  *
@@ -360,6 +389,7 @@ export function enqueueMyNotesMessageNotification(
     messageId: string;
     senderId: string;
     createdAt: Timestamp;
+    excludedRecipientUids?: readonly string[];
   }>,
 ): string | null {
   WORLD_REGISTRY.requireWorld(input.sourceWorld);
@@ -374,15 +404,15 @@ export function enqueueMyNotesMessageNotification(
   }
   recipients.add(creator);
   recipients.delete(input.senderId);
+  for (const uid of input.excludedRecipientUids ?? []) recipients.delete(uid);
   if (recipients.size === 0) return null;
 
   const placeId = input.place.id;
-  const identity = {
-    sourceEventId: input.messageId,
-    ownerWorld: input.sourceWorld,
-    eventType: MY_NOTES_MESSAGE_NOTIFICATION_EVENT,
-    partition: createHash("sha256").update(placeId).digest("hex"),
-  };
+  const identity = myNotesMessageNotificationIdentity(
+    input.sourceWorld,
+    placeId,
+    input.messageId,
+  );
   const eventId = notificationEventId(identity);
   const data = newNotificationOutboxData({
     ...identity,
@@ -401,6 +431,31 @@ export function enqueueMyNotesMessageNotification(
     {...data},
   );
   return eventId;
+}
+
+export function myNotesMessageNotificationEventId(
+  sourceWorld: string,
+  placeId: string,
+  messageId: string,
+): string {
+  return notificationEventId(myNotesMessageNotificationIdentity(
+    sourceWorld,
+    placeId,
+    messageId,
+  ));
+}
+
+function myNotesMessageNotificationIdentity(
+  sourceWorld: string,
+  placeId: string,
+  messageId: string,
+) {
+  return {
+    sourceEventId: messageId,
+    ownerWorld: sourceWorld,
+    eventType: MY_NOTES_MESSAGE_NOTIFICATION_EVENT,
+    partition: createHash("sha256").update(placeId).digest("hex"),
+  };
 }
 
 /** Delivers durable message-notification events from their source world. */

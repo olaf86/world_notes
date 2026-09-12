@@ -18,11 +18,13 @@ class MessageBubble extends StatefulWidget {
   final bool isOwn;
   final bool canLike;
   final bool isAuthorHighlighted;
+  final bool isMessageHighlighted;
   final ValueChanged<String>? onAuthorTap;
   final Future<void> Function(bool liked)? onLikeChanged;
   final VoidCallback? onDelete;
   final VoidCallback? onReport;
   final VoidCallback? onBlock;
+  final VoidCallback? onMentionReply;
 
   const MessageBubble({
     super.key,
@@ -31,11 +33,13 @@ class MessageBubble extends StatefulWidget {
     required this.isOwn,
     this.canLike = false,
     this.isAuthorHighlighted = false,
+    this.isMessageHighlighted = false,
     this.onAuthorTap,
     this.onLikeChanged,
     this.onDelete,
     this.onReport,
     this.onBlock,
+    this.onMentionReply,
   });
 
   @override
@@ -160,7 +164,10 @@ class _MessageBubbleState extends State<MessageBubble> {
   void _showActionSheet() {
     final hasActions =
         (widget.isOwn && widget.onDelete != null) ||
-        (!widget.isOwn && (widget.onReport != null || widget.onBlock != null));
+        (!widget.isOwn &&
+            (widget.onMentionReply != null ||
+                widget.onReport != null ||
+                widget.onBlock != null));
     if (!hasActions) return;
 
     showModalBottomSheet<void>(
@@ -169,6 +176,15 @@ class _MessageBubbleState extends State<MessageBubble> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (!widget.isOwn && widget.onMentionReply != null)
+              ListTile(
+                leading: const Icon(Icons.reply_outlined),
+                title: Text(context.l10n.mentionAndReply),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  widget.onMentionReply!();
+                },
+              ),
             if (widget.isOwn && widget.onDelete != null)
               ListTile(
                 leading: const Icon(Icons.delete_outline),
@@ -413,18 +429,25 @@ class _MessageBubbleState extends State<MessageBubble> {
     final imageStoragePaths = message.imageStoragePaths;
     final hasActions =
         (widget.isOwn && widget.onDelete != null) ||
-        (!widget.isOwn && (widget.onReport != null || widget.onBlock != null));
+        (!widget.isOwn &&
+            (widget.onMentionReply != null ||
+                widget.onReport != null ||
+                widget.onBlock != null));
 
     return GestureDetector(
       onLongPress: hasActions ? _showActionSheet : null,
       child: Container(
         padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-        decoration: widget.isAuthorHighlighted
+        decoration: widget.isMessageHighlighted || widget.isAuthorHighlighted
             ? BoxDecoration(
-                color: theme.colorScheme.secondaryContainer,
+                color: widget.isMessageHighlighted
+                    ? theme.colorScheme.primaryContainer
+                    : theme.colorScheme.secondaryContainer,
                 border: Border(
                   left: BorderSide(
-                    color: theme.colorScheme.secondary,
+                    color: widget.isMessageHighlighted
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.secondary,
                     width: 3,
                   ),
                 ),
@@ -548,6 +571,25 @@ class _MessageBubbleState extends State<MessageBubble> {
                   // ── Text content (X style: text first, image after) ──
                   if (message.isScheduled) ...[
                     _ScheduledMessageBadge(),
+                    const SizedBox(height: 6),
+                  ],
+                  if (message.mentions.isNotEmpty) ...[
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: message.mentions
+                          .map(
+                            (mention) => Chip(
+                              visualDensity: VisualDensity.compact,
+                              avatar: const Icon(
+                                Icons.alternate_email,
+                                size: 14,
+                              ),
+                              label: Text(mention.displayName),
+                            ),
+                          )
+                          .toList(growable: false),
+                    ),
                     const SizedBox(height: 6),
                   ],
                   if (message.content.isNotEmpty) ...[

@@ -41,6 +41,7 @@ const ACCOUNT_ROOTS = [
 const FIRESTORE_STAGES = [
   "ownedNotes",
   "messages",
+  "participants",
   "members",
   "administrators",
   "visitors",
@@ -332,6 +333,8 @@ async function processFirestoreStage(
     return deleteOwnedNote(context, target);
   case "messages":
     return deleteAuthoredMessage(context.firestore, target.uid);
+  case "participants":
+    return deleteParticipation(context.firestore, "participants", target.uid);
   case "members":
     return deleteParticipation(context.firestore, "members", target.uid);
   case "administrators":

@@ -16,6 +16,16 @@ import {
   enqueueHiddenNoteRetention,
   noteRetentionEvidenceId,
 } from "./noteModerationRetention";
+import {
+  enqueueMyNotesMessageNotification,
+  myNotesMessageNotificationEventId,
+} from "./notifications";
+import {
+  enqueueMessageMentionNotification,
+  messageMentionNotificationEventId,
+  mentionUserIdsFromMessage,
+  upsertMessageParticipant,
+} from "./mentions";
 
 const DEFAULT_REVIEW_LIST_LIMIT = 20;
 const MAX_REVIEW_LIST_LIMIT = 50;
@@ -283,7 +293,7 @@ function messageUpdateForAction({
  * Describes the exact public aggregate transition for an admin decision.
  *
  * @param {object} input Current state and requested decision.
- * @return {object} Before/after visibility and aggregate delta.
+ * @return {object} Before/after visibility and message-count delta.
  */
 export function adminMessagePublicTransition(input: Readonly<{
   action: AdminModerationAction;
@@ -291,16 +301,21 @@ export function adminMessagePublicTransition(input: Readonly<{
   restorePubliclyVisible: boolean;
   isDeleted: boolean;
   isVisible: boolean;
-}>): Readonly<{wasPublic: boolean; willBePublic: boolean; delta: -1 | 0 | 1}> {
+}>): Readonly<{
+  wasPublic: boolean;
+  willBePublic: boolean;
+  messageCountDelta: -1 | 0 | 1;
+}> {
   const wasPublic = input.currentIsPubliclyVisible &&
     !input.isDeleted && input.isVisible;
   const willBePublic = input.action !== "hidden" &&
     (input.currentIsPubliclyVisible || input.restorePubliclyVisible);
-  const delta = (willBePublic ? 1 : 0) - (wasPublic ? 1 : 0);
+  const messageCountDelta =
+    (willBePublic ? 1 : 0) - (wasPublic ? 1 : 0);
   return Object.freeze({
     wasPublic,
     willBePublic,
-    delta: delta as -1 | 0 | 1,
+    messageCountDelta: messageCountDelta as -1 | 0 | 1,
   });
 }
 
@@ -525,6 +540,57 @@ export const adminReviewMessage = onCall<AdminReviewMessageData>(
         isVisible: messageSnap.get("isVisible") === true,
       });
 
+      // A +1 transition means moderation has made this message public for the
+      // first time or restored it. Only then should it create participation
+      // data and enqueue any notification event that does not already exist.
+      if (publicTransition.messageCountDelta === 1) {
+        const myNotesEventRef = db.collection("notificationOutbox").doc(
+          myNotesMessageNotificationEventId(
+            world.worldId,
+            placeSnap.id,
+            messageSnap.id,
+          ),
+        );
+        const mentionEventRef = db.collection("notificationOutbox").doc(
+          messageMentionNotificationEventId(
+            world.worldId,
+            placeSnap.id,
+            messageSnap.id,
+          ),
+        );
+        const [administrators, myNotesEvent, mentionEvent] = await Promise.all([
+          tx.get(placeRef.collection("administrators")),
+          tx.get(myNotesEventRef),
+          tx.get(mentionEventRef),
+        ]);
+        await upsertMessageParticipant(tx, messageSnap, reviewedAt);
+        const senderId = messageSnap.get("userId");
+        if (typeof senderId !== "string") {
+          throw new Error("Restored message sender is invalid.");
+        }
+        if (!myNotesEvent.exists) {
+          enqueueMyNotesMessageNotification(tx, db, {
+            sourceWorld: world.worldId,
+            place: placeSnap,
+            administratorUids: administrators.docs
+              .filter((document) => document.get("userId") === document.id)
+              .map((document) => document.id),
+            messageId: messageSnap.id,
+            senderId,
+            createdAt: reviewedAt,
+            excludedRecipientUids: mentionUserIdsFromMessage(messageSnap),
+          });
+        }
+        if (!mentionEvent.exists) {
+          enqueueMessageMentionNotification(tx, db, {
+            sourceWorld: world.worldId,
+            place: placeSnap,
+            message: messageSnap,
+            createdAt: reviewedAt,
+          });
+        }
+      }
+
       tx.update(messageRef, {
         ...messageUpdateForAction({
           action: input.action,
@@ -548,11 +614,11 @@ export const adminReviewMessage = onCall<AdminReviewMessageData>(
           hiddenAt: reviewedAt,
         });
       }
-      if (publicTransition.delta !== 0) {
+      if (publicTransition.messageCountDelta !== 0) {
         const currentCount = messageCount(placeSnap.get("messageCount"));
         const nextCount = Math.max(
           0,
-          currentCount + publicTransition.delta,
+          currentCount + publicTransition.messageCountDelta,
         );
         const placeUpdate: Record<string, unknown> = {messageCount: nextCount};
         if (publicTransition.willBePublic &&

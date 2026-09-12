@@ -61,11 +61,17 @@ class AppleNoteMapController implements NoteMapAdapter {
   int _markerRevision = 0;
   int _selectionRevision = 0;
   int _cameraMoveEventsSinceIdle = 0;
+  PinSummary? _pendingFocusPin;
 
   void attach(apple.AppleMapController map) {
     _map = map;
     logMapDiagnostics('AppleMap.attach');
     _applyAppearanceMode(_appearanceMode);
+    final pending = _pendingFocusPin;
+    if (pending != null) {
+      _pendingFocusPin = null;
+      unawaited(focusPin(pending));
+    }
   }
 
   @override
@@ -128,6 +134,7 @@ class AppleNoteMapController implements NoteMapAdapter {
     annotations.dispose();
     trackingMode.dispose();
     accessAreaCircles.dispose();
+    _pendingFocusPin = null;
   }
 
   @override
@@ -232,6 +239,28 @@ class AppleNoteMapController implements NoteMapAdapter {
       'AppleMap.annotations final count=${pins.length} '
       'totalMillis=${stopwatch.elapsedMilliseconds}',
     );
+  }
+
+  @override
+  Future<void> focusPin(PinSummary pin) async {
+    if (_disposed) return;
+    final map = _map;
+    if (map == null) {
+      _pendingFocusPin = pin;
+      return;
+    }
+    trackingMode.value = apple.TrackingMode.none;
+    try {
+      await map.animateCamera(
+        apple.CameraUpdate.newLatLngZoom(
+          apple.LatLng(pin.latitude, pin.longitude),
+          16,
+        ),
+      );
+    } catch (error, stack) {
+      debugPrint('Failed to focus Apple map pin: $error\n$stack');
+    }
+    if (!_disposed) await _showSelectedPin(pin);
   }
 
   void _onCameraMove(apple.CameraPosition position) {

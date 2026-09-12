@@ -15,6 +15,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../config/app_config.dart';
 import '../../config/bootstrap_world_catalog.dart';
+import '../../config/notification_navigation.dart';
 import '../../config/runtime_mode.dart';
 import '../../config/world_catalog.dart';
 import '../../config/world_navigation.dart';
@@ -910,6 +911,19 @@ final myNotesNotificationPreviewEnabledProvider = StreamProvider<bool>((ref) {
       .map((snap) => snap.data()?['myNotesPreviewEnabled'] != false);
 });
 
+final mentionNotificationEnabledProvider = StreamProvider<bool>((ref) {
+  final user = ref.watch(authStateProvider).valueOrNull;
+  if (user == null) return Stream.value(false);
+  return ref
+      .watch(homeWorldFirestoreProvider)
+      .collection('users')
+      .doc(user.id)
+      .collection('notificationSettings')
+      .doc('main')
+      .snapshots()
+      .map((snap) => snap.data()?['mentionsEnabled'] == true);
+});
+
 final noticesProvider = StreamProvider<List<NoticeEntity>>((ref) {
   final user = ref.watch(authStateProvider).valueOrNull;
   if (user == null) return Stream.value(const []);
@@ -932,6 +946,9 @@ final unreadNoticeCountProvider = Provider<int>((ref) {
 });
 
 // --- Location ---
+
+final pendingNotificationMapTargetProvider =
+    StateProvider<NotificationMapNoteTarget?>((_) => null);
 
 /// Live position stream. The application-level provider serializes the first
 /// location permission request after the ad privacy flow; [LocationService]

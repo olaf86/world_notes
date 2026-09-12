@@ -64,7 +64,9 @@ export {
   deleteFcmToken,
   setMyNotesNotificationEnabled,
   setMyNotesNotificationPreviewEnabled,
+  setMentionNotificationEnabled,
 } from "./notifications";
+export {listMentionCandidates} from "./mentions";
 
 // Private account preferences and globally replicated profile updates.
 export {assignHomeWorld} from "./accountBootstrap";

@@ -45,6 +45,10 @@ void main() {
       navigation.note('note-1', title: 'Tokyo note', readOnly: true),
       '/worlds/asia/notes/note-1?title=Tokyo+note&readOnly=true',
     );
+    expect(
+      navigation.note('note-1', messageId: 'message-1'),
+      '/worlds/asia/notes/note-1?messageId=message-1',
+    );
     expect(navigation.noteCreation, '/worlds/asia/notes/create');
     expect(
       navigation.messageReport('note-1', 'message-1'),

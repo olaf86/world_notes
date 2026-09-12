@@ -30,6 +30,22 @@ void main() {
     );
   });
 
+  test('map mention action parses the target location and message', () {
+    final target = notificationMapNoteTargetFromAction('mapNote', {
+      'worldId': 'asia',
+      'placeId': 'place-1',
+      'messageId': 'message-1',
+      'latitude': 35.6812,
+      'longitude': 139.7671,
+    });
+
+    expect(target?.worldId, const WorldId('asia'));
+    expect(target?.placeId, 'place-1');
+    expect(target?.messageId, 'message-1');
+    expect(target?.latitude, 35.6812);
+    expect(target?.longitude, 139.7671);
+  });
+
   testWidgets('notification navigation pushes note over map', (tester) async {
     final router = GoRouter(
       initialLocation: '/map',

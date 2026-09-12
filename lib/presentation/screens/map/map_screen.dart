@@ -54,6 +54,8 @@ class _MapScreenState extends ConsumerState<MapScreen> with RouteAware {
   PageRoute<dynamic>? _observedRoute;
   bool _refreshingMapNotes = false;
   String? _activePinPreviewPlaceId;
+  String? _focusedNotificationTarget;
+  bool _focusingNotificationTarget = false;
 
   @override
   void initState() {
@@ -151,6 +153,10 @@ class _MapScreenState extends ConsumerState<MapScreen> with RouteAware {
     }
 
     try {
+      final notificationTarget = ref.read(pendingNotificationMapTargetProvider);
+      final targetMessageId = notificationTarget?.placeId == pin.placeId
+          ? notificationTarget?.messageId
+          : null;
       await ref
           .read(noteOpenInterstitialGateProvider)
           .beforeNoteOpen(placeId: pin.placeId);
@@ -160,7 +166,11 @@ class _MapScreenState extends ConsumerState<MapScreen> with RouteAware {
             .push(
               ref
                   .read(selectedWorldNavigationProvider)
-                  .note(pin.placeId, title: pin.title),
+                  .note(
+                    pin.placeId,
+                    title: pin.title,
+                    messageId: targetMessageId,
+                  ),
               extra: NoteAccessValidationRequest(
                 placeId: pin.placeId,
                 latitude: anchor.latitude,
@@ -169,6 +179,9 @@ class _MapScreenState extends ConsumerState<MapScreen> with RouteAware {
             )
             .then((_) => _refreshMapNotes()),
       );
+      if (notificationTarget?.placeId == pin.placeId) {
+        ref.read(pendingNotificationMapTargetProvider.notifier).state = null;
+      }
       return true;
     } catch (error, stack) {
       await reportMapNotesError(
@@ -327,6 +340,29 @@ class _MapScreenState extends ConsumerState<MapScreen> with RouteAware {
     logMapDiagnostics('MapScreen.cameraIdle updates search center');
   }
 
+  Future<void> _focusNotificationTarget(
+    List<PinSummary> pins,
+    String? targetPlaceId,
+    Future<void> markerUpdate,
+  ) async {
+    await markerUpdate;
+    if (!mounted ||
+        targetPlaceId == null ||
+        _focusedNotificationTarget == targetPlaceId ||
+        _focusingNotificationTarget) {
+      return;
+    }
+    final matches = pins.where((pin) => pin.placeId == targetPlaceId);
+    if (matches.isEmpty) return;
+    _focusingNotificationTarget = true;
+    try {
+      await _mapAdapter.focusPin(matches.first);
+      _focusedNotificationTarget = targetPlaceId;
+    } finally {
+      _focusingNotificationTarget = false;
+    }
+  }
+
   // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
@@ -337,10 +373,13 @@ class _MapScreenState extends ConsumerState<MapScreen> with RouteAware {
     final isAccessAreaVisible = ref.watch(isNoteAccessAreaVisibleProvider);
     final noteAccessRadiusMeters = ref.watch(noteAccessRadiusMetersProvider);
     final searchCenter = ref.watch(mapSearchCenterProvider);
+    final notificationTarget = ref.watch(pendingNotificationMapTargetProvider);
     final searchRadiusKm = ref.watch(mapSearchRadiusKmProvider);
     final effectiveCenter = anchor == null
         ? null
-        : searchCenter ?? latLng(anchor.latitude, anchor.longitude);
+        : notificationTarget == null
+        ? searchCenter ?? latLng(anchor.latitude, anchor.longitude)
+        : latLng(notificationTarget.latitude, notificationTarget.longitude);
     final pinsAsync = anchor == null || effectiveCenter == null
         ? null
         : ref.watch(
@@ -360,7 +399,16 @@ class _MapScreenState extends ConsumerState<MapScreen> with RouteAware {
       ),
     );
 
-    pinsAsync?.whenData(_mapAdapter.updateMarkers);
+    pinsAsync?.whenData((pins) {
+      final markerUpdate = _mapAdapter.updateMarkers(pins);
+      unawaited(
+        _focusNotificationTarget(
+          pins,
+          notificationTarget?.placeId,
+          markerUpdate,
+        ),
+      );
+    });
 
     if (_mapAdapter.supportsMapStyle) {
       ref.listen<MapStyle>(mapStyleProvider, (_, next) {

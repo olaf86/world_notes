@@ -147,6 +147,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           final placeId = state.pathParameters['placeId']!;
           final placeTitle = state.uri.queryParameters['title'] ?? '';
           final readOnly = state.uri.queryParameters['readOnly'] == 'true';
+          final messageId = state.uri.queryParameters['messageId'];
           final accessValidation = state.extra is NoteAccessValidationRequest
               ? state.extra as NoteAccessValidationRequest
               : null;
@@ -157,6 +158,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               placeTitle: placeTitle,
               readOnly: readOnly,
               accessValidation: accessValidation,
+              targetMessageId: messageId,
             ),
           );
         },

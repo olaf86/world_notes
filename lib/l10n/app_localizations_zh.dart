@@ -1450,6 +1450,43 @@ class AppLocalizationsZh extends AppLocalizations {
   String get messageContentHint => '这个地方发生了什么？';
 
   @override
+  String get addMention => '提及参与者';
+
+  @override
+  String get mentionAndReply => '提及并回复';
+
+  @override
+  String get mentionSearchHint => '搜索参与者';
+
+  @override
+  String mentionSelectionCount(int count, int max) {
+    return '已选择 $count/$max 人';
+  }
+
+  @override
+  String get mentionSearchFailed => '无法搜索参与者。';
+
+  @override
+  String get mentionNoCandidates => '没有匹配的参与者。';
+
+  @override
+  String get mentionNotificationsTitle => '提及';
+
+  @override
+  String get mentionNotificationsDescription => '当参与者在笔记中提及我时通知我。';
+
+  @override
+  String get mentionNotificationsUpdateFailed => '无法更新提及通知。';
+
+  @override
+  String notificationContentWorldSwitched(String worldName) {
+    return '为了显示链接的笔记，已将内容世界切换到$worldName。';
+  }
+
+  @override
+  String get doneAction => '完成';
+
+  @override
   String get newMessageTitle => '新消息';
 
   @override
@@ -3257,6 +3294,43 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get messageContentHint => '这个地方发生了什么？';
+
+  @override
+  String get addMention => '提及参与者';
+
+  @override
+  String get mentionAndReply => '提及并回复';
+
+  @override
+  String get mentionSearchHint => '搜索参与者';
+
+  @override
+  String mentionSelectionCount(int count, int max) {
+    return '已选择 $count/$max 人';
+  }
+
+  @override
+  String get mentionSearchFailed => '无法搜索参与者。';
+
+  @override
+  String get mentionNoCandidates => '没有匹配的参与者。';
+
+  @override
+  String get mentionNotificationsTitle => '提及';
+
+  @override
+  String get mentionNotificationsDescription => '当参与者在笔记中提及我时通知我。';
+
+  @override
+  String get mentionNotificationsUpdateFailed => '无法更新提及通知。';
+
+  @override
+  String notificationContentWorldSwitched(String worldName) {
+    return '为了显示链接的笔记，已将内容世界切换到$worldName。';
+  }
+
+  @override
+  String get doneAction => '完成';
 
   @override
   String get newMessageTitle => '新消息';
@@ -5067,6 +5141,43 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get messageContentHint => '這個地方發生了什麼？';
+
+  @override
+  String get addMention => '提及參與者';
+
+  @override
+  String get mentionAndReply => '提及並回覆';
+
+  @override
+  String get mentionSearchHint => '搜尋參與者';
+
+  @override
+  String mentionSelectionCount(int count, int max) {
+    return '已選擇 $count/$max 人';
+  }
+
+  @override
+  String get mentionSearchFailed => '無法搜尋參與者。';
+
+  @override
+  String get mentionNoCandidates => '沒有符合的參與者。';
+
+  @override
+  String get mentionNotificationsTitle => '提及';
+
+  @override
+  String get mentionNotificationsDescription => '當參與者在筆記中提及我時通知我。';
+
+  @override
+  String get mentionNotificationsUpdateFailed => '無法更新提及通知。';
+
+  @override
+  String notificationContentWorldSwitched(String worldName) {
+    return '為了顯示連結的筆記，已將內容世界切換至$worldName。';
+  }
+
+  @override
+  String get doneAction => '完成';
 
   @override
   String get newMessageTitle => '新訊息';

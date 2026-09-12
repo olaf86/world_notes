@@ -14,6 +14,7 @@ import {
 } from "./notificationOutbox";
 import {myNotesMessageNotificationHandler} from "./notifications";
 import {userNoticeNotificationHandler} from "./notices";
+import {messageMentionNotificationHandler} from "./mentions";
 import {
   WorldDatabaseConfig,
   WorldFirestoreDatabaseId,
@@ -37,6 +38,7 @@ const productionRuntime: NotificationOutboxRuntime = {
   firestore: new WorldFirestoreProvider(worldDatabases),
   handlers: new NotificationDeliveryHandlerRegistry([
     myNotesMessageNotificationHandler,
+    messageMentionNotificationHandler,
     userNoticeNotificationHandler,
   ]),
 };

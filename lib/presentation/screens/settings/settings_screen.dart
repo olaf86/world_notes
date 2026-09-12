@@ -485,6 +485,7 @@ class _MyNotesNotificationsSection extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         const MyNotesNotificationSwitchTile(),
+        const MentionNotificationSwitchTile(),
         const MyNotesNotificationPreviewSwitchTile(),
       ],
     );

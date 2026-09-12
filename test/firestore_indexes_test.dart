@@ -47,6 +47,46 @@ void main() {
     );
   });
 
+  test('defines mention search and participant cleanup indexes', () {
+    final config = _loadConfig();
+    final indexes = (config['indexes'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+    final overrides = (config['fieldOverrides'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+
+    expect(
+      indexes.any((index) {
+        if (index['collectionGroup'] != 'participants' ||
+            index['queryScope'] != 'COLLECTION') {
+          return false;
+        }
+        final fields = (index['fields'] as List<dynamic>)
+            .cast<Map<String, dynamic>>();
+        return fields.length == 3 &&
+            fields[0]['fieldPath'] == 'searchBigrams' &&
+            fields[0]['arrayConfig'] == 'CONTAINS' &&
+            fields[1]['fieldPath'] == 'lastParticipatedAt' &&
+            fields[1]['order'] == 'DESCENDING' &&
+            fields[2]['fieldPath'] == '__name__' &&
+            fields[2]['order'] == 'ASCENDING';
+      }),
+      isTrue,
+    );
+    expect(
+      overrides.any(
+        (override) =>
+            override['collectionGroup'] == 'participants' &&
+            override['fieldPath'] == 'userId' &&
+            (override['indexes'] as List<dynamic>).any(
+              (index) =>
+                  (index as Map<String, dynamic>)['order'] == 'ASCENDING' &&
+                  index['queryScope'] == 'COLLECTION_GROUP',
+            ),
+      ),
+      isTrue,
+    );
+  });
+
   test('defines active social-edge relationship and list indexes', () {
     final config = _loadConfig();
 

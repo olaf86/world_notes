@@ -1,10 +1,12 @@
 import 'user_entity.dart';
+import 'mention_target.dart';
 
 class MessageEntity {
   final String id;
   final String placeId;
   final UserEntity author;
   final String content;
+  final List<MentionTarget> mentions;
   final List<String> imageStoragePaths;
   final DateTime createdAt;
   final DateTime publishAt;
@@ -31,6 +33,7 @@ class MessageEntity {
     required this.placeId,
     required this.author,
     required this.content,
+    this.mentions = const [],
     this.imageStoragePaths = const [],
     required this.createdAt,
     required this.publishAt,

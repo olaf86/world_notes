@@ -74,6 +74,33 @@ class MyNotesNotificationService {
         .call<Map<String, dynamic>>({'enabled': enabled});
   }
 
+  Future<bool> enableMentionNotifications() async {
+    final settings = await _messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+      provisional: false,
+    );
+    final granted = _isGranted(settings.authorizationStatus);
+    if (!granted) return false;
+    await _messaging.setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+    await registerCurrentToken(reportUnavailableToken: true);
+    await _functions
+        .httpsCallable('setMentionNotificationEnabled')
+        .call<Map<String, dynamic>>({'enabled': true});
+    return true;
+  }
+
+  Future<void> disableMentionNotifications() async {
+    await _functions
+        .httpsCallable('setMentionNotificationEnabled')
+        .call<Map<String, dynamic>>({'enabled': false});
+  }
+
   Future<void> registerCurrentToken({
     bool reportUnavailableToken = false,
   }) async {

@@ -79,6 +79,15 @@
       ]
     },
     {
+      "collectionGroup": "participants",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "searchBigrams", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "lastParticipatedAt", "order": "DESCENDING" },
+        { "fieldPath": "__name__", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "messages",
       "queryScope": "COLLECTION",
       "fields": [
@@ -234,6 +243,13 @@
   "fieldOverrides": [
     {
       "collectionGroup": "messages",
+      "fieldPath": "userId",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }
+      ]
+    },
+    {
+      "collectionGroup": "participants",
       "fieldPath": "userId",
       "indexes": [
         { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }

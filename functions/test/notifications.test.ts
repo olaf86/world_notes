@@ -72,6 +72,31 @@ test("message publication omits an event with no other maintainer", () => {
   assert.deepEqual(writes, []);
 });
 
+test("mention recipients are excluded from the My Notes event", () => {
+  const writes: Array<{ref: {path: string}; data: unknown}> = [];
+  const eventId = enqueueMyNotesMessageNotification(
+    transactionRecording(writes),
+    firestoreStub(),
+    {
+      sourceWorld: "asia",
+      place: placeSnapshot("test-creator"),
+      administratorUids: ["test-delegate", "test-mentioned"],
+      messageId: MESSAGE_ID,
+      senderId: "test-sender",
+      createdAt: CREATED_AT,
+      excludedRecipientUids: ["test-mentioned", "test-creator"],
+    },
+  );
+
+  assert.equal(typeof eventId, "string");
+  const event = parseNotificationOutbox(
+    writes[0].data,
+    eventId as string,
+    "asia",
+  );
+  assert.deepEqual(event.recipientUids, ["test-delegate"]);
+});
+
 test("message outbox handler owns its explicit event type", () => {
   assert.equal(
     myNotesMessageNotificationHandler.eventType,

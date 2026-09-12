@@ -12,11 +12,17 @@ final class WorldNavigation {
 
   final WorldId worldId;
 
-  String note(String placeId, {String? title, bool readOnly = false}) {
+  String note(
+    String placeId, {
+    String? title,
+    bool readOnly = false,
+    String? messageId,
+  }) {
     final route = WorldRoute(worldId: worldId, entityId: placeId);
     final query = <String, String>{
       if (title != null && title.isNotEmpty) 'title': title,
       if (readOnly) 'readOnly': 'true',
+      if (messageId != null && messageId.isNotEmpty) 'messageId': messageId,
     };
     return Uri(
       path: '/worlds/${route.worldId.value}/notes/${route.entityId}',

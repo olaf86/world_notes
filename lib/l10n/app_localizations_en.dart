@@ -1570,6 +1570,45 @@ class AppLocalizationsEn extends AppLocalizations {
   String get messageContentHint => 'What\'s happening at this place?';
 
   @override
+  String get addMention => 'Mention participants';
+
+  @override
+  String get mentionAndReply => 'Mention and reply';
+
+  @override
+  String get mentionSearchHint => 'Search participants';
+
+  @override
+  String mentionSelectionCount(int count, int max) {
+    return '$count/$max selected';
+  }
+
+  @override
+  String get mentionSearchFailed => 'Could not search participants.';
+
+  @override
+  String get mentionNoCandidates => 'No matching participants.';
+
+  @override
+  String get mentionNotificationsTitle => 'Mentions';
+
+  @override
+  String get mentionNotificationsDescription =>
+      'Notify me when a participant mentions me in a note.';
+
+  @override
+  String get mentionNotificationsUpdateFailed =>
+      'Could not update mention notifications.';
+
+  @override
+  String notificationContentWorldSwitched(String worldName) {
+    return 'Switched to $worldName to show the linked note.';
+  }
+
+  @override
+  String get doneAction => 'Done';
+
+  @override
   String get newMessageTitle => 'New message';
 
   @override

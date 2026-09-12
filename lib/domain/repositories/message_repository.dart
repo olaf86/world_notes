@@ -1,6 +1,7 @@
 import '../entities/message_entity.dart';
 import '../entities/message_thread_item.dart';
 import '../entities/content_report.dart';
+import '../entities/mention_target.dart';
 
 abstract class MessageRepository {
   Stream<List<MessageThreadItem>> watchMessages({
@@ -24,6 +25,13 @@ abstract class MessageRepository {
     String? userPhotoUrl,
     List<List<int>> imageBytesList = const [],
     DateTime? publishAt,
+    List<MentionTarget> mentions = const [],
+  });
+
+  Future<List<MentionTarget>> listMentionCandidates({
+    required String placeId,
+    String query = '',
+    int limit = 20,
   });
 
   /// Soft-deletes a message. Only the author may call this.

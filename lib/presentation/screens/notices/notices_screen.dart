@@ -1,13 +1,16 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../config/notification_navigation.dart';
 import '../../../domain/entities/notice_entity.dart';
 import '../../../l10n/l10n.dart';
 import '../../../l10n/localized_formatters.dart';
 import '../../providers/providers.dart';
+import '../../world_labels.dart';
 import '../../widgets/loading_skeleton.dart';
 
 class NoticesScreen extends ConsumerWidget {
@@ -71,6 +74,50 @@ class NoticesScreen extends ConsumerWidget {
     }
     if (notice.category == 'social' && notice.sourceId?.isNotEmpty == true) {
       await context.push<void>('/users/${notice.sourceId}');
+      return;
+    }
+    final action = notice.action;
+    final mapTarget = notificationMapNoteTargetFromAction(
+      action?.route,
+      action?.params ?? const {},
+    );
+    if (mapTarget != null) {
+      final currentWorld = ref.read(selectedWorldProvider);
+      try {
+        await ref
+            .read(selectedWorldProvider.notifier)
+            .selectWorld(mapTarget.worldId);
+      } catch (error, stack) {
+        developer.log(
+          'Could not switch worlds for a notification destination.',
+          name: 'world_notes.notices',
+          error: error,
+          stackTrace: stack,
+        );
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(context.l10n.settingsContentWorldSwitchFailed),
+            ),
+          );
+        }
+        return;
+      }
+      if (context.mounted && currentWorld != mapTarget.worldId) {
+        final world = ref
+            .read(worldCatalogProvider)
+            .requireContentWorld(mapTarget.worldId);
+        final worldName = localizedWorldName(context.l10n, world);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              context.l10n.notificationContentWorldSwitched(worldName),
+            ),
+          ),
+        );
+      }
+      ref.read(pendingNotificationMapTargetProvider.notifier).state = mapTarget;
+      if (context.mounted) context.go('/map');
       return;
     }
     await showDialog<void>(
@@ -183,6 +230,7 @@ IconData _iconFor(NoticeEntity notice) {
   if (notice.isCritical) return Icons.priority_high_rounded;
   if (notice.isWarning) return Icons.warning_amber_rounded;
   return switch (notice.category) {
+    'mention' => Icons.alternate_email,
     'social' => Icons.person_add_alt_1_outlined,
     'developer' => Icons.campaign_outlined,
     'report' => Icons.flag_outlined,

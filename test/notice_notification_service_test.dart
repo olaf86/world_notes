@@ -20,4 +20,29 @@ void main() {
 
     expect(route, isNull);
   });
+
+  test('mention notice carries a map target without opening the note', () {
+    final route = NoticeNotificationService.noticeRouteFromMessage(
+      const RemoteMessage(
+        data: {
+          'type': 'notice',
+          'worldId': 'asia',
+          'noticeId': 'notice-1',
+          'actionRoute': 'mapNote',
+          'actionWorldId': 'europe',
+          'actionPlaceId': 'place-1',
+          'actionMessageId': 'message-1',
+          'actionLatitude': '35.6812',
+          'actionLongitude': '139.7671',
+        },
+      ),
+    );
+
+    expect(route?.notice.persistentId, 'asia:notice-1');
+    expect(route?.mapTarget?.worldId.value, 'europe');
+    expect(route?.mapTarget?.placeId, 'place-1');
+    expect(route?.mapTarget?.messageId, 'message-1');
+    expect(route?.mapTarget?.latitude, 35.6812);
+    expect(route?.mapTarget?.longitude, 139.7671);
+  });
 }
