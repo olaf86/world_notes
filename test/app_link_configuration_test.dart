@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   const inviteComponentPath = '/worlds/*/invites/*';
-  const inviteHostingSource = '/worlds/:worldId/invites/:token';
+  const inviteHostingSource = '/worlds/*/invites/*';
 
   test('AASA exposes only the canonical world invitation path', () {
     final aasa =
@@ -33,7 +33,16 @@ void main() {
     final hosting = firebase['hosting'] as Map<String, dynamic>;
 
     expect(hosting['rewrites'], [
-      {'source': inviteHostingSource, 'destination': '/index.html'},
+      {'source': inviteHostingSource, 'destination': '/invite/index.html'},
     ]);
+
+    final marketingPage = File('public/index.html').readAsStringSync();
+    final invitationPage = File(
+      'public/invite/index.html',
+    ).readAsStringSync();
+
+    expect(marketingPage, contains('思い出を、'));
+    expect(marketingPage, contains('https://apps.apple.com/app/id6770728738'));
+    expect(invitationPage, contains("You've been invited"));
   });
 }

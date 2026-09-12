@@ -36,8 +36,8 @@
     "appAssociation": "NONE",
     "rewrites": [
       {
-        "source": "/worlds/:worldId/invites/:token",
-        "destination": "/index.html"
+        "source": "/worlds/*/invites/*",
+        "destination": "/invite/index.html"
       }
     ],
     "headers": [

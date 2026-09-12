@@ -44,9 +44,9 @@ Submission**, then select each language from the localization menu.
   `https://www.apple.com/legal/internet-services/itunes/dev/stdeula/` in every
   localized Description so the App Store product page provides a functional
   link to it.
-- Marketing URL: leave blank for the first submission unless a product page is
-  published. The current site root is an invitation fallback page and should
-  not be used as the marketing page.
+- Marketing URL: `https://worldnotes.asobo.dev/`. The localized product page is
+  published at the site root. Invitation links are served separately from
+  `public/invite/index.html` through the Firebase Hosting rewrite.
 
 Both URLs are ready to enter in App Store Connect. Reverify them after future
 Hosting changes.
