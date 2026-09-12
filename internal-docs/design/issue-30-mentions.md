@@ -95,7 +95,3 @@ records and resolves display names before writing the message.
 1. Deploy `firestore.indexes.json` and wait for the participant indexes to
    finish building in all three databases.
 2. Deploy Functions, then the clients.
-3. Dry-run and apply `npm run backfill:mention-participants` separately for
-   each world. The command requires an explicit project and world; writes also
-   require `--apply --confirm-project <project>`. Use `--max-pages` and the
-   reported `nextStartAfter` cursor for bounded resumable runs.
