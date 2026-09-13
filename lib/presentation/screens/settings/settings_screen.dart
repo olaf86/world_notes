@@ -484,9 +484,31 @@ class _MyNotesNotificationsSection extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        const MyNotesNotificationSwitchTile(),
-        const MentionNotificationSwitchTile(),
-        const MyNotesNotificationPreviewSwitchTile(),
+        Card(
+          key: const ValueKey('maintained-notes-notification-settings'),
+          clipBehavior: Clip.antiAlias,
+          margin: EdgeInsets.zero,
+          child: const Column(
+            children: [
+              MyNotesNotificationSwitchTile(
+                contentPadding: EdgeInsetsDirectional.only(start: 16, end: 8),
+              ),
+              Divider(indent: 16, endIndent: 16),
+              MyNotesNotificationPreviewSwitchTile(
+                contentPadding: EdgeInsetsDirectional.only(start: 32, end: 8),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        const Card(
+          key: ValueKey('mention-notification-settings'),
+          clipBehavior: Clip.antiAlias,
+          margin: EdgeInsets.zero,
+          child: MentionNotificationSwitchTile(
+            contentPadding: EdgeInsetsDirectional.only(start: 16, end: 8),
+          ),
+        ),
       ],
     );
   }
