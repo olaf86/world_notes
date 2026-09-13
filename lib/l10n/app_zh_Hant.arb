@@ -533,7 +533,7 @@
   "sensitiveMessageWarning": "此訊息可能包含敏感內容。",
   "showAnywayAction": "仍然顯示",
   "scheduledMessage": "排程訊息",
-  "scheduledLabel": "已排程",
+  "scheduledLabel": "排程發佈",
   "likeMessage": "對訊息按讚",
   "unlikeMessage": "收回訊息讚",
   "showFewerIcons": "收起圖示",

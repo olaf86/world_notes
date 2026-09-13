@@ -533,7 +533,7 @@
   "sensitiveMessageWarning": "このメッセージにはセンシティブな内容が含まれている可能性があります。",
   "showAnywayAction": "表示する",
   "scheduledMessage": "予約メッセージ",
-  "scheduledLabel": "予約済み",
+  "scheduledLabel": "予約投稿",
   "likeMessage": "メッセージにいいね",
   "unlikeMessage": "メッセージのいいねを解除",
   "showFewerIcons": "アイコンを少なく表示",

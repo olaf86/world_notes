@@ -3251,7 +3251,7 @@ abstract class AppLocalizations {
   /// No description provided for @scheduledLabel.
   ///
   /// In en, this message translates to:
-  /// **'Scheduled'**
+  /// **'Scheduled post'**
   String get scheduledLabel;
 
   /// No description provided for @likeMessage.

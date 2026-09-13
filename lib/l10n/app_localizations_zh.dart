@@ -1723,7 +1723,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get scheduledMessage => '定时消息';
 
   @override
-  String get scheduledLabel => '已定时';
+  String get scheduledLabel => '定时发布';
 
   @override
   String get likeMessage => '赞此消息';
@@ -3569,7 +3569,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get scheduledMessage => '定时消息';
 
   @override
-  String get scheduledLabel => '已定时';
+  String get scheduledLabel => '定时发布';
 
   @override
   String get likeMessage => '赞此消息';
@@ -5416,7 +5416,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get scheduledMessage => '排程訊息';
 
   @override
-  String get scheduledLabel => '已排程';
+  String get scheduledLabel => '排程發佈';
 
   @override
   String get likeMessage => '對訊息按讚';

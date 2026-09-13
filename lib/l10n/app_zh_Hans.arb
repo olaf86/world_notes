@@ -533,7 +533,7 @@
   "sensitiveMessageWarning": "此消息可能包含敏感内容。",
   "showAnywayAction": "仍然显示",
   "scheduledMessage": "定时消息",
-  "scheduledLabel": "已定时",
+  "scheduledLabel": "定时发布",
   "likeMessage": "赞此消息",
   "unlikeMessage": "取消赞此消息",
   "showFewerIcons": "收起图标",

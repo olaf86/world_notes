@@ -83,7 +83,7 @@ void main() {
         find.text(DateFormat('HH:mm').format(createdAt.toLocal())),
         findsNothing,
       );
-      expect(find.text('Scheduled'), findsOneWidget);
+      expect(find.text('Scheduled post'), findsOneWidget);
     });
 
     testWidgets('does not show a scheduled badge for immediate messages', (
@@ -105,7 +105,7 @@ void main() {
         ),
       );
 
-      expect(find.text('Scheduled'), findsNothing);
+      expect(find.text('Scheduled post'), findsNothing);
     });
 
     testWidgets('renders structured mentions and offers directed reply', (

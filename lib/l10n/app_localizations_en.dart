@@ -1864,7 +1864,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scheduledMessage => 'Scheduled message';
 
   @override
-  String get scheduledLabel => 'Scheduled';
+  String get scheduledLabel => 'Scheduled post';
 
   @override
   String get likeMessage => 'Like message';

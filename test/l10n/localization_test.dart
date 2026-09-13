@@ -122,6 +122,27 @@ void main() {
       expect(traditional.homeWorldSelectionConfirm, '將此世界設為主世界');
     });
 
+    test('scheduled-message badges describe the post type, not its status', () {
+      final expectedLabels = <Locale, String>{
+        const Locale('en'): 'Scheduled post',
+        const Locale('ja'): '予約投稿',
+        const Locale('ko'): '예약 게시물',
+        const Locale('zh'): '定时发布',
+        const Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'):
+            '定时发布',
+        const Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'):
+            '排程發佈',
+      };
+
+      for (final entry in expectedLabels.entries) {
+        expect(
+          lookupAppLocalizations(entry.key).scheduledLabel,
+          entry.value,
+          reason: entry.key.toLanguageTag(),
+        );
+      }
+    });
+
     test('PRO plan name uses each localized app name', () {
       expect(
         lookupAppLocalizations(const Locale('en')).proPlanName,

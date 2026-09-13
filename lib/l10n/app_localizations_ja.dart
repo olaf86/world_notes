@@ -1743,7 +1743,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get scheduledMessage => '予約メッセージ';
 
   @override
-  String get scheduledLabel => '予約済み';
+  String get scheduledLabel => '予約投稿';
 
   @override
   String get likeMessage => 'メッセージにいいね';

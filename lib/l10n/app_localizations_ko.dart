@@ -1744,7 +1744,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get scheduledMessage => '예약 메시지';
 
   @override
-  String get scheduledLabel => '예약됨';
+  String get scheduledLabel => '예약 게시물';
 
   @override
   String get likeMessage => '메시지 좋아요';
