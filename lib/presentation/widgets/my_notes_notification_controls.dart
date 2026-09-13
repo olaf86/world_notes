@@ -67,7 +67,12 @@ class _MyNotesNotificationIconButtonState
 }
 
 class MyNotesNotificationSwitchTile extends ConsumerStatefulWidget {
-  const MyNotesNotificationSwitchTile({super.key});
+  const MyNotesNotificationSwitchTile({
+    super.key,
+    this.contentPadding = EdgeInsets.zero,
+  });
+
+  final EdgeInsetsGeometry contentPadding;
 
   @override
   ConsumerState<MyNotesNotificationSwitchTile> createState() =>
@@ -101,7 +106,7 @@ class _MyNotesNotificationSwitchTileState
     final enabled = enabledAsync.valueOrNull ?? false;
 
     return SwitchListTile(
-      contentPadding: EdgeInsets.zero,
+      contentPadding: widget.contentPadding,
       title: Text(context.l10n.notificationsMaintainedNotesTitle),
       subtitle: Text(context.l10n.notificationsMaintainedNotesDescription),
       value: enabled,
@@ -111,7 +116,12 @@ class _MyNotesNotificationSwitchTileState
 }
 
 class MyNotesNotificationPreviewSwitchTile extends ConsumerStatefulWidget {
-  const MyNotesNotificationPreviewSwitchTile({super.key});
+  const MyNotesNotificationPreviewSwitchTile({
+    super.key,
+    this.contentPadding = EdgeInsets.zero,
+  });
+
+  final EdgeInsetsGeometry contentPadding;
 
   @override
   ConsumerState<MyNotesNotificationPreviewSwitchTile> createState() =>
@@ -119,7 +129,12 @@ class MyNotesNotificationPreviewSwitchTile extends ConsumerStatefulWidget {
 }
 
 class MentionNotificationSwitchTile extends ConsumerStatefulWidget {
-  const MentionNotificationSwitchTile({super.key});
+  const MentionNotificationSwitchTile({
+    super.key,
+    this.contentPadding = EdgeInsets.zero,
+  });
+
+  final EdgeInsetsGeometry contentPadding;
 
   @override
   ConsumerState<MentionNotificationSwitchTile> createState() =>
@@ -161,7 +176,7 @@ class _MentionNotificationSwitchTileState
   Widget build(BuildContext context) {
     final enabledAsync = ref.watch(mentionNotificationEnabledProvider);
     return SwitchListTile(
-      contentPadding: EdgeInsets.zero,
+      contentPadding: widget.contentPadding,
       title: Text(context.l10n.mentionNotificationsTitle),
       subtitle: Text(context.l10n.mentionNotificationsDescription),
       value: enabledAsync.valueOrNull ?? false,
@@ -211,7 +226,7 @@ class _MyNotesNotificationPreviewSwitchTileState
         previewEnabledAsync.isLoading;
 
     return SwitchListTile(
-      contentPadding: EdgeInsets.zero,
+      contentPadding: widget.contentPadding,
       title: Text(context.l10n.notificationPreviewsTitle),
       subtitle: Text(context.l10n.notificationPreviewsDescription),
       value: previewEnabled,
