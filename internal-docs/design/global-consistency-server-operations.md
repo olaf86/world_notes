@@ -1545,15 +1545,64 @@ registration tokens exist only in the user's immutable `homeWorld`:
 ```text
 users/{uid}/notificationSettings/main
 users/{uid}/fcmTokens/{tokenHash}
+users/{uid}/notices/{noticeId}
 ```
 
 `notificationSettings` is a collection, so the singleton `main` document
 cannot be omitted; Firestore paths alternate collection and document segments.
 The owner may read `main` through home-world Rules, while only trusted callables
 may update it. FCM token documents are server-only delivery credentials and are
-not client-readable. Neither subtree is replicated into selected content
-worlds. Switching the selected world therefore does not move notification
-authority or create another token registry.
+not client-readable. Notice documents are owner-readable and server-created;
+the owner may update only `readAt`. None of these subtrees is replicated into
+selected content worlds. Switching the selected world therefore does not move
+notification authority, the inbox, or the token registry.
+
+**Decided for localized notice templates:** the Asia `(default)` database owns
+one server-only `noticeTemplates/{templateId}` catalog alongside the existing
+global directory and coordination data. Each stable template document contains
+every supported locale and a monotonically increasing `version`; it is not
+replicated to the other worlds. Templates are configuration data rather than a
+new client read model. Clients cannot read or write them.
+
+A trusted producer reads the current template and version from the central
+catalog, resolves the recipient's home-authoritative notice locale, substitutes
+only bounded trusted values, and writes the completed content together with
+`templateId` and `templateVersion` to
+`users/{uid}/notices/{noticeId}` in the recipient's home world. A non-Asia
+producer may therefore perform one small server-side cross-region configuration
+read at notice-creation time. A transient catalog failure leaves the
+deterministic notification intent retryable and never rolls back the source
+domain mutation. If caching becomes necessary, it uses a short bounded TTL so
+operator changes become visible predictably. Push delivery uses the finalized
+notice snapshot, performs no template read, and cannot produce different copy
+from the inbox.
+
+Templates are maintained by authorized operations administrators; initially a
+developer performs that role through a version-controlled source manifest and
+a reviewed deployment command. Deployment validates the complete replacement
+document, then atomically overwrites the stable template ID and increments its
+version with a compare-and-set precondition. Rollback writes previous content
+as a new higher version. There is no cross-world synchronization or activation
+status to maintain. If an operator announcement tool is added later, its
+draft/published state is an editorial workflow and is not regional consistency
+state. A broadcast dispatch job captures one validated template version and its
+content before fan-out so a concurrent edit cannot mix versions in one
+announcement.
+The manifest is the authoring source; notification producers use only the
+deployed central Firestore catalog at runtime.
+
+The resolved notice locale belongs to the home-world notification authority.
+An explicit language preference determines it directly. When the preference
+is `system`, a client refreshes the last resolved device locale as part of its
+notification registration lifecycle. One account has one finalized inbox copy
+per notice even if it later uses another device language.
+
+Historical notice content is immutable. Changing the app language affects only
+future notices; it does not retranslate or rewrite previously delivered
+notices. This preserves the actual delivered record and allows each per-user
+notice to store one language rather than every language. Adding a language
+requires atomically replacing and incrementing every affected central template
+before the client locale is enabled, but requires no historical notice backfill.
 
 **Decided for event deduplication and retention:** the source transaction
 allocates a globally unique `eventId`, and recipient-level delivery state uses

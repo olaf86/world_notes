@@ -891,6 +891,77 @@ the original authority transaction. Safety enforcement never depends on this
 presentation notice; any future workflow that requires guaranteed notice
 creation must first persist a deterministic source-world routing intent.
 
+Design amendment (2026-09-13): localized inbox copy uses one versioned,
+server-only `noticeTemplates/{templateId}` catalog in the Asia `(default)`
+database, alongside the existing global directory and coordination data.
+Templates are not replicated to every active world. The notice producer reads
+the current document and version from the central catalog, selects the recipient
+account's home-authoritative resolved notice locale, substitutes bounded
+trusted values, and stores one immutable localized snapshot in the recipient's
+home-world notice:
+
+```text
+noticeTemplates/{templateId}
+  templateId: string
+  version: number
+  updatedAt: timestamp
+  updatedBy: string
+  localizedContent: map<locale, {title, body}>
+
+users/{uid}/notices/{noticeId}
+  schemaVersion: 2
+  templateId: string
+  templateVersion: number
+  content: {locale, title, body}
+  category: string
+  severity: string
+  action: map?
+  sourceType: string?
+  sourceId: string?
+  createdAt: timestamp
+  readAt: timestamp?
+```
+
+Clients never read template masters; the inbox continues to use only the
+home-world `users/{uid}/notices` stream. Push delivery reads the same finalized
+snapshot, so Push and inbox copy cannot diverge and no delivery-time
+cross-world template read is required. A language change affects future
+notices only. Historical notices remain in the language in which they were
+created, preserving the delivered record and avoiding per-user multilingual
+duplication or rewrite jobs.
+
+The home-world notification authority stores the last resolved notice locale.
+An explicit app-language selection updates it directly; a client using the
+`system` preference refreshes it when the resolved device locale changes.
+Template content and finalized notice content are not query fields and must be
+excluded from single-field indexes. Adding a language requires atomically
+replacing and incrementing every affected central template before the client
+exposes it, but does not require rewriting historical notices.
+
+The central catalog is a narrow exception to the normal preference for
+world-local runtime reads. For a non-Asia producer it adds one small,
+server-side, non-PII configuration read at notice-creation time. A transient
+catalog failure leaves the deterministic notification intent retryable and
+never rolls back the originating domain mutation; Push delivery performs no
+template read. If measured production latency later justifies caching, use a
+short bounded TTL so template changes become visible predictably.
+If measured production latency or availability later makes this unacceptable,
+regional read-through caches can be added without changing the per-user notice
+schema.
+
+Templates are maintained by authorized operations administrators; initially a
+developer performs that role through a version-controlled source manifest and
+a reviewed deployment command. That command validates the complete replacement
+document, atomically overwrites the stable template ID, and increments `version`
+with a compare-and-set precondition. A rollback restores prior content as a new,
+higher version. There is no template synchronization or activation status. A
+future operator announcement tool may have an editorial draft/published state,
+but that state is separate from regional consistency. A broadcast dispatch job
+captures one validated version and its content before fan-out, preventing a
+concurrent edit from mixing versions within one announcement.
+The manifest is the authoring source; the deployed central Firestore catalog is
+the only runtime source used by notification producers.
+
 ### Phase 6 — profiles, social graph, and notification authority
 
 Deliverables:
@@ -900,6 +971,9 @@ Deliverables:
 - follower-owned social edges;
 - convergent follower/following aggregates;
 - home-world notification settings and FCM tokens;
+- home-world resolved notice locale;
+- a versioned central notification-template catalog and validated deployment
+  command;
 - home-owned account/global notice delivery;
 - source-world regional-content notification delivery;
 - per-recipient event deduplication, retry schedule, expiry, and token cleanup;
@@ -910,6 +984,9 @@ Exit criteria:
 - `updateDisplayName` no longer synchronously scans unbounded documents;
 - counts can be rebuilt from edge truth;
 - one logical event has one deterministic delivery owner;
+- every current template has a monotonic version and passes schema, locale,
+  length, and placeholder validation in the central catalog;
+- inbox and Push use the same immutable selected-language notice snapshot;
 - no token or notification preference is copied into content databases;
 - one in-flight push during block propagation is the only accepted block race.
 
