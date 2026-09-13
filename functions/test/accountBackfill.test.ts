@@ -51,6 +51,7 @@ test("builds canonical Asia updates from legacy account fields", () => {
 
   assert.equal(account.home.world, "asia");
   assert.equal(account.user.isPremium, undefined);
+  assert.equal(account.user.noticeLocale, "en");
   assert.equal(account.profile.revision, 1);
   assert.equal(account.profile.followerCount, 3);
   assert.equal(account.entitlement.isPremium, true);

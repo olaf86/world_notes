@@ -1,5 +1,9 @@
 class NoticeEntity {
   final String id;
+  final int schemaVersion;
+  final String templateId;
+  final int templateVersion;
+  final String locale;
   final String category;
   final String severity;
   final String title;
@@ -12,6 +16,10 @@ class NoticeEntity {
 
   const NoticeEntity({
     required this.id,
+    required this.schemaVersion,
+    required this.templateId,
+    required this.templateVersion,
+    required this.locale,
     required this.category,
     required this.severity,
     required this.title,

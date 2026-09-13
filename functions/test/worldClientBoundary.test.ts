@@ -21,6 +21,9 @@ const REGIONALIZED_CONTENT_FILES = [
 const ALLOWED_ASIA_FIXED_FILES = new Set([
   "accountBootstrap.ts",
   "adminAccountSafety.ts",
+  // Notification copy has one explicit central authority in Asia. Notices
+  // still write only to the recipient's routed home-world database.
+  "notices.ts",
   "platform/worldContext.ts",
   "platform/worldRegistry.ts",
 ]);

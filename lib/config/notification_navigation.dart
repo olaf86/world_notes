@@ -34,6 +34,53 @@ final class NotificationMapNoteTarget {
   final String? messageId;
 }
 
+final class NotificationAdministratorInvitationTarget {
+  const NotificationAdministratorInvitationTarget({
+    required this.worldId,
+    required this.token,
+  });
+
+  final WorldId worldId;
+  final String token;
+
+  String get location =>
+      '/worlds/${worldId.value}/invites/${Uri.encodeComponent(token)}';
+}
+
+String? notificationUserIdFromAction(
+  String? route,
+  Map<String, Object?> params,
+) {
+  if (route != 'userProfile') return null;
+  final userId = params['userId'];
+  return userId is String && userId.isNotEmpty ? userId : null;
+}
+
+NotificationAdministratorInvitationTarget?
+notificationAdministratorInvitationTargetFromAction(
+  String? route,
+  Map<String, Object?> params,
+) {
+  if (route != 'administratorInvitation') return null;
+  final worldId = params['worldId'];
+  final token = params['token'];
+  if (worldId is! String ||
+      worldId.isEmpty ||
+      token is! String ||
+      token.isEmpty) {
+    return null;
+  }
+  return NotificationAdministratorInvitationTarget(
+    worldId: WorldId(worldId),
+    token: token,
+  );
+}
+
+bool notificationOpensSubscription(
+  String? route,
+  Map<String, Object?> params,
+) => route == 'subscription' && params.isEmpty;
+
 NotificationMapNoteTarget? notificationMapNoteTargetFromAction(
   String? route,
   Map<String, Object?> params,
@@ -49,7 +96,13 @@ NotificationMapNoteTarget? notificationMapNoteTargetFromAction(
       placeId is! String ||
       placeId.isEmpty ||
       latitude is! num ||
-      longitude is! num) {
+      !latitude.isFinite ||
+      latitude < -90 ||
+      latitude > 90 ||
+      longitude is! num ||
+      !longitude.isFinite ||
+      longitude < -180 ||
+      longitude > 180) {
     return null;
   }
   return NotificationMapNoteTarget(

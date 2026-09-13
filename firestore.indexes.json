@@ -478,6 +478,16 @@
       "fieldPath": "expireAt",
       "ttl": true,
       "indexes": []
+    },
+    {
+      "collectionGroup": "notices",
+      "fieldPath": "content",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "noticeTemplates",
+      "fieldPath": "localizedContent",
+      "indexes": []
     }
   ]
 }

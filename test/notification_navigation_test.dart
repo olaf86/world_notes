@@ -46,6 +46,37 @@ void main() {
     expect(target?.longitude, 139.7671);
   });
 
+  test('user profile action accepts only a non-empty user id', () {
+    expect(
+      notificationUserIdFromAction('userProfile', {'userId': 'alice'}),
+      'alice',
+    );
+    expect(notificationUserIdFromAction('userProfile', const {}), isNull);
+    expect(
+      notificationUserIdFromAction('unknown', {'userId': 'alice'}),
+      isNull,
+    );
+  });
+
+  test('administrator invitation action builds its allowlisted route', () {
+    final target = notificationAdministratorInvitationTargetFromAction(
+      'administratorInvitation',
+      {'worldId': 'europe', 'token': 'invite-token'},
+    );
+
+    expect(target?.worldId, const WorldId('europe'));
+    expect(target?.token, 'invite-token');
+    expect(target?.location, '/worlds/europe/invites/invite-token');
+  });
+
+  test('subscription action rejects unexpected parameters', () {
+    expect(notificationOpensSubscription('subscription', const {}), isTrue);
+    expect(
+      notificationOpensSubscription('subscription', {'path': '/settings'}),
+      isFalse,
+    );
+  });
+
   testWidgets('notification navigation pushes note over map', (tester) async {
     final router = GoRouter(
       initialLocation: '/map',

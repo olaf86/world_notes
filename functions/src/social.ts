@@ -7,6 +7,7 @@ import {
   GlobalOperationValidationError,
 } from "./globalOperations";
 import {createUserNotice} from "./notices";
+import {NOTICE_TEMPLATE_IDS} from "./noticeTemplateCatalog";
 import {
   executeSocialEdgeCommand,
   parseSocialEdgeProjection,
@@ -131,8 +132,13 @@ export const setUserFollow = onCall<SetUserFollowData>(
           await createUserNotice(db, targetUserId, {
             category: "social",
             severity: "info",
-            title: "New follower",
-            body: `${followerName} followed you.`,
+            templateId: NOTICE_TEMPLATE_IDS.newFollower,
+            templateArgs: {followerName},
+            action: {
+              type: "route",
+              route: "userProfile",
+              params: {userId: uid},
+            },
             sourceType: "userFollow",
             sourceId: uid,
             push: true,

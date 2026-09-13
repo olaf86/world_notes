@@ -25,6 +25,7 @@ import {
   NotificationRecipientStatus,
 } from "./notificationOutbox";
 import {createUserNotice} from "./notices";
+import {NOTICE_TEMPLATE_IDS} from "./noticeTemplateCatalog";
 import {HttpsError, onCall} from "./platform/worldCallable";
 import {worldContext} from "./platform/worldContext";
 import {WORLD_REGISTRY} from "./platform/worldRegistry";
@@ -54,8 +55,6 @@ interface ParticipantSnapshot {
   readonly lastParticipatedAt: Timestamp;
 }
 
-export type NotificationLocale = "en" | "ja" | "ko" | "zh-Hans" | "zh-Hant";
-
 interface SearchBucket {
   tokens: number;
   lastRefillAt: number;
@@ -77,32 +76,6 @@ const RECIPIENT_STATUS_SKIPPED: NotificationRecipientStatus = "skipped";
 const RECIPIENT_STATUS_COMPLETE: NotificationRecipientStatus = "complete";
 export const MESSAGE_MENTION_NOTIFICATION_EVENT = "notifyMessageMention";
 const searchBuckets = new Map<string, SearchBucket>();
-
-const COPY: Record<NotificationLocale, {
-  title: (senderName: string) => string;
-  body: string;
-}> = {
-  "en": {
-    title: (senderName) => `${senderName} mentioned you`,
-    body: "View the note location on the map and move closer to read it.",
-  },
-  "ja": {
-    title: (senderName) => `${senderName}さんがあなたをメンションしました`,
-    body: "マップでノートの場所を確認し、近づいて内容を開いてください。",
-  },
-  "ko": {
-    title: (senderName) => `${senderName}님이 회원님을 멘션했습니다`,
-    body: "지도에서 노트 위치를 확인하고 가까이 이동한 후 내용을 열어 보세요.",
-  },
-  "zh-Hans": {
-    title: (senderName) => `${senderName} 提及了你`,
-    body: "请在地图上查看笔记位置，并靠近后打开内容。",
-  },
-  "zh-Hant": {
-    title: (senderName) => `${senderName} 提及了你`,
-    body: "請在地圖上查看筆記位置，並靠近後開啟內容。",
-  },
-};
 
 export function normalizeMentionSearchText(value: string): string {
   return value
@@ -492,13 +465,12 @@ async function deliverMessageMentionNotification(
       return {uid, status: RECIPIENT_STATUS_SKIPPED};
     }
     const location = requirePlaceLocation(place);
-    const copy = mentionNotificationCopy(preference.locale, senderName);
     await createUserNotice(firestore, uid, {
       noticeId: event.eventId,
       category: "mention",
       severity: "info",
-      title: copy.title,
-      body: copy.body,
+      templateId: NOTICE_TEMPLATE_IDS.mention,
+      templateArgs: {senderName},
       action: {
         type: "route",
         route: "mapNote",
@@ -614,7 +586,7 @@ async function recipientMayReceive(
 async function mentionPreference(
   sourceFirestore: Firestore,
   uid: string,
-): Promise<{locale: NotificationLocale; pushEnabled: boolean} | null> {
+): Promise<{pushEnabled: boolean} | null> {
   const home = await sourceFirestore.collection("userHomes").doc(uid).get();
   if (!home.exists) return null;
   const homeWorld = home.get("world");
@@ -632,36 +604,8 @@ async function mentionPreference(
   ]);
   if (!user.exists) return null;
   return {
-    locale: mentionNotificationLocaleOf(user.get("languagePreference")),
     pushEnabled: settings.get("mentionsEnabled") === true,
   };
-}
-
-export function mentionNotificationLocaleOf(
-  value: unknown,
-): NotificationLocale {
-  if (typeof value !== "string") return "en";
-  switch (value.trim().replace(/_/g, "-").toLowerCase()) {
-  case "ja":
-    return "ja";
-  case "ko":
-    return "ko";
-  case "zh-hans":
-    return "zh-Hans";
-  case "zh-hant":
-    return "zh-Hant";
-  default:
-    // "system" has no device locale on the server, so English is stable.
-    return "en";
-  }
-}
-
-export function mentionNotificationCopy(
-  locale: NotificationLocale,
-  senderName: string,
-): {title: string; body: string} {
-  const copy = COPY[locale];
-  return {title: copy.title(senderName), body: copy.body};
 }
 
 function isDeliverableMention(

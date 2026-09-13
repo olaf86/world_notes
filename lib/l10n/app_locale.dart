@@ -2,6 +2,14 @@ import 'package:flutter/widgets.dart';
 
 const supportedAppLocaleTags = <String>{'en', 'ja', 'zh_Hant', 'zh_Hans', 'ko'};
 
+const supportedAppLocales = <Locale>[
+  Locale('en'),
+  Locale('ja'),
+  Locale('ko'),
+  Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+  Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'),
+];
+
 const appLanguagePreferenceKey = 'app_language_preference';
 
 /// Region-to-script policy for Chinese locales that do not include an
@@ -85,4 +93,30 @@ Locale _normalizeChineseLocale(Locale locale) {
   final scriptFromRegion = _chineseScriptByRegion[locale.countryCode];
   if (scriptFromRegion == null) return locale;
   return Locale.fromSubtags(languageCode: 'zh', scriptCode: scriptFromRegion);
+}
+
+/// Returns the canonical Firestore locale tag used for resolved notice copy.
+String noticeLocaleTag(Locale locale) {
+  final normalized = _normalizeChineseLocale(locale);
+  if (normalized.languageCode == 'zh') {
+    return normalized.scriptCode == 'Hant' ? 'zh-Hant' : 'zh-Hans';
+  }
+  switch (normalized.languageCode) {
+    case 'ja':
+      return 'ja';
+    case 'ko':
+      return 'ko';
+    default:
+      return 'en';
+  }
+}
+
+/// Resolves an explicit or system preference to one supported notice locale.
+String resolvedNoticeLocaleTag(
+  AppLanguagePreference preference,
+  List<Locale> systemLocales,
+) {
+  final locale =
+      preference.locale ?? resolveAppLocale(systemLocales, supportedAppLocales);
+  return noticeLocaleTag(locale);
 }

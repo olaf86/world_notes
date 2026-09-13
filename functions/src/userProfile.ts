@@ -3,6 +3,7 @@ import {Firestore} from "firebase-admin/firestore";
 import {onCall, HttpsError} from "./platform/worldCallable";
 
 import {LANGUAGE_PREFERENCES, REGION} from "./constants";
+import {notificationLocale} from "./noticeTemplateCatalog";
 import {
   executeGlobalCommand,
   GLOBAL_COMMAND_SCOPE,
@@ -144,6 +145,7 @@ export const updateDisplayName = onCall<{
  */
 export const setLanguagePreference = onCall<{
   languagePreference?: unknown;
+  resolvedLocale?: unknown;
   operationId?: unknown;
 }>(
   {
@@ -165,6 +167,22 @@ export const setLanguagePreference = onCall<{
         "Unsupported language preference.",
       );
     }
+    let noticeLocale;
+    try {
+      noticeLocale = notificationLocale(req.data?.resolvedLocale);
+    } catch {
+      throw new HttpsError(
+        "invalid-argument",
+        "resolvedLocale is unsupported.",
+      );
+    }
+    if (languagePreference !== "system" &&
+        noticeLocale !== languagePreference) {
+      throw new HttpsError(
+        "invalid-argument",
+        "resolvedLocale must match the explicit language preference.",
+      );
+    }
 
     const userRef = world.firestore.collection("users").doc(uid);
     const homeRef = world.firestore.collection("userHomes").doc(uid);
@@ -176,7 +194,7 @@ export const setLanguagePreference = onCall<{
         operationId: req.data?.operationId,
         operationType: "setLanguagePreference",
         entityId: uid,
-        payload: {languagePreference},
+        payload: {languagePreference, noticeLocale},
         entityRef: userRef,
         revisionField: "languagePreferenceRevision",
         scope: GLOBAL_COMMAND_SCOPE.authorityOnly,
@@ -197,12 +215,13 @@ export const setLanguagePreference = onCall<{
           transaction.update(userRef, {
             languagePreference,
             languagePreferenceRevision: revision,
+            noticeLocale,
             updatedAt: acceptedAt,
           });
         },
       });
 
-      return {languagePreference, ...operation};
+      return {languagePreference, noticeLocale, ...operation};
     } catch (error) {
       throw globalCommandHttpsError(error);
     }

@@ -7,10 +7,12 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'world_firebase_clients.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 
 import '../config/notification_navigation.dart';
 import '../config/world_catalog.dart';
 import '../config/world_routes.dart';
+import '../l10n/app_locale.dart';
 
 class MyNotesNotificationService {
   static const _nativeLaunchChannel = MethodChannel(
@@ -218,9 +220,17 @@ class MyNotesNotificationService {
   }
 
   Future<void> _registerToken(String token) async {
+    final resolvedLocale = resolvedNoticeLocaleTag(
+      AppLanguagePreference.system,
+      WidgetsBinding.instance.platformDispatcher.locales,
+    );
     await _functions
         .httpsCallable('registerFcmToken')
-        .call<Map<String, dynamic>>({'token': token, 'platform': _platform});
+        .call<Map<String, dynamic>>({
+          'token': token,
+          'platform': _platform,
+          'resolvedLocale': resolvedLocale,
+        });
   }
 
   Future<({String? token, String? unavailableStage})> _currentFcmToken() async {

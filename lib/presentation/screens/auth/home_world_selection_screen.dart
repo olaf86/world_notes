@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../config/world_catalog.dart';
 import '../../../l10n/l10n.dart';
+import '../../../l10n/app_locale.dart';
 import '../../providers/providers.dart';
 import '../../world_labels.dart';
 import '../../widgets/app_language_picker.dart';
@@ -36,6 +37,7 @@ class _HomeWorldSelectionScreenState
           .assignHome(
             selectedWorld,
             languagePreference: languagePreference.storageValue,
+            resolvedLocale: noticeLocaleTag(Localizations.localeOf(context)),
           );
       await ref.read(subscriptionServiceProvider).syncEntitlement();
       await ref.read(firebaseAuthProvider).currentUser?.getIdToken(true);

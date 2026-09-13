@@ -29,6 +29,7 @@ import {
 } from "firebase/auth";
 
 import {WORLD_CATALOG} from "../src/platform/worldCatalog";
+import {NOTICE_TEMPLATE_MANIFEST} from "../src/noticeTemplateCatalog";
 
 const RUN_EMULATOR_TESTS =
   process.env.RUN_FUNCTIONS_EMULATOR_TESTS === "1";
@@ -64,7 +65,7 @@ describe(
   "Functions emulator contract",
   {skip: !RUN_EMULATOR_TESTS, concurrency: false},
   () => {
-    before(() => {
+    before(async () => {
       const runId = randomUUID();
       clientApp = initializeClientApp(
         {
@@ -85,6 +86,17 @@ describe(
       firestore = getFirestore(adminApp);
       northAmericaFirestore = getFirestore(adminApp, "north-america");
       europeFirestore = getFirestore(adminApp, "europe");
+      await Promise.all(Object.values(NOTICE_TEMPLATE_MANIFEST).map(
+        (template) => firestore?.collection("noticeTemplates")
+          .doc(template.templateId)
+          .set({
+            ...template,
+            placeholders: [...template.placeholders],
+            localizedContent: {...template.localizedContent},
+            updatedAt: Timestamp.now(),
+            updatedBy: "functions-emulator-test",
+          }),
+      ));
     });
 
     afterEach(async () => {
@@ -225,6 +237,7 @@ describe(
         db.collection("userEntitlements").doc(uid),
         db.collection("userUsage").doc(uid),
         db.collection("accountSafety").doc(uid),
+        db.collection("users").doc(uid).collection("notices").doc("welcome"),
       ];
       cleanupReferences.push(...references);
 
@@ -234,6 +247,7 @@ describe(
           worldId: "asia",
           homeWorld: "asia",
           languagePreference: "ja",
+          resolvedLocale: "ja",
         },
         idToken,
       );
@@ -245,7 +259,7 @@ describe(
         worldId: string;
       }>;
       const result = body.result ?? body.data;
-      const [home, user, profile, entitlement, usage, safety] =
+      const [home, user, profile, entitlement, usage, safety, welcome] =
         await Promise.all(references.map((reference) => reference.get()));
 
       assert.equal(response.status, 200);
@@ -259,6 +273,7 @@ describe(
       assert.equal(user.get("displayName"), "User");
       assert.equal(user.get("languagePreference"), "ja");
       assert.equal(user.get("languagePreferenceRevision"), 0);
+      assert.equal(user.get("noticeLocale"), "ja");
       assert.equal(profile.get("followerCount"), 0);
       assert.equal(profile.get("followingCount"), 0);
       assert.equal(profile.get("revision"), 2);
@@ -269,6 +284,11 @@ describe(
       assert.equal(safety.get("violationPoints"), 0);
       assert.equal(safety.get("revision"), 2);
       assert.equal(safety.get("authorityWorld"), "asia");
+      assert.equal(welcome.get("schemaVersion"), 2);
+      assert.equal(welcome.get("templateId"), "welcome");
+      assert.equal(welcome.get("templateVersion"), 1);
+      assert.equal(welcome.get("content.locale"), "ja");
+      assert.equal(welcome.get("readAt"), null);
     });
 
     test(
@@ -300,7 +320,12 @@ describe(
 
         const response = await callFunction(
           "assignHomeWorld",
-          {worldId: "asia", homeWorld: "northAmerica"},
+          {
+            worldId: "asia",
+            homeWorld: "northAmerica",
+            languagePreference: "system",
+            resolvedLocale: "en",
+          },
           idToken,
         );
         const body = await response.json() as CallableSuccessBody<{
@@ -388,7 +413,12 @@ describe(
       );
       const bootstrap = await callFunction(
         "assignHomeWorld",
-        {worldId: "asia", homeWorld: "asia"},
+        {
+          worldId: "asia",
+          homeWorld: "asia",
+          languagePreference: "system",
+          resolvedLocale: "en",
+        },
         idToken,
       );
       assert.equal(bootstrap.status, 200);
@@ -451,12 +481,22 @@ describe(
       const responses = await Promise.all([
         callFunction(
           "assignHomeWorld",
-          {worldId: "asia", homeWorld: "asia"},
+          {
+            worldId: "asia",
+            homeWorld: "asia",
+            languagePreference: "system",
+            resolvedLocale: "en",
+          },
           idToken,
         ),
         callFunction(
           "assignHomeWorld",
-          {worldId: "asia", homeWorld: "asia"},
+          {
+            worldId: "asia",
+            homeWorld: "asia",
+            languagePreference: "system",
+            resolvedLocale: "en",
+          },
           idToken,
         ),
       ]);
@@ -500,7 +540,12 @@ describe(
         );
         const bootstrap = await callFunction(
           "assignHomeWorld",
-          {worldId: "asia", homeWorld: "asia"},
+          {
+            worldId: "asia",
+            homeWorld: "asia",
+            languagePreference: "system",
+            resolvedLocale: "en",
+          },
           idToken,
         );
         assert.equal(bootstrap.status, 200);
@@ -573,7 +618,12 @@ describe(
         );
         const bootstrap = await callFunction(
           "assignHomeWorld",
-          {worldId: "asia", homeWorld: "asia"},
+          {
+            worldId: "asia",
+            homeWorld: "asia",
+            languagePreference: "system",
+            resolvedLocale: "en",
+          },
           idToken,
         );
         assert.equal(bootstrap.status, 200);
@@ -642,7 +692,12 @@ describe(
       );
       const bootstrap = await callFunction(
         "assignHomeWorld",
-        {worldId: "asia", homeWorld: "asia"},
+        {
+          worldId: "asia",
+          homeWorld: "asia",
+          languagePreference: "system",
+          resolvedLocale: "en",
+        },
         idToken,
       );
       assert.equal(bootstrap.status, 200);
@@ -650,12 +705,22 @@ describe(
       const responses = await Promise.all([
         callFunction(
           "setLanguagePreference",
-          {worldId: "asia", operationId, languagePreference: "ja"},
+          {
+            worldId: "asia",
+            operationId,
+            languagePreference: "ja",
+            resolvedLocale: "ja",
+          },
           idToken,
         ),
         callFunction(
           "setLanguagePreference",
-          {worldId: "asia", operationId, languagePreference: "ja"},
+          {
+            worldId: "asia",
+            operationId,
+            languagePreference: "ja",
+            resolvedLocale: "ja",
+          },
           idToken,
         ),
       ]);
@@ -706,7 +771,12 @@ describe(
 
       const conflict = await callFunction(
         "setLanguagePreference",
-        {worldId: "asia", operationId, languagePreference: "en"},
+        {
+          worldId: "asia",
+          operationId,
+          languagePreference: "en",
+          resolvedLocale: "en",
+        },
         idToken,
       );
       const conflictBody = await conflict.json() as CallableErrorBody;
@@ -748,7 +818,12 @@ describe(
 
       const response = await callFunction(
         "assignHomeWorld",
-        {worldId: "asia", homeWorld: "europe"},
+        {
+          worldId: "asia",
+          homeWorld: "europe",
+          languagePreference: "system",
+          resolvedLocale: "en",
+        },
         idToken,
       );
       const body = await response.json() as CallableSuccessBody<{
@@ -786,7 +861,12 @@ describe(
 
       const response = await callFunction(
         "assignHomeWorld",
-        {worldId: "asia", homeWorld: "antarctica"},
+        {
+          worldId: "asia",
+          homeWorld: "antarctica",
+          languagePreference: "system",
+          resolvedLocale: "en",
+        },
         idToken,
       );
       const body = await response.json() as CallableErrorBody;

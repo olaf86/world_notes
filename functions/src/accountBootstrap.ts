@@ -13,6 +13,13 @@ import * as logger from "firebase-functions/logger";
 
 import {LANGUAGE_PREFERENCES} from "./constants";
 import {
+  NOTICE_TEMPLATE_IDS,
+  NotificationLocale,
+  notificationLocale,
+  ResolvedNoticeContent,
+  resolveNoticeTemplate,
+} from "./noticeTemplateCatalog";
+import {
   newGlobalOperationId,
   requireOperationId,
 } from "./globalOperations";
@@ -42,6 +49,7 @@ const SAFETY_REPLICATION_OPERATION_FIELD = "safetyReplicationOperationId";
 interface AssignHomeWorldData {
   readonly homeWorld?: unknown;
   readonly languagePreference?: unknown;
+  readonly resolvedLocale?: unknown;
 }
 
 interface HomeAssignmentData {
@@ -83,6 +91,10 @@ export const assignHomeWorld = onCall<AssignHomeWorldData>(
     const languagePreference = requireLanguagePreference(
       request.data?.languagePreference,
     );
+    const noticeLocale = requireResolvedNoticeLocale(
+      request.data?.resolvedLocale,
+      languagePreference,
+    );
     const auth = getAuth();
     const authUser = await auth.getUser(uid);
     const directory = asiaWorldContext().firestore;
@@ -92,12 +104,28 @@ export const assignHomeWorld = onCall<AssignHomeWorldData>(
       uid,
       homeWorld,
     );
+    let welcome;
+    try {
+      welcome = await resolveNoticeTemplate(
+        directory,
+        NOTICE_TEMPLATE_IDS.welcome,
+        noticeLocale,
+      );
+    } catch (error) {
+      logger.error("Could not resolve the welcome notice template.", {error});
+      throw new HttpsError(
+        "unavailable",
+        "Account welcome content is temporarily unavailable.",
+      );
+    }
     const bootstrap = await ensureAuthorityBundle(
       authority,
       uid,
       authUser,
       reservation.home,
       languagePreference,
+      noticeLocale,
+      welcome,
     );
 
     await Promise.all([
@@ -190,6 +218,11 @@ async function ensureAuthorityBundle(
   authUser: UserRecord,
   home: HomeAssignmentData,
   languagePreference: string,
+  noticeLocale: NotificationLocale,
+  welcome: Readonly<{
+    version: number;
+    content: ResolvedNoticeContent;
+  }>,
 ): Promise<{readonly isPremium: boolean}> {
   const homeRef = authority.collection("userHomes").doc(uid);
   const userRef = authority.collection("users").doc(uid);
@@ -197,6 +230,7 @@ async function ensureAuthorityBundle(
   const entitlementRef = authority.collection("userEntitlements").doc(uid);
   const usageRef = authority.collection("userUsage").doc(uid);
   const safetyRef = authority.collection("accountSafety").doc(uid);
+  const welcomeRef = userRef.collection("notices").doc("welcome");
 
   return authority.runTransaction(async (transaction) => {
     const [homeSnapshot, user, profile, entitlement, usage, safety] =
@@ -239,7 +273,7 @@ async function ensureAuthorityBundle(
     if (!homeSnapshot.exists) transaction.create(homeRef, home);
     transaction.create(
       userRef,
-      privateUserData(authUser, languagePreference),
+      privateUserData(authUser, languagePreference, noticeLocale),
     );
     transaction.create(profileRef, publicProfileData(authUser));
     transaction.create(entitlementRef, entitlementData());
@@ -248,6 +282,19 @@ async function ensureAuthorityBundle(
       safetyRef,
       initialAccountSafetyData(home.world, Timestamp.now()),
     );
+    transaction.create(welcomeRef, {
+      schemaVersion: 2,
+      category: "system",
+      severity: "info",
+      templateId: NOTICE_TEMPLATE_IDS.welcome,
+      templateVersion: welcome.version,
+      content: welcome.content,
+      action: null,
+      sourceType: "accountBootstrap",
+      sourceId: null,
+      createdAt: Timestamp.now(),
+      readAt: null,
+    });
     return {isPremium: false};
   });
 }
@@ -405,6 +452,7 @@ function requireHomeWorld(value: unknown): string {
 function privateUserData(
   authUser: UserRecord,
   languagePreference: string,
+  noticeLocale: NotificationLocale,
 ): Record<string, unknown> {
   return {
     displayName: displayNameOf(authUser),
@@ -412,9 +460,30 @@ function privateUserData(
     photoUrl: boundedNullableString(authUser.photoURL, MAX_PHOTO_URL_LENGTH),
     languagePreference,
     languagePreferenceRevision: 0,
+    noticeLocale,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   };
+}
+
+/** Validates the concrete app locale used to render future account notices. */
+function requireResolvedNoticeLocale(
+  value: unknown,
+  languagePreference: string,
+): NotificationLocale {
+  let locale: NotificationLocale;
+  try {
+    locale = notificationLocale(value);
+  } catch {
+    throw new HttpsError("invalid-argument", "resolvedLocale is unsupported.");
+  }
+  if (languagePreference !== "system" && locale !== languagePreference) {
+    throw new HttpsError(
+      "invalid-argument",
+      "resolvedLocale must match the explicit language preference.",
+    );
+  }
+  return locale;
 }
 
 /** Uses the system language for older clients and validates newer clients. */

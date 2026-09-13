@@ -41,12 +41,20 @@ void main() {
     final repository = _PendingNoticeRepository();
     final notice = NoticeEntity(
       id: 'notice-1',
+      schemaVersion: 2,
+      templateId: 'newFollower',
+      templateVersion: 1,
+      locale: 'en',
       category: 'social',
       severity: 'info',
       title: 'New follower',
       body: 'Alice followed you.',
       createdAt: DateTime(2026, 7, 16),
       sourceId: 'alice',
+      action: const NoticeActionEntity(
+        route: 'userProfile',
+        params: {'userId': 'alice'},
+      ),
     );
     final router = GoRouter(
       initialLocation: '/notices',
@@ -101,6 +109,55 @@ void main() {
     repository.completeMarkRead();
   });
 
+  testWidgets('welcome notice opens its finalized content in a dialog', (
+    tester,
+  ) async {
+    final repository = _PendingNoticeRepository();
+    final notice = NoticeEntity(
+      id: 'welcome',
+      schemaVersion: 2,
+      templateId: 'welcome',
+      templateVersion: 1,
+      locale: 'ja',
+      category: 'system',
+      severity: 'info',
+      title: 'セカイノートへようこそ',
+      body: '場所に結びついたノートとして、思い出や発見を残せます。',
+      createdAt: DateTime(2026, 9, 13),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authStateProvider.overrideWith(
+            (ref) => Stream<UserEntity?>.value(
+              const UserEntity(id: 'user-1', name: 'Test user'),
+            ),
+          ),
+          noticesProvider.overrideWith(
+            (ref) => Stream<List<NoticeEntity>>.value([notice]),
+          ),
+          noticeRepositoryProvider.overrideWithValue(repository),
+        ],
+        child: MaterialApp(
+          locale: const Locale('ja'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const NoticesScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('セカイノートへようこそ'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.text(notice.body), findsNWidgets(2));
+    expect(repository.markReadCalls, 1);
+    repository.completeMarkRead();
+  });
+
   testWidgets('requests that every unread notice be marked read', (
     tester,
   ) async {
@@ -108,6 +165,10 @@ void main() {
     final notices = [
       NoticeEntity(
         id: 'unread-1',
+        schemaVersion: 2,
+        templateId: 'test',
+        templateVersion: 1,
+        locale: 'en',
         category: 'system',
         severity: 'info',
         title: 'First',
@@ -116,6 +177,10 @@ void main() {
       ),
       NoticeEntity(
         id: 'already-read',
+        schemaVersion: 2,
+        templateId: 'test',
+        templateVersion: 1,
+        locale: 'en',
         category: 'system',
         severity: 'info',
         title: 'Second',
@@ -125,6 +190,10 @@ void main() {
       ),
       NoticeEntity(
         id: 'unread-2',
+        schemaVersion: 2,
+        templateId: 'test',
+        templateVersion: 1,
+        locale: 'en',
         category: 'mention',
         severity: 'info',
         title: 'Third',

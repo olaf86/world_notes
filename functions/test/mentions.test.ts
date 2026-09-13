@@ -12,8 +12,6 @@ import {
 
 import {
   enqueueMessageMentionNotification,
-  mentionNotificationCopy,
-  mentionNotificationLocaleOf,
   mentionSearchBigrams,
   mentionUserIdsFromMessage,
   MESSAGE_MENTION_NOTIFICATION_EVENT,
@@ -29,23 +27,6 @@ const CREATED_AT = Timestamp.fromMillis(1_000);
 test("mention search normalizes width, case, kana, and whitespace", () => {
   assert.equal(normalizeMentionSearchText("  ＡＢＣ　カナ  "), "abc かな");
   assert.deepEqual(mentionSearchBigrams("かなかな"), ["かな", "なか"]);
-});
-
-test("mention notification copy supports every app language", () => {
-  const expectations = [
-    ["en", "Alex mentioned you"],
-    ["ja", "Alexさんがあなたをメンションしました"],
-    ["ko", "Alex님이 회원님을 멘션했습니다"],
-    ["zh-Hans", "Alex 提及了你"],
-    ["zh-Hant", "Alex 提及了你"],
-  ] as const;
-
-  for (const [preference, title] of expectations) {
-    const locale = mentionNotificationLocaleOf(preference);
-    assert.equal(mentionNotificationCopy(locale, "Alex").title, title);
-  }
-  assert.equal(mentionNotificationLocaleOf("system"), "en");
-  assert.equal(mentionNotificationLocaleOf("zh_Hant"), "zh-Hant");
 });
 
 test("recipients are distinct, bounded, and cannot include sender", () => {

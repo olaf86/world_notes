@@ -326,6 +326,27 @@ void main() {
     );
   });
 
+  test('exempts localized notice content from single-field indexes', () {
+    final config = _loadConfig();
+    final overrides = (config['fieldOverrides'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+
+    for (final entry in const [
+      ('notices', 'content'),
+      ('noticeTemplates', 'localizedContent'),
+    ]) {
+      expect(
+        overrides.any(
+          (override) =>
+              override['collectionGroup'] == entry.$1 &&
+              override['fieldPath'] == entry.$2 &&
+              (override['indexes'] as List<dynamic>).isEmpty,
+        ),
+        isTrue,
+      );
+    }
+  });
+
   test('defines orphan-image sweep index and tracker TTL', () {
     final config = _loadConfig();
     final overrides = (config['fieldOverrides'] as List<dynamic>)

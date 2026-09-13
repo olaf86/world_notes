@@ -117,14 +117,16 @@ class _NoticesScreenState extends ConsumerState<NoticesScreen> {
             }),
       );
     }
-    if (notice.category == 'social' && notice.sourceId?.isNotEmpty == true) {
-      await context.push<void>('/users/${notice.sourceId}');
+    final action = notice.action;
+    final actionParams = action?.params ?? const <String, Object?>{};
+    final userId = notificationUserIdFromAction(action?.route, actionParams);
+    if (userId != null) {
+      await context.push<void>('/users/${Uri.encodeComponent(userId)}');
       return;
     }
-    final action = notice.action;
     final mapTarget = notificationMapNoteTargetFromAction(
       action?.route,
-      action?.params ?? const {},
+      actionParams,
     );
     if (mapTarget != null) {
       final currentWorld = ref.read(selectedWorldProvider);
@@ -163,6 +165,18 @@ class _NoticesScreenState extends ConsumerState<NoticesScreen> {
       }
       ref.read(pendingNotificationMapTargetProvider.notifier).state = mapTarget;
       if (context.mounted) context.go('/map');
+      return;
+    }
+    final invitation = notificationAdministratorInvitationTargetFromAction(
+      action?.route,
+      actionParams,
+    );
+    if (invitation != null) {
+      await context.push<void>(invitation.location);
+      return;
+    }
+    if (notificationOpensSubscription(action?.route, actionParams)) {
+      await context.push<void>('/subscription');
       return;
     }
     await showDialog<void>(

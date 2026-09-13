@@ -72,6 +72,7 @@ async function seedAccount(user: UserRecord): Promise<void> {
     photoUrl: null,
     languagePreference: "system",
     languagePreferenceRevision: 0,
+    noticeLocale: "en",
     createdAt: now,
     updatedAt: now,
   });

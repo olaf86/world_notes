@@ -32,6 +32,13 @@ const LANGUAGE_PREFERENCES = new Set([
   "zh-Hans",
   "zh-Hant",
 ]);
+const NOTICE_LOCALES = new Set([
+  "en",
+  "ja",
+  "ko",
+  "zh-Hans",
+  "zh-Hant",
+]);
 
 export interface AccountBackfillIdentity {
   readonly uid: string;
@@ -148,12 +155,19 @@ export function accountAuthorityData(
     languagePreferenceRevision,
     "languagePreferenceRevision",
   );
+  const noticeLocale = input.user?.noticeLocale ??
+    (languagePreference === "system" ? "en" : languagePreference);
+  if (typeof noticeLocale !== "string" ||
+      !NOTICE_LOCALES.has(noticeLocale)) {
+    throw new Error("Account notice locale is invalid.");
+  }
   const user = Object.freeze({
     displayName,
     email,
     photoUrl,
     languagePreference,
     languagePreferenceRevision,
+    noticeLocale,
     createdAt,
     updatedAt: timestampOr(input.user?.updatedAt, input.now),
   });

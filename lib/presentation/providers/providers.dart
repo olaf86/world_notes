@@ -7,6 +7,7 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -525,6 +526,10 @@ class AppLanguagePreferenceNotifier
           .httpsCallable('setLanguagePreference')
           .call<Map<String, dynamic>>({
             'languagePreference': preference.storageValue,
+            'resolvedLocale': resolvedNoticeLocaleTag(
+              preference,
+              WidgetsBinding.instance.platformDispatcher.locales,
+            ),
             'operationId': _uuid.v7(),
           });
       await handleAcceptedGlobalOperation(
@@ -598,6 +603,10 @@ class AppLanguagePreferenceNotifier
           .httpsCallable('setLanguagePreference')
           .call<Map<String, dynamic>>({
             'languagePreference': AppLanguagePreference.system.storageValue,
+            'resolvedLocale': resolvedNoticeLocaleTag(
+              AppLanguagePreference.system,
+              WidgetsBinding.instance.platformDispatcher.locales,
+            ),
             'operationId': _uuid.v7(),
           });
       await handleAcceptedGlobalOperation(

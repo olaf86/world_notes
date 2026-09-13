@@ -12,6 +12,7 @@ import {onDocumentCreated} from "firebase-functions/v2/firestore";
 
 import {GLOBAL_OPERATION_TERMINAL_RETENTION_MILLIS} from "./globalOperations";
 import {createUserNotice} from "./notices";
+import {NOTICE_TEMPLATE_IDS} from "./noticeTemplateCatalog";
 import {
   WorldDatabaseConfig,
   WorldFirestoreDatabaseId,
@@ -98,11 +99,14 @@ export async function deliverNoteAdministratorInviteNotification(
     noticeId: event.eventId,
     category: "system",
     severity: "info",
-    title: "Note administrator invitation",
-    body: "You have been invited to help administer a note.",
+    templateId: NOTICE_TEMPLATE_IDS.administratorInvitation,
     action: {
       type: "route",
-      route: `/worlds/${event.sourceWorld}/invites/${event.token}`,
+      route: "administratorInvitation",
+      params: {
+        worldId: event.sourceWorld,
+        token: event.token,
+      },
     },
     sourceType: "noteAdministratorInvitation",
     sourceId: event.eventId,

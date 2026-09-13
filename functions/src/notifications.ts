@@ -22,6 +22,7 @@ import {
   NotificationOutboxData,
   NotificationRecipientStatus,
 } from "./notificationOutbox";
+import {notificationLocale} from "./noticeTemplateCatalog";
 import {worldContext} from "./platform/worldContext";
 import {WORLD_REGISTRY} from "./platform/worldRegistry";
 import {hasUserBlockBetween} from "./userBlocks";
@@ -29,6 +30,7 @@ import {hasUserBlockBetween} from "./userBlocks";
 interface RegisterFcmTokenData {
   token?: unknown;
   platform?: unknown;
+  resolvedLocale?: unknown;
 }
 
 interface DeleteFcmTokenData {
@@ -249,21 +251,41 @@ export const registerFcmToken = onCall<RegisterFcmTokenData>(
 
     const token = validToken(req.data?.token);
     const platform = platformOf(req.data?.platform);
-    const ref = world.firestore
-      .collection("users")
-      .doc(uid)
+    let deviceLocale;
+    try {
+      deviceLocale = notificationLocale(req.data?.resolvedLocale);
+    } catch {
+      throw new HttpsError(
+        "invalid-argument",
+        "resolvedLocale is unsupported.",
+      );
+    }
+    const userRef = world.firestore.collection("users").doc(uid);
+    const ref = userRef
       .collection("fcmTokens")
       .doc(tokenDocId(token));
 
-    await ref.set(
-      {
+    await world.firestore.runTransaction(async (transaction) => {
+      const user = await transaction.get(userRef);
+      if (!user.exists) {
+        throw new HttpsError("failed-precondition", "User profile missing.");
+      }
+      const languagePreference = user.get("languagePreference");
+      const resolvedLocale = languagePreference === "system" ?
+        deviceLocale : notificationLocale(languagePreference);
+      transaction.set(ref, {
         token,
         platform,
         updatedAt: FieldValue.serverTimestamp(),
         createdAt: FieldValue.serverTimestamp(),
-      },
-      {merge: true},
-    );
+      }, {merge: true});
+      if (user.get("noticeLocale") !== resolvedLocale) {
+        transaction.update(userRef, {
+          noticeLocale: resolvedLocale,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
+    });
 
     logger.info("registerFcmToken: registered device token.", {
       uid,

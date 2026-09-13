@@ -5,7 +5,8 @@ rules_version = '2';
 //   world (non-empty string), epoch (positive integer), createdAt (timestamp).
 //   Only that uid may read the exact document; collection listing is denied.
 // - users/{uid}: private owner-readable account data. The trusted bootstrap
-//   writes Auth-derived identity, language preference, and timestamps.
+//   writes Auth-derived identity, language preference, resolved notice locale,
+//   and timestamps.
 // - userEntitlements/{uid}: server-only world-local entitlement mirror with
 //   isPremium (bool) and updatedAt (timestamp).
 // - userUsage/{uid}: server-only independent world usage with
@@ -35,6 +36,7 @@ rules_version = '2';
 // - users/{uid}/noteStates/{placeId}: private server-managed map activity
 //   state (non-negative lastSeenMessageCount and server timestamps).
 // - users/{uid}/notices: server-created inbox; owner may only set readAt.
+// - noticeTemplates/{templateId}: central server-only localized copy catalog.
 // - places/{placeId}: server-created note metadata and aggregates.
 // - places/{placeId}/administrators/{uid}: server-created delegated note
 //   administrator relationship. The bound uid may read its own record.
@@ -245,39 +247,6 @@ service cloud.firestore {
              && message.isPubliclyVisible == true;
     }
 
-    function isValidNotice(notice) {
-      return notice.keys().hasOnly([
-               'category',
-               'severity',
-               'title',
-               'body',
-               'action',
-               'sourceType',
-               'sourceId',
-               'createdAt',
-               'readAt'
-             ])
-             && notice.category is string
-             && notice.category.size() > 0
-             && notice.category.size() <= 40
-             && notice.severity in ['info', 'warning', 'critical']
-             && notice.title is string
-             && notice.title.size() > 0
-             && notice.title.size() <= 120
-             && notice.body is string
-             && notice.body.size() > 0
-             && notice.body.size() <= 2000
-             && (notice.action == null || notice.action is map)
-             && (notice.sourceType == null
-                 || (notice.sourceType is string
-                     && notice.sourceType.size() <= 80))
-             && (notice.sourceId == null
-                 || (notice.sourceId is string
-                     && notice.sourceId.size() <= 200))
-             && notice.createdAt is timestamp
-             && (notice.readAt == null || notice.readAt is timestamp);
-    }
-
     function canReadMessage(placeId, message) {
       return canAccessNote(placeId)
              && (isPubliclyVisibleMessage(message)
@@ -304,6 +273,10 @@ service cloud.firestore {
     match /userHomes/{uid} {
       allow get: if isCurrentUser(uid);
       allow list, create, update, delete: if false;
+    }
+
+    match /noticeTemplates/{templateId} {
+      allow read, write: if false;
     }
 
     match /users/{uid} {
@@ -345,8 +318,8 @@ service cloud.firestore {
         allow create: if false;
         allow update: if isCurrentUser(uid)
                       && hasReadyAccount()
-                      && isValidNotice(resource.data)
-                      && isValidNotice(request.resource.data)
+                      && resource.data.schemaVersion == 2
+                      && request.resource.data.schemaVersion == 2
                       && request.resource.data.diff(resource.data)
                           .affectedKeys()
                           .hasOnly(['readAt'])

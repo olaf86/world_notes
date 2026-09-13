@@ -75,6 +75,7 @@ final class AccountBootstrapService {
   Future<HomeAssignment> assignHome(
     WorldId homeWorld, {
     required String languagePreference,
+    required String resolvedLocale,
   }) async {
     _catalog.requireHomeWorld(homeWorld);
     final response = await _directoryFunctions
@@ -82,6 +83,7 @@ final class AccountBootstrapService {
         .call<Map<String, dynamic>>({
           'homeWorld': homeWorld.value,
           'languagePreference': languagePreference,
+          'resolvedLocale': resolvedLocale,
         });
     final data = response.data;
     final returnedWorld = data['homeWorld'];

@@ -225,6 +225,24 @@ void main() {
       );
     });
 
+    test('notice locale tags resolve explicit and system preferences', () {
+      expect(
+        resolvedNoticeLocaleTag(
+          AppLanguagePreference.japanese,
+          const [Locale('en')],
+        ),
+        'ja',
+      );
+      expect(
+        resolvedNoticeLocaleTag(
+          AppLanguagePreference.system,
+          const [Locale('zh', 'TW')],
+        ),
+        'zh-Hant',
+      );
+      expect(noticeLocaleTag(const Locale('fr')), 'en');
+    });
+
     test(
       'system Chinese locales resolve country codes to the right script',
       () {

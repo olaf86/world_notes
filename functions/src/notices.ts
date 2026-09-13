@@ -17,7 +17,12 @@ import {
   NotificationOutboxData,
   NotificationRecipientStatus,
 } from "./notificationOutbox";
-import {worldContext} from "./platform/worldContext";
+import {
+  NoticeTemplateId,
+  notificationLocale,
+  resolveNoticeTemplate,
+} from "./noticeTemplateCatalog";
+import {asiaWorldContext, worldContext} from "./platform/worldContext";
 import {WORLD_REGISTRY} from "./platform/worldRegistry";
 
 type NoticeCategory =
@@ -33,16 +38,20 @@ type NoticeSeverity = "info" | "warning" | "critical";
 
 export interface NoticeAction {
   type: "route";
-  route: string;
-  params?: Record<string, unknown>;
+  route:
+    "userProfile" |
+    "mapNote" |
+    "administratorInvitation" |
+    "subscription";
+  params: Record<string, unknown>;
 }
 
 export interface CreateUserNoticeInput {
   noticeId?: string;
   category: NoticeCategory;
   severity: NoticeSeverity;
-  title: string;
-  body: string;
+  templateId: NoticeTemplateId;
+  templateArgs?: Readonly<Record<string, string>>;
   action?: NoticeAction;
   sourceType?: string;
   sourceId?: string;
@@ -95,8 +104,17 @@ export async function createUserNotice(
   const noticeRef = input.noticeId === undefined ?
     noticeCollection.doc() : noticeCollection.doc(input.noticeId);
   const createdAt = Timestamp.now();
-  const title = clippedText(input.title, 120);
-  const body = clippedText(input.body, 2000);
+  const user = await homeFirestore.collection("users").doc(uid).get();
+  if (!user.exists) {
+    throw new Error(`Notice recipient account is missing: ${uid}.`);
+  }
+  const locale = notificationLocale(user.get("noticeLocale"));
+  const resolved = await resolveNoticeTemplate(
+    asiaWorldContext().firestore,
+    input.templateId,
+    locale,
+    input.templateArgs,
+  );
 
   await homeFirestore.runTransaction(async (transaction) => {
     if (input.noticeId !== undefined) {
@@ -104,10 +122,12 @@ export async function createUserNotice(
       if (existing.exists) return;
     }
     transaction.create(noticeRef, {
+      schemaVersion: 2,
       category: input.category,
       severity: input.severity,
-      title,
-      body,
+      templateId: input.templateId,
+      templateVersion: resolved.version,
+      content: resolved.content,
       action: input.action ?? null,
       sourceType: input.sourceType ?? null,
       sourceId: input.sourceId ?? null,
@@ -209,8 +229,13 @@ async function deliverUserNoticeNotification(
     return {recipientResults: {[uid]: "skipped"}};
   }
   const severity = noticeSeverity(notice.get("severity"));
-  const title = notice.get("title");
-  const body = notice.get("body");
+  const content = notice.get("content");
+  if (typeof content !== "object" || content === null ||
+      Array.isArray(content)) {
+    throw new Error("Notice notification content is invalid.");
+  }
+  const title = (content as Record<string, unknown>).title;
+  const body = (content as Record<string, unknown>).body;
   if (typeof title !== "string" || typeof body !== "string") {
     throw new Error("Notice notification content is invalid.");
   }

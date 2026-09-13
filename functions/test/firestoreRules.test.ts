@@ -608,6 +608,59 @@ describe(
         },
       );
 
+      test("allows the owner-scoped unread notice query", async () => {
+        await Promise.all([
+          seedApplicationDocument("userHomes/alice", validUserHome()),
+          seedApplicationDocument(
+            "users/alice/notices/notice-1",
+            validNotice(),
+          ),
+        ]);
+        const alice = requireApplicationRules().authenticatedContext("alice");
+
+        await assertSucceeds(
+          alice.firestore()
+            .collection("users/alice/notices")
+            .where("readAt", "==", null)
+            .get(),
+        );
+      });
+
+      test("denies changing notice content or navigation", async () => {
+        await Promise.all([
+          seedApplicationDocument("userHomes/alice", validUserHome()),
+          seedApplicationDocument(
+            "users/alice/notices/notice-1",
+            validNotice(),
+          ),
+        ]);
+        const notice = requireApplicationRules()
+          .authenticatedContext("alice")
+          .firestore()
+          .doc("users/alice/notices/notice-1");
+
+        await assertFails(notice.update({"content.body": "Forged"}));
+        await assertFails(notice.update({
+          action: {
+            type: "route",
+            route: "userProfile",
+            params: {userId: "attacker"},
+          },
+        }));
+      });
+
+      test("denies all direct notice template access", async () => {
+        await seedApplicationDocument("noticeTemplates/welcome", {
+          templateId: "welcome",
+          version: 1,
+        });
+        const alice = requireApplicationRules().authenticatedContext("alice");
+        const template = alice.firestore().doc("noticeTemplates/welcome");
+
+        await assertFails(template.get());
+        await assertFails(template.set({templateId: "welcome", version: 2}));
+      });
+
       test("denies a stateful write before bootstrap", async () => {
         await seedApplicationDocument(
           "users/alice/notices/notice-1",
@@ -1360,10 +1413,16 @@ function validAccountSafety(
 /** Creates a valid owner-readable notice. */
 function validNotice(): firebase.firestore.DocumentData {
   return {
+    schemaVersion: 2,
     category: "account",
     severity: "info",
-    title: "Welcome",
-    body: "Your account is ready.",
+    templateId: "welcome",
+    templateVersion: 1,
+    content: {
+      locale: "en",
+      title: "Welcome",
+      body: "Your account is ready.",
+    },
     action: null,
     sourceType: null,
     sourceId: null,

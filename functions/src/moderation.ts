@@ -18,6 +18,7 @@ import {
   createUserNotice,
   timestampFromFutureHours,
 } from "./notices";
+import {NOTICE_TEMPLATE_IDS} from "./noticeTemplateCatalog";
 
 // Set with: firebase functions:secrets:set OPENAI_API_KEY
 export const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
@@ -423,9 +424,7 @@ function userNoticeForPoints(
     return {
       category: "ban",
       severity: "critical",
-      title: "Account temporarily banned",
-      body: "Your account has been temporarily banned because recent posts " +
-        "violated the community safety policy.",
+      templateId: NOTICE_TEMPLATE_IDS.moderationBan,
       push: true,
     };
   }
@@ -433,9 +432,7 @@ function userNoticeForPoints(
     return {
       category: "moderation",
       severity: "critical",
-      title: "Posting temporarily restricted",
-      body: "Your account is temporarily restricted from posting because " +
-        "recent posts violated the community safety policy.",
+      templateId: NOTICE_TEMPLATE_IDS.moderationRestriction,
       push: true,
     };
   }
@@ -443,19 +440,14 @@ function userNoticeForPoints(
     return {
       category: "moderation",
       severity: "warning",
-      title: "Please review the community safety policy",
-      body: "One of your posts was hidden or sent to review because it may " +
-        "violate the community safety policy. Repeated violations can lead " +
-        "to posting restrictions or a ban.",
+      templateId: NOTICE_TEMPLATE_IDS.moderationWarning,
       push: true,
     };
   }
   return {
     category: "moderation",
     severity: "info",
-    title: "Post marked as sensitive",
-    body: "One of your posts may contain sensitive content. It remains " +
-      "available with additional safety handling.",
+    templateId: NOTICE_TEMPLATE_IDS.moderationSensitive,
   };
 }
 
