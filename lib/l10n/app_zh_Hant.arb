@@ -478,6 +478,8 @@
   "pinImagePreparationFailed": "無法準備圖釘圖片：{error}",
   "closeAction": "關閉",
   "notificationsLoadFailed": "無法載入通知：{error}",
+  "markAllNotificationsRead": "全部標為已讀",
+  "markAllNotificationsReadFailed": "無法將所有通知標為已讀。",
   "adPrivacyTitle": "廣告隱私權",
   "managePrivacyChoices": "管理隱私權選項",
   "managePrivacyChoicesDescription": "查看或變更你的資訊用於廣告的方式。",

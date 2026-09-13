@@ -1553,6 +1553,12 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String get markAllNotificationsRead => 'すべて既読にする';
+
+  @override
+  String get markAllNotificationsReadFailed => 'すべてのお知らせを既読にできませんでした。';
+
+  @override
   String get adPrivacyTitle => '広告のプライバシー';
 
   @override

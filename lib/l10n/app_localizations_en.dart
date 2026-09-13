@@ -1659,6 +1659,13 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get markAllNotificationsRead => 'Mark all as read';
+
+  @override
+  String get markAllNotificationsReadFailed =>
+      'Could not mark all notifications as read.';
+
+  @override
   String get adPrivacyTitle => 'Ad Privacy';
 
   @override

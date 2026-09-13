@@ -478,6 +478,8 @@
   "pinImagePreparationFailed": "ピン画像を準備できませんでした: {error}",
   "closeAction": "閉じる",
   "notificationsLoadFailed": "お知らせを読み込めませんでした: {error}",
+  "markAllNotificationsRead": "すべて既読にする",
+  "markAllNotificationsReadFailed": "すべてのお知らせを既読にできませんでした。",
   "adPrivacyTitle": "広告のプライバシー",
   "managePrivacyChoices": "プライバシー設定を管理",
   "managePrivacyChoicesDescription": "広告での情報の利用方法を確認または変更します。",

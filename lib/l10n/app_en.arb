@@ -975,6 +975,10 @@
   "@closeAction": {},
   "notificationsLoadFailed": "Could not load notifications: {error}",
   "@notificationsLoadFailed": {"placeholders": {"error": {"type": "Object"}}},
+  "markAllNotificationsRead": "Mark all as read",
+  "@markAllNotificationsRead": {},
+  "markAllNotificationsReadFailed": "Could not mark all notifications as read.",
+  "@markAllNotificationsReadFailed": {},
 
   "adPrivacyTitle": "Ad Privacy",
   "@adPrivacyTitle": {},

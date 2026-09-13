@@ -2918,6 +2918,18 @@ abstract class AppLocalizations {
   /// **'Could not load notifications: {error}'**
   String notificationsLoadFailed(Object error);
 
+  /// No description provided for @markAllNotificationsRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark all as read'**
+  String get markAllNotificationsRead;
+
+  /// No description provided for @markAllNotificationsReadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not mark all notifications as read.'**
+  String get markAllNotificationsReadFailed;
+
   /// No description provided for @adPrivacyTitle.
   ///
   /// In en, this message translates to:

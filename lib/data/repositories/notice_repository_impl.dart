@@ -35,4 +35,19 @@ class NoticeRepositoryImpl implements NoticeRepository {
       userId,
     ).doc(noticeId).update({'readAt': FieldValue.serverTimestamp()});
   }
+
+  @override
+  Future<void> markAllRead({required String userId}) async {
+    final unread = await _noticesOf(userId).where('readAt', isNull: true).get();
+    for (var offset = 0; offset < unread.docs.length; offset += 500) {
+      final end = (offset + 500).clamp(0, unread.docs.length);
+      final batch = _firestore.batch();
+      for (final notice in unread.docs.sublist(offset, end)) {
+        batch.update(notice.reference, {
+          'readAt': FieldValue.serverTimestamp(),
+        });
+      }
+      await batch.commit();
+    }
+  }
 }

@@ -1536,6 +1536,12 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get markAllNotificationsRead => '全部标为已读';
+
+  @override
+  String get markAllNotificationsReadFailed => '无法将所有通知标为已读。';
+
+  @override
   String get adPrivacyTitle => '广告隐私';
 
   @override
@@ -3380,6 +3386,12 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String notificationsLoadFailed(Object error) {
     return '无法加载通知：$error';
   }
+
+  @override
+  String get markAllNotificationsRead => '全部标为已读';
+
+  @override
+  String get markAllNotificationsReadFailed => '无法将所有通知标为已读。';
 
   @override
   String get adPrivacyTitle => '广告隐私';
@@ -5227,6 +5239,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String notificationsLoadFailed(Object error) {
     return '無法載入通知：$error';
   }
+
+  @override
+  String get markAllNotificationsRead => '全部標為已讀';
+
+  @override
+  String get markAllNotificationsReadFailed => '無法將所有通知標為已讀。';
 
   @override
   String get adPrivacyTitle => '廣告隱私權';

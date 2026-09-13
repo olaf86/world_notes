@@ -100,11 +100,81 @@ void main() {
     expect(find.text('Profile alice'), findsOneWidget);
     repository.completeMarkRead();
   });
+
+  testWidgets('requests that every unread notice be marked read', (
+    tester,
+  ) async {
+    final repository = _PendingNoticeRepository();
+    final notices = [
+      NoticeEntity(
+        id: 'unread-1',
+        category: 'system',
+        severity: 'info',
+        title: 'First',
+        body: 'First body',
+        createdAt: DateTime(2026, 9, 13),
+      ),
+      NoticeEntity(
+        id: 'already-read',
+        category: 'system',
+        severity: 'info',
+        title: 'Second',
+        body: 'Second body',
+        createdAt: DateTime(2026, 9, 12),
+        readAt: DateTime(2026, 9, 13),
+      ),
+      NoticeEntity(
+        id: 'unread-2',
+        category: 'mention',
+        severity: 'info',
+        title: 'Third',
+        body: 'Third body',
+        createdAt: DateTime(2026, 9, 11),
+      ),
+    ];
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authStateProvider.overrideWith(
+            (ref) => Stream<UserEntity?>.value(
+              const UserEntity(id: 'user-1', name: 'Test user'),
+            ),
+          ),
+          noticesProvider.overrideWith(
+            (ref) => Stream<List<NoticeEntity>>.value(notices),
+          ),
+          noticeRepositoryProvider.overrideWithValue(repository),
+        ],
+        child: MaterialApp(
+          locale: const Locale('ja'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const NoticesScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('mark-all-notices-read')));
+    await tester.pumpAndSettle();
+
+    expect(repository.markAllReadUserId, 'user-1');
+    expect(repository.markAllReadCalls, 1);
+  });
 }
 
 class _PendingNoticeRepository implements NoticeRepository {
   final _markRead = Completer<void>();
   int markReadCalls = 0;
+  int markAllReadCalls = 0;
+  String? markAllReadUserId;
+
+  @override
+  Future<void> markAllRead({required String userId}) async {
+    markAllReadCalls += 1;
+    markAllReadUserId = userId;
+  }
 
   @override
   Future<void> markRead({required String userId, required String noticeId}) {

@@ -13,14 +13,43 @@ import '../../providers/providers.dart';
 import '../../world_labels.dart';
 import '../../widgets/loading_skeleton.dart';
 
-class NoticesScreen extends ConsumerWidget {
+class NoticesScreen extends ConsumerStatefulWidget {
   const NoticesScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NoticesScreen> createState() => _NoticesScreenState();
+}
+
+class _NoticesScreenState extends ConsumerState<NoticesScreen> {
+  bool _markingAllRead = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final user = ref.watch(authStateProvider).valueOrNull;
     final noticesAsync = ref.watch(noticesProvider);
+    final unreadNotices =
+        noticesAsync.valueOrNull
+            ?.where((notice) => notice.isUnread)
+            .toList(growable: false) ??
+        const <NoticeEntity>[];
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n.navNotifications)),
+      appBar: AppBar(
+        title: Text(context.l10n.navNotifications),
+        actions: [
+          if (user != null && unreadNotices.isNotEmpty)
+            IconButton(
+              key: const ValueKey('mark-all-notices-read'),
+              tooltip: context.l10n.markAllNotificationsRead,
+              onPressed: _markingAllRead ? null : () => _markAllRead(user.id),
+              icon: _markingAllRead
+                  ? const SizedBox.square(
+                      dimension: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.done_all),
+            ),
+        ],
+      ),
       body: noticesAsync.when(
         loading: () => const SkeletonView(child: SkeletonListView()),
         error: (error, _) => Center(
@@ -52,6 +81,22 @@ class NoticesScreen extends ConsumerWidget {
               ),
       ),
     );
+  }
+
+  Future<void> _markAllRead(String userId) async {
+    if (_markingAllRead) return;
+    setState(() => _markingAllRead = true);
+    try {
+      await ref.read(noticeRepositoryProvider).markAllRead(userId: userId);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.markAllNotificationsReadFailed)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _markingAllRead = false);
+    }
   }
 
   Future<void> _openNotice(

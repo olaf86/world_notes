@@ -1555,6 +1555,12 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
+  String get markAllNotificationsRead => '모두 읽음으로 표시';
+
+  @override
+  String get markAllNotificationsReadFailed => '모든 알림을 읽음으로 표시하지 못했습니다.';
+
+  @override
   String get adPrivacyTitle => '광고 개인정보 보호';
 
   @override

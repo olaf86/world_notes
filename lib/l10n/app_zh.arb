@@ -478,6 +478,8 @@
   "pinImagePreparationFailed": "无法准备图钉图片：{error}",
   "closeAction": "关闭",
   "notificationsLoadFailed": "无法加载通知：{error}",
+  "markAllNotificationsRead": "全部标为已读",
+  "markAllNotificationsReadFailed": "无法将所有通知标为已读。",
   "adPrivacyTitle": "广告隐私",
   "managePrivacyChoices": "管理隐私选项",
   "managePrivacyChoicesDescription": "查看或更改你的信息用于广告的方式。",
