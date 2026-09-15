@@ -19,6 +19,7 @@ import {
 } from "./notificationOutbox";
 import {
   NoticeTemplateId,
+  NOTICE_SCHEMA_VERSION,
   notificationLocale,
   resolveNoticeTemplate,
 } from "./noticeTemplateCatalog";
@@ -122,7 +123,7 @@ export async function createUserNotice(
       if (existing.exists) return;
     }
     transaction.create(noticeRef, {
-      schemaVersion: 2,
+      schemaVersion: NOTICE_SCHEMA_VERSION,
       category: input.category,
       severity: input.severity,
       templateId: input.templateId,

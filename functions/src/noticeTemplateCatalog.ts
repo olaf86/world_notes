@@ -15,6 +15,10 @@ export const NOTIFICATION_LOCALES = [
 
 export type NotificationLocale = typeof NOTIFICATION_LOCALES[number];
 
+// Version 1 used top-level title/body fields. Version 2 is the first strict
+// template-backed schema and stores an immutable localized content snapshot.
+export const NOTICE_SCHEMA_VERSION = 2;
+
 export const NOTICE_TEMPLATE_IDS = {
   welcome: "welcome",
   newFollower: "newFollower",
@@ -197,25 +201,25 @@ export const NOTICE_TEMPLATE_MANIFEST: Readonly<
       "en": {
         title: "Account temporarily banned",
         body: "Your account has been temporarily banned because recent " +
-          "posts violated the community safety policy.",
+          "posts violated the community safety standards.",
       },
       "ja": {
         title: "アカウントを一時停止しました",
-        body: "最近の投稿がコミュニティ安全ポリシーに違反したため、" +
+        body: "最近の投稿がコミュニティの安全基準に抵触したため、" +
           "アカウントを一時的に停止しました。",
       },
       "ko": {
         title: "계정이 일시 정지되었습니다",
-        body: "최근 게시물이 커뮤니티 안전 정책을 위반하여 계정이 일시 " +
+        body: "최근 게시물이 커뮤니티 안전 기준을 위반하여 계정이 일시 " +
           "정지되었습니다.",
       },
       "zh-Hans": {
         title: "账号已被暂时封禁",
-        body: "由于近期发布的内容违反社区安全政策，你的账号已被暂时封禁。",
+        body: "由于近期发布的内容违反社区安全规范，你的账号已被暂时封禁。",
       },
       "zh-Hant": {
         title: "帳號已被暫時停權",
-        body: "由於近期發布的內容違反社群安全政策，你的帳號已被暫時停權。",
+        body: "由於近期發布的內容違反社群安全規範，你的帳號已被暫時停權。",
       },
     },
   }),
@@ -227,25 +231,25 @@ export const NOTICE_TEMPLATE_MANIFEST: Readonly<
       "en": {
         title: "Posting temporarily restricted",
         body: "Your account is temporarily restricted from posting because " +
-          "recent posts violated the community safety policy.",
+          "recent posts violated the community safety standards.",
       },
       "ja": {
         title: "投稿を一時的に制限しました",
-        body: "最近の投稿がコミュニティ安全ポリシーに違反したため、" +
+        body: "最近の投稿がコミュニティの安全基準に抵触したため、" +
           "投稿機能を一時的に制限しました。",
       },
       "ko": {
         title: "게시가 일시적으로 제한되었습니다",
-        body: "최근 게시물이 커뮤니티 안전 정책을 위반하여 게시 기능이 " +
+        body: "최근 게시물이 커뮤니티 안전 기준을 위반하여 게시 기능이 " +
           "일시적으로 제한되었습니다.",
       },
       "zh-Hans": {
         title: "发布功能已被暂时限制",
-        body: "由于近期发布的内容违反社区安全政策，你的发布功能已被暂时限制。",
+        body: "由于近期发布的内容违反社区安全规范，你的发布功能已被暂时限制。",
       },
       "zh-Hant": {
         title: "發布功能已被暫時限制",
-        body: "由於近期發布的內容違反社群安全政策，你的發布功能已被暫時限制。",
+        body: "由於近期發布的內容違反社群安全規範，你的發布功能已被暫時限制。",
       },
     },
   }),
@@ -255,31 +259,31 @@ export const NOTICE_TEMPLATE_MANIFEST: Readonly<
     placeholders: [],
     localizedContent: {
       "en": {
-        title: "Please review the community safety policy",
+        title: "Please review your post",
         body: "One of your posts was hidden or sent to review because it may " +
-          "violate the community safety policy. Repeated violations can lead " +
-          "to posting restrictions or a ban.",
+          "violate the community safety standards. Repeated violations can " +
+          "lead to posting restrictions or a ban.",
       },
       "ja": {
-        title: "コミュニティ安全ポリシーをご確認ください",
-        body: "投稿のひとつがコミュニティ安全ポリシーに違反している可能性が" +
+        title: "投稿内容をご確認ください",
+        body: "投稿のひとつがコミュニティの安全基準に抵触している可能性が" +
           "あるため、非表示または審査対象になりました。違反が繰り返されると、" +
           "投稿制限やアカウント停止の対象になることがあります。",
       },
       "ko": {
-        title: "커뮤니티 안전 정책을 확인해 주세요",
-        body: "게시물 중 하나가 커뮤니티 안전 정책을 위반했을 가능성이 있어 " +
+        title: "게시물 내용을 확인해 주세요",
+        body: "게시물 중 하나가 커뮤니티 안전 기준을 위반했을 가능성이 있어 " +
           "숨김 또는 검토 상태로 전환되었습니다. 위반이 반복되면 게시 제한이나 " +
           "계정 정지로 이어질 수 있습니다.",
       },
       "zh-Hans": {
-        title: "请查看社区安全政策",
-        body: "你发布的一项内容可能违反社区安全政策，因此已被隐藏或提交审核。" +
+        title: "请检查你发布的内容",
+        body: "你发布的一项内容可能违反社区安全规范，因此已被隐藏或提交审核。" +
           "多次违规可能导致发布受限或账号被封禁。",
       },
       "zh-Hant": {
-        title: "請查看社群安全政策",
-        body: "你發布的一項內容可能違反社群安全政策，因此已被隱藏或提交審查。" +
+        title: "請檢查你發布的內容",
+        body: "你發布的一項內容可能違反社群安全規範，因此已被隱藏或提交審查。" +
           "多次違規可能導致發布受限或帳號被停權。",
       },
     },
@@ -291,26 +295,26 @@ export const NOTICE_TEMPLATE_MANIFEST: Readonly<
     localizedContent: {
       "en": {
         title: "Post marked as sensitive",
-        body: "One of your posts may contain sensitive content. It remains " +
-          "available with additional safety handling.",
+        body: "One of your posts may contain sensitive content, so it will " +
+          "be shown as a sensitive post.",
       },
       "ja": {
-        title: "投稿をセンシティブとして扱います",
+        title: "投稿をセンシティブに設定しました",
         body: "投稿のひとつにセンシティブな内容が含まれる可能性があります。" +
-          "追加の安全対策を適用したうえで引き続き表示されます。",
+          "センシティブな投稿として引き続き表示されます。",
       },
       "ko": {
         title: "게시물이 민감한 콘텐츠로 표시되었습니다",
-        body: "게시물 중 하나에 민감한 내용이 포함되었을 수 있습니다. 추가 " +
-          "안전 조치를 적용한 상태로 계속 표시됩니다.",
+        body: "게시물 중 하나에 민감한 내용이 포함되었을 수 있어 민감한 " +
+          "게시물로 계속 표시됩니다.",
       },
       "zh-Hans": {
         title: "内容已标记为敏感",
-        body: "你发布的一项内容可能包含敏感信息。该内容仍会显示，但会应用额外的安全处理。",
+        body: "你发布的一项内容可能包含敏感信息，因此会继续以敏感内容形式显示。",
       },
       "zh-Hant": {
         title: "內容已標記為敏感",
-        body: "你發布的一項內容可能包含敏感資訊。該內容仍會顯示，但會套用額外的安全處理。",
+        body: "你發布的一項內容可能包含敏感資訊，因此會繼續以敏感內容形式顯示。",
       },
     },
   }),

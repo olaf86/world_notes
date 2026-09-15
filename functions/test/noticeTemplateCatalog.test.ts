@@ -6,6 +6,7 @@ import test from "node:test";
 import {Firestore, Timestamp} from "firebase-admin/firestore";
 
 import {
+  NOTICE_SCHEMA_VERSION,
   NOTICE_TEMPLATE_IDS,
   NOTICE_TEMPLATE_MANIFEST,
   NOTIFICATION_LOCALES,
@@ -15,6 +16,7 @@ import {
 } from "../src/noticeTemplateCatalog";
 
 test("manifest validates every template and app locale", () => {
+  assert.equal(NOTICE_SCHEMA_VERSION, 2);
   for (const definition of Object.values(NOTICE_TEMPLATE_MANIFEST)) {
     assert.equal(
       validateNoticeTemplateDefinition(definition).templateId,
@@ -25,6 +27,20 @@ test("manifest validates every template and app locale", () => {
       [...NOTIFICATION_LOCALES].sort(),
     );
   }
+});
+
+test("moderation copy uses safety standards and explicit labels", () => {
+  const warning = NOTICE_TEMPLATE_MANIFEST.moderationWarning.localizedContent;
+  const sensitive = NOTICE_TEMPLATE_MANIFEST.moderationSensitive
+    .localizedContent;
+
+  assert.match(warning.ja.body, /コミュニティの安全基準/);
+  assert.doesNotMatch(warning.ja.body, /ポリシー/);
+  assert.equal(sensitive.ja.title, "投稿をセンシティブに設定しました");
+  assert.match(sensitive.en.title, /marked as sensitive/);
+  assert.match(sensitive.ko.title, /표시되었습니다/);
+  assert.match(sensitive["zh-Hans"].title, /标记为敏感/);
+  assert.match(sensitive["zh-Hant"].title, /標記為敏感/);
 });
 
 test("notification locale normalizes supported Chinese tags", () => {

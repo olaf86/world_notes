@@ -159,6 +159,13 @@ localized snapshot selected from `noticeTemplates/welcome`; it is not a
 fallback. The per-user notice does not duplicate the template's other
 languages.
 
+`schemaVersion: 2` identifies the selected-language snapshot contract. Version
+1 was the previous top-level `title`/`body` shape. Because there are no external
+production users and the compatibility fallback was deliberately removed, the
+client supports version 2 only and rejects legacy documents instead of guessing
+their meaning. A future incompatible shape must increment this value and add an
+explicit migration or compatibility path before rollout.
+
 ### Copy Direction
 
 Japanese draft:
@@ -218,6 +225,13 @@ it does not need a template lookup and cannot diverge from the inbox. The
 account stores a last-resolved locale for notice creation, including when the
 language preference is `system`. An explicit language selection updates it;
 device registration refreshes it for a system-language selection.
+
+Account bootstrap receives both `languagePreference` and `resolvedLocale`.
+The former preserves whether the user follows the system or chose a language
+explicitly; the latter is the concrete locale required to create the immutable
+welcome snapshot. They coincide for an explicit language but represent
+different facts for the `system` preference, so both remain required in the
+callable contract.
 
 An immediate operator announcement uses its own template document. Before
 dispatch, an authorized operator may replace its complete multilingual content

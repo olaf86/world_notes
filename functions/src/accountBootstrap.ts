@@ -14,6 +14,7 @@ import * as logger from "firebase-functions/logger";
 import {LANGUAGE_PREFERENCES} from "./constants";
 import {
   NOTICE_TEMPLATE_IDS,
+  NOTICE_SCHEMA_VERSION,
   NotificationLocale,
   notificationLocale,
   ResolvedNoticeContent,
@@ -48,6 +49,9 @@ const ENTITLEMENT_REPLICATION_OPERATION_FIELD =
 const SAFETY_REPLICATION_OPERATION_FIELD = "safetyReplicationOperationId";
 interface AssignHomeWorldData {
   readonly homeWorld?: unknown;
+  // The durable setting (`system` or an explicit locale) and the concrete
+  // locale currently resolved by Flutter carry different information when
+  // the user follows the device language.
   readonly languagePreference?: unknown;
   readonly resolvedLocale?: unknown;
 }
@@ -283,7 +287,7 @@ async function ensureAuthorityBundle(
       initialAccountSafetyData(home.world, Timestamp.now()),
     );
     transaction.create(welcomeRef, {
-      schemaVersion: 2,
+      schemaVersion: NOTICE_SCHEMA_VERSION,
       category: "system",
       severity: "info",
       templateId: NOTICE_TEMPLATE_IDS.welcome,

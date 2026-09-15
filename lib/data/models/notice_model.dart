@@ -40,7 +40,7 @@ class NoticeModel {
     final createdAt = data['createdAt'];
     final readAt = data['readAt'];
     final content = data['content'];
-    if (data['schemaVersion'] != 2 ||
+    if (data['schemaVersion'] != currentNoticeSchemaVersion ||
         data['templateId'] is! String ||
         data['templateVersion'] is! int ||
         content is! Map ||

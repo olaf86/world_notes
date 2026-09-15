@@ -41,7 +41,7 @@ void main() {
     final repository = _PendingNoticeRepository();
     final notice = NoticeEntity(
       id: 'notice-1',
-      schemaVersion: 2,
+      schemaVersion: currentNoticeSchemaVersion,
       templateId: 'newFollower',
       templateVersion: 1,
       locale: 'en',
@@ -115,7 +115,7 @@ void main() {
     final repository = _PendingNoticeRepository();
     final notice = NoticeEntity(
       id: 'welcome',
-      schemaVersion: 2,
+      schemaVersion: currentNoticeSchemaVersion,
       templateId: 'welcome',
       templateVersion: 1,
       locale: 'ja',
@@ -165,7 +165,7 @@ void main() {
     final notices = [
       NoticeEntity(
         id: 'unread-1',
-        schemaVersion: 2,
+        schemaVersion: currentNoticeSchemaVersion,
         templateId: 'test',
         templateVersion: 1,
         locale: 'en',
@@ -177,7 +177,7 @@ void main() {
       ),
       NoticeEntity(
         id: 'already-read',
-        schemaVersion: 2,
+        schemaVersion: currentNoticeSchemaVersion,
         templateId: 'test',
         templateVersion: 1,
         locale: 'en',
@@ -190,7 +190,7 @@ void main() {
       ),
       NoticeEntity(
         id: 'unread-2',
-        schemaVersion: 2,
+        schemaVersion: currentNoticeSchemaVersion,
         templateId: 'test',
         templateVersion: 1,
         locale: 'en',

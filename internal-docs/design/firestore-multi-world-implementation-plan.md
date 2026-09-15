@@ -933,6 +933,10 @@ duplication or rewrite jobs.
 The home-world notification authority stores the last resolved notice locale.
 An explicit app-language selection updates it directly; a client using the
 `system` preference refreshes it when the resolved device locale changes.
+Account bootstrap sends both values because the preference records user intent
+while the resolved locale records the concrete language needed for the initial
+notice snapshot. In particular, `system` alone cannot identify that language
+on the server.
 Template content and finalized notice content are not query fields and must be
 excluded from single-field indexes. Adding a language requires atomically
 replacing and incrementing every affected central template before the client

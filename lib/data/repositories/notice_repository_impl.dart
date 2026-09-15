@@ -4,6 +4,8 @@ import '../../domain/entities/notice_entity.dart';
 import '../../domain/repositories/notice_repository.dart';
 import '../models/notice_model.dart';
 
+const _firestoreBatchWriteLimit = 500;
+
 class NoticeRepositoryImpl implements NoticeRepository {
   final FirebaseFirestore _firestore;
 
@@ -39,8 +41,15 @@ class NoticeRepositoryImpl implements NoticeRepository {
   @override
   Future<void> markAllRead({required String userId}) async {
     final unread = await _noticesOf(userId).where('readAt', isNull: true).get();
-    for (var offset = 0; offset < unread.docs.length; offset += 500) {
-      final end = (offset + 500).clamp(0, unread.docs.length);
+    for (
+      var offset = 0;
+      offset < unread.docs.length;
+      offset += _firestoreBatchWriteLimit
+    ) {
+      final end = (offset + _firestoreBatchWriteLimit).clamp(
+        0,
+        unread.docs.length,
+      );
       final batch = _firestore.batch();
       for (final notice in unread.docs.sublist(offset, end)) {
         batch.update(notice.reference, {

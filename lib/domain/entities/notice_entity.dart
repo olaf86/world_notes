@@ -1,3 +1,9 @@
+/// Current persisted inbox contract.
+///
+/// Version 1 stored title and body at the document root. Version 2 stores the
+/// immutable localized content snapshot together with template metadata.
+const currentNoticeSchemaVersion = 2;
+
 class NoticeEntity {
   final String id;
   final int schemaVersion;
