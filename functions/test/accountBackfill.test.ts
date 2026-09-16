@@ -185,6 +185,18 @@ test("account backfill defaults to dry-run with explicit projects", () => {
   ]);
   assert.equal(parsed.mode, "dry-run");
   assert.equal(parsed.pageSize, 100);
+  assert.equal(parsed.skipAuthOnly, false);
+});
+
+test("account backfill can preserve Auth-only accounts", () => {
+  const parsed = parseAccountBackfillArgs([
+    "--source-project", "world-notes-prod",
+    "--target-project", "world-notes-prod",
+    "--checkpoint", "/tmp/checkpoint.json",
+    "--report", "/tmp/report.json",
+    "--skip-auth-only",
+  ]);
+  assert.equal(parsed.skipAuthOnly, true);
 });
 
 test("account backfill apply requires an exact project confirmation", () => {

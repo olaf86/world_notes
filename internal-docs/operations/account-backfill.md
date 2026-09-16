@@ -22,6 +22,8 @@ The command:
 - rejects a destination projection whose revision is ahead of or conflicts
   with its Asia authority;
 - performs a second full pass up to the initial high-water time;
+- can explicitly preserve Auth-only accounts that have no Asia authority
+  document by using `--skip-auth-only`;
 - emits counts only and never logs a UID or account content;
 - performs no deletes.
 
@@ -45,6 +47,7 @@ npm run backfill:accounts -- \
   --target-project world-notes-prod \
   --checkpoint /tmp/world-notes-account-backfill-dry-run.checkpoint.json \
   --report /tmp/world-notes-account-backfill-dry-run.report.json \
+  --skip-auth-only \
   --page-size 50 \
   --max-pages 1
 ```
@@ -57,6 +60,14 @@ The first pass records the fixed high-water time. When it reaches the end of
 Auth, the command automatically starts the reconciliation pass. Completion is
 reported only after the second pass reaches the end. Aggregate totals include
 both passes by design.
+
+`--skip-auth-only` skips an Auth account only when all six Asia authority
+documents are absent. It is intended for accounts that deliberately remain
+outside the normal app bootstrap flow, such as an App Store review account.
+An account with any authority document is still reconciled so that partial
+initialization cannot be hidden by this option. The selected behavior is part
+of checkpoint compatibility; do not resume a checkpoint with different skip
+semantics.
 
 ## 2. Full dry-run acceptance
 
@@ -83,6 +94,7 @@ npm run backfill:accounts -- \
   --target-project world-notes-prod \
   --checkpoint /tmp/world-notes-account-backfill-apply.checkpoint.json \
   --report /tmp/world-notes-account-backfill-apply.report.json \
+  --skip-auth-only \
   --page-size 50 \
   --max-pages 1 \
   --apply \
@@ -104,11 +116,14 @@ npm run backfill:accounts -- \
   --target-project world-notes-prod \
   --checkpoint /tmp/world-notes-account-backfill-verify.checkpoint.json \
   --report /tmp/world-notes-account-backfill-verify.report.json \
+  --skip-auth-only \
   --page-size 50
 ```
 
 The `authorityWrites`, four `*MirrorWrites`, and `authClaimWrites` counters are
 the convergence signals and should all be zero after a successful apply.
+`skippedAuthOnly` should equal the deliberately excluded account count on each
+pass.
 
 Do not activate a new content or home world from this command. Catalog
 activation remains a separate reviewed P22 change after the post-apply report,
@@ -131,3 +146,28 @@ The migration completed against `world-notes-prod`:
 The account authority and mirror migration is therefore converged at the
 recorded high-water mark. Keep North America and Europe out of content/home
 activation until the remaining P21 inventory and activation gates pass.
+
+## Notification-locale reconciliation record — 2026-09-16
+
+The notification inbox rollout added the selected-language `noticeLocale`
+field to the Asia `users` authority document. The account backfill checkpoint
+format was advanced to version 2 so that a checkpoint completed before this
+field existed cannot silently skip the new reconciliation.
+
+The migration completed against `world-notes-prod` with `--skip-auth-only`:
+
+- five Auth accounts were listed on each pass;
+- four normal accounts were eligible and one intentional App Store review
+  account with no Asia authority documents was skipped unchanged;
+- the initial dry-run planned four Asia authority writes and no regional
+  mirror or Auth-claim writes;
+- the apply pass added `noticeLocale` to those four authority documents;
+- the apply reconciliation pass planned and performed zero further writes;
+- a separate two-pass post-apply dry-run reported zero authority, mirror, and
+  Auth-claim writes while consistently skipping the one Auth-only account;
+- no revision conflict or invalid account bundle was observed.
+
+The normal accounts are therefore converged for notification locale. Keep the
+backfill available through the notification-inbox release verification window,
+then remove the one-time command and this operational runbook in a dedicated
+cleanup change. The notice-template deployment command remains permanent.

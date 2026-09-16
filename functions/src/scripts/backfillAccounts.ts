@@ -30,7 +30,7 @@ import {
 } from "../platform/worldFirestoreProvider";
 import {WORLD_CATALOG} from "../platform/worldCatalog";
 
-const CHECKPOINT_VERSION = 1;
+const CHECKPOINT_VERSION = 2;
 const DEFAULT_PAGE_SIZE = 100;
 const MAX_PAGE_SIZE = 200;
 const MAX_UNARCHIVED_NOTES_PER_ACCOUNT = 1_000;
@@ -47,6 +47,7 @@ interface ParsedArgs {
   readonly checkpointPath: string;
   readonly reportPath: string;
   readonly mode: BackfillMode;
+  readonly skipAuthOnly: boolean;
 }
 
 interface BackfillCheckpoint {
@@ -54,6 +55,7 @@ interface BackfillCheckpoint {
   readonly sourceProject: string;
   readonly targetProject: string;
   readonly mode: BackfillMode;
+  readonly skipAuthOnly: boolean;
   readonly highWaterAt: string;
   readonly phase: BackfillPhase;
   readonly pageToken: string | null;
@@ -65,6 +67,7 @@ interface BackfillCounts {
   readonly listed: number;
   readonly eligible: number;
   readonly skippedAfterHighWater: number;
+  readonly skippedAuthOnly: number;
   readonly authorityWrites: number;
   readonly homeMirrorWrites: number;
   readonly profileMirrorWrites: number;
@@ -95,6 +98,7 @@ function usage(): string {
     "    --apply --confirm-project <id>",
     "",
     "Optional: --page-size 1..200 --max-pages <positive integer>",
+    "          --skip-auth-only",
     "Default mode is read-only dry-run.",
     "Source and target must currently match.",
   ].join("\n");
@@ -110,6 +114,7 @@ export function parseAccountBackfillArgs(
   let pageSize = DEFAULT_PAGE_SIZE;
   let maxPages: number | null = null;
   let apply = false;
+  let skipAuthOnly = false;
   let confirmProject: string | null = null;
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
@@ -127,6 +132,8 @@ export function parseAccountBackfillArgs(
       maxPages = Number(argv[++index]);
     } else if (argument === "--apply") {
       apply = true;
+    } else if (argument === "--skip-auth-only") {
+      skipAuthOnly = true;
     } else if (argument === "--confirm-project") {
       confirmProject = argv[++index] ?? null;
     } else {
@@ -170,6 +177,7 @@ export function parseAccountBackfillArgs(
     checkpointPath,
     reportPath,
     mode: apply ? "apply" : "dry-run",
+    skipAuthOnly,
   });
 }
 
@@ -189,6 +197,7 @@ function emptyCounts(): BackfillCounts {
     listed: 0,
     eligible: 0,
     skippedAfterHighWater: 0,
+    skippedAuthOnly: 0,
     authorityWrites: 0,
     homeMirrorWrites: 0,
     profileMirrorWrites: 0,
@@ -224,6 +233,7 @@ async function readCheckpoint(
         sourceProject: args.sourceProject,
         targetProject: args.targetProject,
         mode: args.mode,
+        skipAuthOnly: args.skipAuthOnly,
         highWaterAt: new Date().toISOString(),
         phase: "scan",
         pageToken: null,
@@ -236,7 +246,9 @@ async function readCheckpoint(
   if (!isRecord(parsed) || parsed.version !== CHECKPOINT_VERSION ||
       parsed.sourceProject !== args.sourceProject ||
       parsed.targetProject !== args.targetProject ||
-      parsed.mode !== args.mode || typeof parsed.highWaterAt !== "string" ||
+      parsed.mode !== args.mode ||
+      parsed.skipAuthOnly !== args.skipAuthOnly ||
+      typeof parsed.highWaterAt !== "string" ||
       !isPhase(parsed.phase) ||
       (parsed.pageToken !== null && typeof parsed.pageToken !== "string") ||
       !Number.isSafeInteger(parsed.completedPages) ||
@@ -323,7 +335,8 @@ async function loadSourceAccount(
   firestore: Firestore,
   authUser: UserRecord,
   now: Timestamp,
-): Promise<AccountSource> {
+  skipAuthOnly: boolean,
+): Promise<AccountSource | null> {
   const uid = authUser.uid;
   const refs = [
     firestore.collection("userHomes").doc(uid),
@@ -333,11 +346,11 @@ async function loadSourceAccount(
     firestore.collection("userUsage").doc(uid),
     firestore.collection("accountSafety").doc(uid),
   ] as const;
-  const activePlacesQuery = unarchivedPlacesQuery(firestore, uid);
-  const [documents, activePlaces] = await Promise.all([
-    firestore.getAll(...refs),
-    activePlacesQuery.get(),
-  ]);
+  const documents = await firestore.getAll(...refs);
+  if (skipAuthOnly && documents.every((document) => !document.exists)) {
+    return null;
+  }
+  const activePlaces = await unarchivedPlacesQuery(firestore, uid).get();
   return accountSourceFromSnapshots(authUser, now, documents, activePlaces);
 }
 
@@ -400,7 +413,8 @@ function accountSourceFromSnapshots(
 async function writeAuthorityBundle(
   firestore: Firestore,
   authUser: UserRecord,
-): Promise<AccountSource> {
+  skipAuthOnly: boolean,
+): Promise<AccountSource | null> {
   return firestore.runTransaction(async (transaction) => {
     const uid = authUser.uid;
     const refs = {
@@ -411,7 +425,7 @@ async function writeAuthorityBundle(
       usage: firestore.collection("userUsage").doc(uid),
       safety: firestore.collection("accountSafety").doc(uid),
     };
-    const [home, user, profile, entitlement, usage, safety, activePlaces] =
+    const [home, user, profile, entitlement, usage, safety] =
       await Promise.all([
         transaction.get(refs.home),
         transaction.get(refs.user),
@@ -419,8 +433,16 @@ async function writeAuthorityBundle(
         transaction.get(refs.entitlement),
         transaction.get(refs.usage),
         transaction.get(refs.safety),
-        transaction.get(unarchivedPlacesQuery(firestore, uid)),
       ]);
+    if (skipAuthOnly &&
+        [home, user, profile, entitlement, usage, safety].every(
+          (document) => !document.exists,
+        )) {
+      return null;
+    }
+    const activePlaces = await transaction.get(
+      unarchivedPlacesQuery(firestore, uid),
+    );
     const source = accountSourceFromSnapshots(
       authUser,
       Timestamp.now(),
@@ -553,14 +575,19 @@ async function processAccount(
   auth: Auth,
   authUser: UserRecord,
   mode: BackfillMode,
+  skipAuthOnly: boolean,
 ): Promise<BackfillCounts> {
   const source = mode === "apply" ?
-    await writeAuthorityBundle(sourceFirestore, authUser) :
+    await writeAuthorityBundle(sourceFirestore, authUser, skipAuthOnly) :
     await loadSourceAccount(
       sourceFirestore,
       authUser,
       Timestamp.now(),
+      skipAuthOnly,
     );
+  if (source === null) {
+    return Object.freeze({...emptyCounts(), skippedAuthOnly: 1});
+  }
   let counts: BackfillCounts = Object.freeze({
     ...emptyCounts(),
     eligible: 1,
@@ -632,6 +659,7 @@ async function writeProgress(
     sourceProject: checkpoint.sourceProject,
     targetProject: checkpoint.targetProject,
     mode: checkpoint.mode,
+    skipAuthOnly: checkpoint.skipAuthOnly,
     highWaterAt: checkpoint.highWaterAt,
     phase: checkpoint.phase,
     completedPages: checkpoint.completedPages,
@@ -691,6 +719,7 @@ async function main(): Promise<void> {
           auth,
           authUser,
           args.mode,
+          args.skipAuthOnly,
         ));
       }
       checkpoint = nextCheckpoint(
