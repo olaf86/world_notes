@@ -16,7 +16,7 @@ import {
 } from "../src/noticeTemplateCatalog";
 
 test("manifest validates every template and app locale", () => {
-  assert.equal(NOTICE_SCHEMA_VERSION, 2);
+  assert.equal(NOTICE_SCHEMA_VERSION, 1);
   for (const definition of Object.values(NOTICE_TEMPLATE_MANIFEST)) {
     assert.equal(
       validateNoticeTemplateDefinition(definition).templateId,

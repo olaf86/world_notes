@@ -909,7 +909,7 @@ noticeTemplates/{templateId}
   localizedContent: map<locale, {title, body}>
 
 users/{uid}/notices/{noticeId}
-  schemaVersion: 2
+  schemaVersion: 1
   templateId: string
   templateVersion: number
   content: {locale, title, body}

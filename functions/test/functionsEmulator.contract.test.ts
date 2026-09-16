@@ -284,7 +284,7 @@ describe(
       assert.equal(safety.get("violationPoints"), 0);
       assert.equal(safety.get("revision"), 2);
       assert.equal(safety.get("authorityWorld"), "asia");
-      assert.equal(welcome.get("schemaVersion"), 2);
+      assert.equal(welcome.get("schemaVersion"), 1);
       assert.equal(welcome.get("templateId"), "welcome");
       assert.equal(welcome.get("templateVersion"), 1);
       assert.equal(welcome.get("content.locale"), "ja");

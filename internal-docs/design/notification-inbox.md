@@ -136,7 +136,7 @@ Suggested fields:
 
 ```text
 users/{uid}/notices/welcome
-  schemaVersion: 2
+  schemaVersion: 1
   category: "system"
   severity: "info"
   templateId: "welcome"
@@ -159,11 +159,12 @@ localized snapshot selected from `noticeTemplates/welcome`; it is not a
 fallback. The per-user notice does not duplicate the template's other
 languages.
 
-`schemaVersion: 2` identifies the selected-language snapshot contract. Version
-1 was the previous top-level `title`/`body` shape. Because there are no external
-production users and the compatibility fallback was deliberately removed, the
-client supports version 2 only and rejects legacy documents instead of guessing
-their meaning. A future incompatible shape must increment this value and add an
+`schemaVersion: 1` identifies the selected-language snapshot contract. Earlier
+top-level `title`/`body` documents were development data created before schema
+versioning and are not a published version 1 contract. Because there are no
+external production users and the compatibility fallback was deliberately
+removed, the client rejects those legacy documents instead of guessing their
+meaning. A future incompatible shape must increment this value and add an
 explicit migration or compatibility path before rollout.
 
 ### Copy Direction
@@ -304,8 +305,8 @@ producers now instead of maintaining a compatibility period:
 5. expand locale handling from the current English/Japanese subset to every
    app locale and persist the account's last-resolved locale;
 6. update the Flutter entity/model and strict Firestore validator for the
-   version-2 fields;
-7. migrate retained development notices to `schemaVersion: 2`, then verify no
+   version-1 fields;
+7. migrate retained development notices to `schemaVersion: 1`, then verify no
    legacy notification documents remain before removing legacy parsing;
 8. exempt master and finalized content fields from single-field indexing.
 
@@ -315,7 +316,7 @@ producers now instead of maintaining a compatibility period:
 2. Migrate follower and administrator-invitation navigation to explicit
    actions, fixing the current invitation inbox route.
 3. Create the versioned Firestore template masters and migrate every existing
-   producer and consumer to the version-2 selected-language snapshot schema.
+   producer and consumer to the version-1 selected-language snapshot schema.
 4. Create the deterministic `welcome` notice atomically during new-account
    bootstrap.
 5. Verify unread badge behavior from one unread welcome notice through opening

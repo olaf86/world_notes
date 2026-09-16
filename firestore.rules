@@ -318,8 +318,8 @@ service cloud.firestore {
         allow create: if false;
         allow update: if isCurrentUser(uid)
                       && hasReadyAccount()
-                      && resource.data.schemaVersion == 2
-                      && request.resource.data.schemaVersion == 2
+                      && resource.data.schemaVersion == 1
+                      && request.resource.data.schemaVersion == 1
                       && request.resource.data.diff(resource.data)
                           .affectedKeys()
                           .hasOnly(['readAt'])

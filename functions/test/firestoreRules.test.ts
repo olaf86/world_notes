@@ -1413,7 +1413,7 @@ function validAccountSafety(
 /** Creates a valid owner-readable notice. */
 function validNotice(): firebase.firestore.DocumentData {
   return {
-    schemaVersion: 2,
+    schemaVersion: 1,
     category: "account",
     severity: "info",
     templateId: "welcome",

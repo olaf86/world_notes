@@ -15,9 +15,9 @@ export const NOTIFICATION_LOCALES = [
 
 export type NotificationLocale = typeof NOTIFICATION_LOCALES[number];
 
-// Version 1 used top-level title/body fields. Version 2 is the first strict
-// template-backed schema and stores an immutable localized content snapshot.
-export const NOTICE_SCHEMA_VERSION = 2;
+// This template-backed, immutable localized snapshot is the first versioned
+// inbox contract. Earlier development documents predate schema versioning.
+export const NOTICE_SCHEMA_VERSION = 1;
 
 export const NOTICE_TEMPLATE_IDS = {
   welcome: "welcome",
