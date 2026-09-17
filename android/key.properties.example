@@ -1,0 +1,7 @@
+# Copy to android/key.properties to use an existing upload keystore for local
+# Flutter release builds. This file is only a template; never put real
+# passwords in a tracked file.
+storeFile=/absolute/path/to/world-notes-upload.jks
+storePassword=replace-with-a-strong-password
+keyAlias=world-notes-upload
+keyPassword=replace-with-a-strong-password
