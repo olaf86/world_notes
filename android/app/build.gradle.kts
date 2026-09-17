@@ -42,6 +42,13 @@ val bannerAdUnitId = dartDefine("BANNER_AD_UNIT_ID")
 val interstitialAdUnitId = dartDefine("INTERSTITIAL_AD_UNIT_ID")
     ?: System.getenv("ADMOB_ANDROID_INTERSTITIAL_AD_UNIT_ID_PROD")?.takeIf { it.isNotBlank() }
     ?: ""
+val adsMode = dartDefine("ADS_MODE")?.lowercase() ?: "auto"
+val validAdsModes = setOf("auto", "test", "production")
+if (adsMode !in validAdsModes) {
+    throw GradleException(
+        "Invalid ADS_MODE: $adsMode. Expected one of: ${validAdsModes.joinToString()}.",
+    )
+}
 
 val releaseSigningProperties = Properties()
 val releaseSigningPropertiesFile = rootProject.file("key.properties")
@@ -88,15 +95,22 @@ val releaseSigningValues =
 val hasCompleteReleaseSigning = releaseSigningValues.values.all { !it.isNullOrBlank() }
 val releaseBuildRequested =
     gradle.startParameter.taskNames.any { it.contains("release", ignoreCase = true) }
+val useProductionAds = adsMode == "production" || (adsMode == "auto" && releaseBuildRequested)
 
 val releaseRuntimeValues =
     mapOf(
         "GOOGLE_MAPS_API_KEY" to googleMapsApiKey,
         "REVENUECAT_API_KEY_ANDROID" to revenueCatApiKeyAndroid,
-        "ADMOB_ANDROID_APP_ID_PROD" to admobAndroidAppId,
-        "BANNER_AD_UNIT_ID" to bannerAdUnitId,
-        "INTERSTITIAL_AD_UNIT_ID" to interstitialAdUnitId,
-    )
+    ) +
+        if (useProductionAds) {
+            mapOf(
+                "ADMOB_ANDROID_APP_ID_PROD" to admobAndroidAppId,
+                "BANNER_AD_UNIT_ID" to bannerAdUnitId,
+                "INTERSTITIAL_AD_UNIT_ID" to interstitialAdUnitId,
+            )
+        } else {
+            emptyMap()
+        }
 
 if (releaseBuildRequested) {
     val missingRuntimeValues =
@@ -180,8 +194,11 @@ android {
                 signingConfig = signingConfigs.getByName("release")
             }
             manifestPlaceholders["admobAppId"] =
-                admobAndroidAppId.takeIf { it.isNotBlank() }
-                    ?: "ca-app-pub-3940256099942544~3347511713"
+                if (useProductionAds) {
+                    admobAndroidAppId
+                } else {
+                    "ca-app-pub-3940256099942544~3347511713"
+                }
         }
     }
 }

@@ -48,7 +48,8 @@ file or attach it to an issue or chat.
 ## Build locally
 
 Copy the tracked template to the ignored local configuration and replace every
-placeholder with the Android production value:
+placeholder with the Android production value. Set `ADS_MODE` to `test` for an
+internal/closed-test AAB or `production` only for a production AAB:
 
 ```bash
 cp .dart_define.example.json .dart_define.json
@@ -57,9 +58,10 @@ flutter build appbundle --release \
 ```
 
 The output is `build/app/outputs/bundle/release/app-release.aab`.
-Release builds fail before compilation if signing or any production runtime
-value is missing. Android Studio's signed-bundle wizard is therefore for the
-one-time key setup; use the Flutter command above for the uploadable bundle.
+Release builds fail before compilation if signing, Maps, or RevenueCat runtime
+configuration is missing. Production-ad builds additionally require every
+AdMob production value. Android Studio's signed-bundle wizard is therefore for
+the one-time key setup; use the Flutter command above for the uploadable bundle.
 
 ## Configure GitHub Actions
 
@@ -82,16 +84,28 @@ GitHub Actions secret:
 base64 < ~/.android/keystores/world-notes-upload.jks | tr -d '\n'
 ```
 
-The workflow validates every required secret before building, restores the
-keystore under the runner's temporary directory, runs analysis and tests, and
-uploads the signed AAB as a short-lived build artifact. It does not publish to
-Google Play automatically.
+When starting the workflow, choose the ad serving mode:
+
+- `test` (default) builds the internal/closed-test AAB with Google's sample
+  AdMob app and ad-unit IDs. Maps and RevenueCat still use their real Android
+  configuration.
+- `production` builds an AAB with the production AdMob app and ad-unit IDs.
+
+The workflow validates the required secrets for the selected mode, restores
+the keystore under the runner's temporary directory, runs analysis and tests,
+and uploads the signed AAB as a short-lived build artifact. It does not publish
+to Google Play automatically. A test-ad AAB must not be promoted to production;
+build a new AAB with `ADS_MODE=production` and a higher version code. The CI
+artifact and AAB filenames include `test-ads` or `production-ads` to make the
+selected mode visible before uploading it.
 
 ## First Play upload
 
-Upload the signed AAB to the internal-test release page. Do not roll the first
-release out until Play Console finishes its automated checks and the installed
-build has the required runtime configuration.
+Run the workflow with `ads_mode=test`, then upload the signed AAB to the
+internal-test release page. Confirm that banners and interstitials display a
+**Test Ad** label. Do not roll the first release out until Play Console finishes
+its automated checks and the installed build has the required runtime
+configuration.
 
 After Play App Signing is active, copy the Play-managed signing certificate
 fingerprints into Firebase Authentication, the restricted Google Maps key, and

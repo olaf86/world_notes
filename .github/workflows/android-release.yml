@@ -2,6 +2,15 @@ name: Android release AAB
 
 on:
   workflow_dispatch:
+    inputs:
+      ads_mode:
+        description: Ad serving mode for this AAB
+        required: true
+        type: choice
+        options:
+          - test
+          - production
+        default: test
 
 permissions:
   contents: read
@@ -26,6 +35,7 @@ jobs:
       ADMOB_ANDROID_APP_ID_PROD: ${{ secrets.ADMOB_ANDROID_APP_ID_PROD }}
       ADMOB_ANDROID_BANNER_AD_UNIT_ID_PROD: ${{ secrets.ADMOB_ANDROID_BANNER_AD_UNIT_ID_PROD }}
       ADMOB_ANDROID_INTERSTITIAL_AD_UNIT_ID_PROD: ${{ secrets.ADMOB_ANDROID_INTERSTITIAL_AD_UNIT_ID_PROD }}
+      ADS_MODE: ${{ inputs.ads_mode }}
 
     steps:
       - name: Checkout
@@ -56,10 +66,14 @@ jobs:
             ANDROID_KEY_PASSWORD
             GOOGLE_MAPS_API_KEY
             REVENUECAT_API_KEY_ANDROID
-            ADMOB_ANDROID_APP_ID_PROD
-            ADMOB_ANDROID_BANNER_AD_UNIT_ID_PROD
-            ADMOB_ANDROID_INTERSTITIAL_AD_UNIT_ID_PROD
           )
+          if [[ "${ADS_MODE}" == "production" ]]; then
+            required_names+=(
+              ADMOB_ANDROID_APP_ID_PROD
+              ADMOB_ANDROID_BANNER_AD_UNIT_ID_PROD
+              ADMOB_ANDROID_INTERSTITIAL_AD_UNIT_ID_PROD
+            )
+          fi
           for required_name in "${required_names[@]}"; do
             if [[ -z "${!required_name:-}" ]]; then
               echo "::error::Missing required GitHub Actions secret: ${required_name}"
@@ -89,14 +103,21 @@ jobs:
           flutter build appbundle --release
           --dart-define=GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}
           --dart-define=REVENUECAT_API_KEY_ANDROID=${REVENUECAT_API_KEY_ANDROID}
+          --dart-define=ADS_MODE=${ADS_MODE}
           --dart-define=ADMOB_ANDROID_APP_ID_PROD=${ADMOB_ANDROID_APP_ID_PROD}
           --dart-define=BANNER_AD_UNIT_ID=${ADMOB_ANDROID_BANNER_AD_UNIT_ID_PROD}
           --dart-define=INTERSTITIAL_AD_UNIT_ID=${ADMOB_ANDROID_INTERSTITIAL_AD_UNIT_ID_PROD}
 
+      - name: Label signed AAB with its ad mode
+        shell: bash
+        run: >-
+          mv build/app/outputs/bundle/release/app-release.aab
+          build/app/outputs/bundle/release/world-notes-${ADS_MODE}-ads-release.aab
+
       - name: Upload signed AAB
         uses: actions/upload-artifact@v7
         with:
-          name: world-notes-release-aab
-          path: build/app/outputs/bundle/release/app-release.aab
+          name: world-notes-${{ inputs.ads_mode }}-ads-release-aab
+          path: build/app/outputs/bundle/release/world-notes-${{ inputs.ads_mode }}-ads-release.aab
           if-no-files-found: error
           retention-days: 14
