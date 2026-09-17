@@ -51,6 +51,34 @@ void main() {
     );
   });
 
+  test('explicit test mode keeps test ads in a release build', () {
+    expect(
+      AppConfig.useProductionAdsFor(adsMode: 'test', isReleaseMode: true),
+      isFalse,
+    );
+  });
+
+  test('explicit production mode enables production ads', () {
+    expect(
+      AppConfig.useProductionAdsFor(
+        adsMode: 'production',
+        isReleaseMode: false,
+      ),
+      isTrue,
+    );
+  });
+
+  test('auto mode preserves the existing build-mode behavior', () {
+    expect(
+      AppConfig.useProductionAdsFor(adsMode: 'auto', isReleaseMode: true),
+      isTrue,
+    );
+    expect(
+      AppConfig.useProductionAdsFor(adsMode: 'auto', isReleaseMode: false),
+      isFalse,
+    );
+  });
+
   test('release builds never fall back to a demo ad unit', () {
     expect(
       AppConfig.interstitialAdUnitIdFor(

@@ -18,6 +18,10 @@ class AppConfig {
     'INTERSTITIAL_AD_UNIT_ID',
     defaultValue: '',
   );
+  static const String _adsMode = String.fromEnvironment(
+    'ADS_MODE',
+    defaultValue: 'auto',
+  );
   static const String androidTestBannerAdUnitId =
       'ca-app-pub-3940256099942544/6300978111';
   static const String iosTestBannerAdUnitId =
@@ -64,7 +68,10 @@ class AppConfig {
   static String get bannerAdUnitId {
     return bannerAdUnitIdFor(
       platform: defaultTargetPlatform,
-      useProductionAds: kReleaseMode,
+      useProductionAds: useProductionAdsFor(
+        adsMode: _adsMode,
+        isReleaseMode: kReleaseMode,
+      ),
       productionAdUnitId: _bannerAdUnitIdOverride,
     );
   }
@@ -72,9 +79,26 @@ class AppConfig {
   static String get interstitialAdUnitId {
     return interstitialAdUnitIdFor(
       platform: defaultTargetPlatform,
-      useProductionAds: kReleaseMode,
+      useProductionAds: useProductionAdsFor(
+        adsMode: _adsMode,
+        isReleaseMode: kReleaseMode,
+      ),
       productionAdUnitId: _interstitialAdUnitIdOverride,
     );
+  }
+
+  /// Keeps ad serving independent from Flutter's build mode. Internal-test
+  /// AABs are release builds but should still use Google's sample ad units.
+  static bool useProductionAdsFor({
+    required String adsMode,
+    required bool isReleaseMode,
+  }) {
+    return switch (adsMode) {
+      'test' => false,
+      'production' => true,
+      'auto' => isReleaseMode,
+      _ => false,
+    };
   }
 
   static String bannerAdUnitIdFor({
@@ -103,8 +127,8 @@ class AppConfig {
     };
   }
 
-  /// Release builds never fall back to Google's demo units. CI must inject
-  /// both production unit IDs before ads are enabled.
+  /// Production-ad builds never fall back to Google's demo units. CI must
+  /// inject both production unit IDs before production ads are enabled.
   static bool get hasRequiredAdUnitIds =>
       bannerAdUnitId.isNotEmpty && interstitialAdUnitId.isNotEmpty;
 
