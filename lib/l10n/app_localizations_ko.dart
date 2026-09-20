@@ -1114,7 +1114,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get legalConsentIntro =>
-      '게시하거나 교류하기 전에 세계 일기의 운영 원칙을 확인하고 한 번만 동의해 주세요.';
+      '세계 일기는 만 13세 이상만 이용할 수 있습니다. 만 18세 미만인 경우 부모 또는 법정대리인의 사전 동의를 받고 게시나 교류 전에 규칙을 확인해 주세요.';
 
   @override
   String get legalConsentCommunityHighlight =>

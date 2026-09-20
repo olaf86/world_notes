@@ -1200,7 +1200,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get legalConsentIntro =>
-      'Please review how World Notes works and agree once before you post or interact.';
+      'You must be at least 13 to use World Notes. If you are under 18, obtain prior consent from your parent or legal guardian, then review these rules before posting or interacting.';
 
   @override
   String get legalConsentCommunityHighlight =>

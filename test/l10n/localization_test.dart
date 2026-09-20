@@ -84,6 +84,11 @@ void main() {
             reason: locale.toLanguageTag(),
           );
         }
+        expect(
+          l10n.legalConsentIntro,
+          allOf(contains('13'), contains('18')),
+          reason: locale.toLanguageTag(),
+        );
         for (final preference in AppLanguagePreference.values) {
           expect(
             preference.localizedLabel(l10n),

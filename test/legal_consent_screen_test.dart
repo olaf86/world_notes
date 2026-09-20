@@ -9,7 +9,6 @@ import 'package:world_notes/domain/entities/legal_acceptance.dart';
 import 'package:world_notes/domain/entities/user_entity.dart';
 import 'package:world_notes/domain/repositories/legal_acceptance_repository.dart';
 import 'package:world_notes/l10n/app_localizations.dart';
-import 'package:world_notes/l10n/app_locale.dart';
 import 'package:world_notes/presentation/providers/providers.dart';
 import 'package:world_notes/presentation/screens/auth/legal_consent_screen.dart';
 import 'package:world_notes/services/account_bootstrap_service.dart';
@@ -66,6 +65,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Before you continue'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Terms of Service'), 300);
     expect(find.text('Terms of Service'), findsOneWidget);
     expect(find.text('Apple Standard EULA'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('Agree and continue'), 300);

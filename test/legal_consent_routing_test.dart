@@ -6,7 +6,6 @@ import 'package:world_notes/config/bootstrap_world_catalog.dart';
 import 'package:world_notes/config/router.dart';
 import 'package:world_notes/domain/entities/legal_acceptance.dart';
 import 'package:world_notes/domain/entities/user_entity.dart';
-import 'package:world_notes/l10n/app_locale.dart';
 import 'package:world_notes/l10n/app_localizations.dart';
 import 'package:world_notes/presentation/providers/providers.dart';
 import 'package:world_notes/services/account_bootstrap_service.dart';

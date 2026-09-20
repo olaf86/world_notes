@@ -2099,7 +2099,7 @@ abstract class AppLocalizations {
   /// No description provided for @legalConsentIntro.
   ///
   /// In en, this message translates to:
-  /// **'Please review how World Notes works and agree once before you post or interact.'**
+  /// **'You must be at least 13 to use World Notes. If you are under 18, obtain prior consent from your parent or legal guardian, then review these rules before posting or interacting.'**
   String get legalConsentIntro;
 
   /// No description provided for @legalConsentCommunityHighlight.

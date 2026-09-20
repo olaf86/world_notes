@@ -150,6 +150,31 @@ void main() {
         ),
       );
     });
+
+    test('publish the same minimum-age policy in every legal language', () {
+      for (final marker in [
+        '13歳以上',
+        'at least 13 years',
+        '만 13세 이상',
+        '年满13周岁',
+        '年滿13歲',
+      ]) {
+        expect(termsPage, contains(marker));
+      }
+      for (final marker in [
+        '13歳未満',
+        'under 13',
+        '만 13세 미만',
+        '未满13周岁',
+        '未滿13歲',
+      ]) {
+        expect(privacyPage, contains(marker));
+      }
+      for (final marker in ['18歳未満', 'under 18', '18세 미만', '未满18周岁', '未滿18歲']) {
+        expect(termsPage, contains(marker));
+        expect(privacyPage, contains(marker));
+      }
+    });
   });
 }
 

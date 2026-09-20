@@ -1113,7 +1113,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get legalConsentIntro =>
-      '投稿や交流を始める前に、セカイノートのルールをご確認のうえ、一度だけ同意をお願いします。';
+      '本サービスは13歳以上の方が対象です。18歳未満の方は法定代理人の事前同意を得て、投稿や交流を始める前にルールをご確認ください。';
 
   @override
   String get legalConsentCommunityHighlight =>
