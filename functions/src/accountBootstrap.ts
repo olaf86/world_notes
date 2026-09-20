@@ -37,6 +37,11 @@ import {
   executeAccountSafetyEvent,
   initialAccountSafetyData,
 } from "./accountSafety";
+import {
+  LegalAcceptanceInput,
+  legalAcceptanceFields,
+  legalAcceptanceFrom,
+} from "./legalPolicy";
 
 const HOME_EPOCH = 1;
 const MAX_DISPLAY_NAME_LENGTH = 20;
@@ -54,6 +59,9 @@ interface AssignHomeWorldData {
   // the user follows the device language.
   readonly languagePreference?: unknown;
   readonly resolvedLocale?: unknown;
+  readonly serviceTermsVersion?: unknown;
+  readonly privacyPolicyVersion?: unknown;
+  readonly legalAcceptanceLocale?: unknown;
 }
 
 interface HomeAssignmentData {
@@ -99,6 +107,7 @@ export const assignHomeWorld = onCall<AssignHomeWorldData>(
       request.data?.resolvedLocale,
       languagePreference,
     );
+    const legalAcceptance = legalAcceptanceFrom(request.data, true);
     const auth = getAuth();
     const authUser = await auth.getUser(uid);
     const directory = asiaWorldContext().firestore;
@@ -130,6 +139,7 @@ export const assignHomeWorld = onCall<AssignHomeWorldData>(
       languagePreference,
       noticeLocale,
       welcome,
+      legalAcceptance,
     );
 
     await Promise.all([
@@ -227,6 +237,7 @@ async function ensureAuthorityBundle(
     version: number;
     content: ResolvedNoticeContent;
   }>,
+  legalAcceptance: LegalAcceptanceInput | null,
 ): Promise<{readonly isPremium: boolean}> {
   const homeRef = authority.collection("userHomes").doc(uid);
   const userRef = authority.collection("users").doc(uid);
@@ -277,7 +288,12 @@ async function ensureAuthorityBundle(
     if (!homeSnapshot.exists) transaction.create(homeRef, home);
     transaction.create(
       userRef,
-      privateUserData(authUser, languagePreference, noticeLocale),
+      privateUserData(
+        authUser,
+        languagePreference,
+        noticeLocale,
+        legalAcceptance,
+      ),
     );
     transaction.create(profileRef, publicProfileData(authUser));
     transaction.create(entitlementRef, entitlementData());
@@ -457,6 +473,7 @@ function privateUserData(
   authUser: UserRecord,
   languagePreference: string,
   noticeLocale: NotificationLocale,
+  legalAcceptance: LegalAcceptanceInput | null,
 ): Record<string, unknown> {
   return {
     displayName: displayNameOf(authUser),
@@ -465,6 +482,10 @@ function privateUserData(
     languagePreference,
     languagePreferenceRevision: 0,
     noticeLocale,
+    ...(legalAcceptance === null ? {} : legalAcceptanceFields(
+      legalAcceptance,
+      FieldValue.serverTimestamp(),
+    )),
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   };

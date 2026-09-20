@@ -12,6 +12,7 @@ import {
   createAdminWorldFirestoreClient,
   DEFAULT_FIRESTORE_DATABASE_ID,
 } from "../platform/worldFirestoreProvider";
+import {legalAcceptanceFields} from "../legalPolicy";
 
 const projectId = process.env.GCLOUD_PROJECT || "world-notes-prod";
 process.env.FIREBASE_AUTH_EMULATOR_HOST =
@@ -317,6 +318,7 @@ async function seedAccountBundle(
     languagePreference: "system",
     languagePreferenceRevision: 0,
     noticeLocale: "ja",
+    ...legalAcceptanceFields({locale: "ja"}, FieldValue.serverTimestamp()),
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });

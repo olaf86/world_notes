@@ -70,6 +70,11 @@ void main() {
           l10n.deleteAccountWarning,
           l10n.deleteAccountSubscriptionWarning,
           l10n.privacyPolicy,
+          l10n.serviceTerms,
+          l10n.appleStandardEula,
+          l10n.legalConsentTitle,
+          l10n.legalConsentAgreement,
+          l10n.legalConsentContinue,
           l10n.termsOfUseEula,
           l10n.legalLinkOpenFailed,
         ]) {
@@ -227,17 +232,15 @@ void main() {
 
     test('notice locale tags resolve explicit and system preferences', () {
       expect(
-        resolvedNoticeLocaleTag(
-          AppLanguagePreference.japanese,
-          const [Locale('en')],
-        ),
+        resolvedNoticeLocaleTag(AppLanguagePreference.japanese, const [
+          Locale('en'),
+        ]),
         'ja',
       );
       expect(
-        resolvedNoticeLocaleTag(
-          AppLanguagePreference.system,
-          const [Locale('zh', 'TW')],
-        ),
+        resolvedNoticeLocaleTag(AppLanguagePreference.system, const [
+          Locale('zh', 'TW'),
+        ]),
         'zh-Hant',
       );
       expect(noticeLocaleTag(const Locale('fr')), 'en');

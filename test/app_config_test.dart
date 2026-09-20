@@ -127,12 +127,17 @@ void main() {
 
   test('uses public HTTPS links for subscription legal documents', () {
     final privacy = Uri.parse(AppConfig.privacyPolicyUrl);
-    final terms = Uri.parse(AppConfig.termsOfUseUrl);
+    final serviceTerms = Uri.parse(AppConfig.serviceTermsUrl);
+    final appleEula = Uri.parse(AppConfig.appleStandardEulaUrl);
 
     expect(privacy.scheme, 'https');
     expect(privacy.host, 'worldnotes.asobo.dev');
-    expect(terms.scheme, 'https');
-    expect(terms.host, 'www.apple.com');
+    expect(serviceTerms.scheme, 'https');
+    expect(serviceTerms.host, 'worldnotes.asobo.dev');
+    expect(serviceTerms.path, '/terms/');
+    expect(appleEula.scheme, 'https');
+    expect(appleEula.host, 'www.apple.com');
+    expect(AppConfig.termsOfUseUrl, AppConfig.appleStandardEulaUrl);
   });
 
   test('backs off banner retries and caps the delay', () {

@@ -1101,6 +1101,44 @@ class AppLocalizationsKo extends AppLocalizations {
   String get privacyPolicy => '개인정보 처리방침';
 
   @override
+  String get serviceTerms => '서비스 이용약관';
+
+  @override
+  String get appleStandardEula => 'Apple 표준 EULA';
+
+  @override
+  String get legalDocumentsTitle => '법적 정보';
+
+  @override
+  String get legalConsentTitle => '계속하기 전에';
+
+  @override
+  String get legalConsentIntro =>
+      '게시하거나 교류하기 전에 세계 일기의 운영 원칙을 확인하고 한 번만 동의해 주세요.';
+
+  @override
+  String get legalConsentCommunityHighlight =>
+      '다른 사용자를 존중하고 불법·유해·모욕적이거나 타인의 권리를 침해하는 콘텐츠를 게시하지 마세요.';
+
+  @override
+  String get legalConsentLocationHighlight =>
+      '장소와 연결된 게시물은 위치를 드러낼 수 있습니다. 안전과 사유지를 존중하고 게시 전 공개 범위를 확인하세요.';
+
+  @override
+  String get legalConsentModerationHighlight =>
+      '부적절한 콘텐츠를 신고하고 사용자를 차단할 수 있습니다. 커뮤니티 안전을 위해 콘텐츠 삭제나 계정 제한이 이루어질 수 있습니다.';
+
+  @override
+  String get legalConsentAgreement => '서비스 이용약관에 동의하고 개인정보 처리방침을 확인했습니다.';
+
+  @override
+  String get legalConsentContinue => '동의하고 계속';
+
+  @override
+  String get legalConsentSubmitFailed =>
+      '동의 내용을 저장하지 못했습니다. 연결 상태를 확인한 후 다시 시도해 주세요.';
+
+  @override
   String get termsOfUseEula => '이용 약관(EULA)';
 
   @override

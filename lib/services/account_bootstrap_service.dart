@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../config/app_config.dart';
 import '../config/world_catalog.dart';
 import 'world_firebase_clients.dart';
 
@@ -76,6 +77,7 @@ final class AccountBootstrapService {
     WorldId homeWorld, {
     required String languagePreference,
     required String resolvedLocale,
+    required String legalAcceptanceLocale,
   }) async {
     _catalog.requireHomeWorld(homeWorld);
     final response = await _directoryFunctions
@@ -84,6 +86,9 @@ final class AccountBootstrapService {
           'homeWorld': homeWorld.value,
           'languagePreference': languagePreference,
           'resolvedLocale': resolvedLocale,
+          'serviceTermsVersion': AppConfig.currentServiceTermsVersion,
+          'privacyPolicyVersion': AppConfig.currentPrivacyPolicyVersion,
+          'legalAcceptanceLocale': legalAcceptanceLocale,
         });
     final data = response.data;
     final returnedWorld = data['homeWorld'];

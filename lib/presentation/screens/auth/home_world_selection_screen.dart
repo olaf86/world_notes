@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../config/app_config.dart';
 import '../../../config/world_catalog.dart';
 import '../../../l10n/l10n.dart';
 import '../../../l10n/app_locale.dart';
 import '../../providers/providers.dart';
+import '../../utils/legal_document_launcher.dart';
 import '../../world_labels.dart';
 import '../../widgets/app_language_picker.dart';
 
@@ -22,10 +24,13 @@ class _HomeWorldSelectionScreenState
   WorldId? _selectedWorld;
   bool _submitting = false;
   bool _submissionFailed = false;
+  bool _acceptedLegalDocuments = false;
 
   Future<void> _confirm() async {
     final selectedWorld = _selectedWorld;
-    if (selectedWorld == null || _submitting) return;
+    if (selectedWorld == null || !_acceptedLegalDocuments || _submitting) {
+      return;
+    }
     setState(() {
       _submitting = true;
       _submissionFailed = false;
@@ -38,6 +43,9 @@ class _HomeWorldSelectionScreenState
             selectedWorld,
             languagePreference: languagePreference.storageValue,
             resolvedLocale: noticeLocaleTag(Localizations.localeOf(context)),
+            legalAcceptanceLocale: Localizations.localeOf(
+              context,
+            ).toLanguageTag(),
           );
       await ref.read(subscriptionServiceProvider).syncEntitlement();
       await ref.read(firebaseAuthProvider).currentUser?.getIdToken(true);
@@ -112,9 +120,48 @@ class _HomeWorldSelectionScreenState
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             ],
+            const SizedBox(height: 16),
+            CheckboxListTile(
+              key: const ValueKey('home-world-legal-consent'),
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              value: _acceptedLegalDocuments,
+              onChanged: _submitting
+                  ? null
+                  : (value) => setState(
+                      () => _acceptedLegalDocuments = value ?? false,
+                    ),
+              title: Text(l10n.legalConsentAgreement),
+              subtitle: Wrap(
+                spacing: 4,
+                runSpacing: 0,
+                children: [
+                  TextButton(
+                    onPressed: () =>
+                        openLegalDocument(context, AppConfig.serviceTermsUrl),
+                    child: Text(l10n.serviceTerms),
+                  ),
+                  TextButton(
+                    onPressed: () =>
+                        openLegalDocument(context, AppConfig.privacyPolicyUrl),
+                    child: Text(l10n.privacyPolicy),
+                  ),
+                  TextButton(
+                    onPressed: () => openLegalDocument(
+                      context,
+                      AppConfig.appleStandardEulaUrl,
+                    ),
+                    child: Text(l10n.appleStandardEula),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 24),
             FilledButton(
-              onPressed: _selectedWorld == null || _submitting
+              onPressed:
+                  _selectedWorld == null ||
+                      !_acceptedLegalDocuments ||
+                      _submitting
                   ? null
                   : _confirm,
               child: _submitting

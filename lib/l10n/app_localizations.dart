@@ -2072,6 +2072,72 @@ abstract class AppLocalizations {
   /// **'Privacy Policy'**
   String get privacyPolicy;
 
+  /// No description provided for @serviceTerms.
+  ///
+  /// In en, this message translates to:
+  /// **'Terms of Service'**
+  String get serviceTerms;
+
+  /// No description provided for @appleStandardEula.
+  ///
+  /// In en, this message translates to:
+  /// **'Apple Standard EULA'**
+  String get appleStandardEula;
+
+  /// No description provided for @legalDocumentsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Legal'**
+  String get legalDocumentsTitle;
+
+  /// No description provided for @legalConsentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Before you continue'**
+  String get legalConsentTitle;
+
+  /// No description provided for @legalConsentIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Please review how World Notes works and agree once before you post or interact.'**
+  String get legalConsentIntro;
+
+  /// No description provided for @legalConsentCommunityHighlight.
+  ///
+  /// In en, this message translates to:
+  /// **'Respect others. Do not post illegal, harmful, abusive, or rights-infringing content.'**
+  String get legalConsentCommunityHighlight;
+
+  /// No description provided for @legalConsentLocationHighlight.
+  ///
+  /// In en, this message translates to:
+  /// **'Location-linked posts may reveal a place. Stay safe, respect private property, and review visibility before posting.'**
+  String get legalConsentLocationHighlight;
+
+  /// No description provided for @legalConsentModerationHighlight.
+  ///
+  /// In en, this message translates to:
+  /// **'You can report content and block users. We may remove content or restrict accounts to keep the community safe.'**
+  String get legalConsentModerationHighlight;
+
+  /// No description provided for @legalConsentAgreement.
+  ///
+  /// In en, this message translates to:
+  /// **'I agree to the Terms of Service and acknowledge the Privacy Policy.'**
+  String get legalConsentAgreement;
+
+  /// No description provided for @legalConsentContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Agree and continue'**
+  String get legalConsentContinue;
+
+  /// No description provided for @legalConsentSubmitFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'We could not save your agreement. Check your connection and try again.'**
+  String get legalConsentSubmitFailed;
+
   /// No description provided for @termsOfUseEula.
   ///
   /// In en, this message translates to:

@@ -1087,6 +1087,41 @@ class AppLocalizationsZh extends AppLocalizations {
   String get privacyPolicy => '隐私政策';
 
   @override
+  String get serviceTerms => '服务条款';
+
+  @override
+  String get appleStandardEula => 'Apple 标准 EULA';
+
+  @override
+  String get legalDocumentsTitle => '法律信息';
+
+  @override
+  String get legalConsentTitle => '继续之前';
+
+  @override
+  String get legalConsentIntro => '发布内容或互动前，请先了解世界日记的使用规则并完成一次同意。';
+
+  @override
+  String get legalConsentCommunityHighlight => '请尊重他人，不得发布违法、有害、侮辱性或侵犯他人权利的内容。';
+
+  @override
+  String get legalConsentLocationHighlight =>
+      '与地点关联的内容可能暴露位置。请注意安全、尊重私人场所，并在发布前确认可见范围。';
+
+  @override
+  String get legalConsentModerationHighlight =>
+      '你可以举报不当内容并屏蔽用户。为维护社区安全，我们可能删除内容或限制账户。';
+
+  @override
+  String get legalConsentAgreement => '我同意服务条款，并确认已阅读隐私政策。';
+
+  @override
+  String get legalConsentContinue => '同意并继续';
+
+  @override
+  String get legalConsentSubmitFailed => '无法保存你的同意。请检查网络连接后重试。';
+
+  @override
   String get termsOfUseEula => '使用条款（EULA）';
 
   @override
@@ -2937,6 +2972,41 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get privacyPolicy => '隐私政策';
+
+  @override
+  String get serviceTerms => '服务条款';
+
+  @override
+  String get appleStandardEula => 'Apple 标准 EULA';
+
+  @override
+  String get legalDocumentsTitle => '法律信息';
+
+  @override
+  String get legalConsentTitle => '继续之前';
+
+  @override
+  String get legalConsentIntro => '发布内容或互动前，请先了解世界日记的使用规则并完成一次同意。';
+
+  @override
+  String get legalConsentCommunityHighlight => '请尊重他人，不得发布违法、有害、侮辱性或侵犯他人权利的内容。';
+
+  @override
+  String get legalConsentLocationHighlight =>
+      '与地点关联的内容可能暴露位置。请注意安全、尊重私人场所，并在发布前确认可见范围。';
+
+  @override
+  String get legalConsentModerationHighlight =>
+      '你可以举报不当内容并屏蔽用户。为维护社区安全，我们可能删除内容或限制账户。';
+
+  @override
+  String get legalConsentAgreement => '我同意服务条款，并确认已阅读隐私政策。';
+
+  @override
+  String get legalConsentContinue => '同意并继续';
+
+  @override
+  String get legalConsentSubmitFailed => '无法保存你的同意。请检查网络连接后重试。';
 
   @override
   String get termsOfUseEula => '使用条款（EULA）';
@@ -4790,6 +4860,41 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get privacyPolicy => '隱私權政策';
+
+  @override
+  String get serviceTerms => '服務條款';
+
+  @override
+  String get appleStandardEula => 'Apple 標準 EULA';
+
+  @override
+  String get legalDocumentsTitle => '法律資訊';
+
+  @override
+  String get legalConsentTitle => '繼續之前';
+
+  @override
+  String get legalConsentIntro => '發佈內容或互動前，請先了解世界日記的使用規則並完成一次同意。';
+
+  @override
+  String get legalConsentCommunityHighlight => '請尊重他人，不得發佈違法、有害、侮辱性或侵害他人權利的內容。';
+
+  @override
+  String get legalConsentLocationHighlight =>
+      '與地點連結的內容可能透露位置。請注意安全、尊重私人場所，並在發佈前確認可見範圍。';
+
+  @override
+  String get legalConsentModerationHighlight =>
+      '你可以檢舉不當內容並封鎖使用者。為維護社群安全，我們可能刪除內容或限制帳號。';
+
+  @override
+  String get legalConsentAgreement => '我同意服務條款，並確認已閱讀隱私權政策。';
+
+  @override
+  String get legalConsentContinue => '同意並繼續';
+
+  @override
+  String get legalConsentSubmitFailed => '無法儲存你的同意。請檢查網路連線後重試。';
 
   @override
   String get termsOfUseEula => '使用條款（EULA）';

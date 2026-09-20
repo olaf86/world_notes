@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 
+import '../../../config/app_config.dart';
 import '../../../core/map_style.dart';
 import '../../../config/world_catalog.dart';
 import '../../../l10n/app_locale.dart';
@@ -10,6 +11,7 @@ import '../../../l10n/l10n.dart';
 import '../../../l10n/presentation_labels.dart';
 import '../../../services/subscription_service.dart';
 import '../../providers/providers.dart';
+import '../../utils/legal_document_launcher.dart';
 import '../../world_labels.dart';
 import '../../widgets/app_alert_dialog.dart';
 import '../../widgets/my_notes_notification_controls.dart';
@@ -62,11 +64,56 @@ class SettingsScreen extends ConsumerWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/settings/blocked-users'),
           ),
+          const SizedBox(height: 24),
+          const _LegalDocumentsSection(),
           const _AdPrivacySection(),
           const SizedBox(height: 24),
           const _AccountDeletionSection(),
         ],
       ),
+    );
+  }
+}
+
+class _LegalDocumentsSection extends StatelessWidget {
+  const _LegalDocumentsSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.legalDocumentsTitle,
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.description_outlined),
+          title: Text(l10n.serviceTerms),
+          trailing: const Icon(Icons.open_in_new),
+          onTap: () => openLegalDocument(context, AppConfig.serviceTermsUrl),
+        ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.privacy_tip_outlined),
+          title: Text(l10n.privacyPolicy),
+          trailing: const Icon(Icons.open_in_new),
+          onTap: () => openLegalDocument(context, AppConfig.privacyPolicyUrl),
+        ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.apple),
+          title: Text(l10n.appleStandardEula),
+          trailing: const Icon(Icons.open_in_new),
+          onTap: () =>
+              openLegalDocument(context, AppConfig.appleStandardEulaUrl),
+        ),
+      ],
     );
   }
 }

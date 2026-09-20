@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:world_notes/config/router.dart';
 import 'package:world_notes/config/bootstrap_world_catalog.dart';
 import 'package:world_notes/domain/entities/notice_entity.dart';
+import 'package:world_notes/domain/entities/legal_acceptance.dart';
 import 'package:world_notes/domain/entities/place_entity.dart';
 import 'package:world_notes/domain/entities/user_entity.dart';
 import 'package:world_notes/l10n/app_localizations.dart';
@@ -32,6 +33,14 @@ void main() {
               const HomeAssignment(homeWorld: asiaWorldId, epoch: 1),
             ),
           ),
+          legalAcceptanceProvider.overrideWith(
+            (ref) => Stream.value(
+              const LegalAcceptance(
+                serviceTermsVersion: '2026-09-20',
+                privacyPolicyVersion: '2026-08-30',
+              ),
+            ),
+          ),
           worldReadinessProvider.overrideWith((ref, worldId) async => true),
           isPremiumProvider.overrideWith((ref) => Stream.value(true)),
           noticesProvider.overrideWith(
@@ -51,6 +60,7 @@ void main() {
 
       await container.read(authStateProvider.future);
       await container.read(homeAssignmentProvider.future);
+      await container.read(legalAcceptanceProvider.future);
       await container.read(isPremiumProvider.future);
       final router = container.read(routerProvider);
       addTearDown(router.dispose);

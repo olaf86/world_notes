@@ -7,6 +7,7 @@ import {
   createAdminWorldFirestoreClient,
   DEFAULT_FIRESTORE_DATABASE_ID,
 } from "../platform/worldFirestoreProvider";
+import {legalAcceptanceFields} from "../legalPolicy";
 
 const projectId = process.env.GCLOUD_PROJECT || "world-notes-prod";
 process.env.FIREBASE_AUTH_EMULATOR_HOST =
@@ -73,6 +74,7 @@ async function seedAccount(user: UserRecord): Promise<void> {
     languagePreference: "system",
     languagePreferenceRevision: 0,
     noticeLocale: "en",
+    ...legalAcceptanceFields({locale: "en"}, now),
     createdAt: now,
     updatedAt: now,
   });

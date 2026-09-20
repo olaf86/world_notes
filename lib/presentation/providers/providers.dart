@@ -24,6 +24,7 @@ import '../../core/map_style.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../data/repositories/follow_repository_impl.dart';
 import '../../data/repositories/global_operation_repository_impl.dart';
+import '../../data/repositories/legal_acceptance_repository_impl.dart';
 import '../../data/repositories/message_repository_impl.dart';
 import '../../data/repositories/notice_repository_impl.dart';
 import '../../data/repositories/place_repository_impl.dart';
@@ -31,6 +32,7 @@ import '../../data/repositories/user_block_repository_impl.dart';
 import '../../domain/entities/follow_entity.dart';
 import '../../domain/entities/admin_moderation_review_entity.dart';
 import '../../domain/entities/global_operation_entity.dart';
+import '../../domain/entities/legal_acceptance.dart';
 import '../../domain/entities/message_thread_item.dart';
 import '../../domain/entities/note_visitor_entity.dart';
 import '../../domain/entities/notice_entity.dart';
@@ -43,6 +45,7 @@ import '../../domain/entities/user_block_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/follow_repository.dart';
 import '../../domain/repositories/global_operation_repository.dart';
+import '../../domain/repositories/legal_acceptance_repository.dart';
 import '../../domain/repositories/message_repository.dart';
 import '../../domain/repositories/notice_repository.dart';
 import '../../domain/repositories/place_repository.dart';
@@ -660,6 +663,15 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
   );
 });
 
+final legalAcceptanceRepositoryProvider = Provider<LegalAcceptanceRepository>((
+  ref,
+) {
+  return LegalAcceptanceRepositoryImpl(
+    firestore: ref.watch(homeWorldFirestoreProvider),
+    functions: ref.watch(homeWorldFunctionsProvider),
+  );
+});
+
 final worldPlaceRepositoryProvider = Provider.family<PlaceRepository, WorldId>((
   ref,
   worldId,
@@ -725,6 +737,16 @@ Stream<T> _afterBlockedUserIdsLoad<T>(
 
 final authStateProvider = StreamProvider<UserEntity?>((ref) {
   return ref.watch(authRepositoryProvider).authStateChanges;
+});
+
+/// Current legal-document acceptance for an account whose home is ready.
+/// New accounts record this during bootstrap; existing accounts are prompted
+/// once by the router and update the same private user document.
+final legalAcceptanceProvider = StreamProvider<LegalAcceptance?>((ref) {
+  final user = ref.watch(authStateProvider).valueOrNull;
+  final assignment = ref.watch(homeAssignmentProvider).valueOrNull;
+  if (user == null || assignment == null) return Stream.value(null);
+  return ref.watch(legalAcceptanceRepositoryProvider).watch(user.id);
 });
 
 final noteCreatorProfileProvider = Provider.autoDispose

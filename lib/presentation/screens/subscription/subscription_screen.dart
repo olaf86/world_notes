@@ -452,12 +452,21 @@ class SubscriptionLegalLinks extends StatelessWidget {
               ),
             ),
             Semantics(
-              identifier: 'action-open-terms-of-use',
+              identifier: 'action-open-service-terms',
               link: true,
               child: TextButton(
                 onPressed: () =>
-                    _open(context, Uri.parse(AppConfig.termsOfUseUrl)),
-                child: Text(context.l10n.termsOfUseEula),
+                    _open(context, Uri.parse(AppConfig.serviceTermsUrl)),
+                child: Text(context.l10n.serviceTerms),
+              ),
+            ),
+            Semantics(
+              identifier: 'action-open-apple-standard-eula',
+              link: true,
+              child: TextButton(
+                onPressed: () =>
+                    _open(context, Uri.parse(AppConfig.appleStandardEulaUrl)),
+                child: Text(context.l10n.appleStandardEula),
               ),
             ),
           ],

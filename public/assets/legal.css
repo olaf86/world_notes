@@ -202,7 +202,8 @@ h3 {
     var(--surface-muted);
 }
 
-.contact-card h2 {
+.contact-card h2,
+.notice h2 {
   margin-top: 0;
 }
 

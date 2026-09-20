@@ -248,6 +248,9 @@ describe(
           homeWorld: "asia",
           languagePreference: "ja",
           resolvedLocale: "ja",
+          serviceTermsVersion: "2026-09-20",
+          privacyPolicyVersion: "2026-08-30",
+          legalAcceptanceLocale: "ja",
         },
         idToken,
       );
@@ -274,6 +277,16 @@ describe(
       assert.equal(user.get("languagePreference"), "ja");
       assert.equal(user.get("languagePreferenceRevision"), 0);
       assert.equal(user.get("noticeLocale"), "ja");
+      assert.equal(
+        user.get("serviceTermsAcceptedVersion"),
+        "2026-09-20",
+      );
+      assert.equal(
+        user.get("privacyPolicyAcknowledgedVersion"),
+        "2026-08-30",
+      );
+      assert.equal(user.get("legalAcceptanceLocale"), "ja");
+      assert.ok(user.get("serviceTermsAcceptedAt") instanceof Timestamp);
       assert.equal(profile.get("followerCount"), 0);
       assert.equal(profile.get("followingCount"), 0);
       assert.equal(profile.get("revision"), 2);

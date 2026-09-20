@@ -1100,6 +1100,44 @@ class AppLocalizationsJa extends AppLocalizations {
   String get privacyPolicy => 'プライバシーポリシー';
 
   @override
+  String get serviceTerms => 'サービス利用規約';
+
+  @override
+  String get appleStandardEula => 'Apple標準EULA';
+
+  @override
+  String get legalDocumentsTitle => '法的情報';
+
+  @override
+  String get legalConsentTitle => 'ご利用前の確認';
+
+  @override
+  String get legalConsentIntro =>
+      '投稿や交流を始める前に、セカイノートのルールをご確認のうえ、一度だけ同意をお願いします。';
+
+  @override
+  String get legalConsentCommunityHighlight =>
+      '他の利用者を尊重し、違法・有害・攻撃的な内容や、他者の権利を侵害する内容を投稿しないでください。';
+
+  @override
+  String get legalConsentLocationHighlight =>
+      '場所に紐づく投稿から位置が伝わることがあります。安全と私有地に配慮し、投稿前に公開範囲をご確認ください。';
+
+  @override
+  String get legalConsentModerationHighlight =>
+      '不適切な内容の通報や利用者のブロックができます。安全維持のため、投稿削除やアカウント制限を行う場合があります。';
+
+  @override
+  String get legalConsentAgreement => 'サービス利用規約に同意し、プライバシーポリシーを確認しました。';
+
+  @override
+  String get legalConsentContinue => '同意して続ける';
+
+  @override
+  String get legalConsentSubmitFailed =>
+      '同意内容を保存できませんでした。通信状況を確認して、もう一度お試しください。';
+
+  @override
   String get termsOfUseEula => '利用規約（EULA）';
 
   @override

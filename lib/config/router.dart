@@ -8,6 +8,7 @@ import '../presentation/providers/providers.dart';
 import '../presentation/screens/admin/admin_moderation_screen.dart';
 import '../presentation/screens/auth/sign_in_screen.dart';
 import '../presentation/screens/auth/home_world_selection_screen.dart';
+import '../presentation/screens/auth/legal_consent_screen.dart';
 import '../presentation/screens/invite/invite_claim_screen.dart';
 import '../presentation/screens/map/map_notes_screen.dart';
 import '../presentation/screens/my_notes/my_notes_screen.dart';
@@ -22,12 +23,14 @@ import '../presentation/screens/report/report_message_screen.dart';
 import '../presentation/screens/settings/settings_screen.dart';
 import '../presentation/screens/settings/blocked_users_screen.dart';
 import '../presentation/screens/subscription/subscription_screen.dart';
+import 'app_config.dart';
 import 'route_observer.dart';
 import 'world_catalog.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
   final homeAssignment = ref.watch(homeAssignmentProvider);
+  final legalAcceptance = ref.watch(legalAcceptanceProvider);
 
   return GoRouter(
     initialLocation: '/map',
@@ -40,6 +43,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isAuthRoute = state.matchedLocation.startsWith('/auth');
       final isHomeSelectionRoute =
           state.matchedLocation == '/onboarding/home-world';
+      final isLegalConsentRoute =
+          state.matchedLocation == '/onboarding/legal-consent';
       // Invite deep links are reachable while logged out so the claim screen
       // can prompt sign-in instead of bouncing to /map and losing the token.
       final isInviteRoute = state.matchedLocation.contains('/invites/');
@@ -55,7 +60,30 @@ final routerProvider = Provider<GoRouter>((ref) {
         final continuation = Uri.encodeQueryComponent(state.uri.toString());
         return '/onboarding/home-world?continue=$continuation';
       }
-      if (isAuthRoute || isHomeSelectionRoute) {
+      final hasCurrentLegalAcceptance =
+          legalAcceptance.valueOrNull?.matches(
+            serviceTermsVersion: AppConfig.currentServiceTermsVersion,
+            privacyPolicyVersion: AppConfig.currentPrivacyPolicyVersion,
+          ) ??
+          false;
+      if (!hasCurrentLegalAcceptance) {
+        if (isLegalConsentRoute) return null;
+        // Let the just-completed bootstrap resolve without replacing its
+        // existing continuation. Existing accounts are sent to the one-time
+        // consent screen immediately.
+        if (isHomeSelectionRoute && legalAcceptance.isLoading) return null;
+        final requestedContinuation = isHomeSelectionRoute
+            ? state.uri.queryParameters['continue']
+            : null;
+        final destination = requestedContinuation?.startsWith('/') == true
+            ? requestedContinuation!
+            : isAuthRoute
+            ? '/map'
+            : state.uri.toString();
+        final continuation = Uri.encodeQueryComponent(destination);
+        return '/onboarding/legal-consent?continue=$continuation';
+      }
+      if (isAuthRoute || isHomeSelectionRoute || isLegalConsentRoute) {
         final continuation = state.uri.queryParameters['continue'];
         return continuation != null && continuation.startsWith('/')
             ? continuation
@@ -82,6 +110,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/onboarding/home-world',
         builder: (context, state) => const HomeWorldSelectionScreen(),
+      ),
+      GoRoute(
+        path: '/onboarding/legal-consent',
+        builder: (context, state) => LegalConsentScreen(
+          continuation: state.uri.queryParameters['continue'],
+        ),
       ),
       // StatefulShellRoute keeps every branch mounted in an IndexedStack, so
       // switching tabs no longer disposes the previous screen. MapNotesScreen's

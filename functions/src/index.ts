@@ -70,6 +70,7 @@ export {listMentionCandidates} from "./mentions";
 
 // Private account preferences and globally replicated profile updates.
 export {assignHomeWorld} from "./accountBootstrap";
+export {acceptServiceTerms} from "./legalAcceptance";
 export {deleteAccount} from "./accountDeletion";
 export {setLanguagePreference, updateDisplayName} from "./userProfile";
 export {refreshEntitlement} from "./revenueCatEntitlements";

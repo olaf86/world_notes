@@ -35,7 +35,14 @@ void main() {
     expect(find.text('Choose your home world'), findsOneWidget);
     expect(find.text('Asia'), findsOneWidget);
     expect(find.textContaining('cannot be changed later'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Set as my permanent home'), 300);
     expect(find.text('Set as my permanent home'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('home-world-legal-consent')),
+      findsOneWidget,
+    );
+    expect(find.text('Terms of Service'), findsOneWidget);
+    expect(find.text('Apple Standard EULA'), findsOneWidget);
   });
 
   testWidgets('localizes the permanent-home explanation in Japanese', (
@@ -69,6 +76,7 @@ void main() {
     expect(find.text('アジア'), findsOneWidget);
     expect(find.textContaining('一度設定すると変更できません'), findsOneWidget);
     expect(find.text('このワールドをホームに設定'), findsOneWidget);
+    expect(find.text('サービス利用規約'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('language-picker-button')),
       findsOneWidget,

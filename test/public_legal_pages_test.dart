@@ -11,6 +11,7 @@ void main() {
   group('public legal pages', () {
     late String supportPage;
     late String privacyPage;
+    late String termsPage;
     late String invitationPage;
     late String stylesheet;
     late String languageScript;
@@ -18,6 +19,7 @@ void main() {
     setUpAll(() async {
       supportPage = await File('public/support/index.html').readAsString();
       privacyPage = await File('public/privacy/index.html').readAsString();
+      termsPage = await File('public/terms/index.html').readAsString();
       invitationPage = await File('public/index.html').readAsString();
       stylesheet = await File('public/assets/legal.css').readAsString();
       languageScript = await File(
@@ -28,13 +30,16 @@ void main() {
     test('publish the real support contact on both pages', () {
       expect(supportPage, contains('mailto:$supportEmail'));
       expect(privacyPage, contains('mailto:$supportEmail'));
+      expect(termsPage, contains('mailto:$supportEmail'));
       expect(supportPage, isNot(contains('support@worldnotes.asobo.dev')));
       expect(privacyPage, isNot(contains('support@worldnotes.asobo.dev')));
+      expect(termsPage, isNot(contains('support@worldnotes.asobo.dev')));
     });
 
     test('name the legal rights holder in the copyright notice', () {
       expect(supportPage, contains('© 2026 Yuta Ogawa'));
       expect(privacyPage, contains('© 2026 Yuta Ogawa'));
+      expect(termsPage, contains('© 2026 Yuta Ogawa'));
     });
 
     test('include every supported app language', () {
@@ -50,6 +55,11 @@ void main() {
           reason: 'Privacy page is missing $language.',
         );
         expect(
+          termsPage,
+          contains('data-language-panel="$language"'),
+          reason: 'Terms page is missing $language.',
+        );
+        expect(
           languageScript,
           contains('"$language"'),
           reason: 'Language selector is missing $language.',
@@ -60,6 +70,8 @@ void main() {
     test('link support and privacy pages to each other', () {
       expect(supportPage, contains('href="/privacy/?lang='));
       expect(privacyPage, contains('href="/support/?lang='));
+      expect(termsPage, contains('href="/support/?lang='));
+      expect(termsPage, contains('href="/privacy/?lang='));
       expect(
         supportPage,
         contains('data-language-target="/support/" href="/support/"'),
@@ -67,6 +79,10 @@ void main() {
       expect(
         privacyPage,
         contains('data-language-target="/privacy/" href="/privacy/"'),
+      );
+      expect(
+        termsPage,
+        contains('data-language-target="/terms/" href="/terms/"'),
       );
       expect(
         languageScript,
@@ -79,6 +95,7 @@ void main() {
       expect(File('public/assets/app_icon.svg').existsSync(), isTrue);
       expect(supportPage, contains('src="/assets/app_icon.svg"'));
       expect(privacyPage, contains('src="/assets/app_icon.svg"'));
+      expect(termsPage, contains('src="/assets/app_icon.svg"'));
     });
 
     test('version static assets so Hosting updates bypass browser caches', () {
@@ -86,6 +103,8 @@ void main() {
       expect(supportPage, contains('/assets/legal-language.js?v='));
       expect(privacyPage, contains('/assets/legal.css?v='));
       expect(privacyPage, contains('/assets/legal-language.js?v='));
+      expect(termsPage, contains('/assets/legal.css?v='));
+      expect(termsPage, contains('/assets/legal-language.js?v='));
     });
 
     test('share the app palette and adaptive surfaces across web pages', () {
@@ -93,6 +112,7 @@ void main() {
       expect(stylesheet, contains('--accent: ${_cssHex(AppTheme.darkAccent)}'));
       expect(supportPage, contains('content="#f6f7f5"'));
       expect(privacyPage, contains('content="#101414"'));
+      expect(termsPage, contains('content="#101414"'));
       expect(invitationPage, contains('/assets/legal.css?v='));
       expect(invitationPage, contains('src="/assets/app_icon.svg"'));
     });
@@ -115,6 +135,20 @@ void main() {
       expect(privacyPage, contains('Advertising and tracking'));
       expect(privacyPage, contains('IDFA'));
       expect(privacyPage, contains('Google Mobile Ads'));
+    });
+
+    test('cover UGC, location safety, subscriptions, and standard EULA', () {
+      expect(termsPage, contains('投稿コンテンツ'));
+      expect(termsPage, contains('モデレーション、通報およびブロック'));
+      expect(termsPage, contains('位置情報'));
+      expect(termsPage, contains('自動更新'));
+      expect(termsPage, contains('Apple標準EULA'));
+      expect(
+        termsPage,
+        contains(
+          'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/',
+        ),
+      );
     });
   });
 }

@@ -152,8 +152,13 @@ class AppConfig {
   static const String proYearlyUsdPriceLabel = '\$20';
   static const String privacyPolicyUrl =
       'https://worldnotes.asobo.dev/privacy/';
-  static const String termsOfUseUrl =
+  static const String serviceTermsUrl = 'https://worldnotes.asobo.dev/terms/';
+  static const String appleStandardEulaUrl =
       'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
+  // Kept for compatibility with existing subscription-link integrations.
+  static const String termsOfUseUrl = appleStandardEulaUrl;
+  static const String currentServiceTermsVersion = '2026-09-20';
+  static const String currentPrivacyPolicyVersion = '2026-08-30';
 
   // Message pagination
   static const int messagesPageSize = 20;

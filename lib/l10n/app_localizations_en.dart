@@ -1187,6 +1187,45 @@ class AppLocalizationsEn extends AppLocalizations {
   String get privacyPolicy => 'Privacy Policy';
 
   @override
+  String get serviceTerms => 'Terms of Service';
+
+  @override
+  String get appleStandardEula => 'Apple Standard EULA';
+
+  @override
+  String get legalDocumentsTitle => 'Legal';
+
+  @override
+  String get legalConsentTitle => 'Before you continue';
+
+  @override
+  String get legalConsentIntro =>
+      'Please review how World Notes works and agree once before you post or interact.';
+
+  @override
+  String get legalConsentCommunityHighlight =>
+      'Respect others. Do not post illegal, harmful, abusive, or rights-infringing content.';
+
+  @override
+  String get legalConsentLocationHighlight =>
+      'Location-linked posts may reveal a place. Stay safe, respect private property, and review visibility before posting.';
+
+  @override
+  String get legalConsentModerationHighlight =>
+      'You can report content and block users. We may remove content or restrict accounts to keep the community safe.';
+
+  @override
+  String get legalConsentAgreement =>
+      'I agree to the Terms of Service and acknowledge the Privacy Policy.';
+
+  @override
+  String get legalConsentContinue => 'Agree and continue';
+
+  @override
+  String get legalConsentSubmitFailed =>
+      'We could not save your agreement. Check your connection and try again.';
+
+  @override
   String get termsOfUseEula => 'Terms of Use (EULA)';
 
   @override
