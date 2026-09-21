@@ -203,7 +203,7 @@ void main() {
     test('publish a complete commercial transactions disclosure', () {
       for (final marker in [
         '特定商取引法に基づく表記',
-        '<dt>販売事業者</dt><dd>Yuta Ogawa</dd>',
+        '<dt>販売事業者</dt><dd>小川 雄大</dd>',
         '所在地・電話番号',
         '遅滞なく開示します',
         '月額プラン300円',
@@ -216,8 +216,9 @@ void main() {
       }
       expect(
         commercialTransactionsPage,
-        isNot(contains('<dt>販売事業者</dt><dd>Yuta Ogawa（World Notes）</dd>')),
+        isNot(contains('<dt>販売事業者</dt><dd>小川 雄大（World Notes）</dd>')),
       );
+      expect(termsPage, contains('小川 雄大（以下「運営者」）'));
     });
 
     test('make the Japanese legal text authoritative', () {
