@@ -1109,6 +1109,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get legalDocumentsTitle => '法的情報';
 
   @override
+  String get commercialTransactionsDisclosure => '特定商取引法に基づく表記';
+
+  @override
   String get legalConsentTitle => 'ご利用前の確認';
 
   @override

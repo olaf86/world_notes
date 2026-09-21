@@ -1110,6 +1110,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get legalDocumentsTitle => '법적 정보';
 
   @override
+  String get commercialTransactionsDisclosure => '일본 특정상거래법에 따른 표시';
+
+  @override
   String get legalConsentTitle => '계속하기 전에';
 
   @override

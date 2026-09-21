@@ -28,11 +28,14 @@ void main() {
 
     expect(find.text('Privacy Policy'), findsOneWidget);
     expect(find.text('Terms of Service'), findsOneWidget);
+    expect(find.text('Commercial Transactions Disclosure'), findsOneWidget);
     expect(find.text('Apple Standard EULA'), findsOneWidget);
 
     await tester.tap(find.text('Privacy Policy'));
     await tester.pump();
     await tester.tap(find.text('Terms of Service'));
+    await tester.pump();
+    await tester.tap(find.text('Commercial Transactions Disclosure'));
     await tester.pump();
     await tester.tap(find.text('Apple Standard EULA'));
     await tester.pump();
@@ -40,6 +43,7 @@ void main() {
     expect(openedUris, [
       Uri.parse(AppConfig.privacyPolicyUrl),
       Uri.parse(AppConfig.serviceTermsUrl),
+      Uri.parse(AppConfig.commercialTransactionsUrl),
       Uri.parse(AppConfig.appleStandardEulaUrl),
     ]);
   });

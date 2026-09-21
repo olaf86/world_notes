@@ -1096,6 +1096,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get legalDocumentsTitle => '法律信息';
 
   @override
+  String get commercialTransactionsDisclosure => '日本《特定商业交易法》信息披露';
+
+  @override
   String get legalConsentTitle => '继续之前';
 
   @override
@@ -2982,6 +2985,9 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get legalDocumentsTitle => '法律信息';
+
+  @override
+  String get commercialTransactionsDisclosure => '日本《特定商业交易法》信息披露';
 
   @override
   String get legalConsentTitle => '继续之前';
@@ -4871,6 +4877,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get legalDocumentsTitle => '法律資訊';
+
+  @override
+  String get commercialTransactionsDisclosure => '日本《特定商業交易法》資訊揭露';
 
   @override
   String get legalConsentTitle => '繼續之前';

@@ -128,6 +128,9 @@ void main() {
   test('uses public HTTPS links for subscription legal documents', () {
     final privacy = Uri.parse(AppConfig.privacyPolicyUrl);
     final serviceTerms = Uri.parse(AppConfig.serviceTermsUrl);
+    final commercialTransactions = Uri.parse(
+      AppConfig.commercialTransactionsUrl,
+    );
     final appleEula = Uri.parse(AppConfig.appleStandardEulaUrl);
 
     expect(privacy.scheme, 'https');
@@ -135,6 +138,9 @@ void main() {
     expect(serviceTerms.scheme, 'https');
     expect(serviceTerms.host, 'worldnotes.asobo.dev');
     expect(serviceTerms.path, '/terms/');
+    expect(commercialTransactions.scheme, 'https');
+    expect(commercialTransactions.host, 'worldnotes.asobo.dev');
+    expect(commercialTransactions.path, '/commercial-transactions/');
     expect(appleEula.scheme, 'https');
     expect(appleEula.host, 'www.apple.com');
     expect(AppConfig.termsOfUseUrl, AppConfig.appleStandardEulaUrl);

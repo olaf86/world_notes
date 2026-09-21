@@ -107,6 +107,14 @@ class _LegalDocumentsSection extends StatelessWidget {
         ),
         ListTile(
           contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.receipt_long_outlined),
+          title: Text(l10n.commercialTransactionsDisclosure),
+          trailing: const Icon(Icons.open_in_new),
+          onTap: () =>
+              openLegalDocument(context, AppConfig.commercialTransactionsUrl),
+        ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
           leading: const Icon(Icons.apple),
           title: Text(l10n.appleStandardEula),
           trailing: const Icon(Icons.open_in_new),

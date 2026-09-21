@@ -433,6 +433,30 @@ li + li {
   margin-top: 24px;
 }
 
+.legal-details {
+  margin: 34px 0 0;
+}
+
+.legal-details > div {
+  display: grid;
+  grid-template-columns: minmax(140px, 0.32fr) minmax(0, 0.68fr);
+  gap: 18px 28px;
+  padding: 20px 0;
+  border-top: 1px solid var(--border);
+}
+
+.legal-details > div:last-child {
+  border-bottom: 1px solid var(--border);
+}
+
+.legal-details dt {
+  font-weight: 740;
+}
+
+.legal-details dd {
+  margin: 0;
+}
+
 @media (max-width: 560px) {
   .site-header {
     align-items: flex-start;
@@ -450,6 +474,11 @@ li + li {
 
   .language-panel {
     padding-inline: 22px;
+  }
+
+  .legal-details > div {
+    grid-template-columns: 1fr;
+    gap: 6px;
   }
 
   .marketing-page .site-header {

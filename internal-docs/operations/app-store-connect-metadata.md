@@ -42,6 +42,11 @@ Submission**, then select each language from the localization menu.
   `asobo.support@gmail.com`.
 - Service Terms URL: `https://worldnotes.asobo.dev/terms/`. The public service
   rules supplement, but do not replace, the Apple Standard EULA.
+- Commercial Transactions Disclosure URL:
+  `https://worldnotes.asobo.dev/commercial-transactions/`. This page publishes
+  the information required for subscription sales in Japan, including the
+  operator's process for disclosing the business address and telephone number
+  without delay upon a consumer request.
 - App license: keep the Apple Standard EULA. Include both the Service Terms URL
   and `https://www.apple.com/legal/internet-services/itunes/dev/stdeula/` in
   every localized Description so the product page provides functional links.
@@ -64,9 +69,10 @@ flow for every release:
 - Terms of Use link.
 
 The RevenueCat purchase screen supplies the product information and has a
-persistent footer for the Privacy Policy, Service Terms, and Apple Standard
-EULA links. App Store Connect must separately contain the Privacy Policy URL
-in its dedicated field and both Terms URLs in every localized Description.
+persistent footer for the Privacy Policy, Service Terms, Commercial
+Transactions Disclosure, and Apple Standard EULA links. App Store Connect must
+separately contain the Privacy Policy URL in its dedicated field and both Terms
+URLs in every localized Description.
 
 ## App Privacy and App Tracking Transparency
 

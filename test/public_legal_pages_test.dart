@@ -12,6 +12,7 @@ void main() {
     late String supportPage;
     late String privacyPage;
     late String termsPage;
+    late String commercialTransactionsPage;
     late String invitationPage;
     late String stylesheet;
     late String languageScript;
@@ -20,6 +21,9 @@ void main() {
       supportPage = await File('public/support/index.html').readAsString();
       privacyPage = await File('public/privacy/index.html').readAsString();
       termsPage = await File('public/terms/index.html').readAsString();
+      commercialTransactionsPage = await File(
+        'public/commercial-transactions/index.html',
+      ).readAsString();
       invitationPage = await File('public/index.html').readAsString();
       stylesheet = await File('public/assets/legal.css').readAsString();
       languageScript = await File(
@@ -31,15 +35,21 @@ void main() {
       expect(supportPage, contains('mailto:$supportEmail'));
       expect(privacyPage, contains('mailto:$supportEmail'));
       expect(termsPage, contains('mailto:$supportEmail'));
+      expect(commercialTransactionsPage, contains('mailto:$supportEmail'));
       expect(supportPage, isNot(contains('support@worldnotes.asobo.dev')));
       expect(privacyPage, isNot(contains('support@worldnotes.asobo.dev')));
       expect(termsPage, isNot(contains('support@worldnotes.asobo.dev')));
+      expect(
+        commercialTransactionsPage,
+        isNot(contains('support@worldnotes.asobo.dev')),
+      );
     });
 
     test('name the legal rights holder in the copyright notice', () {
       expect(supportPage, contains('© 2026 Yuta Ogawa'));
       expect(privacyPage, contains('© 2026 Yuta Ogawa'));
       expect(termsPage, contains('© 2026 Yuta Ogawa'));
+      expect(commercialTransactionsPage, contains('© 2026 Yuta Ogawa'));
     });
 
     test('include every supported app language', () {
@@ -60,6 +70,11 @@ void main() {
           reason: 'Terms page is missing $language.',
         );
         expect(
+          commercialTransactionsPage,
+          contains('data-language-panel="$language"'),
+          reason: 'Commercial transactions page is missing $language.',
+        );
+        expect(
           languageScript,
           contains('"$language"'),
           reason: 'Language selector is missing $language.',
@@ -73,6 +88,23 @@ void main() {
       expect(termsPage, contains('href="/support/?lang='));
       expect(termsPage, contains('href="/privacy/?lang='));
       expect(
+        commercialTransactionsPage,
+        contains('data-language-target="/support/" href="/support/"'),
+      );
+      expect(
+        commercialTransactionsPage,
+        contains('data-language-target="/privacy/" href="/privacy/"'),
+      );
+      for (final page in [
+        invitationPage,
+        supportPage,
+        privacyPage,
+        termsPage,
+        commercialTransactionsPage,
+      ]) {
+        expect(page, contains('href="/commercial-transactions/'));
+      }
+      expect(
         supportPage,
         contains('data-language-target="/support/" href="/support/"'),
       );
@@ -83,6 +115,13 @@ void main() {
       expect(
         termsPage,
         contains('data-language-target="/terms/" href="/terms/"'),
+      );
+      expect(
+        commercialTransactionsPage,
+        contains(
+          'data-language-target="/commercial-transactions/" '
+          'href="/commercial-transactions/"',
+        ),
       );
       expect(
         languageScript,
@@ -96,6 +135,10 @@ void main() {
       expect(supportPage, contains('src="/assets/app_icon.svg"'));
       expect(privacyPage, contains('src="/assets/app_icon.svg"'));
       expect(termsPage, contains('src="/assets/app_icon.svg"'));
+      expect(
+        commercialTransactionsPage,
+        contains('src="/assets/app_icon.svg"'),
+      );
     });
 
     test('version static assets so Hosting updates bypass browser caches', () {
@@ -105,6 +148,11 @@ void main() {
       expect(privacyPage, contains('/assets/legal-language.js?v='));
       expect(termsPage, contains('/assets/legal.css?v='));
       expect(termsPage, contains('/assets/legal-language.js?v='));
+      expect(commercialTransactionsPage, contains('/assets/legal.css?v='));
+      expect(
+        commercialTransactionsPage,
+        contains('/assets/legal-language.js?v='),
+      );
     });
 
     test('share the app palette and adaptive surfaces across web pages', () {
@@ -113,6 +161,7 @@ void main() {
       expect(supportPage, contains('content="#f6f7f5"'));
       expect(privacyPage, contains('content="#101414"'));
       expect(termsPage, contains('content="#101414"'));
+      expect(commercialTransactionsPage, contains('content="#101414"'));
       expect(invitationPage, contains('/assets/legal.css?v='));
       expect(invitationPage, contains('src="/assets/app_icon.svg"'));
     });
@@ -149,6 +198,34 @@ void main() {
           'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/',
         ),
       );
+    });
+
+    test('publish a complete commercial transactions disclosure', () {
+      for (final marker in [
+        '特定商取引法に基づく表記',
+        '<dt>販売事業者</dt><dd>Yuta Ogawa</dd>',
+        '所在地・電話番号',
+        '遅滞なく開示します',
+        '月額プラン300円',
+        '年額プラン2,980円',
+        'セカイノートのアカウント',
+        '解約',
+        '返金',
+      ]) {
+        expect(commercialTransactionsPage, contains(marker));
+      }
+      expect(
+        commercialTransactionsPage,
+        isNot(contains('<dt>販売事業者</dt><dd>Yuta Ogawa（World Notes）</dd>')),
+      );
+    });
+
+    test('make the Japanese legal text authoritative', () {
+      for (final page in [termsPage, commercialTransactionsPage]) {
+        expect(page, contains('日本語版を正文とします'));
+        expect(page, contains('日本語版が優先します'));
+        expect(page, contains('権利を妨げるものではありません'));
+      }
     });
 
     test('publish the same minimum-age policy in every legal language', () {

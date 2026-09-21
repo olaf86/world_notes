@@ -2090,6 +2090,12 @@ abstract class AppLocalizations {
   /// **'Legal'**
   String get legalDocumentsTitle;
 
+  /// No description provided for @commercialTransactionsDisclosure.
+  ///
+  /// In en, this message translates to:
+  /// **'Commercial Transactions Disclosure'**
+  String get commercialTransactionsDisclosure;
+
   /// No description provided for @legalConsentTitle.
   ///
   /// In en, this message translates to:

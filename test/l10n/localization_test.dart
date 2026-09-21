@@ -71,6 +71,7 @@ void main() {
           l10n.deleteAccountSubscriptionWarning,
           l10n.privacyPolicy,
           l10n.serviceTerms,
+          l10n.commercialTransactionsDisclosure,
           l10n.appleStandardEula,
           l10n.legalConsentTitle,
           l10n.legalConsentAgreement,

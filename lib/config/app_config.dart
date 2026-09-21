@@ -153,6 +153,8 @@ class AppConfig {
   static const String privacyPolicyUrl =
       'https://worldnotes.asobo.dev/privacy/';
   static const String serviceTermsUrl = 'https://worldnotes.asobo.dev/terms/';
+  static const String commercialTransactionsUrl =
+      'https://worldnotes.asobo.dev/commercial-transactions/';
   static const String appleStandardEulaUrl =
       'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
   // Kept for compatibility with existing subscription-link integrations.

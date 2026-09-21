@@ -461,6 +461,17 @@ class SubscriptionLegalLinks extends StatelessWidget {
               ),
             ),
             Semantics(
+              identifier: 'action-open-commercial-transactions',
+              link: true,
+              child: TextButton(
+                onPressed: () => _open(
+                  context,
+                  Uri.parse(AppConfig.commercialTransactionsUrl),
+                ),
+                child: Text(context.l10n.commercialTransactionsDisclosure),
+              ),
+            ),
+            Semantics(
               identifier: 'action-open-apple-standard-eula',
               link: true,
               child: TextButton(

@@ -1196,6 +1196,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get legalDocumentsTitle => 'Legal';
 
   @override
+  String get commercialTransactionsDisclosure =>
+      'Commercial Transactions Disclosure';
+
+  @override
   String get legalConsentTitle => 'Before you continue';
 
   @override
