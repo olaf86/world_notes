@@ -60,8 +60,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         final continuation = Uri.encodeQueryComponent(state.uri.toString());
         return '/onboarding/home-world?continue=$continuation';
       }
+      final cachedLegalAcceptance = ref
+          .read(legalAcceptanceStoreProvider)
+          .readCurrent(authState.valueOrNull!.id);
       final hasCurrentLegalAcceptance =
-          legalAcceptance.valueOrNull?.matches(
+          (cachedLegalAcceptance ?? legalAcceptance.valueOrNull)?.matches(
             serviceTermsVersion: AppConfig.currentServiceTermsVersion,
             privacyPolicyVersion: AppConfig.currentPrivacyPolicyVersion,
           ) ??

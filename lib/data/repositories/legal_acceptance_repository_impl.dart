@@ -3,33 +3,47 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../config/app_config.dart';
 import '../../domain/entities/legal_acceptance.dart';
 import '../../domain/repositories/legal_acceptance_repository.dart';
+import '../../services/legal_acceptance_store.dart';
 import '../../services/world_firebase_clients.dart';
 
 class LegalAcceptanceRepositoryImpl implements LegalAcceptanceRepository {
   const LegalAcceptanceRepositoryImpl({
     required FirebaseFirestore firestore,
     required WorldFunctionsClient functions,
+    required LegalAcceptanceStore store,
   }) : _firestore = firestore,
-       _functions = functions;
+       _functions = functions,
+       _store = store;
 
   final FirebaseFirestore _firestore;
   final WorldFunctionsClient _functions;
+  final LegalAcceptanceStore _store;
 
   @override
   Stream<LegalAcceptance?> watch(String userId) {
-    return _firestore.collection('users').doc(userId).snapshots().map((doc) {
+    final cached = _store.readCurrent(userId);
+    if (cached != null) return Stream.value(cached);
+
+    return _firestore.collection('users').doc(userId).snapshots().asyncMap((
+      doc,
+    ) async {
       if (!doc.exists) return null;
       final data = doc.data();
-      return LegalAcceptance(
+      final acceptance = LegalAcceptance(
         serviceTermsVersion: data?['serviceTermsAcceptedVersion'] as String?,
         privacyPolicyVersion:
             data?['privacyPolicyAcknowledgedVersion'] as String?,
       );
+      await _store.write(userId, acceptance);
+      return acceptance;
     });
   }
 
   @override
-  Future<void> acceptCurrent({required String locale}) async {
+  Future<void> acceptCurrent({
+    required String userId,
+    required String locale,
+  }) async {
     final response = await _functions
         .httpsCallable('acceptServiceTerms')
         .call<Map<String, dynamic>>({
@@ -42,5 +56,9 @@ class LegalAcceptanceRepositoryImpl implements LegalAcceptanceRepository {
         data['privacyPolicyVersion'] != AppConfig.currentPrivacyPolicyVersion) {
       throw StateError('The legal acceptance response is invalid.');
     }
+    await rememberCurrent(userId);
   }
+
+  @override
+  Future<void> rememberCurrent(String userId) => _store.writeCurrent(userId);
 }

@@ -92,13 +92,20 @@ class _FakeLegalAcceptanceRepository implements LegalAcceptanceRepository {
   String? acceptedLocale;
 
   @override
-  Future<void> acceptCurrent({required String locale}) async {
+  Future<void> acceptCurrent({
+    required String userId,
+    required String locale,
+  }) async {
+    expect(userId, 'user-1');
     acceptedLocale = locale;
     _acceptance = const LegalAcceptance(
       serviceTermsVersion: AppConfig.currentServiceTermsVersion,
       privacyPolicyVersion: AppConfig.currentPrivacyPolicyVersion,
     );
   }
+
+  @override
+  Future<void> rememberCurrent(String userId) async {}
 
   @override
   Stream<LegalAcceptance?> watch(String userId) => Stream.value(_acceptance);

@@ -1103,7 +1103,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get legalConsentIntro =>
-      '用户必须年满13周岁方可使用世界日记。未满18周岁的用户须事先取得父母或法定监护人的同意，并在发布或互动前查看这些规则。';
+      '用户必须年满13周岁方可使用世界日记。如果用户所在国家或地区的法律要求更高的最低年龄，或要求父母或法定监护人同意，则必须在发布内容或互动前满足相关要求。';
 
   @override
   String get legalConsentCommunityHighlight => '请尊重他人，不得发布违法、有害、侮辱性或侵犯他人权利的内容。';
@@ -2994,7 +2994,7 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get legalConsentIntro =>
-      '用户必须年满13周岁方可使用世界日记。未满18周岁的用户须事先取得父母或法定监护人的同意，并在发布或互动前查看这些规则。';
+      '用户必须年满13周岁方可使用世界日记。如果用户所在国家或地区的法律要求更高的最低年龄，或要求父母或法定监护人同意，则必须在发布内容或互动前满足相关要求。';
 
   @override
   String get legalConsentCommunityHighlight => '请尊重他人，不得发布违法、有害、侮辱性或侵犯他人权利的内容。';
@@ -4886,7 +4886,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get legalConsentIntro =>
-      '使用者必須年滿13歲方可使用世界日記。未滿18歲的使用者須事先取得父母或法定監護人的同意，並在發佈或互動前查看這些規則。';
+      '使用者必須年滿13歲方可使用世界日記。如果使用者所在國家或地區的法律要求更高的最低年齡，或要求父母或法定監護人同意，則必須在發佈內容或互動前符合相關要求。';
 
   @override
   String get legalConsentCommunityHighlight => '請尊重他人，不得發佈違法、有害、侮辱性或侵害他人權利的內容。';

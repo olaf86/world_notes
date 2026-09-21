@@ -87,7 +87,12 @@ void main() {
         }
         expect(
           l10n.legalConsentIntro,
-          allOf(contains('13'), contains('18')),
+          contains('13'),
+          reason: locale.toLanguageTag(),
+        );
+        expect(
+          l10n.legalConsentIntro,
+          isNot(contains('18')),
           reason: locale.toLanguageTag(),
         );
         for (final preference in AppLanguagePreference.values) {

@@ -29,9 +29,12 @@ class _LegalConsentScreenState extends ConsumerState<LegalConsentScreen> {
       _failed = false;
     });
     try {
+      final user = ref.read(authStateProvider).valueOrNull;
+      if (user == null) throw StateError('Authentication is required.');
       await ref
           .read(legalAcceptanceRepositoryProvider)
           .acceptCurrent(
+            userId: user.id,
             locale: Localizations.localeOf(context).toLanguageTag(),
           );
       ref.invalidate(legalAcceptanceProvider);

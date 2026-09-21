@@ -36,6 +36,8 @@ class _HomeWorldSelectionScreenState
       _submissionFailed = false;
     });
     try {
+      final user = ref.read(authStateProvider).valueOrNull;
+      if (user == null) throw StateError('Authentication is required.');
       final languagePreference = ref.read(appLanguagePreferenceProvider);
       await ref
           .read(accountBootstrapServiceProvider)
@@ -47,6 +49,9 @@ class _HomeWorldSelectionScreenState
               context,
             ).toLanguageTag(),
           );
+      await ref
+          .read(legalAcceptanceRepositoryProvider)
+          .rememberCurrent(user.id);
       await ref.read(subscriptionServiceProvider).syncEntitlement();
       await ref.read(firebaseAuthProvider).currentUser?.getIdToken(true);
       ref.invalidate(homeAssignmentProvider);

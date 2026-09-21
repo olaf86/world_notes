@@ -15,14 +15,18 @@ import 'package:world_notes/l10n/app_localizations.dart';
 import 'package:world_notes/presentation/providers/providers.dart';
 import 'package:world_notes/services/location_service.dart';
 import 'package:world_notes/services/account_bootstrap_service.dart';
+import 'package:world_notes/services/legal_acceptance_store.dart';
 
 void main() {
   testWidgets(
     'opaque full-screen route offstages the shell and restores it on pop',
     (tester) async {
       SharedPreferences.setMockInitialValues(const {});
+      final preferences = await SharedPreferences.getInstance();
+      await LegalAcceptanceStore(preferences).writeCurrent('user-1');
       final container = ProviderContainer(
         overrides: [
+          sharedPreferencesProvider.overrideWithValue(preferences),
           authStateProvider.overrideWith(
             (ref) => Stream<UserEntity?>.value(
               const UserEntity(id: 'user-1', name: 'Test user'),
@@ -34,12 +38,9 @@ void main() {
             ),
           ),
           legalAcceptanceProvider.overrideWith(
-            (ref) => Stream.value(
-              const LegalAcceptance(
-                serviceTermsVersion: '2026-09-20',
-                privacyPolicyVersion: '2026-08-30',
-              ),
-            ),
+            // A current local acceptance must keep startup independent of the
+            // remote legal-acceptance read.
+            (ref) => const Stream<LegalAcceptance?>.empty(),
           ),
           worldReadinessProvider.overrideWith((ref, worldId) async => true),
           isPremiumProvider.overrideWith((ref) => Stream.value(true)),
@@ -60,7 +61,6 @@ void main() {
 
       await container.read(authStateProvider.future);
       await container.read(homeAssignmentProvider.future);
-      await container.read(legalAcceptanceProvider.future);
       await container.read(isPremiumProvider.future);
       final router = container.read(routerProvider);
       addTearDown(router.dispose);

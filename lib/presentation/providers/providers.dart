@@ -56,6 +56,7 @@ import '../../services/ad_privacy_service.dart';
 import '../../services/account_bootstrap_service.dart';
 import '../../services/global_operation_observer.dart';
 import '../../services/location_service.dart';
+import '../../services/legal_acceptance_store.dart';
 import '../../services/admin_moderation_service.dart';
 import '../../services/message_image_service.dart';
 import '../../services/my_notes_notification_service.dart';
@@ -251,6 +252,10 @@ final adDiagnosticsServiceProvider = Provider<AdDiagnosticsService>((ref) {
 /// available on the first rendered frame. Tests may leave this null and get
 /// the system-language default.
 final sharedPreferencesProvider = Provider<SharedPreferences?>((_) => null);
+
+final legalAcceptanceStoreProvider = Provider<LegalAcceptanceStore>((ref) {
+  return LegalAcceptanceStore(ref.watch(sharedPreferencesProvider));
+});
 
 final selectedWorldFunctionsProvider = Provider<WorldFunctionsClient>((ref) {
   return ref.watch(selectedWorldClientsProvider).functions;
@@ -669,6 +674,7 @@ final legalAcceptanceRepositoryProvider = Provider<LegalAcceptanceRepository>((
   return LegalAcceptanceRepositoryImpl(
     firestore: ref.watch(homeWorldFirestoreProvider),
     functions: ref.watch(homeWorldFunctionsProvider),
+    store: ref.watch(legalAcceptanceStoreProvider),
   );
 });
 

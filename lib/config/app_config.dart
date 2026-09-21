@@ -159,8 +159,8 @@ class AppConfig {
       'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
   // Kept for compatibility with existing subscription-link integrations.
   static const String termsOfUseUrl = appleStandardEulaUrl;
-  static const String currentServiceTermsVersion = '2026-09-20';
-  static const String currentPrivacyPolicyVersion = '2026-08-30';
+  static const String currentServiceTermsVersion = '2026-09-22';
+  static const String currentPrivacyPolicyVersion = '2026-09-22';
 
   // Message pagination
   static const int messagesPageSize = 20;

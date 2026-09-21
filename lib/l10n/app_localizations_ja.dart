@@ -1116,7 +1116,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get legalConsentIntro =>
-      '本サービスは13歳以上の方が対象です。18歳未満の方は法定代理人の事前同意を得て、投稿や交流を始める前にルールをご確認ください。';
+      '本サービスは13歳以上の方が対象です。居住国・地域の法令により、より高い最低年齢または親権者その他の法定代理人の同意が求められる場合は、その要件を満たしたうえで、投稿や交流を始める前にルールをご確認ください。';
 
   @override
   String get legalConsentCommunityHighlight =>

@@ -247,9 +247,22 @@ void main() {
       ]) {
         expect(privacyPage, contains(marker));
       }
-      for (final marker in ['18歳未満', 'under 18', '18세 미만', '未满18周岁', '未滿18歲']) {
+      for (final marker in [
+        '居住国・地域',
+        'country or region',
+        '거주 국가 또는 지역',
+        '所在国家或地区',
+        '所在國家或地區',
+      ]) {
         expect(termsPage, contains(marker));
         expect(privacyPage, contains(marker));
+      }
+      for (final page in [termsPage, privacyPage]) {
+        expect(page, isNot(contains('18歳未満')));
+        expect(page, isNot(contains('under 18')));
+        expect(page, isNot(contains('18세 미만')));
+        expect(page, isNot(contains('未满18周岁')));
+        expect(page, isNot(contains('未滿18歲')));
       }
     });
   });
