@@ -218,6 +218,8 @@ void main() {
         commercialTransactionsPage,
         isNot(contains('<dt>販売事業者</dt><dd>小川 雄大（World Notes）</dd>')),
       );
+      expect(commercialTransactionsPage, isNot(contains('運営責任者')));
+      expect(commercialTransactionsPage, isNot(contains('Operations manager')));
       expect(termsPage, contains('小川 雄大（以下「運営者」）'));
     });
 
