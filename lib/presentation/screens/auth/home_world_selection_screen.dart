@@ -49,9 +49,6 @@ class _HomeWorldSelectionScreenState
               context,
             ).toLanguageTag(),
           );
-      await ref
-          .read(legalAcceptanceRepositoryProvider)
-          .rememberCurrent(user.id);
       await ref.read(subscriptionServiceProvider).syncEntitlement();
       await ref.read(firebaseAuthProvider).currentUser?.getIdToken(true);
       ref.invalidate(homeAssignmentProvider);

@@ -56,9 +56,6 @@ class LegalAcceptanceRepositoryImpl implements LegalAcceptanceRepository {
         data['privacyPolicyVersion'] != AppConfig.currentPrivacyPolicyVersion) {
       throw StateError('The legal acceptance response is invalid.');
     }
-    await rememberCurrent(userId);
+    await _store.writeCurrent(userId);
   }
-
-  @override
-  Future<void> rememberCurrent(String userId) => _store.writeCurrent(userId);
 }

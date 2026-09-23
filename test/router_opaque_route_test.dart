@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:world_notes/config/app_config.dart';
 import 'package:world_notes/config/router.dart';
 import 'package:world_notes/config/bootstrap_world_catalog.dart';
 import 'package:world_notes/domain/entities/notice_entity.dart';
@@ -15,18 +15,13 @@ import 'package:world_notes/l10n/app_localizations.dart';
 import 'package:world_notes/presentation/providers/providers.dart';
 import 'package:world_notes/services/location_service.dart';
 import 'package:world_notes/services/account_bootstrap_service.dart';
-import 'package:world_notes/services/legal_acceptance_store.dart';
 
 void main() {
   testWidgets(
     'opaque full-screen route offstages the shell and restores it on pop',
     (tester) async {
-      SharedPreferences.setMockInitialValues(const {});
-      final preferences = await SharedPreferences.getInstance();
-      await LegalAcceptanceStore(preferences).writeCurrent('user-1');
       final container = ProviderContainer(
         overrides: [
-          sharedPreferencesProvider.overrideWithValue(preferences),
           authStateProvider.overrideWith(
             (ref) => Stream<UserEntity?>.value(
               const UserEntity(id: 'user-1', name: 'Test user'),
@@ -38,9 +33,12 @@ void main() {
             ),
           ),
           legalAcceptanceProvider.overrideWith(
-            // A current local acceptance must keep startup independent of the
-            // remote legal-acceptance read.
-            (ref) => const Stream<LegalAcceptance?>.empty(),
+            (ref) => Stream.value(
+              const LegalAcceptance(
+                serviceTermsVersion: AppConfig.currentServiceTermsVersion,
+                privacyPolicyVersion: AppConfig.currentPrivacyPolicyVersion,
+              ),
+            ),
           ),
           worldReadinessProvider.overrideWith((ref, worldId) async => true),
           isPremiumProvider.overrideWith((ref) => Stream.value(true)),

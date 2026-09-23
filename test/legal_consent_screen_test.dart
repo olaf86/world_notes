@@ -105,8 +105,5 @@ class _FakeLegalAcceptanceRepository implements LegalAcceptanceRepository {
   }
 
   @override
-  Future<void> rememberCurrent(String userId) async {}
-
-  @override
   Stream<LegalAcceptance?> watch(String userId) => Stream.value(_acceptance);
 }

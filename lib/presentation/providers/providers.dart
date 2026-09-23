@@ -253,7 +253,7 @@ final adDiagnosticsServiceProvider = Provider<AdDiagnosticsService>((ref) {
 /// the system-language default.
 final sharedPreferencesProvider = Provider<SharedPreferences?>((_) => null);
 
-final legalAcceptanceStoreProvider = Provider<LegalAcceptanceStore>((ref) {
+final _legalAcceptanceStoreProvider = Provider<LegalAcceptanceStore>((ref) {
   return LegalAcceptanceStore(ref.watch(sharedPreferencesProvider));
 });
 
@@ -674,7 +674,7 @@ final legalAcceptanceRepositoryProvider = Provider<LegalAcceptanceRepository>((
   return LegalAcceptanceRepositoryImpl(
     firestore: ref.watch(homeWorldFirestoreProvider),
     functions: ref.watch(homeWorldFunctionsProvider),
-    store: ref.watch(legalAcceptanceStoreProvider),
+    store: ref.watch(_legalAcceptanceStoreProvider),
   );
 });
 

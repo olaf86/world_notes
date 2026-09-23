@@ -30,7 +30,7 @@ import 'world_catalog.dart';
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
   final homeAssignment = ref.watch(homeAssignmentProvider);
-  final legalAcceptance = ref.watch(legalAcceptanceProvider);
+  final legalAcceptanceState = ref.watch(legalAcceptanceProvider);
 
   return GoRouter(
     initialLocation: '/map',
@@ -60,21 +60,18 @@ final routerProvider = Provider<GoRouter>((ref) {
         final continuation = Uri.encodeQueryComponent(state.uri.toString());
         return '/onboarding/home-world?continue=$continuation';
       }
-      final cachedLegalAcceptance = ref
-          .read(legalAcceptanceStoreProvider)
-          .readCurrent(authState.valueOrNull!.id);
+      // The repository resolves a valid local record before consulting
+      // Firestore. Wait for that single source of truth so a transient loading
+      // state cannot send an already-consented user through onboarding again.
+      if (legalAcceptanceState.isLoading) return null;
       final hasCurrentLegalAcceptance =
-          (cachedLegalAcceptance ?? legalAcceptance.valueOrNull)?.matches(
+          legalAcceptanceState.valueOrNull?.matches(
             serviceTermsVersion: AppConfig.currentServiceTermsVersion,
             privacyPolicyVersion: AppConfig.currentPrivacyPolicyVersion,
           ) ??
           false;
       if (!hasCurrentLegalAcceptance) {
         if (isLegalConsentRoute) return null;
-        // Let the just-completed bootstrap resolve without replacing its
-        // existing continuation. Existing accounts are sent to the one-time
-        // consent screen immediately.
-        if (isHomeSelectionRoute && legalAcceptance.isLoading) return null;
         final requestedContinuation = isHomeSelectionRoute
             ? state.uri.queryParameters['continue']
             : null;
