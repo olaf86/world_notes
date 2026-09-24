@@ -8,10 +8,10 @@ sensitive personal data.
 
 - Owner: the World Notes operator, 小川 雄大.
 - Intake address: `asobo.support@gmail.com`.
-- Covered requests: operator-address and security-measure information;
-  notice of purpose; access; correction; addition; deletion; restriction or
-  cessation of use; erasure; cessation of third-party provision; and privacy
-  complaints.
+- Covered requests: operator-name, operator-address, security-measure, and
+  foreign-processing information; notice of purpose; access; correction;
+  addition; deletion; restriction or cessation of use; erasure; cessation of
+  third-party provision; and privacy complaints.
 - A request may be made by the data subject or a duly authorized
   representative. An unrelated anonymous requester is not treated as the data
   subject for an APPI Article 32 request.
@@ -46,17 +46,31 @@ is sufficient, transmit it through an appropriate channel, limit access, and
 delete it when verification and any legally required retention are complete.
 For a representative, verify both the data subject and the authority to act.
 
-## Operator address and safeguard information
+## Operator identity, safeguards, and foreign processing
 
+- Keep the operator's current legal name in a private operational record,
+  outside the public Privacy Policy.
 - Keep the operator's current business address in a private operational
   record, outside this repository.
 - Confirm that the requester is the data subject or an authorized
   representative before responding to an APPI Article 32 request.
-- Send the address to a verified contact channel without undue delay. Do not
-  publish it in a public ticket, repository, or support-thread excerpt.
+- Send the legal name and address to a verified contact channel without undue
+  delay. Do not publish them in a public ticket, repository, or support-thread
+  excerpt.
 - Provide a useful summary of implemented security safeguards. Exclude details
   whose disclosure could materially weaken authentication, access control,
   abuse prevention, monitoring, or incident response.
+- Maintain a private, current inventory of each processor or external service,
+  its role, the categories of data involved, the countries or regions where
+  data may be processed, the applicable transfer basis, and the contractual or
+  technical safeguards relied upon. Confirm the inventory against current
+  vendor documentation before responding.
+- On a verified request, provide the relevant countries or regions and a
+  useful summary of the measures taken without undue delay. Do not disclose
+  credentials, infrastructure details, or other information that could impair
+  security.
+- Review the inventory whenever a provider, hosting region, data flow, or
+  contractual protection changes.
 
 ## Handling a personal-data request
 

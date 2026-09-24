@@ -45,9 +45,10 @@ void main() {
       );
     });
 
-    test('name the legal rights holder in the copyright notice', () {
+    test('use the intended copyright notice on each legal page', () {
       expect(supportPage, contains('© 2026 Yuta Ogawa'));
-      expect(privacyPage, contains('© 2026 Yuta Ogawa'));
+      expect(privacyPage, contains('© 2026 World Notes'));
+      expect(privacyPage, isNot(contains('© 2026 Yuta Ogawa')));
       expect(termsPage, contains('© 2026 Yuta Ogawa'));
       expect(commercialTransactionsPage, contains('© 2026 Yuta Ogawa'));
     });
@@ -233,15 +234,35 @@ void main() {
 
     test('publish APPI operator and data-request information', () {
       for (final marker in [
-        '個人情報取扱事業者は、小川 雄大です',
-        '事業者の住所は、本人からご請求いただいた場合に遅滞なく開示します',
-        '安全管理措置',
-        '本人確認に必要な最小限の情報',
-        '第三者提供の停止',
-        '手数料は原則としていただきません',
+        'セカイノート運営者（以下「運営者」）',
+        '個人情報の保護に関する法律その他の適用法令',
+        '法令に定める要件を満たす場合',
+        '法令に基づく場合その他法令上認められる場合を除き',
+        '本サービスの運営主体は個人です',
+        '個人情報取扱事業者の氏名および住所は、本人またはその正当な代理人から請求があった場合',
+        '本人確認および代理権の確認',
+        '法令に従い遅滞なく開示します',
+        '必要かつ適切な組織的および技術的安全管理措置',
+        '適用法令上同意が必要な場合は、別途同意を取得します',
+        '手数料は原則として徴収しません',
       ]) {
         expect(privacyPage, contains(marker));
       }
+      for (final localizedOperator in [
+        '運営者：セカイノート運営者',
+        'Operator: Operator of World Notes',
+        '운영자: 세계 일기 운영자',
+        '运营者：世界日记运营者',
+        '營運者：世界日記營運者',
+      ]) {
+        expect(privacyPage, contains(localizedOperator));
+      }
+      expect(privacyPage, isNot(contains('小川 雄大')));
+      expect(privacyPage, isNot(contains('Yuta Ogawa')));
+      expect(
+        commercialTransactionsPage,
+        contains('<dt>販売事業者</dt><dd>小川 雄大</dd>'),
+      );
     });
 
     test('publish the same minimum-age policy in every legal language', () {
