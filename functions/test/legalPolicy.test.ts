@@ -9,7 +9,7 @@ import {
 test("accepts only the current complete legal acknowledgement", () => {
   const acceptance = legalAcceptanceFrom({
     serviceTermsVersion: "2026-09-22",
-    privacyPolicyVersion: "2026-09-22",
+    privacyPolicyVersion: "2026-09-24",
     locale: "ja",
   });
   assert.deepEqual(acceptance, {locale: "ja"});
@@ -17,7 +17,7 @@ test("accepts only the current complete legal acknowledgement", () => {
   assert.deepEqual(legalAcceptanceFields(acceptance, "now"), {
     serviceTermsAcceptedVersion: "2026-09-22",
     serviceTermsAcceptedAt: "now",
-    privacyPolicyAcknowledgedVersion: "2026-09-22",
+    privacyPolicyAcknowledgedVersion: "2026-09-24",
     privacyPolicyAcknowledgedAt: "now",
     legalAcceptanceLocale: "ja",
   });
@@ -35,7 +35,7 @@ test("rejects stale or partial acknowledgements", () => {
   }, true));
   assert.throws(() => legalAcceptanceFrom({
     serviceTermsVersion: "2026-01-01",
-    privacyPolicyVersion: "2026-09-22",
+    privacyPolicyVersion: "2026-09-24",
     locale: "en",
   }));
 });

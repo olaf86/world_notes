@@ -249,7 +249,7 @@ describe(
           languagePreference: "ja",
           resolvedLocale: "ja",
           serviceTermsVersion: "2026-09-22",
-          privacyPolicyVersion: "2026-09-22",
+          privacyPolicyVersion: "2026-09-24",
           legalAcceptanceLocale: "ja",
         },
         idToken,
@@ -283,7 +283,7 @@ describe(
       );
       assert.equal(
         user.get("privacyPolicyAcknowledgedVersion"),
-        "2026-09-22",
+        "2026-09-24",
       );
       assert.equal(user.get("legalAcceptanceLocale"), "ja");
       assert.ok(user.get("serviceTermsAcceptedAt") instanceof Timestamp);

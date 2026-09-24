@@ -33,20 +33,23 @@ Submission**, then select each language from the localization menu.
 - Secondary Category: **Travel**
 - Version: `1.0.0`
 - Copyright: `2026 Yuta Ogawa`
-- Privacy Policy URL: `https://worldnotes.asobo.dev/privacy/`. Published and
-  verified over HTTPS on 2026-09-03. The page source is in
-  `public/privacy/index.html`.
+- Privacy Policy URL: `https://worldnotes.asobo.dev/privacy/`. The URL was
+  verified over HTTPS on 2026-09-03, but the 2026-09-24 revision in
+  `public/privacy/index.html` must be deployed and reverified before release.
 - Support URL: `https://worldnotes.asobo.dev/support/`. Published and verified
   over HTTPS on 2026-08-30. The page source is in
   `public/support/index.html` and lists the public support address
   `asobo.support@gmail.com`.
 - Service Terms URL: `https://worldnotes.asobo.dev/terms/`. The public service
-  rules supplement, but do not replace, the Apple Standard EULA.
+  rules supplement, but do not replace, the Apple Standard EULA. Deploy this
+  branch before using the URL in a released binary; it returned 404 on
+  2026-09-24 before deployment.
 - Commercial Transactions Disclosure URL:
   `https://worldnotes.asobo.dev/commercial-transactions/`. This page publishes
   the information required for subscription sales in Japan, including the
   operator's process for disclosing the business address and telephone number
-  without delay upon a consumer request.
+  without delay upon a consumer request. It also returned 404 on 2026-09-24
+  before deployment.
 - App license: keep the Apple Standard EULA. Include both the Service Terms URL
   and `https://www.apple.com/legal/internet-services/itunes/dev/stdeula/` in
   every localized Description so the product page provides functional links.
@@ -54,8 +57,9 @@ Submission**, then select each language from the localization menu.
   published at the site root. Invitation links are served separately from
   `public/invite/index.html` through the Firebase Hosting rewrite.
 
-Both URLs are ready to enter in App Store Connect. Reverify them after future
-Hosting changes.
+The source documents are ready, but every URL must return the intended current
+document over HTTPS before it is entered in App Store Connect or referenced by
+a released binary.
 
 ## Auto-renewable subscription review requirements
 

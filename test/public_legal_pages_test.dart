@@ -224,10 +224,23 @@ void main() {
     });
 
     test('make the Japanese legal text authoritative', () {
-      for (final page in [termsPage, commercialTransactionsPage]) {
+      for (final page in [privacyPage, termsPage, commercialTransactionsPage]) {
         expect(page, contains('日本語版を正文とします'));
         expect(page, contains('日本語版が優先します'));
         expect(page, contains('権利を妨げるものではありません'));
+      }
+    });
+
+    test('publish APPI operator and data-request information', () {
+      for (final marker in [
+        '個人情報取扱事業者は、小川 雄大です',
+        '事業者の住所は、本人からご請求いただいた場合に遅滞なく開示します',
+        '安全管理措置',
+        '本人確認に必要な最小限の情報',
+        '第三者提供の停止',
+        '手数料は原則としていただきません',
+      ]) {
+        expect(privacyPage, contains(marker));
       }
     });
 
