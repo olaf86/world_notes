@@ -2,7 +2,7 @@ import {HttpsError} from "firebase-functions/v2/https";
 
 import {notificationLocale} from "./noticeTemplateCatalog";
 
-export const CURRENT_SERVICE_TERMS_VERSION = "2026-09-22";
+export const CURRENT_SERVICE_TERMS_VERSION = "2026-09-26";
 export const CURRENT_PRIVACY_POLICY_VERSION = "2026-09-24";
 
 export interface LegalAcceptanceInput {

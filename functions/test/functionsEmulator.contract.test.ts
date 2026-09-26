@@ -248,7 +248,7 @@ describe(
           homeWorld: "asia",
           languagePreference: "ja",
           resolvedLocale: "ja",
-          serviceTermsVersion: "2026-09-22",
+          serviceTermsVersion: "2026-09-26",
           privacyPolicyVersion: "2026-09-24",
           legalAcceptanceLocale: "ja",
         },
@@ -279,7 +279,7 @@ describe(
       assert.equal(user.get("noticeLocale"), "ja");
       assert.equal(
         user.get("serviceTermsAcceptedVersion"),
-        "2026-09-22",
+        "2026-09-26",
       );
       assert.equal(
         user.get("privacyPolicyAcknowledgedVersion"),

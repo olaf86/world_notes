@@ -8,14 +8,14 @@ import {
 
 test("accepts only the current complete legal acknowledgement", () => {
   const acceptance = legalAcceptanceFrom({
-    serviceTermsVersion: "2026-09-22",
+    serviceTermsVersion: "2026-09-26",
     privacyPolicyVersion: "2026-09-24",
     locale: "ja",
   });
   assert.deepEqual(acceptance, {locale: "ja"});
   if (acceptance === null) assert.fail("Expected legal acceptance.");
   assert.deepEqual(legalAcceptanceFields(acceptance, "now"), {
-    serviceTermsAcceptedVersion: "2026-09-22",
+    serviceTermsAcceptedVersion: "2026-09-26",
     serviceTermsAcceptedAt: "now",
     privacyPolicyAcknowledgedVersion: "2026-09-24",
     privacyPolicyAcknowledgedAt: "now",
@@ -30,7 +30,7 @@ test("allows a fully omitted acknowledgement only for legacy bootstrap", () => {
 
 test("rejects stale or partial acknowledgements", () => {
   assert.throws(() => legalAcceptanceFrom({
-    serviceTermsVersion: "2026-09-22",
+    serviceTermsVersion: "2026-09-26",
     locale: "en",
   }, true));
   assert.throws(() => legalAcceptanceFrom({

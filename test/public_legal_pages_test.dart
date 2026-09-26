@@ -49,7 +49,8 @@ void main() {
       expect(supportPage, contains('© 2026 Yuta Ogawa'));
       expect(privacyPage, contains('© 2026 World Notes'));
       expect(privacyPage, isNot(contains('© 2026 Yuta Ogawa')));
-      expect(termsPage, contains('© 2026 Yuta Ogawa'));
+      expect(termsPage, contains('© 2026 World Notes'));
+      expect(termsPage, isNot(contains('© 2026 Yuta Ogawa')));
       expect(commercialTransactionsPage, contains('© 2026 Yuta Ogawa'));
     });
 
@@ -201,6 +202,40 @@ void main() {
       );
     });
 
+    test('state enforceable consent, amendment, and liability safeguards', () {
+      for (final marker in [
+        '同意する旨の操作を完了した時点',
+        '未成年者取消権',
+        '必要かつ相当な範囲',
+        '登録情報に重大な虚偽',
+        '権利侵害の対象となる投稿コンテンツ',
+        '無料期間終了後の価格',
+        '行政機関、施設管理者、交通事業者その他の公的または権限ある情報源',
+        '自己の責めに帰すべき事由がある範囲',
+        '運営者の責めに帰すべき事由によらない外部サービスの行為',
+        '合理的な範囲で、本サービスを安全かつ安定的に提供し',
+        '合理的な安全管理措置を講じても防止困難なサイバー攻撃',
+        '本条は、それ自体により',
+        '消費者契約法上の消費者契約',
+        '故意または重大な過失',
+        '特別事情によって生じた損害',
+        '利用者の一般の利益に適合する場合',
+        '暴力団員でなくなった日から5年を経過しない者',
+        '暴力的な要求行為',
+        '本サービス内への掲示、登録されたメールアドレスへの送信',
+        '事業譲渡、合併、会社分割',
+        '第一審の付加的合意管轄裁判所',
+        '分離可能性',
+        '当該使用許諾に限りApple標準EULAが優先します',
+      ]) {
+        expect(termsPage, contains(marker));
+      }
+      expect(termsPage, isNot(contains('専属的合意管轄裁判所')));
+      expect(termsPage, isNot(contains('Tokyo District Court')));
+      expect(termsPage, contains('2026年9月26日'));
+      expect(termsPage, isNot(contains('2026年9月22日')));
+    });
+
     test('publish a complete commercial transactions disclosure', () {
       for (final marker in [
         '特定商取引法に基づく表記',
@@ -221,7 +256,9 @@ void main() {
       );
       expect(commercialTransactionsPage, isNot(contains('運営責任者')));
       expect(commercialTransactionsPage, isNot(contains('Operations manager')));
-      expect(termsPage, contains('小川 雄大（以下「運営者」）'));
+      expect(termsPage, contains('セカイノート運営者（以下「運営者」）'));
+      expect(termsPage, isNot(contains('小川 雄大')));
+      expect(termsPage, isNot(contains('Yuta Ogawa')));
     });
 
     test('make the Japanese legal text authoritative', () {
@@ -256,6 +293,7 @@ void main() {
         '營運者：世界日記營運者',
       ]) {
         expect(privacyPage, contains(localizedOperator));
+        expect(termsPage, contains(localizedOperator));
       }
       expect(privacyPage, isNot(contains('小川 雄大')));
       expect(privacyPage, isNot(contains('Yuta Ogawa')));
@@ -263,6 +301,14 @@ void main() {
         commercialTransactionsPage,
         contains('<dt>販売事業者</dt><dd>小川 雄大</dd>'),
       );
+    });
+
+    test('link role-based operator labels to the statutory disclosure', () {
+      for (final language in supportedLanguages) {
+        final link = '/commercial-transactions/?lang=$language';
+        expect(privacyPage, contains('href="$link"'));
+        expect(termsPage, contains('href="$link"'));
+      }
     });
 
     test('publish the same minimum-age policy in every legal language', () {
