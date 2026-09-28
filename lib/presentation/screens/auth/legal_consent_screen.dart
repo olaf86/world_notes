@@ -53,7 +53,10 @@ class _LegalConsentScreenState extends ConsumerState<LegalConsentScreen> {
             ? destination
             : '/map',
       );
-    } catch (_) {
+    } catch (error, stack) {
+      await ref
+          .read(legalConsentDiagnosticsServiceProvider)
+          .reportSubmissionFailure(error, stack);
       if (mounted) setState(() => _failed = true);
     } finally {
       if (mounted) setState(() => _submitting = false);
