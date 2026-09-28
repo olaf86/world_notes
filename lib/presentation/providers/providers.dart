@@ -57,6 +57,7 @@ import '../../services/account_bootstrap_service.dart';
 import '../../services/global_operation_observer.dart';
 import '../../services/location_service.dart';
 import '../../services/legal_acceptance_store.dart';
+import '../../services/legal_consent_diagnostics_service.dart';
 import '../../services/admin_moderation_service.dart';
 import '../../services/message_image_service.dart';
 import '../../services/my_notes_notification_service.dart';
@@ -243,6 +244,13 @@ final firebaseMessagingProvider = Provider<FirebaseMessaging>(
 final firebaseCrashlyticsProvider = Provider<FirebaseCrashlytics>(
   (_) => FirebaseCrashlytics.instance,
 );
+
+final legalConsentDiagnosticsServiceProvider =
+    Provider<LegalConsentDiagnosticsService>((ref) {
+      return FirebaseLegalConsentDiagnosticsService(
+        ref.watch(firebaseCrashlyticsProvider),
+      );
+    });
 
 final adDiagnosticsServiceProvider = Provider<AdDiagnosticsService>((ref) {
   return FirebaseAdDiagnosticsService(ref.watch(firebaseCrashlyticsProvider));
