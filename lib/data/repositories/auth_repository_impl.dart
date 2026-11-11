@@ -50,12 +50,10 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<UserEntity> signInWithGoogle() async {
-    final googleUser = await _googleSignIn.signIn();
-    if (googleUser == null) throw Exception('Google sign in cancelled');
+    final googleUser = await _authenticateWithGoogle();
 
-    final googleAuth = await googleUser.authentication;
+    final googleAuth = googleUser.authentication;
     final credential = GoogleAuthProvider.credential(
-      accessToken: googleAuth.accessToken,
       idToken: googleAuth.idToken,
     );
 
@@ -155,19 +153,19 @@ class AuthRepositoryImpl implements AuthRepository {
       }
       await _auth.revokeTokenWithAuthorizationCode(authorizationCode);
     } else if (providers.contains(GoogleAuthProvider.PROVIDER_ID)) {
-      final googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) {
+      GoogleSignInAccount googleUser;
+      try {
+        googleUser = await _googleSignIn.authenticate();
+      } on GoogleSignInException catch (error) {
+        if (error.code != GoogleSignInExceptionCode.canceled) rethrow;
         throw FirebaseAuthException(
           code: 'reauthentication-cancelled',
           message: 'Google reauthentication was cancelled.',
         );
       }
-      final googleAuth = await googleUser.authentication;
+      final googleAuth = googleUser.authentication;
       await user.reauthenticateWithCredential(
-        GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
-          idToken: googleAuth.idToken,
-        ),
+        GoogleAuthProvider.credential(idToken: googleAuth.idToken),
       );
     } else if (providers.contains(EmailAuthProvider.PROVIDER_ID)) {
       final email = user.email;
@@ -200,6 +198,15 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<void> signOut() async {
     await Future.wait([_auth.signOut(), _googleSignIn.signOut()]);
+  }
+
+  Future<GoogleSignInAccount> _authenticateWithGoogle() async {
+    try {
+      return await _googleSignIn.authenticate();
+    } on GoogleSignInException catch (error) {
+      if (error.code != GoogleSignInExceptionCode.canceled) rethrow;
+      throw Exception('Google sign in cancelled');
+    }
   }
 
   UserEntity _toEntity(User firebaseUser) => UserEntity(

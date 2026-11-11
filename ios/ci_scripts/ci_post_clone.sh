@@ -9,9 +9,10 @@ git clone https://github.com/flutter/flutter.git \
     --depth 1 -b stable "$FLUTTER_ROOT"
 export PATH="$PATH:$FLUTTER_ROOT/bin"
 
-# Use CocoaPods for iOS plugins in CI. Xcode Cloud has been intermittently
-# failing while resolving Firebase SwiftPM binary artifacts.
-flutter config --no-enable-swift-package-manager
+# The current FlutterFire packages use Swift Package Manager for their native
+# Firebase dependencies. Keep it enabled explicitly in Xcode Cloud as well as
+# in pubspec.yaml so CI and local release builds use the same integration.
+flutter config --enable-swift-package-manager
 
 # ---------------------------------------------------------------------------
 # Restore secret files
