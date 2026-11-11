@@ -153,6 +153,9 @@ class MyNotesNotificationService {
       if (user == null) return;
       unawaited(_registerCurrentTokenInBackground('authentication change'));
     });
+    // The replacement emits an FID, while our Functions endpoint still sends
+    // via FCM registration tokens. Keep the token API until both sides migrate.
+    // ignore: deprecated_member_use
     _tokenRefreshSubscription ??= _messaging.onTokenRefresh.listen((token) {
       unawaited(_registerRefreshedToken(token));
     });
@@ -244,6 +247,8 @@ class MyNotesNotificationService {
       await _logRegistrationDiagnostic('APNs token acquired.');
     }
     await _logRegistrationDiagnostic('Requesting the current FCM token.');
+    // See startRegistrationSync: the server currently stores FCM tokens.
+    // ignore: deprecated_member_use
     final token = await _messaging.getToken();
     await _logRegistrationDiagnostic(
       token == null || token.isEmpty

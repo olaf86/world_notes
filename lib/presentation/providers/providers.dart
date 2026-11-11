@@ -664,7 +664,7 @@ class AppLanguagePreferenceNotifier
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepositoryImpl(
     auth: ref.watch(firebaseAuthProvider),
-    googleSignIn: GoogleSignIn(),
+    googleSignIn: GoogleSignIn.instance,
     functionsProvider: () async {
       final functions = await ref.read(homeWorldFunctionsResolverProvider)();
       if (functions == null) {
