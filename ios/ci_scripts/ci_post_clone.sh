@@ -42,7 +42,7 @@ flutter precache --ios
 
 cd "$CI_PRIMARY_REPOSITORY_PATH"
 flutter pub get
-dart pub global activate flutterfire_cli 1.3.2
+dart pub global activate flutterfire_cli 1.5.0
 
 if ! command -v pod >/dev/null 2>&1; then
   echo "ERROR: CocoaPods is not installed"
