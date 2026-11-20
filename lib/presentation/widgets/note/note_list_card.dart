@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/theme/note_themes.dart';
 import '../../../domain/entities/note_theme.dart';

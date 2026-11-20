@@ -1,9 +1,9 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:world_notes/domain/entities/content_report.dart';
 import 'package:world_notes/domain/entities/user_entity.dart';
-import 'package:world_notes/l10n/app_localizations.dart';
+import 'package:world_notes/l10n/l10n.dart';
 import 'package:world_notes/presentation/providers/providers.dart';
 import 'package:world_notes/presentation/screens/report/report_message_screen.dart';
 
@@ -13,7 +13,7 @@ void main() {
       const ProviderScope(
         child: MaterialApp(
           locale: Locale('ja'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          localizationsDelegates: appLocalizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: ReportContentScreen(
             placeId: 'place-1',
@@ -47,7 +47,7 @@ void main() {
       const ProviderScope(
         child: MaterialApp(
           locale: Locale('en'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          localizationsDelegates: appLocalizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: ReportContentScreen(
             placeId: 'place-1',
@@ -80,7 +80,7 @@ void main() {
         ],
         child: const MaterialApp(
           locale: Locale('en'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          localizationsDelegates: appLocalizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: ReportContentScreen(
             placeId: 'place-1',

@@ -1,9 +1,9 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:world_notes/l10n/app_locale.dart';
-import 'package:world_notes/l10n/app_localizations.dart';
+import 'package:world_notes/l10n/l10n.dart';
 import 'package:world_notes/presentation/providers/providers.dart';
 import 'package:world_notes/presentation/screens/auth/home_world_selection_screen.dart';
 
@@ -24,7 +24,7 @@ void main() {
           ),
         ],
         child: const MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          localizationsDelegates: appLocalizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: HomeWorldSelectionScreen(),
         ),
@@ -64,7 +64,7 @@ void main() {
         ],
         child: const MaterialApp(
           locale: Locale('ja'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          localizationsDelegates: appLocalizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: HomeWorldSelectionScreen(),
         ),
@@ -105,7 +105,7 @@ void main() {
             return MaterialApp(
               locale: preference.locale,
               localeListResolutionCallback: resolveAppLocale,
-              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              localizationsDelegates: appLocalizationsDelegates,
               supportedLocales: AppLocalizations.supportedLocales,
               home: const HomeWorldSelectionScreen(),
             );

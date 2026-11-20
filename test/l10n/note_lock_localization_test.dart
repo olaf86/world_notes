@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:world_notes/l10n/l10n.dart';
 import 'package:world_notes/presentation/widgets/note/note_lock_setup_dialog.dart';
@@ -8,7 +8,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         locale: const Locale('ja'),
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        localizationsDelegates: appLocalizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: Builder(
           builder: (context) => NoteLockSetupDialog(

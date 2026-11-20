@@ -1,9 +1,9 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:world_notes/domain/entities/place_entity.dart';
 import 'package:world_notes/domain/entities/user_entity.dart';
-import 'package:world_notes/l10n/app_localizations.dart';
+import 'package:world_notes/l10n/l10n.dart';
 import 'package:world_notes/presentation/providers/providers.dart';
 import 'package:world_notes/presentation/screens/my_notes/my_notes_screen.dart';
 
@@ -32,7 +32,7 @@ void main() {
           ),
         ],
         child: const MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          localizationsDelegates: appLocalizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: MyNotesScreen(),
         ),

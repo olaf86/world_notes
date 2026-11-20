@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:apple_maps_flutter/apple_maps_flutter.dart' as apple;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../../../config/app_config.dart';

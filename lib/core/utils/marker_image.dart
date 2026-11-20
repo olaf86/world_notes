@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Renders a teardrop-style map marker (colored pin with a white icon glyph)
 /// to a PNG byte array suitable for the native map SDKs.

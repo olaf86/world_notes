@@ -1,7 +1,7 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:world_notes/domain/entities/note_theme.dart';
-import 'package:world_notes/l10n/app_localizations.dart';
+import 'package:world_notes/l10n/l10n.dart';
 import 'package:world_notes/presentation/widgets/note/note_theme_picker.dart';
 
 void main() {
@@ -10,7 +10,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        localizationsDelegates: appLocalizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: StatefulBuilder(

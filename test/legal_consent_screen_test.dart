@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -8,7 +8,7 @@ import 'package:world_notes/config/bootstrap_world_catalog.dart';
 import 'package:world_notes/domain/entities/legal_acceptance.dart';
 import 'package:world_notes/domain/entities/user_entity.dart';
 import 'package:world_notes/domain/repositories/legal_acceptance_repository.dart';
-import 'package:world_notes/l10n/app_localizations.dart';
+import 'package:world_notes/l10n/l10n.dart';
 import 'package:world_notes/presentation/providers/providers.dart';
 import 'package:world_notes/presentation/screens/auth/legal_consent_screen.dart';
 import 'package:world_notes/services/account_bootstrap_service.dart';
@@ -57,7 +57,7 @@ void main() {
         child: MaterialApp.router(
           routerConfig: router,
           locale: const Locale('en'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          localizationsDelegates: appLocalizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
         ),
       ),

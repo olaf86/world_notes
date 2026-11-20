@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Provides one lightweight pulse animation for all skeleton shapes below it.
 /// The subtree is excluded from semantics because it contains no real content.

@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
@@ -11,7 +11,7 @@ import 'package:world_notes/domain/entities/notice_entity.dart';
 import 'package:world_notes/domain/entities/legal_acceptance.dart';
 import 'package:world_notes/domain/entities/place_entity.dart';
 import 'package:world_notes/domain/entities/user_entity.dart';
-import 'package:world_notes/l10n/app_localizations.dart';
+import 'package:world_notes/l10n/l10n.dart';
 import 'package:world_notes/presentation/providers/providers.dart';
 import 'package:world_notes/services/location_service.dart';
 import 'package:world_notes/services/account_bootstrap_service.dart';
@@ -68,7 +68,7 @@ void main() {
           container: container,
           child: MaterialApp.router(
             routerConfig: router,
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            localizationsDelegates: appLocalizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
           ),
         ),
