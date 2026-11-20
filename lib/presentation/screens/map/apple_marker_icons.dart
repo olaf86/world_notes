@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:apple_maps_flutter/apple_maps_flutter.dart' as apple;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/utils/marker_image.dart';
 import '../../../core/utils/place_icon.dart';

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:world_notes/domain/entities/pin_summary_entity.dart';
 import 'package:world_notes/presentation/widgets/map/map_note_activity_badges.dart';

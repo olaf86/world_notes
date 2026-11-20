@@ -14,6 +14,9 @@ analyzer:
     - build/**
     - android/**
     - ios/**
+    # Flutter 3.50's gen-l10n template still imports deprecated framework UI
+    # shims. Generated code is compile-tested and should not block analysis.
+    - lib/l10n/app_localizations*.dart
 
 linter:
   # The lint rules applied to this project can be customized in the

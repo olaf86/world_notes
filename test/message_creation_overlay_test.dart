@@ -1,11 +1,11 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:world_notes/domain/entities/message_entity.dart';
 import 'package:world_notes/domain/entities/mention_target.dart';
 import 'package:world_notes/domain/entities/user_entity.dart';
 import 'package:world_notes/domain/repositories/message_repository.dart';
-import 'package:world_notes/l10n/app_localizations.dart';
+import 'package:world_notes/l10n/l10n.dart';
 import 'package:world_notes/presentation/providers/providers.dart';
 import 'package:world_notes/presentation/widgets/note/message_creation_overlay.dart';
 
@@ -23,7 +23,7 @@ void main() {
           messageRepositoryProvider.overrideWithValue(repository),
         ],
         child: MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          localizationsDelegates: appLocalizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Consumer(
             builder: (context, ref, _) {

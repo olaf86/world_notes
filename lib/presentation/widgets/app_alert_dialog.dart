@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// An app-styled alert dialog that keeps dismissive and affirmative actions
 /// visually separated.
